@@ -127,6 +127,15 @@ fun ParentModeWalletHost(
     var shownRole by remember { mutableStateOf(SchoolRole.PARENT) }
     optionsRole?.let { shownRole = it }
     var sheet by rememberSaveable { mutableStateOf<ParentSheetKind?>(null) }
+    // El hijo recién agregado al que el tutor eligió recargarle: su ficha abre en la recarga.
+    var reloadChildId by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(openChildId) { if (openChildId == null) reloadChildId = null }
+    val openAddedChild: (Dependent, Boolean) -> Unit = { child, reload ->
+        sheet = null
+        optionsRole = null
+        reloadChildId = if (reload) child.userId else null
+        openChildId = child.userId
+    }
     val fullScreen = openChildId != null || optionsRole != null
     LaunchedEffect(fullScreen) { onFullScreenChange(fullScreen) }
     LaunchedEffect(Unit) {
@@ -204,6 +213,7 @@ fun ParentModeWalletHost(
                 hasTutors = hasTutors,
                 onAccountClaimed = onAccountClaimed,
                 onBack = { optionsRole = null },
+                onOpenChild = openAddedChild,
             )
         }
         val openChild = children.children.firstOrNull { it.userId == openChildId && !it.isAwaitingSchool }
@@ -223,6 +233,7 @@ fun ParentModeWalletHost(
                         }
                     },
                     onBack = { openChildId = null },
+                    startWithReload = reloadChildId == openChild.userId,
                 )
             }
         }
@@ -235,6 +246,7 @@ fun ParentModeWalletHost(
                 onAdded = children::upsert,
                 onDismiss = { sheet = null },
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
+                onOpenChild = openAddedChild,
             )
         ParentSheetKind.CONSENT -> PrivacyConsentSheet(children = children, onDismiss = { sheet = null })
         ParentSheetKind.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = { sheet = null })

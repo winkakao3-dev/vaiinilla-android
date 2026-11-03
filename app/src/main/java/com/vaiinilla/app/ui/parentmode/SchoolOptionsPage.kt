@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.SkeletonBlock
@@ -73,6 +74,8 @@ internal fun SchoolOptionsPage(
     hasTutors: Boolean,
     onAccountClaimed: suspend () -> Unit,
     onBack: () -> Unit,
+    /** El paso 3 de agregar a un hijo lleva a su ficha (con `true`, a recargarle). */
+    onOpenChild: (Dependent, Boolean) -> Unit = { _, _ -> },
 ) {
     val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
@@ -152,7 +155,7 @@ internal fun SchoolOptionsPage(
         )
     }
 
-    SchoolOptionsSheets(sheet, children, onAccountClaimed, scope) { sheet = null }
+    SchoolOptionsSheets(sheet, children, onAccountClaimed, scope, onOpenChild) { sheet = null }
 }
 
 /** Agregar a un hijo, o antes el código de la escuela si todavía no lo escribió. */
@@ -209,6 +212,7 @@ private fun SchoolOptionsSheets(
     children: ChildrenState,
     onAccountClaimed: suspend () -> Unit,
     scope: CoroutineScope,
+    onOpenChild: (Dependent, Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     when (sheet) {
@@ -219,6 +223,10 @@ private fun SchoolOptionsSheets(
                 onDismiss = onDismiss,
                 onParentUnlocked = children::markParentUnlocked,
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
+                onOpenChild = { child, reload ->
+                    onDismiss()
+                    onOpenChild(child, reload)
+                },
             )
         OptionsSheet.UNLOCK ->
             ParentUnlockSheet(

@@ -85,6 +85,8 @@ internal fun AddChildSheet(
     onParentUnlocked: () -> Unit = {},
     /** Los hijos que ya cuidas: el código de uno de ellos no agrega a nadie y hay que decirlo (QAIOS-31). */
     knownChildIds: Set<String> = emptySet(),
+    /** Paso 3: abre la ficha del hijo recién agregado; con `true`, directo en recargar. */
+    onOpenChild: (Dependent, Boolean) -> Unit = { _, _ -> onDismiss() },
 ) {
     val colors = rememberOperationalColors()
     val haptics = rememberVaiinillaHaptics()
@@ -104,6 +106,8 @@ internal fun AddChildSheet(
     var error by remember { mutableStateOf<String?>(null) }
     var state by remember { mutableStateOf<MorphState>(MorphState.Idle("Agregar")) }
     var sendKey by remember { mutableStateOf(newKey()) }
+    // Paso 3: el hijo ya agregado. La hoja deja el formulario y dice qué sigue.
+    var added by remember { mutableStateOf<Dependent?>(null) }
     LaunchedEffect(Unit) { loader.load() }
 
     val busy = state.isBusy
@@ -156,16 +160,13 @@ internal fun AddChildSheet(
                             },
                         )
                     onAdded(dependent)
-                    delay(
-                        if (reduced) {
-                            300
-                        } else if (alreadyCared) {
-                            2000
-                        } else {
-                            1000
-                        },
-                    )
-                    onDismiss()
+                    if (alreadyCared) {
+                        delay(if (reduced) 300 else 2000)
+                        onDismiss()
+                    } else {
+                        delay(if (reduced) 0 else 600)
+                        added = dependent
+                    }
                 }.onFailure {
                     state = MorphState.Idle("Agregar")
                     sendKey = keyAfterFailure(it, sendKey)
@@ -181,6 +182,26 @@ internal fun AddChildSheet(
                     }
                 }
         }
+    }
+
+    added?.let { child ->
+        ParentSheet(
+            title = addedChildTitle(child),
+            colors = colors,
+            onDismiss = onDismiss,
+            footer = {
+                AddedChildActions(
+                    child = child,
+                    colors = colors,
+                    onReload = { onOpenChild(child, true) },
+                    onOpenChild = { onOpenChild(child, false) },
+                    onDone = onDismiss,
+                )
+            },
+        ) {
+            if (child.isAwaitingSchool) AddedChildAwaiting(child, colors) else AddedChildReady(child, colors)
+        }
+        return
     }
 
     ParentSheet(

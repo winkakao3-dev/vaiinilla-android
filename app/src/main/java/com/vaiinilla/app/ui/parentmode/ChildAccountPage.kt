@@ -106,9 +106,17 @@ internal fun ChildAccountPage(
     onChildChanged: (Dependent) -> Unit,
     onUnlinked: (String) -> Unit,
     onBack: () -> Unit,
+    /** Recién agregado y el tutor eligió recargarle: la ficha abre con la hoja de recarga. */
+    startWithReload: Boolean = false,
 ) {
     val state = remember(child.userId) { ChildAccountState(child, services) }
-    ChildAccountContent(state = state, onChildChanged = onChildChanged, onUnlinked = onUnlinked, onBack = onBack)
+    ChildAccountContent(
+        state = state,
+        onChildChanged = onChildChanged,
+        onUnlinked = onUnlinked,
+        onBack = onBack,
+        startWithReload = startWithReload,
+    )
 }
 
 @Composable
@@ -117,10 +125,11 @@ internal fun ChildAccountContent(
     onChildChanged: (Dependent) -> Unit,
     onUnlinked: (String) -> Unit,
     onBack: () -> Unit,
+    startWithReload: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val scope = rememberCoroutineScope()
-    var sheet by rememberSaveable { mutableStateOf<ChildSheet?>(null) }
+    var sheet by rememberSaveable { mutableStateOf(if (startWithReload) ChildSheet.RELOAD else null) }
     var orderToCancel by remember { mutableStateOf<ScheduledOrder?>(null) }
     LaunchedEffect(state) { state.load() }
     // La lista de hijos lee el saldo de `child`: se mantiene al día con la cartera que esta ficha acaba de ver.
