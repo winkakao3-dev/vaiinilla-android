@@ -402,17 +402,6 @@ class StudentAuthViewModel
                 _state.value = current.copy(errorMessage = "Ingresa correo y contraseña.")
                 return
             }
-            if (
-                bootstrapClientContext &&
-                current.clientIdRequired &&
-                current.contextualId.isBlank()
-            ) {
-                _state.value =
-                    current.copy(
-                        errorMessage = "Ingresa tu ${current.clientIdLabel.lowercase()}.",
-                    )
-                return
-            }
             pendingLoginSuccess = onSuccess
             pendingLoginBootstrapClientContext = bootstrapClientContext
             _state.value = current.copy(loading = true, errorMessage = null)
@@ -547,7 +536,10 @@ class StudentAuthViewModel
             }
         }
 
-        fun checkVerification(onVerified: () -> Unit) {
+        fun checkVerification(
+            onVerified: () -> Unit,
+            onNeedsContextualId: () -> Unit = {},
+        ) {
             if (_state.value.loading) return
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             launchTracked {
@@ -561,6 +553,7 @@ class StudentAuthViewModel
                                     completeEnrollment(
                                         onSuccess = onVerified,
                                         onNeedsVerify = {},
+                                        onNeedsContextualId = onNeedsContextualId,
                                     )
                                 } else {
                                     _state.value =
@@ -876,9 +869,6 @@ class StudentAuthViewModel
             if (state.password != state.passwordConfirm) return "Las contraseñas no coinciden."
             if (!state.termsAccepted) return "Debes aceptar los términos y condiciones."
             if (!state.privacyAccepted) return "Debes aceptar el aviso de privacidad."
-            if (state.clientIdRequired && state.contextualId.isBlank()) {
-                return "Ingresa tu ${state.clientIdLabel.lowercase()}."
-            }
             return null
         }
 

@@ -1,33 +1,32 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.MarkEmailRead
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
-import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialSecondaryButton
-import com.vaiinilla.app.ui.components.EditorialSectionHead
-import com.vaiinilla.app.ui.components.EmptyState
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.components.AuthBanner
+import com.vaiinilla.app.ui.components.AuthBannerTone
+import com.vaiinilla.app.ui.components.AuthChip
+import com.vaiinilla.app.ui.components.AuthGhostButton
+import com.vaiinilla.app.ui.components.AuthHeading
+import com.vaiinilla.app.ui.components.AuthIconTile
+import com.vaiinilla.app.ui.components.AuthLimeButton
+import com.vaiinilla.app.ui.components.AuthNumberedSteps
+import com.vaiinilla.app.ui.components.AuthStage
+import com.vaiinilla.app.ui.components.AuthStageColors
+import com.vaiinilla.app.ui.components.authArrive
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -38,83 +37,74 @@ fun StudentVerifyEmailScreen(
     onResend: () -> Unit,
     onCheckVerified: () -> Unit,
 ) {
-    val colors = LocalVaiinillaColors.current
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(colors.paper),
+    val email = state.session?.email ?: state.email
+    val secondsLeft = rememberSecondsUntil(state.resendLockedUntilMs)
+    AuthStage(
+        loading = state.loading,
+        onBack = onBack,
+        contentTopPadding = 20.dp,
+        actions = {
+            AuthLimeButton(
+                text = if (state.loading) "Revisando…" else "Ya lo verifiqué",
+                onClick = onCheckVerified,
+                enabled = !state.loading,
+            )
+            Spacer(Modifier.height(10.dp))
+            AuthGhostButton(
+                text = if (secondsLeft > 0) "Mandar otra vez en ${formatCountdown(secondsLeft)}" else "Mandar el correo otra vez",
+                onClick = onResend,
+                enabled = !state.loading && secondsLeft == 0L,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "El enlace abre app.vaiinilla.app para verificar.\nSi no lo ves, busca en spam o promociones.",
+                color = AuthStageColors.Faint,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
     ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                }
-                EditorialSectionHead(title = "Verifica tu correo")
-            }
-            item {
-                val email = state.session?.email ?: state.email
-                EmptyState(
-                    icon = Icons.Outlined.MarkEmailRead,
-                    title = if (state.verificationSent) "Revisa tu bandeja" else "Falta enviar el correo",
-                    message =
-                        if (state.verificationSent) {
-                            "Enviamos un enlace a $email. Ábrelo; te lleva a la web de Vaiinilla para confirmar. Después pulsa Ya verifiqué."
-                        } else {
-                            "Tu cuenta fue creada, pero no pudimos confirmar el envío del correo a $email. Pulsa Reenviar correo para intentarlo otra vez."
-                        },
-                    // Mientras revisa, el botón de abajo dice "Revisando…": este se esconde para no tocarlo dos veces.
-                    actionLabel = if (state.loading) null else "Ya verifiqué",
-                    onAction = onCheckVerified,
-                )
+        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            AuthIconTile(icon = Icons.Outlined.Email, size = 150.dp, iconSize = 72.dp, badge = "1")
+            Spacer(Modifier.height(28.dp))
+            AuthHeading(
+                cap = "Un paso más",
+                title = if (state.verificationSent) "Revisa tu bandeja." else "Falta mandarte\nel correo.",
+                subtitle =
+                    if (state.verificationSent) {
+                        "Te mandamos un enlace para confirmar que el correo es tuyo."
+                    } else {
+                        "Tu cuenta ya existe, pero no pudimos mandar el correo. Toca «Mandar el correo otra vez»."
+                    },
+                centered = true,
+                modifier = Modifier.authArrive(1),
+            )
+            if (email.isNotBlank()) {
+                Spacer(Modifier.height(16.dp))
+                AuthChip(icon = Icons.Outlined.Email, text = email, modifier = Modifier.authArrive(2))
             }
             state.errorMessage?.let { error ->
-                item { AuthErrorBanner(error) }
+                Spacer(Modifier.height(14.dp))
+                AuthBanner(error, AuthBannerTone.Error)
             }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EditorialAccentButton(
-                        text = if (state.loading) "Revisando…" else "Ya verifiqué mi correo",
-                        onClick = onCheckVerified,
-                        enabled = !state.loading,
-                    )
-                    EditorialSecondaryButton(
-                        text =
-                            if (state.resendLockedUntilMs > System.currentTimeMillis()) {
-                                "Reenviar correo (espera)"
-                            } else {
-                                "Reenviar correo"
-                            },
-                        onClick = onResend,
-                        enabled = !state.loading && state.resendLockedUntilMs <= System.currentTimeMillis(),
-                    )
-                }
-            }
-            item {
-                Text(
-                    "El correo lo envía Vaiinilla. El enlace abre app.vaiinilla.app para verificar.",
-                    color = colors.muted,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-        if (state.loading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.accent)
-            }
+            Spacer(Modifier.height(22.dp))
+            AuthNumberedSteps(
+                steps =
+                    listOf(
+                        "Abre el correo de Vaiinilla",
+                        "Toca el enlace para verificar",
+                        "Vuelve aquí y toca «Ya lo verifiqué»",
+                    ),
+                modifier = Modifier.authArrive(3),
+            )
         }
     }
 }
 
-@Preview(name = "Auth · verificar correo", showBackground = true, widthDp = 411, heightDp = 891)
+@Preview(name = "Auth · verificar correo", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun StudentVerifyEmailScreenPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {

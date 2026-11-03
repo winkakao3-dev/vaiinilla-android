@@ -1718,7 +1718,6 @@ fun AppNavHost(
                     onEmailChange = studentAuthViewModel::updateEmail,
                     onPasswordChange = studentAuthViewModel::updatePassword,
                     onPasswordConfirmChange = studentAuthViewModel::updatePasswordConfirm,
-                    onContextualIdChange = studentAuthViewModel::updateContextualId,
                     onTermsChange = studentAuthViewModel::updateTermsAccepted,
                     onPrivacyChange = studentAuthViewModel::updatePrivacyAccepted,
                     onRegister = {
@@ -1820,13 +1819,22 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                     onResend = studentAuthViewModel::resendVerification,
                     onCheckVerified = {
-                        studentAuthViewModel.checkVerification {
-                            if (returnRoute == Routes.DISCOVERY) {
-                                finishLaunchAuth()
-                            } else {
-                                finishStudentAuth(returnRoute)
-                            }
-                        }
+                        studentAuthViewModel.checkVerification(
+                            onVerified = {
+                                if (returnRoute == Routes.DISCOVERY) {
+                                    finishLaunchAuth()
+                                } else {
+                                    finishStudentAuth(returnRoute)
+                                }
+                            },
+                            // La matrícula ya no se pide al crear la cuenta: con la sesión verificada, la pantalla
+                            // de entrar pide solo lo que falta para este lugar.
+                            onNeedsContextualId = {
+                                navController.navigate(Routes.authLoginRoute(returnRoute)) {
+                                    launchSingleTop = true
+                                }
+                            },
+                        )
                     },
                 )
             }

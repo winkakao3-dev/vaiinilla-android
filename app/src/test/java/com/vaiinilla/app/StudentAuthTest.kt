@@ -561,7 +561,7 @@ class StudentAuthViewModelTest {
         }
 
     @Test
-    fun `login requires contextual id when establishment demands it`() =
+    fun `login without contextual id signs in and then asks for it when establishment demands it`() =
         runTest {
             val context = RuntimeEnvironment.getApplication()
             val guestStore = GuestSessionStore(context)
@@ -632,7 +632,14 @@ class StudentAuthViewModelTest {
             var enrolled = false
             vm.login { enrolled = it }
             advanceUntilIdle()
+            // La vinculación corre en Dispatchers.IO: se espera a que termine y deje su aviso.
+            withContext(Dispatchers.Default.limitedParallelism(1)) {
+                withTimeout(5_000) {
+                    while (vm.state.value.errorMessage == null) kotlinx.coroutines.delay(10)
+                }
+            }
             assertFalse(enrolled)
+            assertTrue(vm.state.value.session?.emailVerified == true)
             assertTrue(
                 vm.state.value.errorMessage
                     ?.contains("matrícula", ignoreCase = true) == true,
