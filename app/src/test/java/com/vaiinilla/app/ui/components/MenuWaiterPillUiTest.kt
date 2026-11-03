@@ -1,13 +1,19 @@
 package com.vaiinilla.app.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
@@ -17,6 +23,8 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -113,8 +121,28 @@ class MenuWaiterPillUiTest {
     }
 
     @Test
-    fun `con carrito es una sola barra con Mesero adentro`() {
-        var opened = 0
+    fun `la barra de carrito y mesero como el dibujo`() {
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                Box(Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper)) {
+                    MenuWaiterLayer(
+                        spaceId = 1,
+                        visible = true,
+                        cart = MenuCartBar(count = 1, total = "\$48") {},
+                        onCurrent = { Result.success(null) },
+                        onCall = { _, _, _ -> Result.success(call(CallStatus.PENDIENTE)) },
+                        onCancel = { Result.success(it) },
+                        onJoinTable = null,
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("lugar/barra_carrito_mesero.png")
+    }
+
+    @Test
+    fun `con carrito es una sola barra con Mesero adentro`() {        var opened = 0
         setLayer(cart = MenuCartBar(count = 2, total = "\$96") { opened++ })
         composeTestRule.onNodeWithText("Mesero", useUnmergedTree = true).assertExists()
         composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).assertContentDescriptionEquals("Ver carrito: 2 productos, \$96")
