@@ -2,7 +2,6 @@ package com.vaiinilla.app.ui.screenshot
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -83,13 +82,11 @@ class RentalScreenshotTest {
     }
 
     @Test
-    fun rental_to_pay_expanded() {
+    fun rental_to_pay() {
         val order = rental(OrderState.PENDING_PAYMENT, ReservationState.PENDING_PAYMENT, startsIn = 120)
         composeTestRule.setContent { ScreenshotTheme { tracking(order, selected = false) } }
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Ver seguimiento").performClick()
         composeTestRule.mainClock.advanceTimeBy(1_500)
-        composeTestRule.onRoot().captureRoboImage("rental_to_pay_expanded.png")
+        composeTestRule.onRoot().captureRoboImage("rental_to_pay.png")
     }
 
     @Test

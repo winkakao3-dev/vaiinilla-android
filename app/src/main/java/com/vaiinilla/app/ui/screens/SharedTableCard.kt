@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +28,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
@@ -50,6 +55,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +64,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableOrder
+import com.vaiinilla.app.domain.model.SharedTableParticipant
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialTextField
@@ -160,21 +167,33 @@ fun SharedTableCard(
     // «Pedir solo yo» esconde la invitación para ese QR; al escanear otro vuelve a salir (Doop L03).
     var orderAlone by rememberSaveable(qrToken) { mutableStateOf(false) }
     if (table == null && orderAlone) return
+    // En Pedidos la mesa es un renglón; tocarlo abre la cuenta completa ahí mismo (Doop L10 y L04).
+    var expanded by rememberSaveable(table?.spaceId) { mutableStateOf(false) }
     Surface(
         modifier = modifier.fillMaxWidth().arrive(0, key = table?.spaceId ?: "unirse"),
         color = OrderTrackingCardBg,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
     ) {
         Column(
             modifier =
                 Modifier
                     .animateContentSize(
                         spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
-                    ).padding(16.dp),
+                    ).padding(
+                        if (table != null && !expanded) {
+                            PaddingValues(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
+                        } else {
+                            PaddingValues(16.dp)
+                        },
+                    ),
         ) {
             if (table == null) {
                 JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin, onOrderAlone = { orderAlone = true })
             } else {
+                TableSummaryRow(table, expanded, onToggle = { expanded = !expanded })
+            }
+            if (table != null && expanded) {
+                Spacer(Modifier.height(14.dp))
                 TableContent(
                     table = table,
                     busy = state.busy,
@@ -196,6 +215,101 @@ fun SharedTableCard(
     }
 }
 
+/** «Tu parte por pagar · $137»: lo que dice la mesa compartida en su renglón de Pedidos (Doop L10). */
+internal fun tableSummaryLine(table: SharedTable): String {
+    val share = table.myShare
+    val people = table.participants.size
+    return when {
+        share.total.signum() == 0 -> (if (people <= 1) "Solo tú" else "$people personas") + " · sin pedidos aún"
+        share.pending.signum() == 0 -> "Tu parte ya está pagada"
+        else -> "Tu parte por pagar · ${money(share.pending)}"
+    }
+}
+
+private val FaceColors =
+    listOf(
+        Color(0xFFA8D8F6) to Color(0xFF0F2E44),
+        Color(0xFFFFD15B) to Color(0xFF3D2B00),
+    )
+
+/** Quiénes están en la mesa, cuánto te toca y la flecha que abre la cuenta completa. */
+@Composable
+private fun TableSummaryRow(
+    table: SharedTable,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val reduce = reducedMotion()
+    val chevron by animateFloatAsState(
+        targetValue = if (expanded) 90f else 0f,
+        animationSpec = if (reduce) snap() else spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "table-chevron",
+    )
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { stateDescription = if (expanded) "Cuenta abierta" else "Cuenta cerrada" }
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onToggle),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TableFaces(table.participants)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                SharedSpaceWords.of(table.spaceType).title,
+                color = OrderTrackingCardText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+            )
+            Text(
+                tableSummaryLine(table),
+                color = OrderTrackingCardText.copy(alpha = 0.62f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = OrderTrackingCardText.copy(alpha = 0.55f),
+            modifier = Modifier.size(20.dp).rotate(chevron),
+        )
+    }
+}
+
+@Composable
+private fun TableFaces(people: List<SharedTableParticipant>) {
+    val shown = people.take(2)
+    val extra = people.size - shown.size
+    Row(horizontalArrangement = Arrangement.spacedBy((-9).dp)) {
+        shown.forEachIndexed { index, person ->
+            val (bg, fg) = FaceColors[index]
+            TableFace(person.alias.trim().take(1).uppercase(), bg, fg)
+        }
+        if (extra > 0) TableFace("+$extra", Color(0xFF33342F), OrderTrackingCardText.copy(alpha = 0.86f))
+    }
+}
+
+@Composable
+private fun TableFace(
+    text: String,
+    background: Color,
+    content: Color,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(background)
+                .border(2.dp, OrderTrackingCardBg, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = content, fontSize = 12.sp, fontWeight = FontWeight.Black)
+    }
+}
 @Composable
 private fun JoinTable(
     state: SharedTableUiState,
@@ -325,7 +439,8 @@ private fun TableContent(
     }
     CardRule()
     ShareTiles(table, noun)
-    myShareHint(table.myShare, table.myAlias)?.let {        Text(
+    myShareHint(table.myShare, table.myAlias)?.let {
+        Text(
             it,
             color = OrderTrackingCardText.copy(alpha = 0.62f),
             fontSize = 13.sp,
