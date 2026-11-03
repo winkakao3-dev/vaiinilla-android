@@ -14,6 +14,8 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.ui.screens.CashDrawerContent
+import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.KitchenSoldOutContent
 import com.vaiinilla.app.ui.screens.StaffShiftContent
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
@@ -110,8 +112,34 @@ class PersonalDoopScreenshotTest {
     }
 
     @Test
-    fun `n10_te_llaman`() {
-        capture("personal_n10_te_llaman.png") {
+    fun `n12_sin_internet`() {
+        val base = ScreenshotFixtures.sampleOrder(state = OrderState.PAID)
+        capture("personal_n12_sin_internet.png") {
+            KitchenOperationalScreen(
+                state = OperationalUiState(orders = listOf(base), lastRefreshOk = false),
+                onBack = {},
+                onStart = { _, _ -> },
+                onReady = { _, _ -> },
+                placeName = "Cafetería Central",
+            )
+        }
+    }
+
+    @Test
+    fun `k04_todo_al_dia`() {
+        capture("personal_k04_todo_al_dia.png") {
+            KitchenOperationalScreen(
+                state = OperationalUiState(orders = emptyList(), lastRefreshOk = true),
+                onBack = {},
+                onStart = { _, _ -> },
+                onReady = { _, _ -> },
+                placeName = "Cafetería Central",
+            )
+        }
+    }
+
+    @Test
+    fun `n10_te_llaman`() {        capture("personal_n10_te_llaman.png") {
             WaiterOperationalScreen(
                 state = ScreenshotFixtures.waiterBoardState().copy(filterAttending = true),
                 onBack = {},

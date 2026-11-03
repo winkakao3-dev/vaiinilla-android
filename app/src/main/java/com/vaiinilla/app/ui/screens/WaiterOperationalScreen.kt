@@ -385,6 +385,12 @@ fun WaiterOperationalScreen(
                 }
             }
 
+            if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty()) {
+                item(key = "waiter-offline", span = fullWidth) {
+                    StaffOfflineBanner(offline = true, modifier = Modifier.animateItem())
+                }
+            }
+
             // Sin un tablero bueno, los ceros dirían que no hay nada que hacer.
             if (state.boardLoaded) {
                 item(span = fullWidth) {
