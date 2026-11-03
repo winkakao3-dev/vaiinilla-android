@@ -70,6 +70,17 @@ private data class TableDto(
 )
 
 @Serializable
+private data class SpacePeopleDto(
+    val participantes: List<ParticipantDto> = emptyList(),
+)
+
+@Serializable
+private data class SpacePeopleEnvelopeDto(
+    val data: SpacePeopleDto? = null,
+    val error: JsonElement? = null,
+)
+
+@Serializable
 private data class TableEnvelopeDto(
     val data: TableDto? = null,
     val error: JsonElement? = null,
@@ -90,6 +101,17 @@ class SharedTableContractJson
             val envelope = json.decodeFromString<TableEnvelopeDto>(raw)
             require(envelope.error == null || envelope.error is JsonNull) { "La API devolvió un error." }
             return envelope.data?.toDomain()
+        }
+
+        /** GET /mesas/espacio/{token}: los alias de los demás en la sesión abierta del QR. */
+        fun parseOthersAtSpace(raw: String): List<String> {
+            val envelope = json.decodeFromString<SpacePeopleEnvelopeDto>(raw)
+            require(envelope.error == null || envelope.error is JsonNull) { "La API devolvió un error." }
+            return envelope.data
+                ?.participantes
+                .orEmpty()
+                .filterNot { it.soyYo }
+                .map { it.alias }
         }
 
         fun encodeJoin(

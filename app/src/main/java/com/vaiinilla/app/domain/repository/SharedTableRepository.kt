@@ -15,6 +15,9 @@ interface SharedTableRepository {
 
     fun leave(): Result<Unit>
 
+    /** Los nombres de quienes ya están en la mesa del QR, sin el propio: para invitar a unirse (Doop L03). */
+    fun othersAt(qrToken: String): Result<List<String>> = Result.success(emptyList())
+
     /** "Esto lo pago yo" (o ya no) sobre un pedido de la cuenta de la mesa, por su folio. */
     fun claim(
         folio: Int,

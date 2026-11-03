@@ -27,6 +27,8 @@ data class SharedTableUiState(
     val error: String? = null,
     /** El pedido cuyo «Esto lo pago yo» falló: el error se pinta junto a él (C05). */
     val errorFolio: Int? = null,
+    /** Quienes ya están en la mesa del QR, antes de unirse. */
+    val othersAtTable: List<String> = emptyList(),
 ) {
     val canJoin: Boolean
         get() = aliasInput.isNotBlank() && !busy
@@ -72,6 +74,7 @@ class SharedTableViewModel
             pollingJob?.cancel()
             pollingJob = null
             venueId = null
+            watchedToken = null
             mutationVersion++
             _uiState.value = SharedTableUiState()
         }
@@ -90,6 +93,20 @@ class SharedTableViewModel
         fun onHidden() {
             pollingJob?.cancel()
             pollingJob = null
+        }
+
+        private var watchedToken: String? = null
+
+        /** Al llegar con un QR y sin mesa: lee quién ya está ahí para la invitación. Un fallo deja la invitación sin nombres. */
+        fun watchSpace(qrToken: String?) {
+            if (qrToken == watchedToken) return
+            watchedToken = qrToken
+            _uiState.value = _uiState.value.copy(othersAtTable = emptyList())
+            if (qrToken == null) return
+            viewModelScope.launch {
+                val others = withContext(Dispatchers.IO) { repository.othersAt(qrToken) }.getOrNull() ?: return@launch
+                if (watchedToken == qrToken) _uiState.value = _uiState.value.copy(othersAtTable = others)
+            }
         }
 
         fun updateAlias(value: String) {

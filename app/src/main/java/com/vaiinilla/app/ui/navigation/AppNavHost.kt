@@ -2057,6 +2057,8 @@ fun AppNavHost(
                                     onStart = sharedTableViewModel::onVisible,
                                     onStop = sharedTableViewModel::onHidden,
                                 )
+                                val spaceToken = orderState.guestVenue?.space?.qrToken
+                                LaunchedEffect(spaceToken) { sharedTableViewModel.watchSpace(spaceToken) }
                                 SharedTableCard(
                                     state = sharedTableViewModel.uiState.value,
                                     qrToken = orderState.guestVenue?.space?.qrToken,

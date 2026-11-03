@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.ui.screens.TableClaim
 import com.vaiinilla.app.ui.screens.myShareHint
+import com.vaiinilla.app.ui.screens.othersAtTableLine
 import com.vaiinilla.app.ui.screens.tableOrderClaim
 import com.vaiinilla.app.ui.screens.tableOrderStateLabel
 import org.junit.Assert.assertEquals
@@ -127,5 +128,28 @@ class SharedTableContractJsonTest {
     fun `sin pedidos no hay texto de parte`() {
         val none = SharedTableAmounts(BigDecimal("0.00"), BigDecimal("0.00"), BigDecimal("0.00"))
         assertNull(myShareHint(none, "Ana"))
+    }
+
+    @Test
+    fun `el espacio del QR da los nombres de los demás, sin el propio`() {
+        val raw =
+            """
+            {"data":{"espacio":{"id":4,"nombre":"Mesa 4","tipo":"mesa"},"sesion_id":"s1",
+             "participantes":[{"id":"a","alias":"Luis","soy_yo":false},{"id":"b","alias":"Kao","soy_yo":true},
+              {"id":"c","alias":"Mariana","soy_yo":false}],"yo":{"id":"b","alias":"Kao"}},"error":null}
+            """.trimIndent()
+        assertEquals(listOf("Luis", "Mariana"), json.parseOthersAtSpace(raw))
+    }
+
+    @Test
+    fun `la invitación nombra a dos y resume a los demás`() {
+        assertNull(othersAtTableLine(emptyList(), "la mesa"))
+        assertEquals("Luis ya está en la mesa.", othersAtTableLine(listOf("Luis"), "la mesa"))
+        assertEquals("Luis y Mariana ya están en la mesa.", othersAtTableLine(listOf("Luis", "Mariana"), "la mesa"))
+        assertEquals(
+            "Luis, Mariana y alguien más ya están en la mesa.",
+            othersAtTableLine(listOf("Luis", "Mariana", "Andrés"), "la mesa"),
+        )
+        assertEquals("Luis, Mariana y 2 más ya están en la barra.", othersAtTableLine(listOf("Luis", "Mariana", "A", "B"), "la barra"))
     }
 }

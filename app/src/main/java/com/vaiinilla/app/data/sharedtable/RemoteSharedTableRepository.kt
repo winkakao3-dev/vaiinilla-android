@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.sharedtable
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.repository.SharedTableRepository
+import java.net.URLEncoder
 
 class RemoteSharedTableRepository(
     private val apiClient: VaiinillaApiClient,
@@ -19,6 +20,11 @@ class RemoteSharedTableRepository(
             .mapCatching { requireNotNull(contractJson.parseTable(it)) { "La mesa no llegó." } }
 
     override fun leave(): Result<Unit> = apiClient.postWithoutBody("mesas/actual/salida").map { }
+
+    override fun othersAt(qrToken: String): Result<List<String>> =
+        apiClient
+            .get("mesas/espacio/${URLEncoder.encode(qrToken, Charsets.UTF_8.name())}")
+            .mapCatching(contractJson::parseOthersAtSpace)
 
     override fun claim(
         folio: Int,

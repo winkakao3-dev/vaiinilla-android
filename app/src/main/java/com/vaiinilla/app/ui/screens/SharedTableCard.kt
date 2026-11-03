@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
@@ -208,6 +210,7 @@ private fun JoinTable(
         fontSize = 13.sp,
         fontWeight = FontWeight.Black,
     )
+    if (state.othersAtTable.isNotEmpty()) PeopleAtTable(state.othersAtTable)
     Text(
         "¿Compartes ${words.thePlace}?",
         color = OrderTrackingCardText,
@@ -217,8 +220,10 @@ private fun JoinTable(
         modifier = Modifier.padding(top = 10.dp),
     )
     Text(
-        "Únete con un nombre para ver los pedidos de todos y pagar solo tu parte. " +
-            "Los demás solo ven ese nombre.",
+        listOfNotNull(
+            othersAtTableLine(state.othersAtTable, words.thePlace),
+            "Únete con un nombre para ver los pedidos de todos y pagar solo tu parte. Los demás solo ven ese nombre.",
+        ).joinToString(" "),
         color = OrderTrackingCardText.copy(alpha = 0.62f),
         fontSize = 13.sp,
         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -481,6 +486,58 @@ private fun TableChip(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             )
         }
+    }
+}
+
+/** «Luis y Mariana ya están en la mesa.», con «y N más» después de dos nombres; null si no hay nadie. */
+internal fun othersAtTableLine(
+    names: List<String>,
+    thePlace: String,
+): String? {
+    val shown = names.take(2)
+    val rest = names.size - shown.size
+    val who =
+        when {
+            shown.isEmpty() -> return null
+            rest > 0 -> shown.joinToString(", ") + " y " + (if (rest == 1) "alguien más" else "$rest más")
+            shown.size == 2 -> shown.joinToString(" y ")
+            else -> shown.first()
+        }
+    val verb = if (names.size == 1) "ya está" else "ya están"
+    return "$who $verb en $thePlace."
+}
+
+/** Las iniciales de quienes ya están, encimadas; más de tres se resumen en «+N». */
+@Composable
+private fun PeopleAtTable(names: List<String>) {
+    val tints = listOf(Color(0xFFB8DCF5), Color(0xFFFFD15B), Color(0xFFC7E59A))
+    Row(
+        modifier = Modifier.padding(top = 10.dp).semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy((-8).dp),
+    ) {
+        names.take(3).forEachIndexed { index, name ->
+            PersonBubble(name.trim().take(1).uppercase(), tints[index % tints.size], Color(0xFF1A1A1A))
+        }
+        if (names.size > 3) PersonBubble("+${names.size - 3}", Color.White.copy(alpha = 0.16f), OrderTrackingCardText)
+    }
+}
+
+@Composable
+private fun PersonBubble(
+    text: String,
+    fill: Color,
+    ink: Color,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .border(2.dp, OrderTrackingCardBg, CircleShape)
+                .background(fill),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
     }
 }
 

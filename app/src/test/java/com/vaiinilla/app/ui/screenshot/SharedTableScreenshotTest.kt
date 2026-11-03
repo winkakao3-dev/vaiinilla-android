@@ -153,7 +153,12 @@ class SharedTableScreenshotTest {
                         onSelectOrder = {},
                         sharedTable = {
                             SharedTableCard(
-                                state = SharedTableUiState(loaded = true, table = null, aliasInput = "Ana"),
+                                state = SharedTableUiState(
+                                        loaded = true,
+                                        table = null,
+                                        aliasInput = "Ana",
+                                        othersAtTable = listOf("Luis", "Mariana", "Andrés"),
+                                    ),
                                 qrToken = "qr",
                                 onAliasChange = {},
                                 onJoin = {},
