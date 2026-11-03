@@ -63,6 +63,7 @@ class CashierRejectUiTest {
         var rejected: Triple<String, Int, String>? = null
         show(onRejectOrder = { id, version, reason -> rejected = Triple(id, version, reason) })
 
+        composeTestRule.onNodeWithText("Más opciones").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Rechazar pedido").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Se acabó el producto").performClick()
         composeTestRule.onAllNodesWithText("Rechazar pedido").onLast().performClick()
@@ -76,6 +77,7 @@ class CashierRejectUiTest {
         show(onRejectItem = { _, itemId, _, reason -> removed = itemId to reason })
         val water = pending.items.last()
 
+        composeTestRule.onNodeWithText("Más opciones").performScrollTo().performClick()
         composeTestRule.onAllNodesWithText("Quitar")[1].performScrollTo().performClick()
         composeTestRule.onNodeWithText("Faltan ingredientes").performClick()
         composeTestRule.onNodeWithText("Quitar de la comanda").performClick()

@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,9 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.TableRestaurant
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -45,7 +48,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.admin.AdminSheet
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
-/** Las dos cosas que la caja inicia en cualquier momento: un pedido de mostrador y una recarga. */
+/** Lo que la caja inicia en cualquier momento (C01): un pedido de mostrador, una recarga y las mesas con cuenta. */
 @Composable
 internal fun CashierQuickActions(
     colors: OperationalColors,
@@ -53,10 +56,15 @@ internal fun CashierQuickActions(
     onNewOrder: (() -> Unit)?,
     onReload: () -> Unit,
     modifier: Modifier = Modifier,
+    pendingSpaces: Int? = null,
+    onSpaces: (() -> Unit)? = null,
 ) {
-    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(
+        modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         if (onNewOrder != null) {
-            QuickAction("Nuevo pedido", Icons.Outlined.Add, colors, enabled, Modifier.weight(1f), onNewOrder)
+            QuickAction("Nuevo pedido", Icons.Outlined.Add, colors, enabled, Modifier.weight(1f), primary = true, onClick = onNewOrder)
         }
         QuickAction(
             "Recargar saldo",
@@ -64,8 +72,18 @@ internal fun CashierQuickActions(
             colors,
             enabled,
             Modifier.weight(1f),
-            onReload,
+            onClick = onReload,
         )
+        if (onSpaces != null) {
+            QuickAction(
+                if (pendingSpaces != null && pendingSpaces > 0) "Mesas y canchas · $pendingSpaces" else "Mesas y canchas",
+                Icons.Outlined.TableRestaurant,
+                colors,
+                true,
+                Modifier.weight(1f),
+                onClick = onSpaces,
+            )
+        }
     }
 }
 
@@ -76,27 +94,35 @@ private fun QuickAction(
     colors: OperationalColors,
     enabled: Boolean,
     modifier: Modifier,
+    primary: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(16.dp)
-    Row(
+    val shape = RoundedCornerShape(20.dp)
+    val ink = if (primary) colors.accentInk else colors.textPrimary
+    Column(
         modifier =
             modifier
+                .fillMaxHeight()
                 .physicalPress(enabled = enabled, onClick = onClick)
-                .height(52.dp)
+                .heightIn(min = 96.dp)
                 .clip(shape)
-                .background(colors.cardInner)
-                .border(1.dp, colors.cardBorder, shape)
-                .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                .background(if (primary) colors.accentLime else colors.cardBackground)
+                .padding(14.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Icon(icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(20.dp))
-        Text(label, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(22.dp))
+        Text(
+            label,
+            color = ink,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 14.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier.padding(top = 14.dp),
+        )
     }
 }
 
-/** Encabezado de la fila de trabajo: "Por cobrar" y cuántos pedidos esperan. */
+/** «EN FILA · N» sobre la fila de trabajo; el más viejo va primero. */
 @Composable
 internal fun CashierQueueHeader(
     count: Int,
@@ -104,65 +130,19 @@ internal fun CashierQueueHeader(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(top = 6.dp),
+        modifier = modifier.fillMaxWidth().padding(top = 6.dp, start = 4.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text("Por cobrar", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.textPrimary)
-        NumberTicker(value = count, label = "cashier-queue-count") { value ->
-            Text(
-                "$value",
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                color = colors.background,
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (value > 0) colors.textPrimary else colors.textMuted)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("EN FILA · ", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp, color = colors.textSecondary)
+            NumberTicker(value = count, label = "cashier-queue-count") { value ->
+                Text("$value", fontWeight = FontWeight.Black, fontSize = 11.sp, color = colors.textSecondary)
+            }
         }
+        Text("MÁS VIEJO PRIMERO", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp, color = colors.textMuted)
     }
 }
-
-/** Entrada al tablero de mesas y canchas, con cuántas tienen cuenta sin cobrar. */
-@Composable
-internal fun CashierSpacesEntry(
-    pendingSpaces: Int?,
-    colors: OperationalColors,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
-                .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Mesas y canchas", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
-            Text(
-                when (pendingSpaces) {
-                    null -> "Cuentas abiertas y turnos"
-                    0 -> "Nada por cobrar"
-                    1 -> "1 con cuenta por cobrar"
-                    else -> "$pendingSpaces con cuenta por cobrar"
-                },
-                fontSize = 13.sp,
-                color = colors.textSecondary,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        Icon(
-            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-            contentDescription = null,
-            tint = colors.textSecondary,
-        )
-    }
-}
-
 /** Una línea en lugar de un bloque vacío: la fila de trabajo está al día. */
 @Composable
 internal fun CashierQueueEmpty(

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.operational.OperationalUiState
@@ -56,7 +57,7 @@ class CashierHeroDraftUiTest {
         }
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("10%").performClick()
-        composeTestRule.onNodeWithText("Cobrar $90.20").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cobrar $90.20").performScrollTo().assertIsDisplayed()
 
         // El sondeo: el mismo pedido con otra versión, y un aviso que entra arriba de la tarjeta.
         state =
@@ -68,7 +69,7 @@ class CashierHeroDraftUiTest {
         state = state.copy(errorMessage = null)
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Cobrar $90.20").assertIsDisplayed().performClick()
+        composeTestRule.onNodeWithText("Cobrar $90.20").performScrollTo().assertIsDisplayed().performClick()
         assertEquals("90.20" to "8.20", collected)
     }
 
@@ -100,6 +101,6 @@ class CashierHeroDraftUiTest {
         composeTestRule.waitForIdle()
 
         // El efectivo se vuelve a sugerir con el total nuevo y la propina elegida se conserva (CAJA-19): 60 + 10 %.
-        composeTestRule.onNodeWithText("Cobrar $66").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cobrar $66").performScrollTo().assertIsDisplayed()
     }
 }
