@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -45,6 +46,7 @@ import com.vaiinilla.app.ui.components.SettingsTrailing
 import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.WalletSubflowTopBar
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
@@ -86,6 +88,7 @@ fun WalletAccountScreen(
     onAccountDeletionMfaFactorSelected: (String) -> Unit = {},
     onSubmitAccountDeletionMfa: () -> Unit = {},
     onRetryAccountDeletion: () -> Unit = {},
+    deletionWarnings: AccountDeletionWarnings = AccountDeletionWarnings(),
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -249,6 +252,7 @@ fun WalletAccountScreen(
             -> Unit
             AccountDeletionStatus.Confirmation ->
                 AccountDeletionConfirmationDialog(
+                    warnings = deletionWarnings,
                     onConfirm = onConfirmAccountDeletion,
                     onDismiss = onCancelAccountDeletion,
                 )
@@ -280,8 +284,39 @@ fun WalletAccountScreen(
     }
 }
 
+/** Lo que se pierde al borrar la cuenta, para decirlo antes y no después (Doop E13). */
+data class AccountDeletionWarnings(
+    val balance: String? = null,
+    val venueName: String? = null,
+    val principalChildren: List<String> = emptyList(),
+    val staffRoles: List<String> = emptyList(),
+)
+
+internal fun accountDeletionPoints(warnings: AccountDeletionWarnings): List<String> =
+    buildList {
+        if (warnings.principalChildren.isNotEmpty()) {
+            val names = joinSpanish(warnings.principalChildren)
+            val verb = if (warnings.principalChildren.size == 1) "te tiene" else "te tienen"
+            add("$names $verb como tutor principal. Pasa a otro tutor como principal o devuelve su saldo primero.")
+        }
+        add("Pierdes tus pedidos, tus avisos y tus tarjetas guardadas.")
+        if (warnings.staffRoles.isNotEmpty()) add("Pierdes tus modos de ${joinSpanish(warnings.staffRoles)}.")
+    }
+
+/** El saldo solo se avisa si queda algo: con $0 no hay nada que perder. */
+internal fun accountDeletionBalance(visibleBalance: String?): String? =
+    visibleBalance?.trim()?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }?.let { moneyLabel(it.toPlainString()) }
+
+private fun joinSpanish(items: List<String>): String =
+    when (items.size) {
+        0 -> ""
+        1 -> items.single()
+        else -> items.dropLast(1).joinToString(", ") + " y " + items.last()
+    }
+
 @Composable
 private fun AccountDeletionConfirmationDialog(
+    warnings: AccountDeletionWarnings,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -290,25 +325,45 @@ private fun AccountDeletionConfirmationDialog(
         Surface(color = colors.paper, shape = RoundedCornerShape(28.dp)) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "¿Eliminar definitivamente tu cuenta?",
+                    "Eliminar tu cuenta",
                     color = colors.ink,
-                    fontSize = 20.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                 )
-                Text(
-                    "Perderás el acceso a todos tus establecimientos, pedidos, saldo y funciones de Vaiinilla. Esta acción es permanente.",
-                    color = colors.muted,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
+                Text("No se puede deshacer.", color = colors.muted, fontSize = 14.sp)
+                if (warnings.balance != null) {
+                    Surface(color = colors.yolk.copy(alpha = 0.16f), shape = RoundedCornerShape(16.dp)) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "Aún tienes ${warnings.balance} de saldo",
+                                color = colors.yolk,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                            val caja = warnings.venueName?.let { "la Caja de $it" } ?: "Caja"
+                            Text(
+                                "Gástalo o pide en $caja que te lo regresen antes. Al eliminar la cuenta se pierde.",
+                                color = colors.ink,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                            )
+                        }
+                    }
+                }
+                accountDeletionPoints(warnings).forEach { point ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("•", color = colors.muted, fontSize = 14.sp)
+                        Text(point, color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp)
+                    }
+                }
                 EditorialPrimaryButton(
-                    text = "Eliminar mi cuenta",
+                    text = "Eliminar para siempre",
                     onClick = onConfirm,
                     background = colors.coral,
                     contentColor = colors.onInk,
                 )
                 EditorialSecondaryButton(
-                    text = "Cancelar",
+                    text = "Mejor no",
                     onClick = onDismiss,
                 )
             }

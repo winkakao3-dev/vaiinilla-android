@@ -138,7 +138,9 @@ import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
 import com.vaiinilla.app.ui.screens.VenueSwitchDialog
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
+import com.vaiinilla.app.ui.screens.AccountDeletionWarnings
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
+import com.vaiinilla.app.ui.screens.accountDeletionBalance
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
@@ -1489,6 +1491,10 @@ fun AppNavHost(
 
             composable(Routes.WALLET_ACCOUNT) {
                 LaunchedEffect(Unit) { walletViewModel.refresh() }
+                // Antes de borrar la cuenta hay que decir qué hijos dependen de ella; sin abrir Padres e hijos no se han traído.
+                LaunchedEffect(studentAuthState.session?.uid) {
+                    if (studentAuthState.session != null && !childrenViewModel.state.hasLoaded) childrenViewModel.state.load()
+                }
                 val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
                 WalletAccountScreen(
                     onBack = { navController.popBackStack() },
@@ -1514,6 +1520,21 @@ fun AppNavHost(
                         navController.navigate(Routes.RECEIVED_NOTICES) { launchSingleTop = true }
                     },
                     accountDeletionState = accountDeletionState,
+                    deletionWarnings =
+                        AccountDeletionWarnings(
+                            balance = accountDeletionBalance(walletForVenue.data?.wallet?.visibleBalance),
+                            venueName = orderState.guestVenue?.establishment?.name,
+                            principalChildren =
+                                childrenViewModel.state.children
+                                    .filter { it.isPrincipal }
+                                    .map { it.firstName },
+                            staffRoles =
+                                authorizedAccessState.modes
+                                    .map { it.role }
+                                    .filter { it != OperationalRole.CLIENT }
+                                    .distinct()
+                                    .map { it.label },
+                        ),
                     onRequestAccountDeletion = accountDeletionViewModel::requestConfirmation,
                     onConfirmAccountDeletion = accountDeletionViewModel::confirm,
                     onCancelAccountDeletion = accountDeletionViewModel::cancel,
