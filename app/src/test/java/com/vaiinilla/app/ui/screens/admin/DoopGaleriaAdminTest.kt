@@ -388,8 +388,7 @@ class DoopGaleriaAdminTest {
         shot("a27_nuevo_producto")
     }
 
-    @Test @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
-    fun a04_editar_producto() {
+    @Test fun a04_editar_producto() {
         val state = home()
         screen(state)
         tapLast("Menú")
@@ -402,7 +401,7 @@ class DoopGaleriaAdminTest {
         val products = state.catalog!!.products
         screen(state.copy(archivedProducts = products.take(2)))
         tapLast("Menú")
-        tap("Archivado")
+        tap("Archivados")
         shot("a30_archivados")
     }
 
@@ -624,11 +623,12 @@ class DoopGaleriaAdminTest {
         shot("a26_nueva_categoria")
     }
 
-    @Test @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
-    fun a28_opciones_alergenos() {
-        screen(home())
+    @Test fun a28_opciones_alergenos() {
+        val state = home()
+        screen(state)
         tapLast("Menú")
-        tapLast("Nuevo producto")
+        tap(state.catalog!!.products.first().name)
+        scrollToAndTap("Opciones y extras")
         shot("a28_opciones_alergenos")
     }
 
@@ -637,6 +637,7 @@ class DoopGaleriaAdminTest {
         screen(state)
         tapLast("Menú")
         tap(state.catalog!!.products.first().name)
+        scrollToAndTap("Opciones y extras")
         scrollToAndTap("Archivar")
         shot("a29_archivar")
     }

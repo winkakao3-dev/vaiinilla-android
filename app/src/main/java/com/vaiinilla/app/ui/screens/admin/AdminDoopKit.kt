@@ -699,6 +699,8 @@ internal class AdminDialogRequest(
     val destructive: Boolean = true,
     val fieldPlaceholder: String? = null,
     val accepts: (String) -> Boolean = { true },
+    /** La foto del producto en lugar del ícono, como en el marco 29. */
+    val image: String? = null,
     val run: suspend (String) -> Boolean,
 )
 
@@ -759,7 +761,10 @@ private fun AdminDialogOverlay(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (current.fieldPlaceholder == null) {
+                if (current.image != null) {
+                    AdminThumb(current.image, current.title, colors, size = 64.dp)
+                    Spacer(Modifier.height(16.dp))
+                } else if (current.fieldPlaceholder == null) {
                     val tone = if (current.destructive) AdminCoral else colors.textPrimary
                     Box(
                         Modifier.size(52.dp).clip(CircleShape).background(tone.copy(alpha = 0.16f)),
@@ -1006,6 +1011,8 @@ internal fun AdminPrimaryButton(
     enabled: Boolean = true,
     fill: Color? = null,
     contentColor: Color? = null,
+    /** En una barra de arriba: solo el ancho de su texto y más bajo, como «+ Espacio» del marco 45. */
+    fullWidth: Boolean = true,
     onClick: () -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
@@ -1013,12 +1020,12 @@ internal fun AdminPrimaryButton(
     val alpha by animateFloatAsState(if (enabled || busy) 1f else 0.4f, spring(), label = "primary-alpha")
     Row(
         modifier
-            .fillMaxWidth()
+            .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .physicalPress(enabled = enabled && !busy) {
                 haptics.click()
                 onClick()
             }.graphicsLayer { this.alpha = alpha }
-            .height(54.dp)
+            .height(if (fullWidth) 54.dp else 38.dp)
             .clip(CircleShape)
             .background(fill ?: colors.textPrimary)
             .padding(horizontal = 16.dp),
@@ -1032,7 +1039,7 @@ internal fun AdminPrimaryButton(
         }
         Text(
             title,
-            fontSize = 16.sp,
+            fontSize = if (fullWidth) 16.sp else 13.5.sp,
             fontWeight = FontWeight.Black,
             color = fg,
             maxLines = 1,

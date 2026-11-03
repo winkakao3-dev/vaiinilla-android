@@ -1,5 +1,13 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,7 +48,6 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -321,13 +328,53 @@ private fun MenuList(
             item(key = "archivados-nota") {
                 Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) {
                     AdminHint(
-                        "Los archivados no se ven en el menú ni se pueden pedir. Tócalos para regresarlos al menú.",
+                        "Los archivados no se ven en el menú ni se pueden pedir. Sus ventas pasadas se conservan.",
                         colors,
                     )
                 }
             }
         }
-        products.chunked(2).forEachIndexed { index, pair ->
+        if (showingArchived) {
+            item(key = "archivados") {
+                AdminPanel(
+                    colors,
+                    Modifier.adminRise(2).padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                    padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
+                ) {
+                    archived.forEachIndexed { index, product ->
+                        if (index > 0) AdminRowDivider(colors)
+                        AdminRow(
+                            title = product.name,
+                            colors = colors,
+                            detail = categories.firstOrNull { it.id == product.categoryId }?.name ?: "Archivado",
+                            leading = { AdminThumb(product.imageUrl.takeIf { it.isNotBlank() }, product.name, colors) },
+                        ) {
+                            AdminSecondaryButton(
+                                "Restaurar",
+                                colors,
+                                Modifier.width(102.dp),
+                                filled = true,
+                                enabled = !readOnly && !saving,
+                            ) {
+                                presentDialog(
+                                    AdminDialogRequest(
+                                        title = "¿Regresar ${product.name} al menú?",
+                                        message = "Se vuelve a ver en el menú y se puede pedir otra vez.",
+                                        confirm = "Regresar al menú",
+                                        icon = Icons.AutoMirrored.Rounded.Undo,
+                                        destructive = false,
+                                    ) {
+                                        actions.onSetArchived(product, false)
+                                        true
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!showingArchived) products.chunked(2).forEachIndexed { index, pair ->
             item(key = "fila-${if (showingArchived) "a" else selected?.id}-${pair.first().id}") {
                 Row(
                     Modifier
@@ -338,25 +385,8 @@ private fun MenuList(
                 ) {
                     pair.forEach { product ->
                         Box(Modifier.weight(1f)) {
-                            if (showingArchived) {
-                                ArchivedProductCard(product, colors, enabled = !readOnly && !saving) {
-                                    presentDialog(
-                                        AdminDialogRequest(
-                                            title = "¿Regresar ${product.name} al menú?",
-                                            message = "Se vuelve a ver en el menú y se puede pedir otra vez.",
-                                            confirm = "Regresar al menú",
-                                            icon = Icons.AutoMirrored.Rounded.Undo,
-                                            destructive = false,
-                                        ) {
-                                            actions.onSetArchived(product, false)
-                                            true
-                                        },
-                                    )
-                                }
-                            } else {
-                                AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
-                                    onOpen(MenuSheet.EditProduct(product))
-                                }
+                            AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
+                                onOpen(MenuSheet.EditProduct(product))
                             }
                         }
                     }
@@ -473,50 +503,6 @@ private fun AllergenWarning(
             tint = colors.textMuted,
             modifier = Modifier.size(18.dp),
         )
-    }
-}
-
-@Composable
-private fun ArchivedProductCard(
-    product: Product,
-    colors: OperationalColors,
-    enabled: Boolean,
-    onRestore: () -> Unit,
-) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.84f)
-            .physicalPress(enabled = enabled, scale = PhysicalPressScale.ProductCard, onClick = onRestore)
-            .semantics { contentDescription = "${product.name}, archivado. Regresarlo al menú" }
-            .clip(RoundedCornerShape(26.dp))
-            .background(colors.cardInner),
-    ) {
-        ProductImage(
-            imageUrl = product.imageUrl,
-            contentDescription = product.name,
-            modifier = Modifier.fillMaxSize(),
-            placeholder = { m -> Box(m.background(colors.cardInner)) },
-            card = true,
-        )
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
-        Column(
-            Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .background(CardScrim)
-                .padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 12.dp),
-        ) {
-            Text(
-                product.name,
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text("Archivado", color = Color.White.copy(alpha = 0.88f), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        }
     }
 }
 
@@ -718,18 +704,19 @@ private fun CategorySheet(
     var name by remember { mutableStateOf(category?.name.orEmpty()) }
     var order by remember { mutableStateOf((category?.order ?: nextOrder).toString()) }
     AdminSheet(
-        title =
-            if (category ==
-                null
-            ) {
-                "Nueva categoría"
-            } else {
-                "Editar categoría"
-            },
+        title = if (category == null) "Nueva categoría" else "Editar categoría",
         colors = colors,
         busy = saving,
         onDismiss = onDismiss,
     ) {
+        if (category == null) {
+            Text(
+                "Agrupa tus productos. El cliente ve las categorías como pestañas del menú.",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+            )
+        }
         OperationalField(
             value = name,
             onValueChange = { name = it.take(80) },
@@ -738,22 +725,35 @@ private fun CategorySheet(
             placeholder = "Ej. Bebidas",
             enabled = !saving,
         )
-        OperationalField(
-            value = order,
-            onValueChange = { order = it.filter(Char::isDigit).take(4) },
-            label = "Orden en el menú",
-            colors = colors,
-            supporting = "Las categorías con número menor salen primero.",
-            enabled = !saving,
-            keyboardType = KeyboardType.Number,
-        )
+        if (category == null) {
+            AdminFieldLabel("Ideas", colors)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Bebidas", "Postres", "Comida", "Galletas").forEach { idea ->
+                    ChipButton(label = idea, enabled = !saving, colors = colors, selected = name == idea) { name = idea }
+                }
+            }
+        } else {
+            OperationalField(
+                value = order,
+                onValueChange = { order = it.filter(Char::isDigit).take(4) },
+                label = "Orden en el menú",
+                colors = colors,
+                supporting = "Las categorías con número menor salen primero.",
+                enabled = !saving,
+                keyboardType = KeyboardType.Number,
+            )
+        }
         error?.let { SheetError(it) }
-        ActionPill(label = "Guardar categoría", enabled = name.isNotBlank(), loading = saving, colors = colors) {
+        ActionPill(
+            label = if (category == null) "Crear categoría" else "Guardar categoría",
+            enabled = name.isNotBlank(),
+            loading = saving,
+            colors = colors,
+        ) {
             onSave(AdminCategoryInput(name = name.trim(), order = order.toIntOrNull() ?: nextOrder))
         }
     }
 }
-
 /** Borrador editable de un grupo de opciones; los números se guardan como texto mientras se escriben. */
 private class GroupDraft(
     val id: Int?,
@@ -815,7 +815,6 @@ private fun ProductSheet(
     val showsPreparation = takesPreorders || product?.preparationDays != null
     var preparationDays by remember { mutableStateOf(product?.preparationDays ?: 0) }
     var maximumPerDay by remember { mutableStateOf(product?.maximumPerDay?.toString().orEmpty()) }
-    var confirmArchive by remember { mutableStateOf(false) }
     val haptics = rememberVaiinillaHaptics()
     var categoryId by remember { mutableStateOf(product?.categoryId ?: categories.firstOrNull()?.id) }
     var station by remember { mutableStateOf(product?.preparationStation ?: PreparationStation.CASHIER) }
@@ -831,7 +830,6 @@ private fun ProductSheet(
     var allergensTouched by remember { mutableStateOf(false) }
     var markUnreviewed by remember { mutableStateOf(false) }
     var available by remember { mutableStateOf(product?.available ?: true) }
-    var confirmRental by remember { mutableStateOf(false) }
     var image by remember { mutableStateOf<AdminImage?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
     val groups =
@@ -869,307 +867,518 @@ private fun ProductSheet(
             }
         }
 
-    AdminSheet(title = product?.name ?: "Nuevo producto", colors = colors, busy = saving, onDismiss = onDismiss) {
-        PhotoBox(product, image, colors, saving) { picker.launch("image/*") }
-        imageError?.let { Text(it, fontSize = 12.sp, color = AdminCoral) }
-        if (product != null && product.imageUrl.isNotBlank() && image == null) {
-            Text(
-                "Quitar foto",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = AdminCoral,
-                modifier =
-                    Modifier.physicalPress(
-                        enabled = !saving,
-                        scale = PhysicalPressScale.Small,
-                    ) { onRemoveImage(product) },
+    val hero =
+        remember(image) { image?.let { BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.size)?.asImageBitmap() } }
+    var optionsOpen by remember { mutableStateOf(false) }
+    val save = {
+        val category = categoryId
+        if (category != null) {
+            onSave(
+                AdminProductInput(
+                    categoryId = category,
+                    preparationStation = station,
+                    name = name,
+                    description = description,
+                    ingredients = ingredients,
+                    allergens = allergens,
+                    estimatedTimeMinutes = minutes.toIntOrNull() ?: 0,
+                    counterPrice = price,
+                    available = available,
+                    optionGroups = groups.map { it.toInput() },
+                    allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
+                    markUnreviewed = isSchool && markUnreviewed,
+                    preparation =
+                        ProductPreparationInput(preparationDays, maximumPerDay.toIntOrNull())
+                            .takeIf { showsPreparation },
+                ),
+                image,
             )
         }
+    }
+    val canSave = name.isNotBlank() && price.isNotBlank() && categoryId != null
+    val looksLikeRental = RentalWords.containsMatchIn(name)
 
-        AdminFieldLabel("Categoría", colors)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            categories.forEach { category ->
-                ChipButton(
-                    label = category.name,
-                    enabled = !saving,
-                    colors = colors,
-                    selected =
-                        category.id == categoryId,
-                ) {
-                    haptics.selection()
-                    categoryId = category.id
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties =
+            androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+    ) {
+        androidx.activity.compose.BackHandler { if (optionsOpen) optionsOpen = false else onDismiss() }
+        AdminDialogHost(colors) {
+            val dialog = LocalAdminDialog.current
+            val trySave = {
+                haptics.impact()
+                // Solo se pregunta si el nombre de renta es nuevo: editar un producto que ya se llamaba así no vuelve a frenar.
+                if (looksLikeRental && name.trim() != product?.name?.trim()) {
+                    dialog(
+                        AdminDialogRequest(
+                            title = "¿Guardar como producto?",
+                            message = "«${name.trim()}» parece una renta. Como producto se vende por pieza, no por hora.",
+                            confirm = "Guardar",
+                            destructive = false,
+                        ) {
+                            save()
+                            true
+                        },
+                    )
+                } else {
+                    save()
                 }
             }
-        }
-
-        AdminFieldLabel("Se prepara en", colors)
-        val stations = listOf(PreparationStation.CASHIER, PreparationStation.KITCHEN)
-        SlidingSegments(
-            labels = stations.map(::stationLabel),
-            selectedIndex = stations.indexOf(station).coerceAtLeast(0),
-            onSelect = {
-                haptics.selection()
-                station = stations[it]
-            },
-            trackColor = colors.cardInner,
-            indicatorColor = colors.textPrimary,
-            selectedContentColor = colors.background,
-            idleContentColor = colors.textSecondary,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !saving,
-            verticalPadding = 11.dp,
-        )
-
-        OperationalField(
-            value = name,
-            onValueChange = { name = it.take(120) },
-            label = "Nombre",
-            colors = colors,
-            placeholder = "Ej. Matcha frío con avena",
-            enabled = !saving,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OperationalField(
-                value = price,
-                onValueChange = { price = moneyInput(it) },
-                label = "Precio",
-                colors = colors,
-                placeholder = "65",
-                enabled = !saving,
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.weight(1f),
-            )
-            OperationalField(
-                value = minutes,
-                onValueChange = { minutes = it.filter(Char::isDigit).take(3) },
-                label = "Minutos",
-                colors = colors,
-                placeholder = "5",
-                enabled = !saving,
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        if (showsPreparation) {
-            ProductPreparationEditor(
-                days = preparationDays,
-                onDaysChange = { preparationDays = it },
-                maximumPerDay = maximumPerDay,
-                onMaximumChange = { maximumPerDay = it },
-                enabled = !saving,
-                colors = colors,
-            )
-        }
-        Text(
-            if (cardFeeToCustomer) {
-                "Con efectivo o saldo, este precio. Con tarjeta se suma la comisión."
-            } else {
-                "El mismo precio con efectivo, saldo o tarjeta."
-            },
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-        )
-        val looksLikeRental = RentalWords.containsMatchIn(name)
-        if (looksLikeRental || rentsSpaces) {
-            Text(
-                when {
-                    looksLikeRental && rentsSpaces ->
-                        "Esto parece una renta de cancha. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
-                    looksLikeRental ->
-                        "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
-                    else -> "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto."
-                },
-                fontSize = 12.sp,
-                fontWeight = if (looksLikeRental) FontWeight.Bold else FontWeight.Normal,
-                color = if (looksLikeRental) AdminCoral else colors.textSecondary,
-            )
-        }
-        OperationalField(
-            value = description,
-            onValueChange = { description = it },
-            label = "Descripción",
-            colors = colors,
-            enabled = !saving,
-            singleLine = false,
-            minLines = 2,
-        )
-        OperationalField(
-            value = ingredients,
-            onValueChange = { ingredients = it },
-            label = "Ingredientes",
-            colors = colors,
-            enabled = !saving,
-            singleLine = false,
-        )
-        OperationalField(
-            value = allergens,
-            onValueChange = { allergens = it },
-            label = "Alérgenos",
-            colors = colors,
-            placeholder = "Ej. Lácteos, nuez",
-            enabled = !saving,
-            singleLine = false,
-        )
-        if (isSchool) {
-            AllergenReview(
-                codes = allergenCodes,
-                reviewed = allergensReviewed,
-                colors = colors,
-                enabled = !saving,
-            ) { codes ->
-                haptics.selection()
-                allergenCodes = codes
-                allergensReviewed = true
-                allergensTouched = true
-                markUnreviewed = false
-            }
-            if (allergensReviewed && product != null) {
-                Text(
-                    "Volver a sin revisar",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary,
-                    modifier =
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(colors.background)
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                if (optionsOpen) {
+                    Row(
                         Modifier
-                            .physicalPress(scale = PhysicalPressScale.Small, enabled = !saving) {
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors) { optionsOpen = false }
+                        Text(
+                            name.ifBlank { "Nuevo producto" },
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        )
+                        AdminRoundButton(Icons.Rounded.Check, "Listo", colors) { optionsOpen = false }
+                    }
+                    Column(
+                        Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Opciones y extras", fontSize = 18.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                            Text(
+                                "Lo que el cliente elige al pedir este producto.",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textSecondary,
+                            )
+                        }
+                        groups.forEachIndexed { index, group ->
+                            GroupEditor(group, colors, saving, onRemove = { groups.removeAt(index) })
+                        }
+                        if (groups.size < AdminProductRules.MAX_GROUPS) {
+                            AddRow("Agregar grupo de opciones", colors, saving) {
+                                groups.add(GroupDraft(null, "", "0", "1", listOf(OptionDraft(null, "", "0"))))
+                            }
+                        }
+                        if (isSchool) {
+                            AllergenReview(
+                                codes = allergenCodes,
+                                reviewed = allergensReviewed,
+                                colors = colors,
+                                enabled = !saving,
+                            ) { codes ->
                                 haptics.selection()
-                                allergensReviewed = false
-                                allergensTouched = false
-                                markUnreviewed = true
-                            }.padding(vertical = 8.dp),
-                )
+                                allergenCodes = codes
+                                allergensReviewed = true
+                                allergensTouched = true
+                                markUnreviewed = false
+                            }
+                            if (allergensReviewed && product != null) {
+                                AdminToggleRow(
+                                    title = "Alérgenos revisados",
+                                    detail = "Confirmas que la lista está completa",
+                                    checked = true,
+                                    colors = colors,
+                                    enabled = !saving,
+                                    onChange = {
+                                        allergensReviewed = false
+                                        allergensTouched = false
+                                        markUnreviewed = true
+                                    },
+                                )
+                            }
+                        }
+                        if (product != null) {
+                            AdminFieldLabel("Se prepara en", colors)
+                            StationChips(station, saving, colors) {
+                                haptics.selection()
+                                station = it
+                            }
+                            OperationalField(
+                                value = minutes,
+                                onValueChange = { minutes = it.filter(Char::isDigit).take(3) },
+                                label = "Minutos de preparación",
+                                colors = colors,
+                                placeholder = "5",
+                                enabled = !saving,
+                                keyboardType = KeyboardType.Number,
+                            )
+                            OperationalField(
+                                value = description,
+                                onValueChange = { description = it },
+                                label = "Descripción",
+                                colors = colors,
+                                enabled = !saving,
+                                singleLine = false,
+                                minLines = 2,
+                            )
+                            OperationalField(
+                                value = ingredients,
+                                onValueChange = { ingredients = it },
+                                label = "Ingredientes",
+                                colors = colors,
+                                enabled = !saving,
+                                singleLine = false,
+                            )
+                            if (product.imageUrl.isNotBlank() && image == null) {
+                                AdminSecondaryButton("Quitar foto", colors, destructive = true, enabled = !saving) {
+                                    onRemoveImage(product)
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                AdminSecondaryButton(
+                                    if (available) "Marcar agotado" else "Marcar disponible",
+                                    colors,
+                                    Modifier.weight(1f),
+                                    outlined = true,
+                                    enabled = !saving,
+                                ) { available = !available }
+                                AdminSecondaryButton(
+                                    "Archivar",
+                                    colors,
+                                    Modifier.weight(1f),
+                                    destructive = true,
+                                    outlined = true,
+                                    enabled = !saving,
+                                ) {
+                                    dialog(
+                                        AdminDialogRequest(
+                                            title = "¿Archivar ${product.name}?",
+                                            message =
+                                                "Deja de verse en el menú y no se puede pedir. Sus ventas pasadas se " +
+                                                    "conservan y puedes restaurarlo desde Archivados.",
+                                            confirm = "Archivar",
+                                            image = product.imageUrl.takeIf { it.isNotBlank() },
+                                        ) {
+                                            onArchive(product)
+                                            true
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else if (product == null) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 18.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Cancelar",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                            modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, enabled = !saving, onClick = onDismiss),
+                        )
+                        Text(
+                            "Nuevo producto",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "Guardar",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (canSave) colors.accentLime else colors.textMuted,
+                            modifier =
+                                Modifier.physicalPress(
+                                    scale = PhysicalPressScale.Small,
+                                    enabled = canSave && !saving,
+                                    onClick = trySave,
+                                ),
+                        )
+                    }
+                    Row(
+                        Modifier.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(Modifier.size(84.dp)) { PhotoBox(null, image, colors, saving, compact = true) { picker.launch("image/*") } }
+                        Text(
+                            "La foto es la que ve el cliente en el menú.",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textSecondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                } else {
+                    Box(Modifier.fillMaxWidth().height(240.dp).background(colors.cardInner)) {
+                        when {
+                            hero != null ->
+                                Image(hero, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            product.imageUrl.isNotBlank() ->
+                                ProductImage(product.imageUrl, product.name, Modifier.fillMaxSize())
+                        }
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors, onDismiss)
+                            Spacer(Modifier.weight(1f))
+                            AdminPrimaryButton(
+                                "Cambiar foto",
+                                colors,
+                                icon = Icons.Outlined.PhotoCamera,
+                                fullWidth = false,
+                                enabled = !saving,
+                            ) { picker.launch("image/*") }
+                        }
+                    }
+                    Text(
+                        "Editar producto",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.5).sp,
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp),
+                    )
+                }
+                if (!optionsOpen) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        imageError?.let { Text(it, fontSize = 12.sp, color = AdminCoral) }
+                        if (product == null) {
+                            CategoryChips(categories, categoryId, saving, colors) { categoryId = it }
+                            AdminFieldLabel("Se prepara en", colors)
+                            StationChips(station, saving, colors) {
+                                haptics.selection()
+                                station = it
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OperationalField(
+                                value = name,
+                                onValueChange = { name = it.take(120) },
+                                label = "Nombre",
+                                colors = colors,
+                                placeholder = "Ej. Matcha frío con avena",
+                                enabled = !saving,
+                                modifier = Modifier.weight(if (product == null) 1f else 1.5f),
+                            )
+                            if (product != null) {
+                                OperationalField(
+                                    value = price,
+                                    onValueChange = { price = moneyInput(it) },
+                                    label = "Precio",
+                                    colors = colors,
+                                    placeholder = "65",
+                                    enabled = !saving,
+                                    keyboardType = KeyboardType.Decimal,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        if (product == null) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                OperationalField(
+                                    value = price,
+                                    onValueChange = { price = moneyInput(it) },
+                                    label = "Precio",
+                                    colors = colors,
+                                    placeholder = "65",
+                                    enabled = !saving,
+                                    keyboardType = KeyboardType.Decimal,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                OperationalField(
+                                    value = minutes,
+                                    onValueChange = { minutes = it.filter(Char::isDigit).take(3) },
+                                    label = "Minutos de preparación",
+                                    colors = colors,
+                                    placeholder = "5",
+                                    enabled = !saving,
+                                    keyboardType = KeyboardType.Number,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                        Text(
+                            if (cardFeeToCustomer) {
+                                "Con efectivo o saldo, este precio. Con tarjeta se suma la comisión."
+                            } else {
+                                "El mismo precio con efectivo, saldo o tarjeta."
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (cardFeeToCustomer) colors.accentLime else colors.textSecondary,
+                        )
+                        if (looksLikeRental || rentsSpaces) {
+                            Text(
+                                when {
+                                    looksLikeRental && rentsSpaces ->
+                                        "Esto parece una renta de cancha. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
+                                    looksLikeRental ->
+                                        "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
+                                    else -> "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto."
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = if (looksLikeRental) FontWeight.Bold else FontWeight.Normal,
+                                color = if (looksLikeRental) AdminCoral else colors.textSecondary,
+                            )
+                        }
+                        if (product != null) CategoryChips(categories, categoryId, saving, colors) { categoryId = it }
+                        if (showsPreparation) {
+                            ProductPreparationEditor(
+                                days = preparationDays,
+                                onDaysChange = { preparationDays = it },
+                                maximumPerDay = maximumPerDay,
+                                onMaximumChange = { maximumPerDay = it },
+                                enabled = !saving,
+                                colors = colors,
+                            )
+                        }
+                        if (product == null) {
+                            OperationalField(
+                                value = description,
+                                onValueChange = { description = it },
+                                label = "Descripción",
+                                colors = colors,
+                                enabled = !saving,
+                                singleLine = false,
+                                minLines = 2,
+                            )
+                            OperationalField(
+                                value = ingredients,
+                                onValueChange = { ingredients = it },
+                                label = "Ingredientes",
+                                colors = colors,
+                                enabled = !saving,
+                                singleLine = false,
+                            )
+                        }
+                        if (!isSchool) {
+                            AdminFieldLabel("Alérgenos", colors)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                val chosen = allergens.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                (CommonAllergens + chosen.filter { it !in CommonAllergens }).forEach { item ->
+                                    val on = item in chosen
+                                    ChipButton(label = item, enabled = !saving, colors = colors, selected = on) {
+                                        haptics.selection()
+                                        allergens = (if (on) chosen - item else chosen + item).joinToString(", ")
+                                    }
+                                }
+                            }
+                        }
+                        AdminToggleRow(
+                            title = "Disponible",
+                            detail = if (available) "Se ve en el menú y se puede pedir" else "Sale como agotado y no se puede pedir",
+                            checked = available,
+                            colors = colors,
+                            enabled = !saving,
+                            onChange = { available = it },
+                        )
+                        AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                            AdminRow(
+                                title = "Opciones y extras" + if (isSchool) " · Alérgenos" else "",
+                                colors = colors,
+                                detail =
+                                    if (groups.isEmpty()) {
+                                        "Tamaños, leches, extras…"
+                                    } else {
+                                        groups.joinToString(" · ") { it.name.ifBlank { "Grupo" } }
+                                    } + if (product != null) " · detalles y archivar" else "",
+                                onClick = { optionsOpen = true },
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = colors.textMuted,
+                                )
+                            }
+                        }
+                        error?.let { SheetError(it) }
+                        AdminPrimaryButton(
+                            title = if (product == null) "Guardar producto" else "Guardar cambios",
+                            colors = colors,
+                            busy = saving,
+                            enabled = canSave,
+                            onClick = trySave,
+                        )
+                    }
+                }
             }
-        }
-
-        // Toda la fila cambia el interruptor: tocar el texto «Disponible» no hacía nada y el interruptor solo
-        // respondía en su borde (EQUIPO-14).
-        Row(
-            Modifier.fillMaxWidth().toggleable(
-                value = available,
-                enabled = !saving,
-                role = Role.Switch,
-                onValueChange = { available = it },
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Disponible", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                Text(
-                    if (available) "Prendido: se puede pedir." else "Apagado: sale como agotado y no se puede pedir.",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                )
-            }
-            Switch(
-                checked = available,
-                onCheckedChange = null,
-                enabled = !saving,
-                colors = adminSwitchColors(colors),
-            )
-        }
-
-        if (product != null) {
-            Text(
-                "Archivar",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = AdminCoral,
-                modifier =
-                    Modifier
-                        .physicalPress(enabled = !saving, scale = PhysicalPressScale.Small) { confirmArchive = true }
-                        .padding(vertical = 8.dp),
-            )
-        }
-        if (confirmArchive && product != null) {
-            AlertDialog(
-                onDismissRequest = { confirmArchive = false },
-                title = { Text("¿Archivar ${product.name}?") },
-                text = { Text("Sale del menú y nadie lo puede pedir. Lo encuentras en Archivados para regresarlo.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        confirmArchive = false
-                        onArchive(product)
-                    }) { Text("Archivar") }
-                },
-                dismissButton = { TextButton(onClick = { confirmArchive = false }) { Text("Cancelar") } },
-            )
-        }
-
-        AdminSectionTitle("Opciones y extras", colors, Modifier.padding(top = 6.dp))
-        Text(
-            "Tamaños, leches, extras… Mínimo 0 si el grupo es opcional.",
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-        )
-        groups.forEachIndexed { index, group ->
-            GroupEditor(group, colors, saving, onRemove = { groups.removeAt(index) })
-        }
-        if (groups.size < AdminProductRules.MAX_GROUPS) {
-            AddRow("Agregar grupo", colors, saving) {
-                groups.add(GroupDraft(null, "", "0", "1", listOf(OptionDraft(null, "", "0"))))
-            }
-        }
-
-        error?.let { SheetError(it) }
-        val save = {
-            val category = categoryId
-            if (category != null) {
-                onSave(
-                    AdminProductInput(
-                        categoryId = category,
-                        preparationStation = station,
-                        name = name,
-                        description = description,
-                        ingredients = ingredients,
-                        allergens = allergens,
-                        estimatedTimeMinutes = minutes.toIntOrNull() ?: 0,
-                        counterPrice = price,
-                        available = available,
-                        optionGroups = groups.map { it.toInput() },
-                        allergenCodes = allergenCodes.takeIf { isSchool && allergensTouched },
-                        markUnreviewed = isSchool && markUnreviewed,
-                        preparation =
-                            ProductPreparationInput(preparationDays, maximumPerDay.toIntOrNull())
-                                .takeIf { showsPreparation },
-                    ),
-                    image,
-                )
-            }
-        }
-        if (confirmRental) {
-            AlertDialog(
-                onDismissRequest = { confirmRental = false },
-                title = { Text("¿Guardar como producto?") },
-                text = { Text("«${name.trim()}» parece una renta. Como producto se vende por pieza, no por hora.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        confirmRental = false
-                        save()
-                    }) { Text("Guardar") }
-                },
-                dismissButton = { TextButton(onClick = { confirmRental = false }) { Text("Cambiar nombre") } },
-            )
-        }
-        ActionPill(
-            label = if (product == null) "Crear producto" else "Guardar cambios",
-            enabled = name.isNotBlank() && price.isNotBlank() && categoryId != null,
-            loading = saving,
-            colors = colors,
-            modifier = Modifier.padding(top = 8.dp),
-        ) {
-            haptics.impact()
-            // Solo se pregunta si el nombre de renta es nuevo: editar un producto que ya se llamaba así no vuelve a frenar.
-            if (looksLikeRental && name.trim() != product?.name?.trim()) confirmRental = true else save()
         }
     }
 }
 
+private val CommonAllergens = listOf("Gluten", "Huevo", "Lácteos", "Nueces", "Soya")
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryChips(
+    categories: List<Category>,
+    selected: Int?,
+    saving: Boolean,
+    colors: OperationalColors,
+    onSelect: (Int) -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    AdminFieldLabel("Categoría", colors)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        categories.forEach { category ->
+            ChipButton(label = category.name, enabled = !saving, colors = colors, selected = category.id == selected) {
+                haptics.selection()
+                onSelect(category.id)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StationChips(
+    station: PreparationStation,
+    saving: Boolean,
+    colors: OperationalColors,
+    onSelect: (PreparationStation) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(PreparationStation.KITCHEN, PreparationStation.CASHIER).forEach { option ->
+            ChipButton(label = stationLabel(option), enabled = !saving, colors = colors, selected = option == station) {
+                onSelect(option)
+            }
+        }
+    }
+}
 @Composable
 private fun PhotoBox(
     product: Product?,
     image: AdminImage?,
     colors: OperationalColors,
     saving: Boolean,
+    compact: Boolean = false,
     onPick: () -> Unit,
 ) {
     val preview =
@@ -1179,7 +1388,7 @@ private fun PhotoBox(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(150.dp)
+                .height(if (compact) 84.dp else 150.dp)
                 .physicalPress(enabled = !saving, onClick = onPick)
                 .clip(shape)
                 .background(colors.cardBackground)
@@ -1210,12 +1419,12 @@ private fun PhotoBox(
                         modifier = Modifier.size(26.dp),
                     )
                     Text(
-                        "Foto del producto",
+                        if (compact) "Foto" else "Foto del producto",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
                     )
-                    Text("Toca para elegir de la galería", fontSize = 11.sp, color = colors.textMuted)
+                    if (!compact) Text("Toca para elegir de la galería", fontSize = 11.sp, color = colors.textMuted)
                 }
         }
     }

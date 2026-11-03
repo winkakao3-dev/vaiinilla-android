@@ -114,7 +114,7 @@ internal fun AdminStaffSection(
                 AdminPrimaryButton(
                     title = "Invitar",
                     colors = colors,
-                    modifier = Modifier.height(36.dp),
+                    fullWidth = false,
                     icon = Icons.Outlined.Email,
                     enabled = !state.saving,
                 ) { sheet = StaffSheet.Invite }

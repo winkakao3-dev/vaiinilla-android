@@ -385,7 +385,7 @@ private fun CollectButtons(
     }
 }
 
-private fun mapsUrl(address: DeliveryAddress): String {
+internal fun mapsUrl(address: DeliveryAddress): String {
     val destination =
         if (address.latitude != null && address.longitude != null) {
             "${address.latitude},${address.longitude}"

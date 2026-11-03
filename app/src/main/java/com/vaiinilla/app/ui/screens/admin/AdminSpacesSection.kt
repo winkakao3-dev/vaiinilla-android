@@ -272,7 +272,7 @@ private fun SpacesList(
                 AdminPrimaryButton(
                     title = "Espacio",
                     colors = colors,
-                    modifier = Modifier.height(36.dp),
+                    fullWidth = false,
                     icon = Icons.Outlined.Add,
                     enabled = enabled,
                 ) { onSheet(SpacesSheet.Create) }

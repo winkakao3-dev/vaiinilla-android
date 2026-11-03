@@ -99,7 +99,10 @@ class AdminMenuArchiveUiTest {
         }
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Agua"))
         composeTestRule.onAllNodesWithText("Agua").onFirst().performClick()
-        composeTestRule.onNodeWithText("Archivar").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onAllNodes(hasScrollAction()).onLast().performScrollToNode(hasText("Opciones y extras", substring = true))
+        composeTestRule.onNodeWithText("Opciones y extras", substring = true).performClick()
+        composeTestRule.onAllNodes(hasScrollAction()).onLast().performScrollToNode(hasText("Archivar"))
+        composeTestRule.onNodeWithText("Archivar").performClick()
         composeTestRule.onNodeWithText("¿Archivar Agua?").assertExists()
         assertEquals(emptyList<String>(), calls)
         composeTestRule.onAllNodesWithText("Archivar").onLast().performClick()
@@ -107,7 +110,7 @@ class AdminMenuArchiveUiTest {
 
         composeTestRule.onAllNodesWithText("Archivados · 1").onFirst().performClick()
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Té viejo"))
-        composeTestRule.onNodeWithContentDescription("Té viejo, archivado. Regresarlo al menú").performClick()
+        composeTestRule.onNodeWithText("Restaurar").performClick()
         composeTestRule.onNodeWithText("¿Regresar Té viejo al menú?").assertExists()
         assertEquals(listOf("Agua:true"), calls)
         composeTestRule.onNodeWithText("Regresar al menú").performClick()

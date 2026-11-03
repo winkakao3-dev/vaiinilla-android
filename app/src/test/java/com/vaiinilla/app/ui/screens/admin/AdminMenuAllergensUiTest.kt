@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -151,13 +153,14 @@ class AdminMenuAllergensUiTest {
         }
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Agua"))
         composeTestRule.onAllNodesWithText("Agua").onFirst().performClick()
-        // La hoja es más alta que la pantalla de prueba: se toca por su acción, no por coordenadas.
-        composeTestRule.onNodeWithText("Volver a sin revisar").performSemanticsAction(SemanticsActions.OnClick)
+        composeTestRule.onAllNodes(hasScrollAction()).onLast().performScrollToNode(hasText("Opciones y extras", substring = true))
+        composeTestRule.onNodeWithText("Opciones y extras", substring = true).performClick()
+        composeTestRule.onAllNodes(isToggleable()).onFirst().performSemanticsAction(SemanticsActions.OnClick)
         composeTestRule
             .onNodeWithText(
                 "Sin revisar: un alumno con alergias no lo puede pedir. Marca lo que tiene o \"No tiene ninguno\".",
             ).assertExists()
-        composeTestRule.onNodeWithText("Volver a sin revisar").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Alérgenos revisados").assertDoesNotExist()
     }
 
     @Test

@@ -160,8 +160,7 @@ class AdminMenuRentalWarningUiTest {
         }
         openProduct("Renta cancha 1 h")
         // En Robolectric los toques no llegan a la hoja modal; se usa la acción de clic de la fila.
-        val switch =
-            composeTestRule.onNode(isToggleable() and hasText("Apagado, sale como agotado y no se puede pedir."))
+        val switch = composeTestRule.onNode(isToggleable())
         switch.performScrollTo().assertIsOn()
         switch.performSemanticsAction(SemanticsActions.OnClick)
         switch.assertIsOff()

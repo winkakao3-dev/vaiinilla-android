@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -160,17 +162,43 @@ internal fun AdminConfirmSheet(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AdminSheet(title = title, colors = colors, busy = busy, onDismiss = onDismiss) {
-        Text(message, fontSize = 15.sp, color = colors.textPrimary)
-        ActionPill(label = confirmLabel, enabled = true, loading = busy, colors = colors, onClick = onConfirm)
-        ActionPill(
-            label = "Cancelar",
-            enabled = !busy,
-            loading = false,
-            colors = colors,
-            primary = false,
-            onClick = onDismiss,
-        )
+    // Lo que no se deshace fácil va en el aviso centrado con botón rojo (marco 54), no en una hoja.
+    androidx.compose.ui.window.Dialog(onDismissRequest = { if (!busy) onDismiss() }) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(28.dp))
+                .background(colors.cardBackground)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-0.4).sp,
+                color = colors.textPrimary,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp,
+            )
+            AdminPrimaryButton(
+                title = confirmLabel,
+                colors = colors,
+                modifier = Modifier.padding(top = 6.dp),
+                busy = busy,
+                fill = AdminCoral,
+                contentColor = Color.White,
+                onClick = onConfirm,
+            )
+            AdminSecondaryButton(title = "Cancelar", colors = colors, enabled = !busy, onClick = onDismiss)
+        }
     }
 }
 

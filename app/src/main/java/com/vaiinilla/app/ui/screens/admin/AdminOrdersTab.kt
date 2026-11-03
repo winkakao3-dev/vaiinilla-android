@@ -138,6 +138,8 @@ private fun OrdersPage(
 ) {
     var open by remember { mutableStateOf<OrderDetail?>(null) }
     var mode by rememberSaveable { mutableStateOf(OrdersMode.ORDERS) }
+    // «Entregar y cobrar» son dos llamadas: la de cobrar sale cuando la entrega ya quedó.
+    var collectAfterDelivery by remember { mutableStateOf<String?>(null) }
     val agendaOn = mode == OrdersMode.AGENDA && state.takesHomeOrders
     LaunchedEffect(agendaOn) { if (agendaOn) actions.onRefreshAgenda() }
     // Prender las entregas en Mi tienda cambia el estado operativo: sin releerlo, la Agenda no salía (EQUIPO-50).
@@ -158,6 +160,10 @@ private fun OrdersPage(
         } else {
             emptyList()
         }
+    // Un encargo que espera respuesta es lo primero que se ve al abrir Pedidos (marco 17).
+    LaunchedEffect(awaiting.isNotEmpty()) {
+        if (awaiting.isNotEmpty() && mode == OrdersMode.ORDERS) mode = OrdersMode.AWAITING
+    }
     val unpaidBySpace =
         remember(state.unpaid) {
             state.unpaid
@@ -208,8 +214,14 @@ private fun OrdersPage(
                     } else {
                         null
                     }
+                if (state.takesHomeOrders) {
+                    AwaitingChip(awaiting.size, mode == OrdersMode.AWAITING, colors) {
+                        mode = OrdersMode.AWAITING
+                        actions.onSelectOrderFilter(AdminOrderFilter.ACTIVE)
+                    }
+                }
                 AdminFilterChip(
-                    label = activeCount?.let { "Activos · $it" } ?: "Activos",
+                    label = if (state.takesHomeOrders) "Hoy" else activeCount?.let { "Activos · $it" } ?: "Activos",
                     selected = mode == OrdersMode.ORDERS && state.orderFilter == AdminOrderFilter.ACTIVE,
                     colors = colors,
                     onClick = {
@@ -218,10 +230,9 @@ private fun OrdersPage(
                     },
                 )
                 if (state.takesHomeOrders) {
-                    AwaitingChip(awaiting.size, mode == OrdersMode.AWAITING, colors) {
-                        mode = OrdersMode.AWAITING
-                        actions.onSelectOrderFilter(AdminOrderFilter.ACTIVE)
-                    }
+                    AdminFilterChip(label = "Agenda", selected = agendaOn, colors = colors, onClick = {
+                        mode = OrdersMode.AGENDA
+                    })
                 }
                 AdminOrderFilter.entries.filter { it != AdminOrderFilter.ACTIVE }.forEach { filter ->
                     AdminFilterChip(
@@ -234,16 +245,26 @@ private fun OrdersPage(
                         },
                     )
                 }
-                if (state.takesHomeOrders) {
-                    AdminFilterChip(label = "Agenda", selected = agendaOn, colors = colors, onClick = {
-                        mode = OrdersMode.AGENDA
-                    })
-                }
             }
         }
         item(key = "separacion") { Box(Modifier.height(12.dp)) }
         when {
             agendaOn -> agendaItems(state, colors, actions.onRefreshAgenda) { open = it }
+            mode == OrdersMode.AWAITING && awaiting.isNotEmpty() -> {
+                items(awaiting, key = { "por-aceptar-${it.summary.id}" }) { order ->
+                    AwaitingOrderCard(
+                        order = order,
+                        photos = photos,
+                        colors = colors,
+                        busy = state.saving,
+                        onAccept = { actions.onHomeAction(order, HomeOrderAction.Accept) { } },
+                        onReject = { reason -> actions.onHomeAction(order, HomeOrderAction.Reject(reason)) { } },
+                        onOpen = { open = order },
+                        modifier = Modifier.animateItem().padding(vertical = 4.dp),
+                    )
+                }
+                item(key = "semana") { WeekStrip(awaiting, colors, Modifier.padding(top = 16.dp)) }
+            }
             mode == OrdersMode.AWAITING ->
                 orderItems(state, awaiting, colors, actions, photos, OrdersMode.AWAITING, onTakeOrder) { open = it }
             else ->
@@ -259,14 +280,43 @@ private fun OrdersPage(
         }
     }
     open?.let { order ->
-        OrderSheet(
-            order = order,
-            photos = photos,
-            colors = colors,
-            busy = state.saving,
-            error = state.notice?.takeIf { state.noticeIsError },
-            onHomeAction = { action -> actions.onHomeAction(order, action) { updated -> open = updated } },
-        ) { open = null }
+        val act: (HomeOrderAction) -> Unit = { action ->
+            actions.onHomeAction(order, action) { updated ->
+                open = updated
+                val method = collectAfterDelivery
+                if (method != null && updated.summary.state == OrderState.DELIVERED) {
+                    collectAfterDelivery = null
+                    if (updated.homeDelivery?.hasAmountDue == true) {
+                        actions.onHomeAction(updated, HomeOrderAction.Collect(method)) { paid -> open = paid }
+                    }
+                }
+            }
+        }
+        if (order.homeDelivery != null) {
+            AdminHomeOrderPage(
+                order = order,
+                state = state,
+                photos = photos,
+                colors = colors,
+                busy = state.saving,
+                error = state.notice?.takeIf { state.noticeIsError },
+                onDeliverAndCollect = { code, method ->
+                    collectAfterDelivery = method
+                    act(HomeOrderAction.Deliver(code))
+                },
+                onAction = act,
+                onBack = { open = null },
+            )
+        } else {
+            OrderSheet(
+                order = order,
+                photos = photos,
+                colors = colors,
+                busy = state.saving,
+                error = state.notice?.takeIf { state.noticeIsError },
+                onHomeAction = act,
+            ) { open = null }
+        }
     }
 }
 
@@ -451,7 +501,9 @@ private fun OrderRowCard(
                 .alpha(if (faded) 0.8f else 1f)
                 .physicalPress(onClick = onOpen)
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "Pedido ${summary.folio}, ${whoLabel(order)}, ${summary.state.label}"
+                    contentDescription =
+                        listOfNotNull("Pedido ${summary.folio}", whoLabel(order) ?: whereLabel(order), summary.state.label)
+                            .joinToString(", ")
                 }.clip(shape)
                 .background(colors.cardBackground)
                 .border(
@@ -465,7 +517,7 @@ private fun OrderRowCard(
         AdminThumb(photo, order.items.firstOrNull()?.productName ?: "Pedido", colors, size = 46.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                "#${summary.folio} · ${whoLabel(order)}",
+                listOfNotNull("#${summary.folio}", whoLabel(order) ?: whereLabel(order)).joinToString(" · "),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = colors.textPrimary,
