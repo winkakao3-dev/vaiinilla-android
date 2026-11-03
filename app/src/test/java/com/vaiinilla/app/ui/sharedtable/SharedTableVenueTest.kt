@@ -48,10 +48,20 @@ class SharedTableVenueTest {
         val vm = SharedTableViewModel(repository)
 
         vm.claim(folio = 7, payIt = true)
+        // El reclamo y la relectura corren en Dispatchers.IO: se espera a que la mesa se vuelva a leer.
+        waitUntil { repository.currentCalls == 1 && !vm.uiState.value.busy }
 
         assertEquals(7, vm.uiState.value.errorFolio)
         assertEquals("Ese pedido ya está pagado", vm.uiState.value.error)
         assertEquals(1, repository.currentCalls)
+    }
+
+    private fun waitUntil(condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!condition()) {
+            check(System.currentTimeMillis() < deadline) { "La mesa no se volvió a leer a tiempo." }
+            Thread.sleep(10)
+        }
     }
 
     private fun spaceId(vm: SharedTableViewModel): Int? {
@@ -62,7 +72,7 @@ class SharedTableVenueTest {
     private class FakeRepository(
         private val claimFails: Boolean = false,
     ) : SharedTableRepository {
-        var currentCalls = 0
+        @Volatile var currentCalls = 0
         private val zero = SharedTableAmounts(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
         private val table =
             SharedTable(
