@@ -1,5 +1,17 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
+import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminPanel
+import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
+import com.vaiinilla.app.domain.model.OrderDetail
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -75,10 +87,9 @@ internal fun originalMethodLabel(originalMethod: String): String =
     }
 
 /**
- * El aviso de C01: «1 devolución pendiente», con su monto y «Ver». El detalle se abre en una hoja para que las
+ * El aviso de C01: «1 devolución pendiente», con su monto y «Ver». El detalle se abre en su página para que las
  * devoluciones no empujen la fila hacia abajo. Sin pendientes solo queda el aviso de la última confirmación.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CashierRefundsEntry(
     state: PendingRefundsUiState,
@@ -87,6 +98,7 @@ internal fun CashierRefundsEntry(
     colors: OperationalColors,
     onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
     modifier: Modifier = Modifier,
+    orders: List<OrderDetail> = emptyList(),
 ) {
     var open by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.refunds.isEmpty()) {
@@ -134,25 +146,46 @@ internal fun CashierRefundsEntry(
         Text("Ver", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = yellow)
     }
     if (open) {
-        ModalBottomSheet(
+        Dialog(
             onDismissRequest = { open = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = colors.background,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 18.dp)
-                        .padding(bottom = 28.dp),
-            ) {
-                CashierRefundsSection(state, canConfirm, cashOpen, colors, onConfirm)
-            }
+            CashierRefundsPage(state, canConfirm, cashOpen, colors, orders, onConfirm) { open = false }
         }
     }
 }
 
+/** Devoluciones como el marco C05: una página con cada dinero por regresar. */
+@Composable
+internal fun CashierRefundsPage(
+    state: PendingRefundsUiState,
+    canConfirm: Boolean,
+    cashOpen: Boolean?,
+    colors: OperationalColors,
+    orders: List<OrderDetail>,
+    onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
+    onBack: () -> Unit,
+) {
+    val total = state.refunds.sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
+    AdminSectionPage(
+        title = "Devoluciones",
+        colors = colors,
+        notice = state.notice,
+        noticeIsError = state.noticeIsError,
+        onBack = onBack,
+        subtitle = "Dinero que hay que regresarle a alguien. Lo pagado con saldo ya regresó solo a su cartera.",
+    ) {
+        item(key = "pendientes") {
+            AdminCapsLabel(
+                "Pendientes · ${state.refunds.size} · ${moneyLabel(com.vaiinilla.app.domain.model.Money.format(total))}",
+                colors,
+            )
+        }
+        items(state.refunds, key = { it.id }) { refund ->
+            RefundRow(refund, state, canConfirm, cashOpen, colors, orders.firstOrNull { it.summary.id == refund.orderId }, onConfirm)
+        }
+    }
+}
 internal fun refundsEntryTitle(count: Int): String =
     if (count == 1) "1 devolución pendiente" else "$count devoluciones pendientes"
 
@@ -205,7 +238,7 @@ internal fun CashierRefundsSection(
             )
         }
         state.refunds.forEach { refund ->
-            RefundRow(refund, state, canConfirm, cashOpen, colors, onConfirm)
+            RefundRow(refund, state, canConfirm, cashOpen, colors, null, onConfirm)
         }
     }
 }
@@ -217,105 +250,100 @@ private fun RefundRow(
     canConfirm: Boolean,
     cashOpen: Boolean?,
     colors: OperationalColors,
+    order: OrderDetail?,
     onConfirm: (PendingRefund, RefundMethod, String?) -> Unit,
 ) {
     // El servidor rechaza una devolución en efectivo con la caja cerrada; mejor no ofrecerla (CAJA-22). Lo cobrado en
     // la puerta de un pedido a domicilio lo tiene quien entregó, no el cajón: devolverlo no pide la caja (CASA-09).
     val cashBlocked = cashOpen == false && !collectedAtDoor(refund.originalMethod)
-    val shape = RoundedCornerShape(22.dp)
     val suggested = suggestedRefundMethod(refund.originalMethod)
     val busy = state.confirming?.first == refund.id
     // «Otro» no deja rastro de a dónde fue el dinero: se pide el motivo para que el dueño cuadre la caja (EQUIPO-11).
-    var askingReason by remember(refund.id) { mutableStateOf(false) }
+    var chosen by remember(refund.id) { mutableStateOf(if (cashBlocked) RefundMethod.OTHER else suggested) }
     var reason by remember(refund.id) { mutableStateOf("") }
-    Surface(
-        shape = shape,
-        color = colors.cardBackground,
-        modifier = Modifier.fillMaxWidth().border(1.dp, colors.cardBorder, shape),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column {
+    val amount = moneyLabel(refund.amount)
+    val title =
+        when {
+            order != null -> listOfNotNull("Pedido #${order.summary.folio}", staffCustomerName(order)).joinToString(" · ")
+            refund.origin == "reserva_cancelada" -> "Reserva"
+            else -> "Dinero por devolver"
+        }
+    AdminPanel(colors, padding = PaddingValues(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = colors.textPrimary)
                 Text(
-                    "Devolver ${moneyLabel(refund.amount)}",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 20.sp,
-                    color = colors.textPrimary,
-                )
-                Text(
-                    "${refundOriginLabel(refund.origin)} · ${originalMethodLabel(refund.originalMethod)}",
+                    listOfNotNull(refundOriginLabel(refund.origin), receiptLocalTime(refund.createdAt)).joinToString(" · "),
                     fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            if (canConfirm) {
-                Text(
-                    "¿CÓMO SE LO REGRESAS?",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 10.5.sp,
-                    letterSpacing = 1.2.sp,
-                    color = colors.textSecondary,
+            Text(amount, fontWeight = FontWeight.Black, fontSize = 20.sp, color = colors.textPrimary)
+        }
+        if (canConfirm) {
+            AdminCapsLabel("¿Cómo se lo regresas?", colors, Modifier.padding(top = 12.dp, bottom = 6.dp), inset = false)
+            val options =
+                listOfNotNull(
+                    (suggested to "En ${suggested.label.lowercase()}").takeIf { suggested != RefundMethod.OTHER },
+                    (RefundMethod.CASH to "En efectivo").takeIf { suggested != RefundMethod.CASH },
+                    RefundMethod.OTHER to "Otro",
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ActionPill(
-                        label = "Devuelto en ${suggested.label}",
-                        enabled = state.confirming == null && !(cashBlocked && suggested == RefundMethod.CASH),
-                        loading = busy && state.confirming?.second == suggested,
-                        colors = colors,
-                        primary = false,
-                        modifier = Modifier.weight(1f),
-                    ) { onConfirm(refund, suggested, null) }
-                    if (suggested != RefundMethod.CASH) {
-                        ActionPill(
-                            label = "En efectivo",
-                            enabled = state.confirming == null && !cashBlocked,
-                            loading = busy && state.confirming?.second == RefundMethod.CASH,
-                            colors = colors,
-                            primary = false,
-                            modifier = Modifier.weight(1f),
-                        ) { onConfirm(refund, RefundMethod.CASH, null) }
-                    }
-                    if (suggested != RefundMethod.OTHER) {
-                        // No sale del cajón: se puede confirmar aunque la caja esté cerrada.
-                        ActionPill(
-                            label = "Otro",
-                            enabled = state.confirming == null,
-                            loading = busy && state.confirming?.second == RefundMethod.OTHER,
-                            colors = colors,
-                            primary = false,
-                            modifier = Modifier.weight(1f),
-                        ) { askingReason = true }
-                    }
-                }
-                if (askingReason) {
-                    OperationalField(
-                        value = reason,
-                        onValueChange = { reason = it.take(REASON_MAX) },
-                        label = "Motivo",
-                        colors = colors,
-                        placeholder = "Ej. transferencia al cliente",
-                        enabled = state.confirming == null,
-                    )
-                    ActionPill(
-                        label = "Confirmar devolución",
-                        enabled = state.confirming == null && reason.isNotBlank(),
-                        loading = busy && state.confirming?.second == RefundMethod.OTHER,
-                        colors = colors,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { onConfirm(refund, RefundMethod.OTHER, reason.trim()) }
-                }
-                if (cashBlocked) {
-                    Text(
-                        "Abre la caja para devolver en efectivo.",
-                        fontSize = 12.sp,
-                        color = colors.textSecondary,
-                    )
-                }
+            AdminSegmented(
+                options = options,
+                selected = chosen,
+                colors = colors,
+                enabled = state.confirming == null,
+                onSelect = { chosen = it },
+            )
+            Spacer(Modifier.height(10.dp))
+            if (chosen == RefundMethod.OTHER) {
+                OperationalField(
+                    value = reason,
+                    onValueChange = { reason = it.take(REASON_MAX) },
+                    label = "Motivo",
+                    colors = colors,
+                    placeholder = "Ej. transferencia al cliente",
+                    enabled = state.confirming == null,
+                )
+                Spacer(Modifier.height(10.dp))
+            } else if (chosen == RefundMethod.CASH && !collectedAtDoor(refund.originalMethod)) {
+                Text(
+                    if (cashBlocked) {
+                        "Abre la caja para devolver en efectivo."
+                    } else {
+                        "Sale de la caja: el efectivo esperado baja $amount."
+                    },
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
             }
+            val ready =
+                state.confirming == null &&
+                    when (chosen) {
+                        RefundMethod.OTHER -> reason.isNotBlank()
+                        RefundMethod.CASH -> !cashBlocked
+                        else -> true
+                    }
+            AdminPrimaryButton(
+                title =
+                    if (chosen == RefundMethod.OTHER && reason.isBlank()) {
+                        "Escribe el motivo para confirmar"
+                    } else {
+                        "Ya se lo di · $amount"
+                    },
+                colors = colors,
+                busy = busy,
+                enabled = ready,
+                fill = colors.accentLime,
+                contentColor = colors.accentInk,
+            ) { onConfirm(refund, chosen, reason.trim().takeIf { chosen == RefundMethod.OTHER }) }
         }
     }
 }
-
 private const val REASON_MAX = 80
 
 private val RefundCoral = Color(0xFFE5645A)

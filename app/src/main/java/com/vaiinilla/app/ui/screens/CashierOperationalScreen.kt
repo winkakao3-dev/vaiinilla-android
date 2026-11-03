@@ -1,5 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.material.icons.rounded.Lock
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.slideInVertically
@@ -182,6 +189,7 @@ fun CashierOperationalScreen(
     onUploadStoreImage: (StoreImageKind, ByteArray, String, String) -> Unit = { _, _, _, _ -> },
     onRemoveStoreImage: (StoreImageKind) -> Unit = {},
     assistantUserKey: String = "cashier",
+    staffName: String? = null,
     /** Abre el pedido de mostrador; null lo oculta. */
     onNewCounterOrder: (() -> Unit)? = null,
     /** Mesas a las que Caja toma pedido, como el mesero. */
@@ -274,6 +282,7 @@ fun CashierOperationalScreen(
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
     var openCashSheet by remember { mutableStateOf(false) }
+    var browsingClosed by rememberSaveable { mutableStateOf(false) }
     val cashRegisterOpen = state.cashSessionOpen == true
     val canReloadWallet = cashRegisterOpen && restrictedMode != RestrictedMode.READ_ONLY
     val walletBlockedReason =
@@ -449,6 +458,24 @@ fun CashierOperationalScreen(
 
             if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
+            }
+
+            if (state.cashSessionOpen == false && !browsingClosed && restrictedMode != RestrictedMode.READ_ONLY) {
+                item(key = "cash-welcome") {
+                    CashWelcome(
+                        staffName = staffName,
+                        suggested = state.suggestedCashFloat,
+                        enabled = !state.acting,
+                        colors = colors,
+                        onOpen = onOpenCashSession,
+                        onOtherAmount = {
+                            haptics.impact()
+                            openCashSheet = true
+                        },
+                        onSkip = { browsingClosed = true },
+                    )
+                }
+                return@LazyColumn
             }
 
             item(key = "cashier-title") {
@@ -928,6 +955,7 @@ fun CashierOperationalScreen(
                 onConfirm = onCloseCash,
                 onOpenAccounts = onOpenAccounts,
                 expectedCash = state.expectedCash,
+                openingAmount = state.cashOpeningAmount,
             )
         }
         chargeOrder?.let { order ->
@@ -1402,57 +1430,159 @@ private fun QueueTicketRow(
             Text("#${summary.folio}", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
         }
 
-        // Dos renglones y no dos columnas: el estado es ancho y, en columna, le quitaba lugar al nombre del cliente.
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    cashierRowTitle(order),
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 15.sp,
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    moneyLabel(if (summary.needsCashCollection) summary.cashAmountDue else summary.total),
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 17.sp,
-                    letterSpacing = (-0.3).sp,
-                    maxLines = 1,
-                )
-            }
-            Row(
-                modifier = Modifier.padding(top = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        cashierItemsLine(order),
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Text(
-                        " · ${elapsedShort(summary.createdAt, tick)}",
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-                CashierOrderStatus(summary = summary)
-            }
+            Text(
+                cashierRowTitle(order),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.sp,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                cashierItemsLine(order),
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Text(
+                elapsedShort(summary.createdAt, tick),
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                maxLines = 1,
+            )
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                moneyLabel(if (summary.needsCashCollection) summary.cashAmountDue else summary.total),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Black,
+                fontSize = 17.sp,
+                letterSpacing = (-0.3).sp,
+                maxLines = 1,
+            )
+            CashierOrderStatus(summary = summary)
         }
     }
 }
 
+/** Caja cerrada, como el marco C06: saluda, propone el fondo de siempre y abrir es un toque si cuadra. */
+@Composable
+private fun CashWelcome(
+    staffName: String?,
+    suggested: String?,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onOpen: (String) -> Unit,
+    onOtherAmount: () -> Unit,
+    onSkip: () -> Unit,
+) {
+    val hour = java.time.LocalTime.now(BusinessTime.zone).hour
+    val hello =
+        when {
+            hour < 12 -> "Buenos días"
+            hour < 19 -> "Buenas tardes"
+            else -> "Buenas noches"
+        }
+    val first = staffName?.trim()?.substringBefore(' ')?.takeIf { it.isNotEmpty() }
+    Column(
+        Modifier.fillMaxWidth().padding(top = 36.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(colors.cardBackground),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.Lock, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(26.dp))
+        }
+        Text(
+            if (first != null) "$hello,\n$first" else hello,
+            fontSize = 34.sp,
+            lineHeight = 38.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-1).sp,
+            color = colors.textPrimary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 18.dp),
+        )
+        Text(
+            "Cuenta el efectivo que hay en el cajón antes de abrir. Así al cerrar sabes si cuadra.",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
+        )
+        if (suggested != null) {
+            Text(
+                "EFECTIVO EN EL CAJÓN",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.3.sp,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 26.dp, bottom = 8.dp),
+            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.cardBackground)
+                    .border(1.5.dp, colors.accentLime, RoundedCornerShape(20.dp))
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(moneyLabelCents(suggested), fontSize = 36.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+            }
+            Text(
+                "Es el fondo de siempre. Si cuadra, solo confirma.",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 10.dp, bottom = 16.dp),
+            )
+            AdminPrimaryButton(
+                title = "Sí, hay ${moneyLabel(suggested)} · Abrir caja",
+                colors = colors,
+                enabled = enabled,
+                fill = colors.accentLime,
+                contentColor = colors.accentInk,
+            ) { onOpen(suggested) }
+            Spacer(Modifier.height(10.dp))
+            AdminSecondaryButton(
+                title = "Conté otra cantidad",
+                colors = colors,
+                outlined = true,
+                enabled = enabled,
+                onClick = onOtherAmount,
+            )
+        } else {
+            Spacer(Modifier.height(26.dp))
+            AdminPrimaryButton(
+                title = "Abrir caja",
+                colors = colors,
+                enabled = enabled,
+                fill = colors.accentLime,
+                contentColor = colors.accentInk,
+                onClick = onOtherAmount,
+            )
+        }
+        Text(
+            "Ver la fila sin abrir",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.textMuted,
+            modifier =
+                Modifier
+                    .padding(top = 8.dp)
+                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onSkip)
+                    .padding(12.dp),
+        )
+    }
+}
 /**
  * «COBRADO HOY | Efectivo en el cajón» bajo la fila. El servidor todavía no manda lo cobrado del día, así que
  * se ve «—» hasta que llegue; el efectivo abre el detalle del cajón.
@@ -1971,8 +2101,11 @@ internal fun KitchenRejectContent(
     itemName: String? = null,
     warning: String? = null,
 ) {
-    var reason by remember { mutableStateOf("") }
-    val valid = reason.trim().length >= 3
+    var picked by remember { mutableStateOf(RejectionQuickReasons.first()) }
+    var other by remember { mutableStateOf("") }
+    val isOther = picked == REJECT_OTHER
+    val reason = if (isOther) other.trim() else picked
+    val valid = reason.length >= 3
     Column(
         modifier =
             Modifier
@@ -1980,21 +2113,23 @@ internal fun KitchenRejectContent(
                 .padding(horizontal = 22.dp)
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(modifier = Modifier.arrive(0)) {
             Text(
-                if (itemName != null) "Quitar $itemName" else "Rechazar pedido",
-                fontSize = 13.sp,
+                (if (itemName != null) "QUITAR ${itemName.uppercase()} · " else "PEDIDO ") + "#$folio",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.2.sp,
                 color = colors.textSecondary,
-                fontWeight = FontWeight.SemiBold,
             )
             Text(
-                "#$folio",
-                fontSize = 44.sp,
+                "¿Por qué no se puede?",
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = (-1.4).sp,
+                letterSpacing = (-0.6).sp,
                 color = colors.textPrimary,
+                modifier = Modifier.padding(top = 4.dp),
             )
             Text(
                 if (itemName != null) {
@@ -2017,40 +2152,64 @@ internal fun KitchenRejectContent(
             }
         }
         Column(modifier = Modifier.arrive(1), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                RejectionQuickReasons.forEach { quick ->
-                    ChipButton(
-                        label = quick,
-                        enabled = true,
-                        colors = colors,
-                        selected = reason == quick,
-                    ) { reason = quick }
+            (RejectionQuickReasons + REJECT_OTHER).forEach { option ->
+                val on = picked == option
+                val shape = RoundedCornerShape(18.dp)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(if (on) Color(0xFFE5645A).copy(alpha = 0.14f) else colors.cardBackground)
+                        .border(1.dp, if (on) Color(0xFFE5645A) else Color.Transparent, shape)
+                        .selectable(selected = on, role = Role.RadioButton, onClick = { picked = option })
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(20.dp)
+                            .border(2.dp, if (on) Color(0xFFE5645A) else colors.textMuted, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (on) Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFE5645A)))
+                    }
+                    Text(option, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)
                 }
             }
-            OperationalField(
-                value = reason,
-                onValueChange = { reason = it.take(240) },
-                label = "Motivo",
-                colors = colors,
-                placeholder = "Escríbelo o toca uno de arriba",
-                singleLine = false,
-            )
+            if (isOther) {
+                OperationalField(
+                    value = other,
+                    onValueChange = { other = it.take(240) },
+                    label = "Motivo",
+                    colors = colors,
+                    placeholder = "Escríbelo para el cliente",
+                    singleLine = false,
+                )
+            }
+            if (itemName == null) {
+                Text(
+                    "¿Solo falta una cosa? Mejor quita ese artículo y lo demás sigue.",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
         Box(modifier = Modifier.arrive(2)) {
-            ActionPill(
-                label = if (itemName != null) "Quitar de la comanda" else "Rechazar pedido",
-                enabled = valid,
-                loading = false,
+            AdminPrimaryButton(
+                title = if (itemName != null) "Quitar de la comanda" else "Rechazar pedido",
                 colors = colors,
-            ) { onConfirm(reason.trim()) }
+                enabled = valid,
+                fill = Color(0xFFE5645A),
+                contentColor = Color.White,
+            ) { onConfirm(reason) }
         }
     }
 }
 
+private const val REJECT_OTHER = "Otro"
 /** Etiqueta de una comanda en la fila de cocina, igual al sello de la comanda abierta. */
 internal fun kitchenQueueLabel(order: OrderDetail): String =
     when (order.summary.state) {

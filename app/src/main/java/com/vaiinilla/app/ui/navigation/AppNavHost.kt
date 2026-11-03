@@ -2298,8 +2298,10 @@ fun AppNavHost(
                                 cashOpen = operationalState.cashSessionOpen,
                                 colors = rememberOperationalColors(),
                                 onConfirm = pendingRefundsViewModel::confirm,
+                                orders = operationalState.orders,
                             )
                         },
+                        staffName = studentAuthState.session?.displayName,
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
                         onRefresh = operationalViewModel::refresh,

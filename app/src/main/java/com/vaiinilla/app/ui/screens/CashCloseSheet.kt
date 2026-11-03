@@ -1,5 +1,14 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.text.BasicTextField
@@ -90,24 +99,32 @@ fun CashCloseSheet(
     ordersToExpire: Int = 0,
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
+    openingAmount: String? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        CashCloseContent(
-            state,
-            colors,
-            onDismiss,
-            onConfirm,
-            onOpenAccounts,
-            ordersToExpire,
-            amountToExpire,
-            expectedCash,
-        )
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(colors.background)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            CashCloseContent(
+                state,
+                colors,
+                onDismiss,
+                onConfirm,
+                onOpenAccounts,
+                ordersToExpire,
+                amountToExpire,
+                expectedCash,
+                openingAmount,
+            )
+        }
     }
 }
 
@@ -131,6 +148,7 @@ fun CashCloseContent(
     ordersToExpire: Int = 0,
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
+    openingAmount: String? = null,
 ) {
     var amount by remember { mutableStateOf("") }
     var counting by remember { mutableStateOf(false) }
@@ -149,42 +167,30 @@ fun CashCloseContent(
                 .padding(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier =
+                Modifier
+                    .padding(top = 8.dp)
+                    .physicalPress(enabled = !state.closing, scale = PhysicalPressScale.Small) { onDismiss() }
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(colors.cardBackground),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "Cerrar caja",
-                fontWeight = FontWeight.Black,
-                fontSize = 30.sp,
-                letterSpacing = (-1).sp,
-                color = colors.textPrimary,
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Regresar",
+                tint = colors.textPrimary,
+                modifier = Modifier.size(18.dp),
             )
-            Box(
-                modifier =
-                    Modifier
-                        .physicalPress(enabled = !state.closing, scale = PhysicalPressScale.Small) { onDismiss() }
-                        .size(48.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardBackground),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Cerrar",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
         }
+        Text(
+            "Cerrar caja",
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            letterSpacing = (-1).sp,
+            color = colors.textPrimary,
+        )
         AnimatedContent(
             targetState = state.blockedByAccounts,
             transitionSpec = { fadeIn() togetherWith fadeOut() using SizeTransform(clip = false) },
@@ -211,23 +217,22 @@ fun CashCloseContent(
                         CashWarningCard(title = it, body = "Cóbralos antes de cerrar para no perder ese dinero.")
                     }
                     if (expectedCash != null) {
-                        Row(
+                        val cashIn =
+                            openingAmount?.toBigDecimalOrNull()?.let { opening ->
+                                expectedCash.toBigDecimalOrNull()?.minus(opening)?.toPlainString()
+                            }
+                        Column(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(colors.cardBackground)
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Text("Debe haber", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = colors.textPrimary)
-                            Text(
-                                moneyLabel(expectedCash),
-                                fontWeight = FontWeight.Black,
-                                fontSize = 20.sp,
-                                color = colors.textPrimary,
-                            )
+                            openingAmount?.let { CloseRow("Fondo al abrir", moneyLabelCents(it), colors) }
+                            cashIn?.let { CloseRow("Cobros en efectivo", "+${moneyLabelCents(it)}", colors) }
+                            CloseRow("Debe haber", moneyLabelCents(expectedCash), colors, strong = true)
                         }
                     }
                     val invalid = amount.isNotBlank() && normalized == null
@@ -280,20 +285,42 @@ fun CashCloseContent(
                     state.errorMessage?.let {
                         Text(it, fontSize = 13.sp, color = colors.textSecondary)
                     }
-                    SlideToConfirm(
-                        label =
+                    AdminPrimaryButton(
+                        title =
                             when {
                                 state.closing -> "Cerrando…"
                                 normalized == null -> "Escribe el efectivo contado"
-                                else -> "Desliza para cerrar con ${moneyLabel(normalized)}"
+                                else -> "Cerrar caja con ${moneyLabel(normalized)}"
                             },
-                        enabled = normalized != null,
-                        busy = state.closing,
                         colors = colors,
+                        busy = state.closing,
+                        enabled = normalized != null,
                     ) { normalized?.let(onConfirm) }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CloseRow(
+    label: String,
+    value: String,
+    colors: OperationalColors,
+    strong: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            fontWeight = if (strong) FontWeight.Black else FontWeight.SemiBold,
+            fontSize = 14.sp,
+            color = colors.textPrimary,
+        )
+        Text(value, fontWeight = FontWeight.Black, fontSize = if (strong) 18.sp else 14.sp, color = colors.textPrimary)
     }
 }
 

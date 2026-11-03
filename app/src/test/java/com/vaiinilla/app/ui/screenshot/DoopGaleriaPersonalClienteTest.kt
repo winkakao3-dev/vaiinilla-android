@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screenshot
 
+import com.vaiinilla.app.ui.screens.KitchenRejectContent
+import com.vaiinilla.app.ui.screens.CashierRefundsPage
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -196,20 +199,21 @@ class DoopGaleriaPersonalClienteTest {
         draw {
             val colors = rememberOperationalColors()
             Box(Modifier.fillMaxSize().background(colors.background)) {
-                CashierRefundsSection(
+                CashierRefundsPage(
                     state =
                         PendingRefundsUiState(
                             refunds =
                                 listOf(
-                                    PendingRefund("r1", "pedido", null, "o1", "efectivo", "85.00", "pendiente", "2026-11-03T15:12:00Z"),
-                                    PendingRefund("r2", "reserva", 1, null, "efectivo", "80.00", "pendiente", "2026-11-02T15:12:00Z"),
+                                    PendingRefund("r1", "cancelacion", null, "o1", "efectivo", "85.00", "pendiente", "2026-11-03T15:12:00Z"),
+                                    PendingRefund("r2", "reserva_cancelada", 1, null, "efectivo", "80.00", "pendiente", "2026-11-02T15:12:00Z"),
                                 ),
                         ),
                     canConfirm = true,
                     cashOpen = true,
                     colors = colors,
+                    orders = emptyList(),
                     onConfirm = { _, _, _ -> },
-                    modifier = Modifier,
+                    onBack = {},
                 )
             }
         }
@@ -219,6 +223,7 @@ class DoopGaleriaPersonalClienteTest {
     @Test fun cc06_abrir_caja() {
         draw {
             CashierOperationalScreen(
+                staffName = "Usagi Tsukino",
                 state =
                     OperationalUiState(
                         role = OperationalRole.CASHIER,
@@ -463,6 +468,8 @@ class DoopGaleriaPersonalClienteTest {
             onOpenCashSession = {},
             onCollect = { _, _, _, _ -> },
             onChangeMode = {},
+            onNewCounterOrder = {},
+            onOpenAccounts = {},
         )
 
     private fun cashierState(): OperationalUiState {
@@ -492,6 +499,34 @@ class DoopGaleriaPersonalClienteTest {
         draw { Cashier(cashierState()) }
         tap("Recargar saldo")
         shot("cC04_recargar")
+    }
+
+    @Test fun cC07_cerrar_caja() {
+        draw {
+            val colors = rememberOperationalColors()
+            Column(Modifier.fillMaxSize().background(colors.background)) {
+                CashCloseContent(
+                    state = CloseCashUi(),
+                    colors = colors,
+                    onDismiss = {},
+                    onConfirm = {},
+                    onOpenAccounts = null,
+                    expectedCash = "2330.00",
+                    openingAmount = "500.00",
+                )
+            }
+        }
+        shot("cC07_cerrar_caja")
+    }
+
+    @Test fun cK03_rechazar() {
+        draw {
+            val colors = rememberOperationalColors()
+            Column(Modifier.fillMaxSize().background(colors.background)) {
+                KitchenRejectContent(folio = 14, colors = colors, onConfirm = {})
+            }
+        }
+        shot("cK03_rechazar")
     }
 
     @Test fun cS01_menu_cuenta() {
