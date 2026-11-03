@@ -317,6 +317,10 @@ internal fun WaiterSpaceSection(
     rentalDurations: List<Int> = DefaultRentalDurations,
     /** Administración ve la cuenta pero no la cobra: el backend le niega /sesion/cobros y /abonos. */
     canCharge: Boolean = true,
+    /** La hoja ya lista los pedidos de la cuenta arriba: aquí solo van el total y las acciones. */
+    showOrders: Boolean = true,
+    /** Tomar un pedido para el espacio, junto a "Cobrar cuenta". */
+    onTakeOrder: (() -> Unit)? = null,
 ) {
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
@@ -461,38 +465,35 @@ internal fun WaiterSpaceSection(
 
     if (account != null && account.orders.isNotEmpty()) {
         SectionCard(colors, Modifier.arrive(1)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Cuenta", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
-                Text(
-                    "${account.orders.size} ${if (account.orders.size == 1) "pedido" else "pedidos"}",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            if (showOrders) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Cuenta", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
+                    Text(
+                        "${account.orders.size} ${if (account.orders.size == 1) "pedido" else "pedidos"}",
+                        fontSize = 12.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                account.orders.forEachIndexed { index, order ->
+                    AccountOrderRow(order, colors, Modifier.arrive(index + 2, key = order.id))
+                }
             }
-            account.orders.forEachIndexed { index, order ->
-                AccountOrderRow(order, colors, Modifier.arrive(index + 2, key = order.id))
-            }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = if (showOrders) 14.dp else 0.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Column {
                     Text(
-                        "Falta cobrar",
-                        color = colors.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    RollingText(
-                        text = moneyLabel(Money.format(remaining)),
-                        style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.8).sp),
-                        color = if (hasPending) colors.textPrimary else colors.textSecondary,
+                        if (paidIn.signum() > 0 || !hasPending) "Falta cobrar" else "Cuenta",
+                        color = colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
                     )
                     if (paidIn.signum() > 0) {
                         Text(
@@ -502,18 +503,24 @@ internal fun WaiterSpaceSection(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
-                }
-                // El total solo aporta si ya se cobró o abonó una parte; si no, repite lo que falta.
-                if (account.total.moneyOrZero().compareTo(remaining) != 0) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        RollingText(
-                            text = moneyLabel(account.total),
-                            style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                            color = colors.textPrimary,
-                        )
+                    // El total solo aporta si ya se cobró o abonó una parte; si no, repite lo que falta.
+                    if (account.total.moneyOrZero().compareTo(remaining) != 0) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                moneyLabel(account.total),
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
+                RollingText(
+                    text = moneyLabel(Money.format(remaining)),
+                    style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp),
+                    color = if (hasPending) colors.textPrimary else colors.textSecondary,
+                )
             }
             if (hasPending && !canCharge) {
                 Text(
@@ -523,21 +530,50 @@ internal fun WaiterSpaceSection(
                     modifier = Modifier.padding(top = 12.dp),
                 )
             }
-            AnimatedVisibility(
-                visible = hasPending && canCharge,
-                enter =
-                    fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
-                exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
-            ) {
-                ActionPill(
-                    label = "Cobrar cuenta",
-                    enabled = enabled,
-                    loading = false,
-                    colors = colors,
-                    // Un solo lima por hoja: con algo listo, lo primero es entregarlo.
-                    primary = !hasReadyOrders,
-                    modifier = Modifier.padding(top = 14.dp),
-                ) { onStartCollect() }
+            val showCollect = hasPending && canCharge
+            if (onTakeOrder != null || showCollect) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (onTakeOrder != null) {
+                        ActionPill(
+                            label = "Tomar pedido",
+                            enabled = enabled,
+                            loading = false,
+                            colors = colors,
+                            primary = !showCollect && !hasReadyOrders,
+                            modifier = Modifier.weight(1f),
+                            onClick = onTakeOrder,
+                        )
+                    }
+                    if (showCollect) {
+                        ActionPill(
+                            label = "Cobrar cuenta",
+                            enabled = enabled,
+                            loading = false,
+                            colors = colors,
+                            // Un solo lima por hoja: con algo listo, lo primero es entregarlo.
+                            primary = !hasReadyOrders,
+                            modifier = Modifier.weight(1f),
+                        ) { onStartCollect() }
+                    }
+                }
+            }
+            if (showCollect && ordersInCourse > 0) {
+                // Cobrar antes de entregar se vale, pero que no pase sin darse cuenta.
+                Text(
+                    if (ordersInCourse == 1) {
+                        "Ojo: 1 pedido de esta cuenta todavía no se entrega."
+                    } else {
+                        "Ojo: $ordersInCourse pedidos de esta cuenta todavía no se entregan."
+                    },
+                    color = if (colors.isDark) StateAmber else Color(0xFF9A5B00),
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                )
             }
             val context = LocalContext.current
             ActionPill(

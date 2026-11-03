@@ -55,17 +55,4 @@ class RentalDurationPickerTest {
         assertEquals("Rentar 1 h 30 · $225", rentalActionLabel("Rentar", 90, "150.00"))
         assertEquals("Renovar 2 h", rentalActionLabel("Renovar", 120, null))
     }
-
-    @Test
-    fun `el mosaico usa el numero o el nombre sin el tipo`() {
-        assertEquals("4", waiterShortName("Mesa 4", "Mesa"))
-        assertEquals("2", waiterShortName("Cancha 2", "Cancha"))
-        assertEquals("Básquetbol", waiterShortName("Cancha Básquetbol", "Cancha"))
-        assertEquals("Fútbol Rápido", waiterShortName("Cancha Fútbol Rápido", "Cancha"))
-        assertEquals("Fútbol 7", waiterShortName("Cancha Fútbol 7", "Cancha"))
-        assertEquals("Pádel 1", waiterShortName("Cancha Pádel 1", "Cancha"))
-        assertEquals("Terraza", waiterShortName("mesa terraza", "Mesa"))
-        assertEquals("Cancha", waiterShortName("Cancha", "Cancha"))
-        assertEquals("Barra larga", waiterShortName("Barra larga", "Mesa"))
-    }
 }

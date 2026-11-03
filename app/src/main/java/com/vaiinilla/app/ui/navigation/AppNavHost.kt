@@ -2475,7 +2475,6 @@ fun AppNavHost(
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier-accounts",
                         kicker = "CAJA",
-                        roleSubtitle = "Cuenta de caja",
                         roleChip = "CJ",
                     )
                 }
