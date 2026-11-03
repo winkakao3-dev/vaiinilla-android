@@ -54,6 +54,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 
+/** Cómo se cobra una recarga de un hijo; lo dicen la hoja de recarga y la primera recarga al agregarlo. */
+internal const val CHILD_RELOAD_CARD_NOTE =
+    "Pagas con tarjeta en Stripe. El saldo llega cuando el banco lo aprueba. Es para comer en esta escuela; si se va, pides que te lo devuelvan."
+
 /**
  * Recargar el saldo de un hijo con tarjeta: monto → total con comisión → PaymentSheet → el backend confirma.
  * [resumeReloadId] es una recarga que ya se pagó y el banco no había confirmado: la hoja la vuelve a consultar
@@ -277,6 +281,8 @@ internal fun ChildReloadSheet(
     onUnsettledChange: (String?) -> Unit,
     onCredited: (BigDecimal) -> Unit,
     onDismiss: () -> Unit,
+    /** El monto que el tutor ya eligió antes de abrir la hoja (la primera recarga al agregar a un hijo). */
+    initialAmount: Int? = null,
 ) {
     val colors = rememberOperationalColors()
     val reduced = reducedMotion()
@@ -284,7 +290,12 @@ internal fun ChildReloadSheet(
     val scope = rememberCoroutineScope()
     // Si el sistema recrea la pantalla a mitad del pago, la recarga sigue siendo la misma al volver.
     var savedReloadId by rememberSaveable { mutableStateOf(unsettledReloadId) }
-    val model = remember { ChildReloadModel(account, range, resumeReloadId = savedReloadId) }
+    val model =
+        remember {
+            ChildReloadModel(account, range, resumeReloadId = savedReloadId).also { model ->
+                if (savedReloadId == null) initialAmount?.let(model::choose)
+            }
+        }
     LaunchedEffect(range) { model.range = range }
     LaunchedEffect(model.unsettledReloadId) {
         savedReloadId = model.unsettledReloadId
@@ -379,7 +390,7 @@ internal fun ChildReloadSheet(
                 }
             }
             CenteredNote(
-                "Pagas con tarjeta en Stripe. El saldo llega cuando el banco lo aprueba. Es para comer en esta escuela; si se va, pides que te lo devuelvan.",
+                CHILD_RELOAD_CARD_NOTE,
                 colors.textSecondary,
             )
         },

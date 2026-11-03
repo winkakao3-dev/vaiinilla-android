@@ -1,12 +1,15 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -39,12 +42,12 @@ class AddedChildStepUiTest {
 
     private fun addChild(
         result: Dependent,
-        onOpenChild: (Dependent, Boolean) -> Unit = { _, _ -> },
+        onOpenChild: (Dependent, Int?) -> Unit = { _, _ -> },
         onDismiss: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             ScreenshotTheme {
-                AddChildSheet(
+                AddChildFlow(
                     AddingGuardianship(result),
                     onAdded = {},
                     onDismiss = onDismiss,
@@ -53,9 +56,9 @@ class AddedChildStepUiTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Nombre").performTextInput(result.name)
+        composeTestRule.onNodeWithText("Nombre completo").performTextInput(result.name)
         composeTestRule.onNodeWithText("Matrícula").performTextInput("A100")
-        composeTestRule.onNodeWithTag("add-child-consent").performClick()
+        composeTestRule.onNodeWithTag("add-child-consent").performTouchInput { click(Offset(100f, centerY)) }
         composeTestRule.onNodeWithTag("add-child-submit").performClick()
     }
 
@@ -65,18 +68,20 @@ class AddedChildStepUiTest {
         }
 
     @Test
-    fun `aprobado ofrece la primera recarga y abre su ficha en recargar`() {
-        val opened = mutableListOf<Pair<String, Boolean>>()
+    fun `aprobado ofrece la primera recarga con el monto elegido y abre su ficha en recargar`() {
+        val opened = mutableListOf<Pair<String, Int?>>()
         val child = ParentFixtures.tilin.copy(isAwaitingSchool = false, balance = java.math.BigDecimal.ZERO)
-        addChild(child, onOpenChild = { c, reload -> opened += c.userId to reload })
+        addChild(child, onOpenChild = { c, amount -> opened += c.userId to amount })
         waitForTag("added-child-reload")
 
         composeTestRule.onNodeWithText("${child.firstName} ya está contigo").assertIsDisplayed()
         composeTestRule.onNodeWithText("¿Le recargas para que coma?").assertIsDisplayed()
         composeTestRule.onNodeWithTag("added-child-reload").performClick()
+        composeTestRule.onNodeWithTag("added-child-amount-300").performClick()
+        composeTestRule.onNodeWithTag("added-child-reload").performClick()
         composeTestRule.onNodeWithTag("added-child-open").performClick()
 
-        assertEquals(listOf(child.userId to true, child.userId to false), opened)
+        assertEquals(listOf(child.userId to 200, child.userId to 300, child.userId to null), opened)
     }
 
     @Test

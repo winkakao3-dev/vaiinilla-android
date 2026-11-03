@@ -74,8 +74,9 @@ internal fun SchoolOptionsPage(
     hasTutors: Boolean,
     onAccountClaimed: suspend () -> Unit,
     onBack: () -> Unit,
-    /** El paso 3 de agregar a un hijo lleva a su ficha (con `true`, a recargarle). */
-    onOpenChild: (Dependent, Boolean) -> Unit = { _, _ -> },
+    /** El paso 3 de agregar a un hijo lleva a su ficha (con un monto, a recargarle eso). */
+    onOpenChild: (Dependent, Int?) -> Unit = { _, _ -> },
+    schoolName: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
@@ -155,7 +156,7 @@ internal fun SchoolOptionsPage(
         )
     }
 
-    SchoolOptionsSheets(sheet, children, onAccountClaimed, scope, onOpenChild) { sheet = null }
+    SchoolOptionsSheets(sheet, children, onAccountClaimed, scope, onOpenChild, schoolName) { sheet = null }
 }
 
 /** Agregar a un hijo, o antes el código de la escuela si todavía no lo escribió. */
@@ -212,27 +213,25 @@ private fun SchoolOptionsSheets(
     children: ChildrenState,
     onAccountClaimed: suspend () -> Unit,
     scope: CoroutineScope,
-    onOpenChild: (Dependent, Boolean) -> Unit,
+    onOpenChild: (Dependent, Int?) -> Unit,
+    schoolName: String?,
     onDismiss: () -> Unit,
 ) {
     when (sheet) {
-        OptionsSheet.ADD ->
-            AddChildSheet(
+        // Con el código de la escuela el tutor sigue directo a agregar a su hijo: son los mismos 3 pasos.
+        OptionsSheet.ADD, OptionsSheet.UNLOCK ->
+            AddChildFlow(
                 children.services.guardianship,
                 onAdded = children::upsert,
                 onDismiss = onDismiss,
                 onParentUnlocked = children::markParentUnlocked,
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
-                onOpenChild = { child, reload ->
+                startsWithSchoolCode = sheet == OptionsSheet.UNLOCK,
+                schoolName = schoolName,
+                onOpenChild = { child, amount ->
                     onDismiss()
-                    onOpenChild(child, reload)
+                    onOpenChild(child, amount)
                 },
-            )
-        OptionsSheet.UNLOCK ->
-            ParentUnlockSheet(
-                guardianship = children.services.guardianship,
-                onUnlocked = children::markParentUnlocked,
-                onDismiss = onDismiss,
             )
         OptionsSheet.LINK_CODE -> LinkCodeSheet(children.services.guardianship, onDismiss = onDismiss)
         OptionsSheet.CLAIM ->

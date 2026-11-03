@@ -13,11 +13,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** La hoja del código de la escuela avisa de los intentos y enseña dónde viene el código. */
+/** El paso del código de la escuela avisa de los intentos y enseña dónde viene el código. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "w411dp-h891dp-normal-long-notround-any-xxxhdpi", sdk = [33])
-class ParentUnlockSheetUiTest {
+class SchoolCodeStepUiTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -25,7 +25,7 @@ class ParentUnlockSheetUiTest {
     fun `avisa de los intentos y muestra la circular de muestra`() {
         composeTestRule.setContent {
             ScreenshotTheme {
-                ParentUnlockSheet(FakeGuardianship(), onUnlocked = {}, onDismiss = {})
+                AddChildFlow(FakeGuardianship(), onAdded = {}, onDismiss = {}, startsWithSchoolCode = true)
             }
         }
         composeTestRule.waitForIdle()

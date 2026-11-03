@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -8,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.GuardianshipException
@@ -22,7 +25,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Cartera › Soy tutor con y sin el código de la escuela, y la hoja que lo pide. */
+/** Cartera › Soy tutor con y sin el código de la escuela, y el paso que lo pide. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(
@@ -145,7 +148,7 @@ class ParentUnlockUiTest {
     }
 
     @Test
-    fun `un código malo se queda en la hoja con un error claro y el bueno habilita agregar`() {
+    fun `un código malo se queda en el paso con un error claro y el bueno sigue a quién es tu hijo`() {
         val guardianship = UnlockGuardianship()
         showOptions(guardianship, unlocked = false)
 
@@ -163,9 +166,9 @@ class ParentUnlockUiTest {
         composeTestRule.onNodeWithTag("parent-unlock-field").performTextClearance()
         composeTestRule.onNodeWithTag("parent-unlock-field").performTextInput("sandbx")
         composeTestRule.onNodeWithTag("parent-unlock-submit").performClick()
-        waitForText("Agregar a mi hijo")
+        waitForText("¿Quién es tu hijo?")
         assertEquals(listOf("SANDBX"), guardianship.sentCodes)
-        composeTestRule.onNodeWithText("Agregar a mi hijo").assertIsDisplayed()
+        composeTestRule.onNodeWithText("¿Quién es tu hijo?").assertIsDisplayed()
     }
 
     @Test
@@ -174,7 +177,7 @@ class ParentUnlockUiTest {
         var unlockedCalls = 0
         composeTestRule.setContent {
             ScreenshotTheme {
-                AddChildSheet(
+                AddChildFlow(
                     guardianship,
                     onAdded = {},
                     onDismiss = {},
@@ -183,9 +186,9 @@ class ParentUnlockUiTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Nombre").performTextInput("Tilin Ramírez")
+        composeTestRule.onNodeWithText("Nombre completo").performTextInput("Tilin Ramírez")
         composeTestRule.onNodeWithText("Matrícula").performTextInput("A100")
-        composeTestRule.onNodeWithTag("add-child-consent").performClick()
+        composeTestRule.onNodeWithTag("add-child-consent").performTouchInput { click(Offset(100f, centerY)) }
         composeTestRule.onNodeWithTag("add-child-submit").performClick()
         waitForText("El código de la escuela")
         composeTestRule.onNodeWithText("El código de la escuela").assertIsDisplayed()

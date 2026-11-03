@@ -1453,6 +1453,7 @@ fun AppNavHost(
                     childrenViewModel = childrenViewModel,
                     hasTutors = guardianControlsViewModel.controls?.tutorNames?.isNotEmpty() == true,
                     controlsLoaded = guardianControlsViewModel.hasLoaded,
+                    schoolName = orderState.guestVenue?.establishment?.name,
                     onFullScreenChange = { walletCodeOpen = it },
                     onAccountClaimed = {
                         val renewed = CompletableDeferred<Unit>()

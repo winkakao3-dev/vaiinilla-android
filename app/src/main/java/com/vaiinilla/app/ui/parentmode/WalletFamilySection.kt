@@ -103,6 +103,8 @@ fun ParentModeWalletHost(
     hasTutors: Boolean,
     /** `mis-controles` ya contestó: antes de eso no se sabe si es alumno y no se le ofrece elegir. */
     controlsLoaded: Boolean = true,
+    /** El nombre de la escuela, para los pasos de agregar a un hijo. */
+    schoolName: String? = null,
     /** Una página del Modo Padre tapa la cartera: la barra de abajo se esconde mientras tanto. */
     onFullScreenChange: (Boolean) -> Unit,
     /** Tras reclamar su cuenta, el alumno vuelve a pedir el contexto de cliente con su Google. */
@@ -131,11 +133,18 @@ fun ParentModeWalletHost(
     var sheet by rememberSaveable { mutableStateOf<ParentSheetKind?>(null) }
     // El hijo recién agregado al que el tutor eligió recargarle: su ficha abre en la recarga.
     var reloadChildId by rememberSaveable { mutableStateOf<String?>(null) }
-    LaunchedEffect(openChildId) { if (openChildId == null) reloadChildId = null }
-    val openAddedChild: (Dependent, Boolean) -> Unit = { child, reload ->
+    var reloadAmount by rememberSaveable { mutableStateOf<Int?>(null) }
+    LaunchedEffect(openChildId) {
+        if (openChildId == null) {
+            reloadChildId = null
+            reloadAmount = null
+        }
+    }
+    val openAddedChild: (Dependent, Int?) -> Unit = { child, amount ->
         sheet = null
         optionsRole = null
-        reloadChildId = if (reload) child.userId else null
+        reloadChildId = if (amount != null) child.userId else null
+        reloadAmount = amount
         openChildId = child.userId
     }
     val fullScreen = openChildId != null || optionsRole != null
@@ -216,6 +225,7 @@ fun ParentModeWalletHost(
                 onAccountClaimed = onAccountClaimed,
                 onBack = { optionsRole = null },
                 onOpenChild = openAddedChild,
+                schoolName = schoolName,
             )
         }
         val openChild = children.children.firstOrNull { it.userId == openChildId && !it.isAwaitingSchool }
@@ -236,6 +246,7 @@ fun ParentModeWalletHost(
                     },
                     onBack = { openChildId = null },
                     startWithReload = reloadChildId == openChild.userId,
+                    initialReloadAmount = reloadAmount.takeIf { reloadChildId == openChild.userId },
                 )
             }
         }
@@ -243,11 +254,14 @@ fun ParentModeWalletHost(
 
     when (sheet) {
         ParentSheetKind.ADD ->
-            AddChildSheet(
+            AddChildFlow(
                 children.services.guardianship,
                 onAdded = children::upsert,
                 onDismiss = { sheet = null },
+                onParentUnlocked = children::markParentUnlocked,
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
+                startsWithSchoolCode = children.children.isEmpty() && children.isParentUnlocked == false,
+                schoolName = schoolName,
                 onOpenChild = openAddedChild,
             )
         ParentSheetKind.CONSENT -> PrivacyConsentSheet(children = children, onDismiss = { sheet = null })

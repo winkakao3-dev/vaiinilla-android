@@ -108,6 +108,8 @@ internal fun ChildAccountPage(
     onBack: () -> Unit,
     /** Recién agregado y el tutor eligió recargarle: la ficha abre con la hoja de recarga. */
     startWithReload: Boolean = false,
+    /** El monto que eligió en el paso 3 de agregarlo. */
+    initialReloadAmount: Int? = null,
 ) {
     val state = remember(child.userId) { ChildAccountState(child, services) }
     ChildAccountContent(
@@ -116,6 +118,7 @@ internal fun ChildAccountPage(
         onUnlinked = onUnlinked,
         onBack = onBack,
         startWithReload = startWithReload,
+        initialReloadAmount = initialReloadAmount,
     )
 }
 
@@ -126,10 +129,13 @@ internal fun ChildAccountContent(
     onUnlinked: (String) -> Unit,
     onBack: () -> Unit,
     startWithReload: Boolean = false,
+    initialReloadAmount: Int? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val scope = rememberCoroutineScope()
     var sheet by rememberSaveable { mutableStateOf(if (startWithReload) ChildSheet.RELOAD else null) }
+    // Solo la primera recarga llega con el monto elegido; si la cierra y la vuelve a abrir, empieza de cero.
+    var pendingReloadAmount by rememberSaveable { mutableStateOf(initialReloadAmount) }
     var orderToCancel by remember { mutableStateOf<ScheduledOrder?>(null) }
     LaunchedEffect(state) { state.load() }
     // La lista de hijos lee el saldo de `child`: se mantiene al día con la cartera que esta ficha acaba de ver.
@@ -391,7 +397,11 @@ internal fun ChildAccountContent(
                     state.say("Listo: ${compactMoney(amount)} para ${child.firstName}.")
                     scope.launch { state.refreshWallet() }
                 },
-                onDismiss = close,
+                onDismiss = {
+                    pendingReloadAmount = null
+                    close()
+                },
+                initialAmount = pendingReloadAmount,
             )
         ChildSheet.CONTROLS ->
             ChildControlsSheet(
