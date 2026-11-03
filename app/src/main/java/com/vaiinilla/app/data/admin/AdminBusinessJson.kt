@@ -221,6 +221,8 @@ class AdminBusinessJson {
                     .map { AdminMetric(walletMovementLabel(it.tipo), it.monto, it.operaciones) },
             walletsReviewed = data.wallet?.conciliacion?.walletsRevisadas ?: 0,
             alerts = data.wallet?.conciliacion?.alertas ?: 0,
+            customersWithBalance = data.wallet?.clientesConSaldo,
+            totalBalance = data.wallet?.saldoTotal,
         )
     }
 
@@ -243,10 +245,12 @@ class AdminBusinessJson {
     fun encodeNewSpace(
         name: String,
         type: String,
+        capacity: Int? = null,
     ): String =
         buildJsonObject {
             put("nombre", name.trim())
             put("tipo", type)
+            capacity?.let { put("capacidad", it) }
         }.toString()
 
     fun encodeBatch(
@@ -254,12 +258,14 @@ class AdminBusinessJson {
         prefix: String,
         from: Int,
         to: Int,
+        capacity: Int? = null,
     ): String =
         buildJsonObject {
             put("tipo", type)
             put("prefijo", prefix.trim())
             put("desde", from)
             put("hasta", to)
+            capacity?.let { put("capacidad", it) }
         }.toString()
 
     fun encodeSpacePatch(patch: SpacePatch): String =
@@ -278,6 +284,12 @@ class AdminBusinessJson {
                 )
                 put("caracteristicas", JsonArray(patch.features.map(::JsonPrimitive)))
             }
+            if (patch.setsCapacity) put("capacidad", patch.capacity?.let(::JsonPrimitive) ?: JsonNull)
+            if (patch.setsMinimum) put("reserva_minima_min", patch.minimumMinutes?.let(::JsonPrimitive) ?: JsonNull)
+            if (patch.setsSportAndSurface) {
+                put("deporte", patch.sport?.trim()?.ifEmpty { null }.orNull())
+                put("superficie", patch.surface?.trim()?.ifEmpty { null }.orNull())
+            }
         }.toString()
 
     fun parseSchedule(raw: String): ReservationSchedule {
@@ -286,6 +298,8 @@ class AdminBusinessJson {
             opening = data.apertura.take(5),
             closing = data.cierre.take(5),
             daysAhead = data.diasAdelanto,
+            weekDays = data.diasSemana ?: listOf(1, 2, 3, 4, 5, 6, 7),
+            blockMinutes = data.bloqueMin ?: 30,
         )
     }
 
@@ -294,6 +308,8 @@ class AdminBusinessJson {
             put("apertura", schedule.opening)
             put("cierre", schedule.closing)
             put("dias_adelanto", schedule.daysAhead)
+            put("dias_semana", JsonArray(schedule.weekDays.map(::JsonPrimitive)))
+            put("bloque_min", schedule.blockMinutes)
         }.toString()
 
     fun encodeForcedClose(note: String?): String =
@@ -529,6 +545,8 @@ private data class WalletTotalsDto(
 private data class WalletBlockDto(
     val movimientos: List<WalletMovementDto> = emptyList(),
     val conciliacion: ConciliationDto? = null,
+    @SerialName("clientes_con_saldo") val clientesConSaldo: Int? = null,
+    @SerialName("saldo_total") val saldoTotal: String? = null,
 )
 
 @Serializable
@@ -556,6 +574,10 @@ private data class ManagedSpaceDto(
     val descripcion: String? = null,
     @SerialName("imagen_url") val imagenUrl: String? = null,
     val caracteristicas: List<String> = emptyList(),
+    val capacidad: Int? = null,
+    @SerialName("reserva_minima_min") val reservaMinimaMin: Int? = null,
+    val deporte: String? = null,
+    val superficie: String? = null,
 ) {
     fun toDomain() =
         ManagedSpace(
@@ -569,6 +591,10 @@ private data class ManagedSpaceDto(
             description = descripcion,
             imageUrl = imagenUrl,
             features = caracteristicas,
+            capacity = capacidad,
+            minimumMinutes = reservaMinimaMin,
+            sport = deporte,
+            surface = superficie,
         )
 }
 
@@ -584,4 +610,6 @@ private data class ScheduleDto(
     val apertura: String,
     val cierre: String,
     @SerialName("dias_adelanto") val diasAdelanto: Int,
+    @SerialName("dias_semana") val diasSemana: List<Int>? = null,
+    @SerialName("bloque_min") val bloqueMin: Int? = null,
 )

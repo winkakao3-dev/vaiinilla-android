@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.operational
 
+import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
@@ -37,10 +38,15 @@ class RemoteCashSessionRepository(
     override var openedSession: CashSessionInfo? = null
         private set
 
+    @Volatile
+    override var lastClose: CashLastClose? = null
+        private set
+
     private fun readActive(): Result<String> =
         apiClient.get("sesiones-caja/activa").onSuccess { body ->
             suggestedFloat = runCatching { contractJson.parseSuggestedFloat(body) }.getOrNull()
             expectedCash = runCatching { contractJson.parseCashAmount(body, "efectivo_esperado") }.getOrNull()
+            lastClose = runCatching { contractJson.parseLastCashClose(body) }.getOrNull() ?: lastClose
             openedSession =
                 runCatching {
                     contractJson.parseCashSession(body)?.let { CashSessionInfo(it.id, it.initialAmount, it.openedAt) }

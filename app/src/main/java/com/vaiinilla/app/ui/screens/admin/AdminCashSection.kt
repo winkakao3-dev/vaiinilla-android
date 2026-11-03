@@ -1,5 +1,11 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.domain.repository.CashLastClose
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.OrderDetail
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -63,10 +69,7 @@ class AdminCashActions(
     val onRefresh: () -> Unit = {},
 )
 
-/**
- * Caja, como los marcos 06 y 41 del lienzo: cerrada, una tarjeta con el candado y "Abrir caja"; abierta, el fondo en
- * lima y "Cerrar caja", que hace el arqueo contra lo esperado. Cobrar y entregar quedan para una cuenta de Caja.
- */
+/** Caja, como los marcos 39, 40 y 41 del lienzo. Cobrar y entregar quedan para una cuenta de Caja. */
 @Composable
 internal fun AdminCashSection(
     state: AdminUiState,
@@ -86,6 +89,7 @@ internal fun AdminCashSection(
         notice = state.notice.takeIf { sheet == null },
         noticeIsError = state.notice != null && state.noticeIsError,
         onBack = onBack,
+        subtitle = "El efectivo del día. Abre la caja para cobrar en mostrador.".takeIf { !open && state.cashLoaded },
         trailing = {
             if (state.cashLoaded && !state.cashCheckFailed) {
                 AdminBadge(
@@ -137,18 +141,13 @@ internal fun AdminCashSection(
                                 .clip(RoundedCornerShape(28.dp))
                                 .background(colors.cardBackground),
                         )
-                    CashView.CLOSED -> ClosedCard(readOnly, enabled, colors) { sheet = CashSheet.OPEN }
+                    CashView.CLOSED ->
+                        Column {
+                            ClosedCard(readOnly, enabled, colors) { sheet = CashSheet.OPEN }
+                            LastCloseCard(state.cashLastClose, colors)
+                        }
                     CashView.OPEN -> OpenSession(state, readOnly, enabled, colors) { sheet = CashSheet.CLOSE }
                 }
-            }
-        }
-        item(key = "nota") {
-            Box(Modifier.padding(horizontal = 6.dp).adminRise(3)) {
-                AdminHint(
-                    "Administración controla la sesión y consulta pedidos; por seguridad, los cobros y entregas " +
-                        "requieren una cuenta con rol de Caja.",
-                    colors,
-                )
             }
         }
     }
@@ -175,6 +174,7 @@ internal fun AdminCashSection(
                 saving = state.saving,
                 error = error,
                 expected = state.cashExpected,
+                initial = state.cashExpected,
                 checksExpected = true,
                 onDismiss = { sheet = null },
             ) { amount -> actions.onCloseCash(amount) { sheet = null } }
@@ -209,7 +209,7 @@ private fun ClosedCard(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Outlined.Lock,
+                Icons.Outlined.PointOfSale,
                 contentDescription = null,
                 tint = colors.textPrimary,
                 modifier = Modifier.size(26.dp),
@@ -237,6 +237,43 @@ private fun ClosedCard(
     }
 }
 
+/** Cómo quedó el último cierre (marco 39). El servidor solo lo manda con la caja abierta, por eso puede faltar. */
+@Composable
+private fun LastCloseCard(
+    last: CashLastClose?,
+    colors: OperationalColors,
+) {
+    val date = last?.closedAt?.let { at -> listOfNotNull(adminShortDate(at), receiptLocalTime(at)).joinToString(", ") }
+    AdminCapsLabel(
+        date?.let { "Último cierre · $it" } ?: "Último cierre",
+        colors,
+        Modifier.padding(top = 12.dp, bottom = 8.dp).adminRise(1),
+    )
+    if (last == null) {
+        Box(Modifier.padding(horizontal = 4.dp).adminRise(2)) {
+            AdminHint("Cuando cierres la caja, aquí ves cómo quedó.", colors)
+        }
+        return
+    }
+    val opening = last.opening?.toBigDecimalOrNull()
+    val expected = last.expected?.toBigDecimalOrNull()
+    val sales = if (opening != null && expected != null) (expected - opening).toPlainString() else null
+    val rows =
+        listOfNotNull(
+            last.opening?.let { "Fondo inicial" to moneyLabelCents(it) },
+            sales?.let { "Ventas en efectivo" to moneyLabelCents(it) },
+            last.expected?.let { "Efectivo esperado" to moneyLabelCents(it) },
+            "Efectivo contado" to moneyLabelCents(last.counted),
+            ("Cerró" to "Tú").takeIf { last.closedByMe },
+        )
+    AdminPanel(colors, Modifier.adminRise(2), padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
+        rows.forEachIndexed { index, (title, value) ->
+            if (index > 0) AdminRowDivider(colors)
+            AdminRow(title = title, colors = colors) { AdminRowValue(value, colors) }
+        }
+    }
+}
+
 @Composable
 private fun OpenSession(
     state: AdminUiState,
@@ -245,6 +282,10 @@ private fun OpenSession(
     colors: OperationalColors,
     onClose: () -> Unit,
 ) {
+    val opening = state.cashOpeningAmount?.toBigDecimalOrNull()
+    val expected = state.cashExpected?.toBigDecimalOrNull()
+    val cashIn = if (opening != null && expected != null) (expected - opening).toPlainString() else null
+    val card = state.summary?.paymentMethods?.firstOrNull { it.label == PaymentMethod.STRIPE.label }?.amount
     Column {
         AdminCapsLabel(
             state.cashOpenedAt?.let { "Sesión de caja · desde ${receiptLocalTime(it)}" } ?: "Sesión de caja",
@@ -257,27 +298,53 @@ private fun OpenSession(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
                 .background(colors.accentLime)
-                .padding(18.dp),
+                .padding(14.dp),
         ) {
             Text(
-                "Fondo inicial",
+                "Efectivo esperado en caja",
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = colors.accentInk.copy(alpha = 0.75f),
             )
             Text(
-                state.cashOpeningAmount?.let(::moneyLabel) ?: "—",
-                fontSize = 42.sp,
+                (state.cashExpected ?: state.cashOpeningAmount)?.let(::moneyLabelCents) ?: "—",
+                fontSize = 40.sp,
                 lineHeight = 46.sp,
                 letterSpacing = (-1.4).sp,
                 fontWeight = FontWeight.Black,
                 color = colors.accentInk,
                 maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 24.sp, maxFontSize = 40.sp),
             )
+            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CashTile("Fondo", state.cashOpeningAmount?.let(::moneyLabel) ?: "—", colors, Modifier.weight(1f))
+                CashTile("Efectivo", cashIn?.let { "+${moneyLabel(it)}" } ?: "—", colors, Modifier.weight(1f))
+                CashTile("Tarjeta", card?.let(::moneyLabel) ?: "—", colors, Modifier.weight(1f))
+            }
+        }
+        AdminCapsLabel(
+            "Cobros en efectivo",
+            colors,
+            Modifier.padding(top = 16.dp, bottom = 8.dp).adminRise(2),
+        )
+        if (state.cashOrders.isEmpty()) {
+            Box(Modifier.padding(horizontal = 4.dp).adminRise(2)) {
+                AdminHint("Aún no hay cobros en efectivo en esta sesión.", colors)
+            }
+        } else {
+            AdminPanel(colors, Modifier.adminRise(2), padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
+                state.cashOrders.forEachIndexed { index, order ->
+                    if (index > 0) AdminRowDivider(colors)
+                    CashChargeRow(order, colors)
+                }
+            }
+        }
+        Box(Modifier.padding(top = 10.dp, start = 4.dp, end = 4.dp).adminRise(3)) {
+            AdminHint("Los pagos con tarjeta no entran al efectivo de la caja.", colors)
         }
         if (!readOnly) {
-            Spacer(Modifier.height(18.dp))
-            Box(Modifier.adminRise(2)) {
+            Spacer(Modifier.height(14.dp))
+            Box(Modifier.adminRise(3)) {
                 AdminSecondaryButton(
                     "Cerrar caja",
                     colors,
@@ -291,6 +358,59 @@ private fun OpenSession(
     }
 }
 
+@Composable
+private fun CashTile(
+    label: String,
+    value: String,
+    colors: OperationalColors,
+    modifier: Modifier,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.accentInk.copy(alpha = 0.08f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        Text(
+            label,
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.accentInk.copy(alpha = 0.7f),
+            maxLines = 1,
+        )
+        Text(
+            value,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.accentInk,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 15.sp),
+        )
+    }
+}
+
+@Composable
+private fun CashChargeRow(
+    order: OrderDetail,
+    colors: OperationalColors,
+) {
+    val summary = order.summary
+    val place = summary.space?.name ?: order.customerName
+    val what = order.items.firstOrNull()?.productName
+    val time = receiptLocalTime(summary.createdAt)
+    AdminRow(
+        title = listOfNotNull("#${summary.folio}", place).joinToString(" · "),
+        colors = colors,
+        detail = listOfNotNull(what, time).joinToString(" · "),
+    ) {
+        Text(
+            "+${moneyLabelCents(summary.total)}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Black,
+            color = if (colors.isDark) colors.accentLime else colors.accentInk,
+        )
+    }
+}
 /**
  * Pide un monto con el teclado del lienzo; se cierra solo si el servidor lo aceptó. Al cerrar caja muestra lo esperado
  * y dice si lo contado cuadra, sobra o falta.
@@ -331,7 +451,7 @@ private fun AmountSheet(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    expected?.let(::moneyLabel) ?: "—",
+                    expected?.let(::moneyLabelCents) ?: "—",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (expected == null) colors.textMuted else colors.textPrimary,
@@ -347,7 +467,7 @@ private fun AmountSheet(
             title =
                 when {
                     saving -> "Guardando…"
-                    money != null -> "$title con ${moneyLabel(money.toPlainString())}"
+                    money != null -> "$title con ${moneyLabelCents(money.toPlainString())}"
                     else -> title
                 },
             colors = colors,
@@ -400,7 +520,7 @@ private fun AmountDisplay(
                 label = "monto",
             ) { value ->
                 Text(
-                    value.ifEmpty { "0" },
+                    groupedAmount(value).ifEmpty { "0" },
                     fontSize = 34.sp,
                     letterSpacing = (-1).sp,
                     fontWeight = FontWeight.Black,
@@ -426,7 +546,7 @@ private fun CountVerdict(
         exit = fadeOut(spring(stiffness = 900f)),
     ) {
         val difference = (counted ?: BigDecimal.ZERO) - (expectedValue ?: BigDecimal.ZERO)
-        val gap = moneyLabel(difference.abs().toPlainString())
+        val gap = moneyLabelCents(difference.abs().toPlainString())
         val (text, icon, tone) =
             when (difference.signum()) {
                 0 ->
@@ -496,6 +616,18 @@ private fun Keypad(
             }
         }
     }
+}
+
+/** "1430.00" se lee "1,430.00": lo que se teclea queda tal cual y solo se agrupan los miles. */
+private fun groupedAmount(raw: String): String {
+    val whole = raw.substringBefore('.')
+    val grouped =
+        whole
+            .reversed()
+            .chunked(3)
+            .joinToString(",")
+            .reversed()
+    return if ('.' in raw) "$grouped.${raw.substringAfter('.')}" else grouped
 }
 
 /** Una tecla del teclado sobre el monto: un punto, dos decimales y el mismo tope que el campo de dinero. */

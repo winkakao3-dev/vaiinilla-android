@@ -1,5 +1,10 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.domain.admin.SpaceDraft
+import com.vaiinilla.app.ui.components.physicalPress
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.width
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -116,6 +121,8 @@ internal fun AdminSpacesSection(
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
+    /** Cómo va cada espacio ahora, del tablero del mesero; vacío si no hay con qué cargarlo. */
+    board: List<com.vaiinilla.app.domain.repository.BoardTable> = emptyList(),
 ) {
     val state by viewModel.uiState
     var sheet by remember { mutableStateOf<SpacesSheet?>(null) }
@@ -167,6 +174,7 @@ internal fun AdminSpacesSection(
                     item {
                         ReservationsCard(
                             state.reservations,
+                            state.schedule,
                             colors,
                             enabled,
                             onCharge = { sheet = SpacesSheet.Charge(it) },
@@ -184,6 +192,7 @@ internal fun AdminSpacesSection(
                     enabled,
                     viewModel,
                     onBack,
+                    board,
                     onOpen = { page = it },
                 ) { sheet = it }
         }
@@ -191,17 +200,18 @@ internal fun AdminSpacesSection(
 
     val error = state.notice.takeIf { state.noticeIsError }
     when (val current = sheet) {
-        SpacesSheet.Create ->
+        SpacesSheet.Create, SpacesSheet.Batch ->
             CreateSheet(
                 colors,
                 state.saving,
                 error,
-                close,
-            ) { name, type -> viewModel.create(name, type, close) }
-        SpacesSheet.Batch ->
-            BatchSheet(colors, state.saving, error, close) { type, prefix, from, to ->
-                viewModel.createBatch(type, prefix, from, to, close)
-            }
+                startWithMany = current == SpacesSheet.Batch,
+                onDismiss = close,
+                onCreateOne = { name, type, people -> viewModel.create(name, type, people, close) },
+                onCreateMany = { type, prefix, from, to, people ->
+                    viewModel.createBatch(type, prefix, from, to, people, close)
+                },
+            )
         is SpacesSheet.Edit -> {
             val space = state.spaces?.firstOrNull { it.id == current.spaceId }
             if (space == null) {
@@ -257,6 +267,7 @@ private fun SpacesList(
     enabled: Boolean,
     viewModel: AdminSpacesViewModel,
     onBack: () -> Unit,
+    board: List<com.vaiinilla.app.domain.repository.BoardTable>,
     onOpen: (SpacesPage) -> Unit,
     onSheet: (SpacesSheet) -> Unit,
 ) {
@@ -309,6 +320,7 @@ private fun SpacesList(
                                         space,
                                         colors,
                                         state.busySpaceId == space.id,
+                                        board.firstOrNull { it.space.id == space.id }?.let(::boardStatus),
                                     ) { onOpen(SpacesPage.Space(space.id)) }
                                 }
                             }
@@ -340,6 +352,16 @@ private fun SpacesList(
     }
 }
 
+private fun boardStatus(table: com.vaiinilla.app.domain.repository.BoardTable): Pair<String, AdminBadgeTone> =
+    when {
+        table.call != null -> "Llamando" to AdminBadgeTone.DANGER
+        table.orders.any { it.payAtEnd || it.paymentPending } -> "Cuenta abierta" to AdminBadgeTone.WARN
+        table.orders.isNotEmpty() -> "Pidiendo" to AdminBadgeTone.OK
+        table.availability != null && table.availability.state != com.vaiinilla.app.domain.repository.SpaceAvailabilityState.LIBRE ->
+            "Rentada" to AdminBadgeTone.OK
+        else -> "Libre" to AdminBadgeTone.NEUTRAL
+    }
+
 private fun spaceGroups(spaces: List<ManagedSpace>): List<Pair<String, List<ManagedSpace>>> {
     val sorted = spaces.sortedBy { naturalKey(it.name) }
     val order = SpaceType.entries.map { it.wire }.toMutableList()
@@ -361,6 +383,7 @@ private fun SpaceRow(
     space: ManagedSpace,
     colors: OperationalColors,
     busy: Boolean,
+    status: Pair<String, AdminBadgeTone>? = null,
     onClick: () -> Unit,
 ) {
     val price = space.hourlyPrice
@@ -370,6 +393,8 @@ private fun SpaceRow(
         detail =
             when {
                 space.isCourt && price != null -> "Renta ${moneyLabel(price)} por hora"
+                space.capacity != null ->
+                    if (space.capacity == 1) "1 persona" else "${space.capacity} personas"
                 else -> space.code?.let { "Código $it" } ?: (space.type?.label ?: space.typeWire)
             },
         dimmed = !space.active,
@@ -390,6 +415,7 @@ private fun SpaceRow(
                     modifier = Modifier.size(18.dp),
                 )
             !space.active -> AdminBadge("Desactivado", colors, AdminBadgeTone.DANGER)
+            status != null -> AdminBadge(status.first, colors, status.second)
             space.isCourt && price != null -> AdminBadge("Se renta", colors, AdminBadgeTone.OK)
         }
         Chevron(colors)
@@ -523,15 +549,13 @@ private fun SpaceDetailPage(
         }
         if (!space.active) item { AdminHint("Está desactivado: su QR no recibe pedidos.", colors) }
         item {
-            AdminPanel(colors, Modifier.adminRise(1).padding(top = 10.dp)) {
-                AdminQrBlock(
-                    url = space.qrUrl,
-                    name = space.name,
-                    colors = colors,
-                    onNotice = viewModel::notify,
-                    code = space.code,
-                )
-            }
+            AdminBigQr(
+                url = space.qrUrl,
+                name = space.name,
+                colors = colors,
+                onNotice = viewModel::notify,
+                code = space.code,
+            )
         }
     }
 }
@@ -544,92 +568,138 @@ private fun CreateSheet(
     colors: OperationalColors,
     saving: Boolean,
     error: String?,
+    startWithMany: Boolean,
     onDismiss: () -> Unit,
-    onCreate: (String, SpaceType) -> Unit,
+    onCreateOne: (String, SpaceType, Int?) -> Unit,
+    onCreateMany: (SpaceType, String, Int?, Int?, Int?) -> Unit,
 ) {
-    var name by remember { mutableStateOf("") }
+    var many by remember { mutableStateOf(startWithMany) }
     var type by remember { mutableStateOf(SpaceType.TABLE) }
-    AdminSheet(title = "Nuevo espacio", colors = colors, busy = saving, onDismiss = onDismiss) {
-        OperationalField(value = name, onValueChange = {
-            name = it.take(80)
-        }, label = "Nombre", colors = colors, placeholder = "Ej. Mesa 5", enabled = !saving)
-        Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SpaceType.entries.forEach { option ->
-                ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option == type) {
-                    type =
-                        option
-                }
-            }
-        }
-        AdminSheetError(error)
-        ActionPill(label = "Crear espacio", enabled = name.isNotBlank(), loading = saving, colors = colors) {
-            onCreate(name, type)
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun BatchSheet(
-    colors: OperationalColors,
-    saving: Boolean,
-    error: String?,
-    onDismiss: () -> Unit,
-    onCreate: (SpaceType, String, Int?, Int?) -> Unit,
-) {
-    var type by remember { mutableStateOf(SpaceType.SEAT) }
-    var prefix by remember { mutableStateOf("Asiento") }
+    var name by remember { mutableStateOf("") }
+    var prefix by remember { mutableStateOf(SpaceType.TABLE.label) }
+    var howMany by remember { mutableStateOf("6") }
     var from by remember { mutableStateOf("1") }
-    var to by remember { mutableStateOf("100") }
-    AdminSheet(title = "Crear varios a la vez", colors = colors, busy = saving, onDismiss = onDismiss) {
+    var people by remember { mutableStateOf("") }
+    AdminSheet(title = "Crear espacios", colors = colors, busy = saving, onDismiss = onDismiss) {
+        AdminSegmented(
+            options = listOf(false to "Uno", true to "Varios a la vez"),
+            selected = many,
+            colors = colors,
+            onSelect = { many = it },
+        )
+        Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SpaceType.batchTypes.forEach { option ->
+            (if (many) SpaceType.batchTypes else SpaceType.entries).forEach { option ->
                 ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option == type) {
                     if (prefix == type.label) prefix = option.label
                     type = option
                 }
             }
         }
-        OperationalField(value = prefix, onValueChange = {
-            prefix = it.take(70)
-        }, label = "Nombre base", colors = colors, enabled = !saving)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        val peopleValue = people.toIntOrNull()
+        val peopleField: @Composable (Modifier) -> Unit = { modifier ->
             OperationalField(
-                value = from,
-                onValueChange = { from = it.filter(Char::isDigit).take(5) },
-                label = "Del",
+                value = people,
+                onValueChange = { people = it.filter(Char::isDigit).take(2) },
+                label = "Personas",
                 colors = colors,
                 enabled = !saving,
+                placeholder = "4",
                 keyboardType = KeyboardType.Number,
-                modifier = Modifier.weight(1f),
-            )
-            OperationalField(
-                value = to,
-                onValueChange = { to = it.filter(Char::isDigit).take(5) },
-                label = "Al",
-                colors = colors,
-                enabled = !saving,
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.weight(1f),
+                modifier = modifier,
             )
         }
-        val count = (to.toIntOrNull() ?: 0) - (from.toIntOrNull() ?: 0) + 1
-        AdminHint(
-            if (count >
-                0
-            ) {
-                "Se crean \"${prefix.trim()} ${from}\" a \"${prefix.trim()} $to\" ($count). Los que ya existan se omiten."
-            } else {
-                "Revisa los números."
-            },
-            colors,
-        )
-        AdminSheetError(error)
-        ActionPill(label = "Crear", enabled = count in 1..SpaceRules.MAX_BATCH, loading = saving, colors = colors) {
-            onCreate(type, prefix, from.toIntOrNull(), to.toIntOrNull())
+        if (many) {
+            Text("Cuántos y cómo se llaman", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OperationalField(
+                    value = prefix,
+                    onValueChange = { prefix = it.take(70) },
+                    label = "Nombre base",
+                    colors = colors,
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                )
+                OperationalField(
+                    value = howMany,
+                    onValueChange = { howMany = it.filter(Char::isDigit).take(3) },
+                    label = "Cuántos",
+                    colors = colors,
+                    enabled = !saving,
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OperationalField(
+                    value = from,
+                    onValueChange = { from = it.filter(Char::isDigit).take(5) },
+                    label = "Empieza en",
+                    colors = colors,
+                    enabled = !saving,
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f),
+                )
+                peopleField(Modifier.weight(1f))
+            }
+            val count = howMany.toIntOrNull() ?: 0
+            val first = from.toIntOrNull() ?: 0
+            if (count in 1..SpaceRules.MAX_BATCH && prefix.isNotBlank()) {
+                Text("Se van a crear", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    (0 until minOf(count, 12)).forEach { index ->
+                        Text(
+                            "${prefix.trim()} ${first + index}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(colors.cardInner)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                    if (count > 12) Text("y ${count - 12} más", fontSize = 12.sp, color = colors.textMuted)
+                }
+            }
+            AdminSheetError(error)
+            AdminPrimaryButton(
+                title = "Crear $count ${spaceCountLabel(type, count)} con su QR",
+                colors = colors,
+                busy = saving,
+                enabled = count in 1..SpaceRules.MAX_BATCH && prefix.isNotBlank(),
+            ) { onCreateMany(type, prefix, first, first + count - 1, peopleValue) }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OperationalField(
+                    value = name,
+                    onValueChange = { name = it.take(80) },
+                    label = "Nombre",
+                    colors = colors,
+                    placeholder = "Ej. Mesa 5",
+                    enabled = !saving,
+                    modifier = Modifier.weight(2f),
+                )
+                peopleField(Modifier.weight(1f))
+            }
+            AdminSheetError(error)
+            AdminPrimaryButton(
+                title = "Crear con su QR",
+                colors = colors,
+                busy = saving,
+                enabled = name.isNotBlank(),
+            ) { onCreateOne(name, type, peopleValue) }
         }
     }
+}
+
+private fun spaceCountLabel(
+    type: SpaceType,
+    count: Int,
+): String {
+    val one = type.label.lowercase()
+    return if (count == 1) one else plural(type.label).lowercase()
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -645,10 +715,12 @@ private fun EditSheet(
 ) {
     val context = LocalContext.current
     var name by remember(space.id) { mutableStateOf(space.name) }
-    var price by remember(
-        space.id,
-        space.hourlyPrice,
-    ) { mutableStateOf(space.hourlyPrice?.removeSuffix(".00").orEmpty()) }
+    var people by remember(space.id) { mutableStateOf(space.capacity?.toString().orEmpty()) }
+    var rents by remember(space.id) { mutableStateOf(space.hourlyPrice != null) }
+    var price by remember(space.id) { mutableStateOf(space.hourlyPrice?.removeSuffix(".00").orEmpty()) }
+    var minimum by remember(space.id) { mutableStateOf(space.minimumMinutes) }
+    var sport by remember(space.id) { mutableStateOf(space.sport.orEmpty()) }
+    var surface by remember(space.id) { mutableStateOf(space.surface.orEmpty()) }
     var description by remember(space.id) { mutableStateOf(space.description.orEmpty()) }
     val features = remember(space.id) { mutableStateListOf<String>().apply { addAll(space.features) } }
     var newFeature by remember { mutableStateOf("") }
@@ -662,138 +734,115 @@ private fun EditSheet(
                 viewModel.uploadImage(space, prepared.bytes, prepared.filename, prepared.mimeType)
             }
         }
-    AdminSheet(title = space.name, colors = colors, busy = saving, onDismiss = onDismiss) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OperationalField(value = name, onValueChange = {
-                name = it.take(80)
-            }, label = "Nombre", colors = colors, enabled = !saving, modifier = Modifier.weight(1f))
-            ChipButton(
-                label = "Guardar",
-                enabled = !saving && name.trim() != space.name && name.isNotBlank(),
+    AdminSheet(
+        title = if (space.isCourt) "Editar cancha" else "Editar ${space.type?.label?.lowercase() ?: "espacio"}",
+        colors = colors,
+        busy = saving,
+        onDismiss = onDismiss,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OperationalField(
+                value = name,
+                onValueChange = { name = it.take(80) },
+                label = "Nombre",
                 colors = colors,
-            ) {
-                viewModel.rename(space, name)
-            }
+                enabled = !saving,
+                modifier = Modifier.weight(2f),
+            )
+            OperationalField(
+                value = people,
+                onValueChange = { people = it.filter(Char::isDigit).take(2) },
+                label = "Personas",
+                colors = colors,
+                enabled = !saving,
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.weight(1f),
+            )
         }
-        Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SpaceType.entries.forEach { option ->
-                ChipButton(
-                    label = option.label,
-                    enabled = !saving,
-                    colors = colors,
-                    selected =
-                        option.wire == space.typeWire,
-                ) {
-                    viewModel.setType(space, option)
+        if (!space.isCourt) {
+            Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SpaceType.entries.forEach { option ->
+                    ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option.wire == space.typeWire) {
+                        viewModel.setType(space, option)
+                    }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Activo", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                AdminHint("Desactivado, su QR no recibe pedidos.", colors)
-            }
-            Switch(
-                checked = space.active,
-                onCheckedChange = { viewModel.setActive(space, it) },
-                enabled = !saving,
-                colors =
-                    SwitchDefaults.colors(
-                        checkedTrackColor = colors.accentLime,
-                        checkedThumbColor = colors.accentInk,
-                    ),
-            )
-        }
+        AdminToggleRow(
+            title = "Activo",
+            detail = "Desactivado, su QR no recibe pedidos.",
+            checked = space.active,
+            colors = colors,
+            enabled = !saving,
+            onChange = { viewModel.setActive(space, it) },
+        )
         if (space.isCourt) {
-            AdminSectionTitle("Renta de la cancha", colors)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AdminToggleRow(
+                title = "Se renta por hora",
+                detail = "El cliente la reserva y paga la renta",
+                checked = rents,
+                colors = colors,
+                enabled = !saving,
+                onChange = { rents = it },
+            )
+            if (rents) {
                 OperationalField(
                     value = price,
                     onValueChange = { price = MoneyInput.sanitize(it).take(8) },
                     label = "Precio por hora (MXN)",
                     colors = colors,
-                    placeholder = "Vacío = no se renta",
                     enabled = !saving,
                     keyboardType = KeyboardType.Decimal,
-                    modifier = Modifier.weight(1f),
                 )
-                ChipButton(
-                    label = "Guardar",
-                    enabled = !saving,
-                    colors = colors,
-                ) { viewModel.setHourlyPrice(space, price) }
-            }
-            AdminSectionTitle("Ficha de la cancha", colors)
-            if (space.imageUrl != null) {
-                ProductImage(
-                    imageUrl = space.imageUrl,
-                    contentDescription = space.name,
-                    modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ChipButton(
-                    label =
-                        if (space.imageUrl ==
-                            null
-                        ) {
-                            "Subir foto"
-                        } else {
-                            "Cambiar foto"
-                        },
-                    enabled = !saving,
-                    colors = colors,
-                ) {
-                    picker.launch("image/*")
-                }
-                if (space.imageUrl !=
-                    null
-                ) {
-                    ChipButton(
-                        label = "Quitar foto",
-                        enabled = !saving,
-                        colors = colors,
-                    ) { viewModel.removeImage(space) }
-                }
-            }
-            OperationalField(
-                value = description,
-                onValueChange = { description = it.take(500) },
-                label = "Descripción",
-                colors = colors,
-                enabled = !saving,
-                singleLine = false,
-                minLines = 2,
-            )
-            Text("Características", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                (
-                    features +
-                        SpaceRules.FEATURE_SUGGESTIONS.filter { s -> features.none { it.equals(s, ignoreCase = true) } }
-                ).forEach { feature ->
-                    val on = features.any { it.equals(feature, ignoreCase = true) }
-                    ChipButton(
-                        label = feature,
-                        enabled = !saving && (on || features.size < SpaceRules.MAX_FEATURES),
-                        colors = colors,
-                        selected = on,
-                    ) {
-                        if (on) {
-                            features.removeAll {
-                                it.equals(
-                                    feature,
-                                    ignoreCase = true,
-                                )
-                            }
-                        } else {
-                            features.add(feature)
-                        }
+                Text("Mínimo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChipButton(label = "Sin mínimo", enabled = !saving, colors = colors, selected = minimum == null) { minimum = null }
+                    SpaceRules.MINIMUM_RENTALS.forEach { minutes ->
+                        ChipButton(
+                            label = SpaceRules.minimumLabel(minutes),
+                            enabled = !saving,
+                            colors = colors,
+                            selected = minimum == minutes,
+                        ) { minimum = minutes }
                     }
                 }
+            }
+            AdminSectionTitle("Ficha", colors)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OperationalField(
+                    value = sport,
+                    onValueChange = { sport = it.take(40) },
+                    label = "Deporte",
+                    colors = colors,
+                    placeholder = "Pádel",
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                )
+                OperationalField(
+                    value = surface,
+                    onValueChange = { surface = it.take(40) },
+                    label = "Superficie",
+                    colors = colors,
+                    placeholder = "Pasto sintético",
+                    enabled = !saving,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text("Características", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                (features + SpaceRules.FEATURE_SUGGESTIONS.filter { s -> features.none { it.equals(s, ignoreCase = true) } })
+                    .forEach { feature ->
+                        val on = features.any { it.equals(feature, ignoreCase = true) }
+                        ChipButton(
+                            label = feature,
+                            enabled = !saving && (on || features.size < SpaceRules.MAX_FEATURES),
+                            colors = colors,
+                            selected = on,
+                        ) {
+                            if (on) features.removeAll { it.equals(feature, ignoreCase = true) } else features.add(feature)
+                        }
+                    }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OperationalField(
@@ -806,60 +855,158 @@ private fun EditSheet(
                 )
                 ChipButton(
                     label = "Agregar",
-                    enabled =
-                        newFeature.isNotBlank() && features.size < SpaceRules.MAX_FEATURES,
+                    enabled = newFeature.isNotBlank() && features.size < SpaceRules.MAX_FEATURES,
                     colors = colors,
                 ) {
                     features.add(newFeature.trim())
                     newFeature = ""
                 }
             }
-            ChipButton(label = "Guardar ficha", enabled = !saving, colors = colors) {
-                viewModel.saveProfile(space, description, features.toList())
+            OperationalField(
+                value = description,
+                onValueChange = { description = it.take(500) },
+                label = "Descripción",
+                colors = colors,
+                enabled = !saving,
+                singleLine = false,
+                minLines = 2,
+            )
+            if (space.imageUrl != null) {
+                ProductImage(
+                    imageUrl = space.imageUrl,
+                    contentDescription = space.name,
+                    modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChipButton(
+                    label = if (space.imageUrl == null) "Subir foto" else "Cambiar foto",
+                    enabled = !saving,
+                    colors = colors,
+                ) { picker.launch("image/*") }
+                if (space.imageUrl != null) {
+                    ChipButton(label = "Quitar foto", enabled = !saving, colors = colors) { viewModel.removeImage(space) }
+                }
             }
         }
         AdminSheetError(error)
         ActionPill(
-            label = "Eliminar espacio",
-            enabled = !saving,
-            loading = false,
+            label = "Guardar cambios",
+            enabled = !saving && name.isNotBlank(),
+            loading = saving,
             colors = colors,
-            primary = false,
-            onClick = onDelete,
-        )
+        ) {
+            viewModel.saveSpace(
+                space,
+                SpaceDraft(
+                    name = name,
+                    capacity = people.toIntOrNull(),
+                    hourlyPrice = if (space.isCourt && rents) price else "",
+                    minimumMinutes = minimum.takeIf { rents },
+                    sport = sport,
+                    surface = surface,
+                    description = description,
+                    features = features.toList(),
+                ),
+                onDismiss,
+            )
+        }
+        AdminSecondaryButton("Eliminar espacio", colors, destructive = true, enabled = !saving, onClick = onDelete)
     }
 }
 
+/** Las reservas del día como el marco 50: hora, quién y su estado; los huecos del día salen como disponibles. */
 @Composable
 private fun ReservationsCard(
     reservations: List<Reservation>,
+    schedule: ReservationSchedule?,
     colors: OperationalColors,
     enabled: Boolean,
     onCharge: (Reservation) -> Unit,
     onRelease: (Reservation) -> Unit,
 ) {
-    AdminCard(colors) {
-        AdminSectionTitle("Reservas de hoy", colors)
-        if (reservations.isEmpty()) AdminHint("No hay canchas reservadas hoy.", colors)
-        reservations.forEach { reservation ->
-            AdminValueRow(
-                label = "${reservationTime(reservation)} · ${reservation.courtName ?: "Cancha"}",
-                value = moneyLabel(reservation.amount),
+    AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+        if (reservations.isEmpty()) {
+            AdminRow(title = "Sin reservas hoy", colors = colors, detail = "Nadie la ha apartado") {
+                AdminBadge("Libre", colors)
+            }
+        }
+        reservations.forEachIndexed { index, reservation ->
+            if (index > 0) AdminRowDivider(colors)
+            val pending = reservation.state == ReservationState.PENDING_PAYMENT
+            AdminRow(
+                title = reservation.customerName ?: "Cliente",
                 colors = colors,
                 detail =
-                    listOfNotNull(
-                        reservation.customerName ?: "Cliente",
-                        reservationLabel(reservation.state),
-                    ).joinToString(" · "),
-            )
-            if (reservation.state == ReservationState.PENDING_PAYMENT) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChipButton(label = "Cobrar", enabled = enabled, colors = colors) { onCharge(reservation) }
-                    ChipButton(label = "Liberar cancha", enabled = enabled, colors = colors) { onRelease(reservation) }
+                    (reservation.courtName?.let { "$it · " } ?: "") +
+                        if (pending) "Paga al llegar · ${moneyLabel(reservation.amount)}" else reservationLabel(reservation.state),
+                leading = {
+                    Column(Modifier.width(50.dp)) {
+                        Text(
+                            ReservationTimeFormat.format(reservation.start.atZone(BusinessTime.zone)),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.textPrimary,
+                        )
+                        Text(
+                            hoursLabel(reservation.durationMinutes),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textMuted,
+                        )
+                    }
+                },
+            ) {
+                AdminBadge(
+                    if (pending) "Por cobrar" else "Pagada",
+                    colors,
+                    if (pending) AdminBadgeTone.WARN else AdminBadgeTone.OK,
+                )
+            }
+            if (pending) {
+                Row(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AdminSecondaryButton("Liberar", colors, Modifier.weight(1f), enabled = enabled) { onRelease(reservation) }
+                    AdminSecondaryButton("Cobrar", colors, Modifier.weight(1f), filled = true, enabled = enabled) { onCharge(reservation) }
                 }
             }
         }
+        freeGaps(reservations, schedule).forEach { (start, minutes) ->
+            AdminRowDivider(colors)
+            AdminRow(
+                title = "Disponible",
+                colors = colors,
+                detail = "Nadie la ha apartado",
+                leading = {
+                    Column(Modifier.width(50.dp)) {
+                        Text(start, fontSize = 14.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                        Text(hoursLabel(minutes), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textMuted)
+                    }
+                },
+            ) { AdminBadge("Libre", colors) }
+        }
     }
+}
+
+private fun hoursLabel(minutes: Int): String =
+    when {
+        minutes % 60 == 0 -> "${minutes / 60} h"
+        else -> "%.1f h".format(java.util.Locale.US, minutes / 60.0)
+    }
+
+/** Los huecos de hoy después de la última reserva, solo cuando hay un horario que no cruza la medianoche. */
+private fun freeGaps(
+    reservations: List<Reservation>,
+    schedule: ReservationSchedule?,
+): List<Pair<String, Int>> {
+    if (schedule == null) return emptyList()
+    val zone = BusinessTime.zone
+    val closing = runCatching { java.time.LocalTime.parse(schedule.closing) }.getOrNull() ?: return emptyList()
+    val opening = runCatching { java.time.LocalTime.parse(schedule.opening) }.getOrNull() ?: return emptyList()
+    if (closing <= opening) return emptyList()
+    val last = reservations.maxOfOrNull { it.end.atZone(zone).toLocalTime() } ?: return emptyList()
+    val from = maxOf(last, opening)
+    val minutes = java.time.Duration.between(from, closing).toMinutes().toInt()
+    return if (minutes >= schedule.blockMinutes) listOf(ReservationTimeFormat.format(from) to minutes) else emptyList()
 }
 
 @Composable
@@ -873,11 +1020,12 @@ private fun ChargeSheet(
 ) {
     var received by remember { mutableStateOf(reservation.amount.removeSuffix(".00")) }
     AdminSheet(title = "Cobrar renta", colors = colors, busy = saving, onDismiss = onDismiss) {
-        AdminValueRow(
-            "${reservation.courtName ?: "Cancha"} · ${reservationTime(reservation)}",
-            moneyLabel(reservation.amount),
-            colors,
-        )
+        AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+            AdminValueRow("Espacio", reservation.courtName ?: "Cancha", colors)
+            reservation.customerName?.let { AdminValueRow("Cliente", it, colors) }
+            AdminValueRow("Horario", "Hoy · ${reservationTime(reservation)}", colors)
+            AdminValueRow("Renta", hoursLabel(reservation.durationMinutes), colors)
+        }
         OperationalField(
             value = received,
             onValueChange = { received = MoneyInput.sanitize(it).take(10) },
@@ -886,9 +1034,18 @@ private fun ChargeSheet(
             enabled = !saving,
             keyboardType = KeyboardType.Decimal,
         )
-        AdminHint("Se cobra en efectivo y necesita la caja abierta.", colors)
+        AdminHint("Se cobra en efectivo y necesita la caja abierta. Las rentas se cobran sin propina.", colors)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, modifier = Modifier.weight(1f))
+            Text(moneyLabelCents(reservation.amount), fontSize = 26.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+        }
         AdminSheetError(error)
-        ActionPill(label = "Cobrar", enabled = received.isNotBlank(), loading = saving, colors = colors) {
+        AdminPrimaryButton(
+            title = "Cobrar ${moneyLabelCents(reservation.amount)}",
+            colors = colors,
+            enabled = received.isNotBlank(),
+            busy = saving,
+        ) {
             onCharge(
                 com.vaiinilla.app.domain.admin.AdminProductRules
                     .money(received) ?: received,
@@ -907,11 +1064,35 @@ private fun ScheduleCard(
     var opening by remember(saved) { mutableStateOf(saved?.opening.orEmpty()) }
     var closing by remember(saved) { mutableStateOf(saved?.closing.orEmpty()) }
     var days by remember(saved) { mutableStateOf(saved?.daysAhead?.toString().orEmpty()) }
-    AdminCard(colors) {
-        AdminSectionTitle("Horario de reservas", colors)
-        if (saved == null) {
-            AdminHint("Cargando…", colors)
-            return@AdminCard
+    var weekDays by remember(saved) { mutableStateOf(saved?.weekDays.orEmpty().toSet()) }
+    var block by remember(saved) { mutableStateOf(saved?.blockMinutes ?: 30) }
+    if (saved == null) {
+        AdminHint("Cargando…", colors)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            WeekDayLetters.forEachIndexed { index, letter ->
+                val day = index + 1
+                val on = day in weekDays
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (on) colors.textPrimary else colors.cardBackground)
+                        .physicalPress(enabled = enabled) { weekDays = if (on) weekDays - day else weekDays + day }
+                        .semantics { contentDescription = "Día $letter, ${if (on) "abierto" else "cerrado"}" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        letter,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (on) colors.background else colors.textMuted,
+                    )
+                }
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OperationalField(
@@ -931,21 +1112,32 @@ private fun ScheduleCard(
                 modifier = Modifier.weight(1f),
             )
         }
-        AdminHint("Si cierra antes de abrir, el horario cruza la medianoche.", colors)
-        OperationalField(
-            value = days,
-            onValueChange = { days = it.filter(Char::isDigit).take(2) },
-            label = "Días de anticipación para reservar",
-            colors = colors,
-            supporting = "De 0 a 60.",
-            enabled = enabled,
-            keyboardType = KeyboardType.Number,
-        )
-        val draft = ReservationSchedule(opening, closing, days.toIntOrNull() ?: -1)
-        ChipButton(label = "Guardar horario", enabled = enabled && draft != saved, colors = colors) { onSave(draft) }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Bloques de", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(30 to "30 min", 60 to "1 hora").forEach { (value, label) ->
+                        AdminFilterChip(label, block == value, colors, onClick = { if (enabled) block = value })
+                    }
+                }
+            }
+            OperationalField(
+                value = days,
+                onValueChange = { days = it.filter(Char::isDigit).take(2) },
+                label = "Días antes",
+                colors = colors,
+                enabled = enabled,
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.weight(0.7f),
+            )
+        }
+        val draft =
+            ReservationSchedule(opening, closing, days.toIntOrNull() ?: -1, weekDays.sorted(), block)
+        AdminPrimaryButton(title = "Guardar horario", colors = colors, enabled = enabled && draft != saved) { onSave(draft) }
     }
 }
 
+private val WeekDayLetters = listOf("L", "M", "M", "J", "V", "S", "D")
 private val ReservationTimeFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 private fun reservationTime(reservation: Reservation): String {

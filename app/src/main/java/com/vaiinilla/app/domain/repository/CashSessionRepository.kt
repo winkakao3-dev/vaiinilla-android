@@ -17,6 +17,9 @@ interface CashSessionRepository {
     /** La sesión abierta que trajo la última consulta de la caja, con su fondo y su hora; null si no hay o no llegó. */
     val openedSession: CashSessionInfo? get() = null
 
+    /** El último cierre (`ultimo_cierre`); el servidor hoy lo manda solo con la caja abierta. */
+    val lastClose: CashLastClose? get() = null
+
     /** Id de la sesión de caja abierta, o null si no hay. */
     fun activeSessionId(): Result<String?>
 
@@ -40,4 +43,13 @@ data class CashSessionInfo(
     val initialAmount: String?,
     /** ISO-8601 en UTC (`abierta_en`). */
     val openedAt: String?,
+)
+
+data class CashLastClose(
+    val counted: String,
+    /** ISO-8601 en UTC. */
+    val closedAt: String?,
+    val opening: String? = null,
+    val expected: String? = null,
+    val closedByMe: Boolean = false,
 )

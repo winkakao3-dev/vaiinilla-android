@@ -1,5 +1,19 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -41,11 +55,10 @@ import com.vaiinilla.app.domain.admin.StoreLocation
 import com.vaiinilla.app.domain.model.answerTimeLabel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 
-// 0 es «sin plazo»: AdminChoice no admite null como opción.
+// 0 es «sin plazo».
 private val ANSWER_TIME_OPTIONS =
     listOf(
         30 to "30 min",
@@ -148,300 +161,373 @@ internal fun StepButton(
 }
 
 /**
- * Entregas a domicilio del negocio (CASA-02): si lleva pedidos, desde dónde se miden los kilómetros, hasta dónde
- * llega, cuánto cobra y si se le puede pagar al recibir.
+ * Entrega a domicilio y encargos en una sola página, como el marco 02b: la zona con su mapa, cuánto pagan por adelantado
+ * y si se acepta cada encargo. Lo que se guarda son dos cosas en el servidor, pero el dueño ve un solo «Guardar flujo».
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun AdminHomeDeliveryCard(
-    saved: HomeDeliverySettings,
+internal fun AdminDeliveryForm(
+    savedDelivery: HomeDeliverySettings?,
+    savedPreorders: PreorderSettings?,
     location: StoreLocation?,
     worksFromHome: Boolean,
     locating: Boolean,
+    saving: Boolean,
     enabled: Boolean,
     readOnly: Boolean,
     colors: OperationalColors,
     onLocate: (String) -> Unit,
     onUseCurrentLocation: () -> Unit,
-    onSave: (HomeDeliverySettings) -> Unit,
+    onSave: (HomeDeliverySettings?, PreorderSettings?) -> Unit,
 ) {
-    var draft by remember { mutableStateOf(saved) }
+    var delivery by remember { mutableStateOf(savedDelivery) }
+    var preorders by remember { mutableStateOf(savedPreorders) }
     var place by remember { mutableStateOf("") }
-    LaunchedEffect(saved) { draft = saved }
-    AdminCard(colors) {
-        AdminSectionTitle("Entregas a domicilio", colors)
-        AdminChoice(
-            question = "¿Llevas pedidos a domicilio?",
-            options = listOf(true to "Sí, los llevo", false to "No, los recogen"),
-            selected = draft.enabled,
-            colors = colors,
-            enabled = enabled,
-        ) { draft = draft.copy(enabled = it) }
-        AnimatedVisibility(
-            visible = draft.enabled,
-            enter = expandVertically(spring(stiffness = 400f)) + fadeIn(),
-            exit = shrinkVertically(spring(stiffness = 400f)) + fadeOut(),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    if (worksFromHome) "Tu negocio" else "Ubicación de tu negocio",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary,
+    var movingStore by remember { mutableStateOf(false) }
+    LaunchedEffect(savedDelivery) { delivery = savedDelivery }
+    LaunchedEffect(savedPreorders) { preorders = savedPreorders }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        delivery?.let { current ->
+            AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+                AdminToggleRow(
+                    title = "Llevar a domicilio",
+                    checked = current.enabled,
+                    colors = colors,
+                    onChange = { delivery = current.copy(enabled = it) },
+                    detail = if (worksFromHome) "Desde tu casa" else "Desde tu local",
+                    enabled = enabled,
                 )
-                when (location) {
-                    is StoreLocation.At ->
-                        AdminHint(
-                            if (worksFromHome) {
-                                "Los kilómetros se miden desde este punto. Tus clientes solo ven la zona, no tu casa."
-                            } else {
-                                "Los kilómetros se miden desde este punto."
-                            },
-                            colors,
-                        )
-                    StoreLocation.Missing ->
-                        AdminHint(
-                            "Sin ubicación, la entrega llega a cualquier dirección. Ponla para limitarla por kilómetros.",
-                            colors,
-                        )
-                    null -> AdminHint("Los kilómetros se miden desde la ubicación de tu negocio.", colors)
+                AnimatedVisibility(
+                    visible = current.enabled,
+                    enter = expandVertically(spring(stiffness = 400f)) + fadeIn(),
+                    exit = shrinkVertically(spring(stiffness = 400f)) + fadeOut(),
+                ) {
+                    Column(
+                        Modifier.padding(top = 6.dp, bottom = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DeliveryMap(current.radiusKm, colors) { movingStore = !movingStore }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OperationalField(
+                                value = current.radiusKm,
+                                onValueChange = { delivery = current.copy(radiusKm = decimalInput(it)) },
+                                label = "Radio (km)",
+                                colors = colors,
+                                placeholder = "5",
+                                enabled = enabled,
+                                keyboardType = KeyboardType.Decimal,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OperationalField(
+                                value = current.fee,
+                                onValueChange = { delivery = current.copy(fee = decimalInput(it)) },
+                                label = "Envío",
+                                colors = colors,
+                                placeholder = "40",
+                                enabled = enabled,
+                                keyboardType = KeyboardType.Decimal,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OperationalField(
+                                value = current.minimum,
+                                onValueChange = { delivery = current.copy(minimum = decimalInput(it)) },
+                                label = "Mínimo",
+                                colors = colors,
+                                placeholder = "Sin",
+                                enabled = enabled,
+                                keyboardType = KeyboardType.Decimal,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        when {
+                            location == StoreLocation.Missing ->
+                                AdminHint(
+                                    "Sin ubicación, la entrega llega a cualquier dirección. Ponla para limitarla por kilómetros.",
+                                    colors,
+                                )
+                            worksFromHome ->
+                                AdminHint("Tus clientes solo ven la zona, no tu casa.", colors)
+                        }
+                        if (location != null && !readOnly && (movingStore || location == StoreLocation.Missing)) {
+                            OperationalField(
+                                value = place,
+                                onValueChange = { place = it.take(MapsLink.MAX_TEXT) },
+                                label = "Enlace de Google Maps o dirección",
+                                colors = colors,
+                                placeholder = "Pega el enlace de Compartir",
+                                enabled = enabled && !locating,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AdminSecondaryButton(
+                                    title = if (locating) "Buscando…" else "Ubicar",
+                                    colors = colors,
+                                    modifier = Modifier.weight(1f),
+                                    outlined = true,
+                                    enabled = enabled && place.isNotBlank() && !locating,
+                                ) { onLocate(place) }
+                                AdminSecondaryButton(
+                                    title = "Usar mi ubicación",
+                                    colors = colors,
+                                    modifier = Modifier.weight(1.4f),
+                                    outlined = true,
+                                    enabled = enabled && !locating,
+                                    onClick = onUseCurrentLocation,
+                                )
+                            }
+                        }
+                    }
                 }
-                if (location != null && !readOnly) {
-                    OperationalField(
-                        value = place,
-                        onValueChange = { place = it.take(MapsLink.MAX_TEXT) },
-                        label = "Enlace de Google Maps o dirección",
-                        colors = colors,
-                        placeholder = "Pega el enlace de Compartir",
-                        enabled = enabled && !locating,
+            }
+        }
+        val currentDelivery = delivery
+        val currentPreorders = preorders
+        if (currentDelivery != null || currentPreorders != null) {
+            AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+                if (currentPreorders != null) {
+                    val deposit = currentPreorders.depositPercent
+                    val upfront =
+                        when {
+                            deposit != null -> Upfront.DEPOSIT
+                            currentDelivery?.payOnDelivery == true -> Upfront.NOTHING
+                            else -> Upfront.ALL
+                        }
+                    Text(
+                        "¿Cuánto pagan por adelantado?",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.textPrimary,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ActionPill(
-                            label = if (locating) "Buscando…" else "Ubicar",
-                            enabled = enabled && place.isNotBlank() && !locating,
-                            loading = locating,
+                    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Upfront.entries.forEach { option ->
+                            AdminFilterChip(
+                                label = option.label(deposit),
+                                selected = option == upfront,
+                                colors = colors,
+                                onClick = {
+                                    if (!enabled) return@AdminFilterChip
+                                    preorders =
+                                        currentPreorders.copy(
+                                            depositPercent = (deposit ?: DEFAULT_DEPOSIT).takeIf { option == Upfront.DEPOSIT },
+                                        )
+                                    delivery =
+                                        currentDelivery?.copy(
+                                            payOnDelivery =
+                                                when (option) {
+                                                    Upfront.ALL -> false
+                                                    Upfront.DEPOSIT, Upfront.NOTHING -> true
+                                                },
+                                        )
+                                },
+                                height = 38.dp,
+                            )
+                        }
+                    }
+                }
+                if (currentDelivery != null) {
+                    AdminToggleRow(
+                        title = "Pagar al recibir",
+                        checked = currentDelivery.payOnDelivery,
+                        colors = colors,
+                        onChange = { delivery = currentDelivery.copy(payOnDelivery = it) },
+                        detail = "Efectivo o transferencia en la puerta",
+                        enabled = enabled,
+                    )
+                    if (currentDelivery.payOnDelivery) {
+                        OperationalField(
+                            value = currentDelivery.transferDetails,
+                            onValueChange = {
+                                delivery =
+                                    currentDelivery.copy(
+                                        transferDetails = it.take(HomeBusinessRules.MAX_TRANSFER_DETAILS),
+                                    )
+                            },
+                            label = "Datos para transferencia",
                             colors = colors,
-                            primary = false,
-                            modifier = Modifier.weight(1f),
-                        ) { onLocate(place) }
-                        ActionPill(
-                            label = "Usar mi ubicación actual",
-                            enabled = enabled && !locating,
-                            loading = false,
-                            colors = colors,
-                            primary = false,
-                            modifier = Modifier.weight(1.4f),
-                            onClick = onUseCurrentLocation,
+                            placeholder = "Banco, CLABE y a nombre de quién",
+                            enabled = enabled,
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OperationalField(
-                        value = draft.radiusKm,
-                        onValueChange = { draft = draft.copy(radiusKm = decimalInput(it)) },
-                        label = "Hasta (km)",
-                        colors = colors,
-                        placeholder = "5",
-                        enabled = enabled,
-                        keyboardType = KeyboardType.Decimal,
+            }
+        }
+        currentPreorders?.let { current ->
+            AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+                AdminToggleRow(
+                    title = "Acepto cada encargo",
+                    checked = current.requiresAcceptance,
+                    colors = colors,
+                    onChange = { preorders = current.copy(requiresAcceptance = it) },
+                    detail = "¿En cuánto contestas? Tu cliente lo ve.",
+                    enabled = enabled,
+                )
+                if (current.requiresAcceptance) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ANSWER_TIME_OPTIONS
+                            .filter { (minutes, _) -> minutes != UNCOMMON_ANSWER || current.answerMinutes == UNCOMMON_ANSWER }
+                            .forEach { (minutes, label) ->
+                                AdminFilterChip(
+                                    label = label,
+                                    selected = (current.answerMinutes ?: 0) == minutes,
+                                    colors = colors,
+                                    onClick = {
+                                        if (enabled) preorders = current.copy(answerMinutes = minutes.takeIf { it > 0 })
+                                    },
+                                    height = 38.dp,
+                                )
+                            }
+                    }
+                    Box(Modifier.padding(top = 8.dp, bottom = 6.dp)) {
+                        AdminHint(
+                            if (current.depositPercent != null) {
+                                "Al aceptar, tu cliente tiene 24 horas para pagar el anticipo. Empiezas cuando pague; " +
+                                    "si no contestas o no paga a tiempo, se cancela solo."
+                            } else {
+                                current.answerMinutes?.let {
+                                    "Tu cliente ve que contestas en ${answerTimeLabel(it)}. " +
+                                        "Si no contestas a tiempo y aún no pagó, se cancela solo."
+                                } ?: "Tu cliente no ve un plazo: el encargo espera hasta que contestes."
+                            },
+                            colors,
+                        )
+                    }
+                }
+            }
+            AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        when (current.daysAhead) {
+                            0 -> "Solo para hoy"
+                            1 -> "Hasta 1 día antes"
+                            else -> "Hasta ${current.daysAhead} días antes"
+                        },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
                         modifier = Modifier.weight(1f),
                     )
-                    OperationalField(
-                        value = draft.fee,
-                        onValueChange = { draft = draft.copy(fee = decimalInput(it)) },
-                        label = "Costo del envío",
-                        colors = colors,
-                        placeholder = "40",
-                        enabled = enabled,
-                        keyboardType = KeyboardType.Decimal,
-                        modifier = Modifier.weight(1f),
-                    )
+                    StepButton("−", "Un día menos", enabled && current.daysAhead > 0, colors) {
+                        preorders = current.copy(daysAhead = (current.daysAhead - 1).coerceAtLeast(0))
+                    }
+                    Box(Modifier.size(8.dp))
+                    StepButton("+", "Un día más", enabled && current.daysAhead < HomeBusinessRules.MAX_DAYS_AHEAD, colors) {
+                        preorders =
+                            current.copy(daysAhead = (current.daysAhead + 1).coerceAtMost(HomeBusinessRules.MAX_DAYS_AHEAD))
+                    }
                 }
                 OperationalField(
-                    value = draft.minimum,
-                    onValueChange = { draft = draft.copy(minimum = decimalInput(it)) },
-                    label = "Pedido mínimo",
+                    value = current.cutoff,
+                    onValueChange = { raw -> preorders = current.copy(cutoff = raw.filter { it.isDigit() || it == ':' }.take(5)) },
+                    label = "Pedir hasta",
                     colors = colors,
-                    placeholder = "Sin mínimo",
-                    supporting = "Sin contar el envío.",
+                    placeholder = "Todo el día",
+                    supporting = "La hora límite del día de la entrega.",
                     enabled = enabled,
-                    keyboardType = KeyboardType.Decimal,
                 )
-                AdminChoice(
-                    question = "¿Te pueden pagar al recibir?",
-                    options = listOf(true to "Sí, efectivo o transferencia", false to "No, pagan al pedir"),
-                    selected = draft.payOnDelivery,
-                    colors = colors,
-                    enabled = enabled,
-                ) { draft = draft.copy(payOnDelivery = it) }
-                if (draft.payOnDelivery) {
-                    OperationalField(
-                        value = draft.transferDetails,
-                        onValueChange = {
-                            draft =
-                                draft.copy(transferDetails = it.take(HomeBusinessRules.MAX_TRANSFER_DETAILS))
-                        },
-                        label = "Datos para transferencia",
-                        colors = colors,
-                        placeholder = "Banco, CLABE y a nombre de quién",
-                        supporting = "Tu cliente los ve si elige transferencia. Déjalo vacío si solo aceptas efectivo.",
-                        enabled = enabled,
-                        singleLine = false,
-                        minLines = 2,
-                    )
-                }
             }
         }
         val locationProblem =
-            "Pon la ubicación de tu negocio para medir los kilómetros, o deja vacío «Hasta (km)»."
-                .takeIf { draft.enabled && location == StoreLocation.Missing && draft.radiusKm.isNotBlank() }
-        val problem = HomeBusinessRules.problem(draft) ?: locationProblem
-        AdminSheetError(problem.takeIf { draft != saved })
+            "Pon la ubicación de tu negocio para medir los kilómetros, o deja vacío el radio."
+                .takeIf {
+                    currentDelivery != null &&
+                        currentDelivery.enabled &&
+                        location == StoreLocation.Missing &&
+                        currentDelivery.radiusKm.isNotBlank()
+                }
+        val problem =
+            currentDelivery?.let { HomeBusinessRules.problem(it) }
+                ?: locationProblem
+                ?: currentPreorders?.let { HomeBusinessRules.problem(it) }
+        val dirty = currentDelivery != savedDelivery || currentPreorders != savedPreorders
+        AdminSheetError(problem.takeIf { dirty })
         if (!readOnly) {
-            SaveRow(
-                dirty = draft != saved,
-                problem = problem,
-                enabled = enabled,
-                saveLabel = "Guardar entregas",
+            AdminPrimaryButton(
+                title = "Guardar flujo",
                 colors = colors,
-                onDiscard = { draft = saved },
-                onSave = { onSave(draft) },
-            )
-        }
-    }
-}
-
-/** Encargos para otro día (CASA-03): con cuánta anticipación, hasta qué hora, si se aceptan y el anticipo. */
-@Composable
-internal fun AdminPreordersCard(
-    saved: PreorderSettings,
-    enabled: Boolean,
-    readOnly: Boolean,
-    colors: OperationalColors,
-    onSave: (PreorderSettings) -> Unit,
-) {
-    var draft by remember { mutableStateOf(saved) }
-    LaunchedEffect(saved) { draft = saved }
-    AdminCard(colors) {
-        AdminSectionTitle("Encargos", colors)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AnimatedContent(
-                targetState = draft.daysAhead,
-                transitionSpec = { fadeIn(spring(stiffness = 500f)) togetherWith fadeOut(spring(stiffness = 500f)) },
-                label = "dias-adelanto",
-                modifier = Modifier.weight(1f),
-            ) { days ->
-                Text(
-                    when (days) {
-                        0 -> "Solo para hoy"
-                        1 -> "Hasta 1 día antes"
-                        else -> "Hasta $days días antes"
-                    },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary,
+                busy = saving,
+                enabled = enabled && dirty && problem == null,
+            ) {
+                onSave(
+                    currentDelivery.takeIf { it != savedDelivery },
+                    currentPreorders.takeIf { it != savedPreorders },
                 )
             }
-            StepButton("−", "Un día menos", enabled && draft.daysAhead > 0, colors) {
-                draft = draft.copy(daysAhead = (draft.daysAhead - 1).coerceAtLeast(0))
-            }
-            Box(Modifier.size(8.dp))
-            StepButton("+", "Un día más", enabled && draft.daysAhead < HomeBusinessRules.MAX_DAYS_AHEAD, colors) {
-                draft = draft.copy(daysAhead = (draft.daysAhead + 1).coerceAtMost(HomeBusinessRules.MAX_DAYS_AHEAD))
-            }
-        }
-        AdminHint("Cada producto puede pedir más días de preparación.", colors)
-        OperationalField(
-            value = draft.cutoff,
-            onValueChange = { raw -> draft = draft.copy(cutoff = raw.filter { it.isDigit() || it == ':' }.take(5)) },
-            label = "Pedir hasta",
-            colors = colors,
-            placeholder = "Todo el día",
-            supporting = "La hora límite del día de la entrega.",
-            enabled = enabled,
-        )
-        AdminChoice(
-            question = "¿Aceptas cada encargo antes de prepararlo?",
-            options = listOf(true to "Sí, yo los acepto", false to "No, entran solos"),
-            selected = draft.requiresAcceptance,
-            colors = colors,
-            enabled = enabled,
-        ) { draft = draft.copy(requiresAcceptance = it) }
-        if (draft.requiresAcceptance) {
-            AdminChoice(
-                question = "¿En cuánto contestas un encargo?",
-                options = ANSWER_TIME_OPTIONS,
-                selected = draft.answerMinutes ?: 0,
-                colors = colors,
-                enabled = enabled,
-            ) { draft = draft.copy(answerMinutes = it.takeIf { minutes -> minutes > 0 }) }
-            AdminHint(
-                draft.answerMinutes?.let {
-                    "Tu cliente ve que contestas en ${answerTimeLabel(
-                        it,
-                    )}. Si no contestas a tiempo y aún no pagó, se cancela solo."
-                } ?: "Tu cliente no ve un plazo: el encargo espera hasta que contestes.",
-                colors,
-            )
-        }
-        AdminChoice(
-            question = "¿Pides anticipo?",
-            options = listOf(0 to "No", 30 to "30 %", 50 to "50 %"),
-            selected = draft.depositPercent ?: 0,
-            colors = colors,
-            enabled = enabled,
-        ) { draft = draft.copy(depositPercent = it.takeIf { percent -> percent > 0 }) }
-        AdminHint(
-            if (draft.depositPercent != null) {
-                "Tu cliente paga el anticipo con tarjeta y el resto al recibir."
-            } else {
-                "Tu cliente paga todo al pedir o al recibir, como lo permitas."
-            },
-            colors,
-        )
-        val problem = HomeBusinessRules.problem(draft)
-        AdminSheetError(problem.takeIf { draft != saved })
-        if (!readOnly) {
-            SaveRow(
-                dirty = draft != saved,
-                problem = problem,
-                enabled = enabled,
-                saveLabel = "Guardar encargos",
-                colors = colors,
-                onDiscard = { draft = saved },
-                onSave = { onSave(draft) },
-            )
         }
     }
 }
 
+private enum class Upfront {
+    ALL,
+    DEPOSIT,
+    NOTHING,
+    ;
+
+    fun label(deposit: Int?): String =
+        when (this) {
+            ALL -> "Todo"
+            DEPOSIT -> "Anticipo ${deposit ?: DEFAULT_DEPOSIT}%"
+            NOTHING -> "Nada"
+        }
+}
+
+private const val DEFAULT_DEPOSIT = 50
+
+private const val UNCOMMON_ANSWER = 180
+
+/** La zona dibujada, sin mapa real: sirve para ver el radio; tocarla deja cambiar la ubicación del negocio. */
 @Composable
-private fun SaveRow(
-    dirty: Boolean,
-    problem: String?,
-    enabled: Boolean,
-    saveLabel: String,
+private fun DeliveryMap(
+    radiusKm: String,
     colors: OperationalColors,
-    onDiscard: () -> Unit,
-    onSave: () -> Unit,
+    onClick: () -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        ActionPill(
-            label = "Descartar",
-            enabled = enabled && dirty,
-            loading = false,
-            colors = colors,
-            primary = false,
-            modifier = Modifier.weight(1f),
-            onClick = onDiscard,
-        )
-        ActionPill(
-            label = saveLabel,
-            enabled = enabled && dirty && problem == null,
-            loading = false,
-            colors = colors,
-            modifier = Modifier.weight(1f),
-            onClick = onSave,
-        )
+    val lime = colors.accentLime
+    val line = colors.textPrimary.copy(alpha = 0.07f)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.cardInner)
+            .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = "Zona de entrega. Toca para cambiar la ubicación." },
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val step = size.width / 5f
+            for (i in 1..4) {
+                drawLine(line, Offset(step * i, 0f), Offset(step * i - 30f, size.height), 5f)
+            }
+            for (i in 1..3) {
+                val y = size.height / 4f * i
+                drawLine(line, Offset(0f, y), Offset(size.width, y + 14f), 5f)
+            }
+            val radius = size.height * 0.46f
+            drawCircle(lime.copy(alpha = 0.16f), radius)
+            drawCircle(lime.copy(alpha = 0.8f), radius, style = Stroke(1.5.dp.toPx()))
+        }
+        Box(
+            Modifier.align(Alignment.Center).size(26.dp).clip(RoundedCornerShape(9.dp)).background(lime),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Storefront, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(15.dp))
+        }
+        if (radiusKm.isNotBlank()) {
+            Text(
+                "Radio $radiusKm km",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.textPrimary,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                        .clip(CircleShape)
+                        .background(colors.background.copy(alpha = 0.8f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+        }
     }
 }
 

@@ -849,7 +849,7 @@ internal fun ChipButton(
     detail: String? = null,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(if (detail != null) 18.dp else 24.dp)
     // Lo elegido va en tinta: el lima queda para la acción principal de la hoja.
     val container = animateSelectionColor(if (selected) colors.textPrimary else colors.cardInner, "chip-container")
     val ink = animateSelectionColor(if (selected) colors.background else colors.textPrimary, "chip-ink")

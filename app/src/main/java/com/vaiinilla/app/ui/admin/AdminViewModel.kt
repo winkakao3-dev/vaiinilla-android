@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.admin
 
+import java.time.Instant
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.repository.CashLastClose
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -51,6 +54,9 @@ enum class AdminPeriodPreset(
 }
 
 /** Los filtros del historial, los mismos que "Pedidos e historial" en la web. */
+private val NOT_CHARGED =
+    setOf(OrderState.PENDING_PAYMENT, OrderState.CANCELED, OrderState.EXPIRED, OrderState.NOT_PICKED_UP)
+
 enum class AdminOrderFilter(
     val label: String,
     val states: Set<OrderState>,
@@ -81,6 +87,9 @@ data class AdminUiState(
     val cashCheckFailed: Boolean = false,
     /** Arqueo: lo que debería haber al cerrar; null si el servidor no lo manda. */
     val cashExpected: String? = null,
+    val cashLastClose: CashLastClose? = null,
+    /** Los cobros en efectivo de la sesión abierta, para la lista de Caja. */
+    val cashOrders: List<OrderDetail> = emptyList(),
     val summary: AdminSummary? = null,
     val summaryLoading: Boolean = false,
     val summaryError: String? = null,
@@ -249,13 +258,33 @@ class AdminViewModel
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 cashExpected = cashSessionRepository.expectedCash,
                                 cashOpenedAt = it?.openedAt,
+                                cashLastClose = cashSessionRepository.lastClose ?: _uiState.value.cashLastClose,
                                 cashLoaded = true,
                                 cashCheckFailed = false,
                             )
+                        if (it != null) loadCashOrders(it.openedAt) else _uiState.value = _uiState.value.copy(cashOrders = emptyList())
                     }.onFailure {
                         if (!_uiState.value.cashLoaded) _uiState.value = _uiState.value.copy(cashCheckFailed = true)
                     }
             }
+        }
+
+        private suspend fun loadCashOrders(openedAt: String?) {
+            val page = withContext(Dispatchers.IO) { adminRepository.orders(emptySet(), null) }.getOrNull() ?: return
+            val since = openedAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            _uiState.value =
+                _uiState.value.copy(
+                    cashOrders =
+                        page.orders.filter { order ->
+                            val summary = order.summary
+                            val paidInCash =
+                                summary.chargedMethod?.lowercase() == PaymentMethod.CASH.wireValue ||
+                                    (summary.chargedMethod == null && summary.paymentMethod == PaymentMethod.CASH)
+                            val charged = summary.state !in NOT_CHARGED
+                            val created = runCatching { Instant.parse(summary.createdAt) }.getOrNull()
+                            paidInCash && charged && !summary.paymentPending && (since == null || created == null || !created.isBefore(since))
+                        },
+                )
         }
 
         fun openCash(
@@ -276,9 +305,23 @@ class AdminViewModel
             val amount =
                 AdminProductRules.money(finalAmount)
                     ?: return showNotice("Escribe el efectivo contado, por ejemplo 1250.", isError = true)
+            val current = _uiState.value
             cashCall(
                 "Caja cerrada",
-                onDone,
+                {
+                    _uiState.value =
+                        _uiState.value.copy(
+                            cashLastClose =
+                                CashLastClose(
+                                    counted = amount,
+                                    closedAt = Instant.now().toString(),
+                                    opening = current.cashOpeningAmount,
+                                    expected = current.cashExpected,
+                                    closedByMe = true,
+                                ),
+                        )
+                    onDone()
+                },
             ) { cashSessionRepository.closeSession(sessionId, amount, UUID.randomUUID().toString()) }
         }
 

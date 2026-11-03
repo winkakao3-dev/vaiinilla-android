@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.admin
 
+import com.vaiinilla.app.domain.admin.SpaceDraft
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -97,11 +98,12 @@ class AdminSpacesViewModel
         fun create(
             name: String,
             type: SpaceType,
+            capacity: Int? = null,
             onDone: () -> Unit,
         ) {
             SpaceRules.nameProblem(name)?.let { return showNotice(it, isError = true) }
             mutate("${name.trim()} creado", onDone = onDone) {
-                repository.create(name, type, UUID.randomUUID().toString()).map { }
+                repository.create(name, type, UUID.randomUUID().toString(), capacity).map { }
             }
         }
 
@@ -110,6 +112,7 @@ class AdminSpacesViewModel
             prefix: String,
             from: Int?,
             to: Int?,
+            capacity: Int? = null,
             onDone: () -> Unit,
         ) {
             SpaceRules.batchProblem(prefix, from, to)?.let { return showNotice(it, isError = true) }
@@ -118,7 +121,7 @@ class AdminSpacesViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        repository.createBatch(type, prefix, from!!, to!!, UUID.randomUUID().toString())
+                        repository.createBatch(type, prefix, from!!, to!!, UUID.randomUUID().toString(), capacity)
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(
@@ -197,6 +200,47 @@ class AdminSpacesViewModel
                 SpacePatch(description = description, features = SpaceRules.features(features), setsProfile = true),
                 "Ficha de ${space.name} guardada",
             )
+        }
+
+        /** Guarda de una vez todo lo de la hoja de edición (marco 48). */
+        fun saveSpace(
+            space: ManagedSpace,
+            draft: SpaceDraft,
+            onDone: () -> Unit,
+        ) {
+            SpaceRules.nameProblem(draft.name)?.let { return showNotice(it, isError = true) }
+            if (draft.capacity != null && draft.capacity !in 1..99) {
+                return showNotice("Personas va de 1 a 99.", isError = true)
+            }
+            val price =
+                when (val parsed = SpaceRules.hourlyPrice(draft.hourlyPrice)) {
+                    SpaceRules.HourlyPrice.Invalid ->
+                        return showNotice("Escribe el precio por hora, por ejemplo 300.", isError = true)
+                    SpaceRules.HourlyPrice.None -> null
+                    is SpaceRules.HourlyPrice.Value -> parsed.amount
+                }
+            if (draft.description.trim().length > 500) {
+                return showNotice("La descripción admite hasta 500 letras.", isError = true)
+            }
+            val patch =
+                SpacePatch(
+                    name = draft.name.takeIf { it.trim() != space.name },
+                    capacity = draft.capacity,
+                    setsCapacity = draft.capacity != space.capacity,
+                    hourlyPrice = price,
+                    setsHourlyPrice = space.isCourt,
+                    minimumMinutes = draft.minimumMinutes,
+                    setsMinimum = space.isCourt && draft.minimumMinutes != space.minimumMinutes,
+                    sport = draft.sport,
+                    surface = draft.surface,
+                    setsSportAndSurface = space.isCourt,
+                    description = draft.description,
+                    features = SpaceRules.features(draft.features),
+                    setsProfile = space.isCourt,
+                )
+            mutate("${space.name} guardado", spaceId = space.id, onDone = onDone) {
+                repository.update(space.id, patch, UUID.randomUUID().toString()).map { }
+            }
         }
 
         private fun patch(

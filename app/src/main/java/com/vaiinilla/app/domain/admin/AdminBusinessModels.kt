@@ -389,6 +389,9 @@ data class AdminWalletSummary(
     val movements: List<AdminMetric>,
     val walletsReviewed: Int,
     val alerts: Int,
+    /** Clientes con saldo y lo que suman; null si el servidor aún no lo manda. */
+    val customersWithBalance: Int? = null,
+    val totalBalance: String? = null,
 )
 
 // endregion
@@ -409,8 +412,8 @@ enum class SpaceType(
     companion object {
         fun fromWire(value: String): SpaceType? = entries.firstOrNull { it.wire == value }
 
-        /** Los que se pueden crear en lote: las canchas se dan de alta una por una. */
-        val batchTypes = listOf(SEAT, TABLE, BAR, DRIVE_THRU)
+        /** Los que se pueden crear en lote; en el dibujo va primero lo más común. */
+        val batchTypes = listOf(TABLE, BAR, COURT, SEAT, DRIVE_THRU)
     }
 }
 
@@ -426,6 +429,11 @@ data class ManagedSpace(
     val description: String?,
     val imageUrl: String?,
     val features: List<String>,
+    val capacity: Int? = null,
+    /** Lo menos que se renta la cancha, en minutos; null = sin mínimo. */
+    val minimumMinutes: Int? = null,
+    val sport: String? = null,
+    val surface: String? = null,
 ) {
     val type: SpaceType? get() = SpaceType.fromWire(typeWire)
     val isCourt: Boolean get() = type == SpaceType.COURT
@@ -449,6 +457,26 @@ data class SpacePatch(
     val description: String? = null,
     val features: List<String> = emptyList(),
     val setsProfile: Boolean = false,
+    val capacity: Int? = null,
+    val setsCapacity: Boolean = false,
+    val minimumMinutes: Int? = null,
+    val setsMinimum: Boolean = false,
+    val sport: String? = null,
+    val surface: String? = null,
+    val setsSportAndSurface: Boolean = false,
+)
+
+/** Lo que el dueño edita de un espacio en una sola hoja (marco 48). */
+data class SpaceDraft(
+    val name: String,
+    val capacity: Int?,
+    /** Vacío = no se renta. */
+    val hourlyPrice: String,
+    val minimumMinutes: Int?,
+    val sport: String,
+    val surface: String,
+    val description: String,
+    val features: List<String>,
 )
 
 /** El horario en que se reservan las canchas. */
@@ -456,11 +484,20 @@ data class ReservationSchedule(
     val opening: String,
     val closing: String,
     val daysAhead: Int,
+    /** 1 = lunes … 7 = domingo. */
+    val weekDays: List<Int> = listOf(1, 2, 3, 4, 5, 6, 7),
+    val blockMinutes: Int = 30,
 )
 
 object SpaceRules {
     const val MAX_BATCH = 500
     const val MAX_FEATURES = 8
+    /** Los mínimos de renta que acepta el servidor, en minutos. */
+    val MINIMUM_RENTALS = listOf(90, 180, 270, 360)
+
+    fun minimumLabel(minutes: Int): String =
+        if (minutes % 60 == 0) "${minutes / 60} h" else "${minutes / 60}.5 h"
+
     val FEATURE_SUGGESTIONS = listOf("Techada", "Con luz", "Vidrio panorámico", "Pasto sintético", "Aire libre")
 
     private val HOURLY = Regex("""^\d{1,5}(\.\d{1,2})?$""")

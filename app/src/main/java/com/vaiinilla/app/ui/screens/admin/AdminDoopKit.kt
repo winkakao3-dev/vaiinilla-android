@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -489,7 +490,13 @@ internal fun AdminCountTile(
                 .semantics(mergeDescendants = true) {},
         padding = PaddingValues(12.dp),
     ) {
-        Text(value, fontSize = 26.sp, fontWeight = FontWeight.Black, color = tint ?: colors.textPrimary, maxLines = 1)
+        Text(
+            value,
+            fontWeight = FontWeight.Black,
+            color = tint ?: colors.textPrimary,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 26.sp),
+        )
         Text(
             label,
             fontSize = 12.5.sp,
@@ -617,7 +624,7 @@ internal fun AdminToggleRow(
             colors =
                 SwitchDefaults.colors(
                     checkedTrackColor = colors.accentLime,
-                    checkedThumbColor = colors.accentInk,
+                    checkedThumbColor = if (colors.isDark) colors.textPrimary else colors.accentInk,
                     uncheckedTrackColor = colors.cardInner,
                     uncheckedThumbColor = colors.textMuted,
                     uncheckedBorderColor = colors.cardBorder,

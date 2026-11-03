@@ -241,9 +241,10 @@ class RemoteAdminSpacesRepository(
         name: String,
         type: SpaceType,
         idempotencyKey: String,
+        capacity: Int?,
     ): Result<ManagedSpace> =
         apiClient
-            .post("espacios", json.encodeNewSpace(name, type.wire), key(idempotencyKey))
+            .post("espacios", json.encodeNewSpace(name, type.wire, capacity), key(idempotencyKey))
             .mapCatching(json::parseSpace)
             .mapApiErrors()
 
@@ -253,9 +254,10 @@ class RemoteAdminSpacesRepository(
         from: Int,
         to: Int,
         idempotencyKey: String,
+        capacity: Int?,
     ): Result<SpaceBatchResult> =
         apiClient
-            .post("espacios/lote", json.encodeBatch(type.wire, prefix, from, to), key(idempotencyKey))
+            .post("espacios/lote", json.encodeBatch(type.wire, prefix, from, to, capacity), key(idempotencyKey))
             .mapCatching(json::parseBatch)
             .mapApiErrors()
 

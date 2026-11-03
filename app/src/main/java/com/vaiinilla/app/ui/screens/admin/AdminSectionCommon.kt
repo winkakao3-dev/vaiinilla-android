@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.ui.components.physicalPress
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
@@ -50,6 +53,8 @@ import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 
+private const val SECTION_TITLE_FITS = 18
+
 /** Una sección de "Negocio": título con regresar, contenido con scroll y su aviso flotante. */
 @Composable
 internal fun AdminSectionPage(
@@ -58,6 +63,8 @@ internal fun AdminSectionPage(
     notice: String?,
     noticeIsError: Boolean,
     onBack: () -> Unit,
+    subtitle: String? = null,
+    eyebrow: String? = null,
     trailing: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
@@ -80,14 +87,28 @@ internal fun AdminSectionPage(
             ) {
                 // El título grande de la sección, como el de la navegación de iOS.
                 item(key = "section-title") {
-                    Text(
-                        title,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 34.sp,
-                        letterSpacing = (-1).sp,
-                        color = colors.textPrimary,
-                        modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() },
-                    )
+                    Column(Modifier.padding(horizontal = 4.dp)) {
+                        eyebrow?.let { AdminCapsLabel(it, colors) }
+                        val compact = eyebrow != null || title.length > SECTION_TITLE_FITS
+                        Text(
+                            title,
+                            fontWeight = FontWeight.Black,
+                            fontSize = if (compact) 28.sp else 34.sp,
+                            lineHeight = if (compact) 32.sp else 38.sp,
+                            letterSpacing = (-1).sp,
+                            color = colors.textPrimary,
+                            modifier = Modifier.semantics { heading() },
+                        )
+                        subtitle?.let {
+                            Text(
+                                it,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textSecondary,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
                 }
                 content()
             }
@@ -202,6 +223,86 @@ internal fun AdminConfirmSheet(
     }
 }
 
+/** Marco 49: el QR en grande sobre su tarjeta clara, el enlace y las tres cosas que se hacen con él. */
+@Composable
+internal fun AdminBigQr(
+    url: String,
+    name: String,
+    colors: OperationalColors,
+    onNotice: (String, Boolean) -> Unit,
+    code: String? = null,
+) {
+    val context = LocalContext.current
+    var writingNfc by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier
+                .align(Alignment.CenterHorizontally)
+                .clip(RoundedCornerShape(32.dp))
+                .background(Color(0xFFF5F0E3))
+                .padding(horizontal = 22.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            VaiinillaQrCode(value = url, qrSize = 196.dp)
+            Text(name, fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF1B1B18))
+            Text(
+                code?.let { "Código $it · Vaiinilla" } ?: "Vaiinilla",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF5E5C52),
+            )
+        }
+        AdminPanel(colors, Modifier.physicalPress { openLink(context, url) }) {
+            Text(
+                "Enlace de $name · abre la app o la web",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QrAction("Compartir QR", Icons.Outlined.Share, colors, Modifier.weight(1f), highlighted = false) {
+                if (!shareQr(context, url, name, url)) onNotice("No se pudo preparar el QR.", true)
+            }
+            QrAction("Copiar enlace", Icons.Outlined.ContentCopy, colors, Modifier.weight(1f), highlighted = false) {
+                copyLink(context, name, url)
+                onNotice("Enlace copiado", false)
+            }
+            QrAction("Grabar en NFC", Icons.Outlined.Nfc, colors, Modifier.weight(1f), highlighted = true) { writingNfc = true }
+        }
+    }
+    if (writingNfc) {
+        AdminNfcSheet(url = url, colors = colors, onDone = { ok, message ->
+            writingNfc = false
+            onNotice(message, !ok)
+        }, onDismiss = { writingNfc = false })
+    }
+}
+
+@Composable
+private fun QrAction(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    colors: OperationalColors,
+    modifier: Modifier,
+    highlighted: Boolean,
+    onClick: () -> Unit,
+) {
+    val fg = if (highlighted) colors.accentInk else colors.textPrimary
+    Column(
+        modifier
+            .physicalPress(onClick = onClick)
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (highlighted) colors.accentLime else colors.cardBackground)
+            .padding(vertical = 14.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fg, maxLines = 1)
+    }
+}
 /** El QR de un enlace con lo que se hace con él: compartirlo como imagen, copiar el enlace, abrirlo y grabarlo en NFC. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

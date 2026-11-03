@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.order
 
+import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -239,6 +240,22 @@ class OrderContractJson
          * cuando no hay caja abierta. Null si no llega o no es un monto.
          */
         fun parseSuggestedFloat(raw: String): String? = parseCashAmount(raw, "fondo_sugerido")
+
+        /** El último cierre, que puede llegar dentro de la sesión, en `meta` o junto a `data`. */
+        fun parseLastCashClose(raw: String): CashLastClose? {
+            val root = json.parseToJsonElement(raw) as? JsonObject ?: return null
+            val last =
+                listOf(root["data"], root["meta"], root)
+                    .firstNotNullOfOrNull { (it as? JsonObject)?.get("ultimo_cierre") as? JsonObject }
+                    ?: return null
+            val counted = (last["monto_final"] as? JsonPrimitive)?.content?.takeIf { it != "null" } ?: return null
+            return CashLastClose(
+                counted = counted,
+                closedAt = (last["cerrada_en"] as? JsonPrimitive)?.content?.takeIf { it != "null" },
+                opening = (last["monto_inicial"] as? JsonPrimitive)?.content?.takeIf { it != "null" },
+                expected = (last["efectivo_esperado"] as? JsonPrimitive)?.content?.takeIf { it != "null" },
+            )
+        }
 
         /** Un monto de la caja que puede llegar dentro de la sesión, en `meta` o junto a `data`. */
         fun parseCashAmount(

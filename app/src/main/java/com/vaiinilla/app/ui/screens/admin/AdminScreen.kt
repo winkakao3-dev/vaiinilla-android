@@ -480,7 +480,7 @@ private fun AdminSectionContent(
             }
         AdminSection.SPACES -> {
             LaunchedEffect(scope) { sections.spaces.onVisible(scope) }
-            AdminSpacesSection(sections.spaces, colors, readOnly, onBack)
+            AdminSpacesSection(sections.spaces, colors, readOnly, onBack, sections.tablesBoard?.tables.orEmpty())
         }
         AdminSection.CASH ->
             AdminCashSection(

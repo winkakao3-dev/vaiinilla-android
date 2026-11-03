@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.domain.repository.CashLastClose
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import com.vaiinilla.app.domain.model.HomeDeliveryOffer
 import androidx.compose.ui.test.hasText
@@ -186,7 +186,22 @@ class DoopGaleriaAdminTest {
         name: String,
         type: String = "mesa",
         price: String? = null,
-    ) = ManagedSpace(id, name, type, true, "https://vaiinilla.app/q/$id", "AB$id", price, null, null, emptyList())
+    ) = ManagedSpace(
+        id,
+        name,
+        type,
+        true,
+        "https://vaiinilla.app/q/$id",
+        "AB$id",
+        price,
+        null,
+        null,
+        listOf("Techada"),
+        capacity = 4,
+        minimumMinutes = if (price != null) 90 else null,
+        sport = if (price != null) "Pádel" else null,
+        surface = if (price != null) "Pasto sintético" else null,
+    )
 
     private fun spacesVm(spaces: List<ManagedSpace>?) =
         AdminSpacesViewModel(hung<AdminSpacesRepository>(), hung<ReservationRepository>()).apply {
@@ -236,6 +251,16 @@ class DoopGaleriaAdminTest {
             cashOpenedAt = if (cashOpen) "2026-11-03T08:10:00Z" else null,
             cashLoaded = true,
             cashExpected = if (cashOpen) "1840.00" else null,
+            cashLastClose = CashLastClose("1760.00", "2026-11-02T21:04:00Z", "500.00", "1760.00", closedByMe = true),
+            cashOrders =
+                if (cashOpen) {
+                    listOf(
+                        ScreenshotFixtures.sampleOrder(OrderState.PREPARING, PaymentMethod.CASH, OrderDestination.IN_SPACE, 3),
+                        ScreenshotFixtures.sampleOrder(OrderState.DELIVERED, PaymentMethod.CASH, OrderDestination.IN_SPACE, 1),
+                    )
+                } else {
+                    emptyList()
+                },
             summary =
                 AdminSummary(
                     AdminPeriod(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 11, 3)),
@@ -661,7 +686,7 @@ class DoopGaleriaAdminTest {
     @Test fun a47_nuevo_espacio() {
         val vm = spacesVm(emptyList())
         section { AdminSpacesSection(vm, it, false, {}) }
-        tap("Nuevo espacio")
+        tap("Crear varios")
         shot("a47_nuevo_espacio")
     }
 
@@ -701,8 +726,7 @@ class DoopGaleriaAdminTest {
         val vm = spacesVm(listOf(mesa(3, "Cancha 1", "cancha", "350.00")))
         section { AdminSpacesSection(vm, it, false, {}) }
         tap("Cancha 1")
-        rule.onAllNodes(hasClickAction())[1].performClick()
-        settle()
+        tap("Editar Cancha 1")
         shot("a48b_editar_cancha")
     }
 

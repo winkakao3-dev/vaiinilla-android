@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -140,6 +141,7 @@ private fun RuleEditor(
     onReview: () -> Unit,
 ) {
     val percent = percentOf(rule)
+    var editingDetails by remember { mutableStateOf(false) }
 
     fun setPercent(value: BigDecimal) {
         onChange(rule.copy(percent = percentLabel(value.max(BigDecimal.ZERO).min(BigDecimal(100)))))
@@ -257,80 +259,124 @@ private fun RuleEditor(
                 }
             }
         }
-        Question("Horario", colors)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AdminTextField(
-                label = "Desde",
-                value = rule.startTime.orEmpty(),
-                onValueChange = { onChange(rule.copy(startTime = timeInput(it))) },
-                colors = colors,
-                modifier = Modifier.weight(1f),
-                placeholder = "Todo el día",
-                keyboardType = KeyboardType.Number,
-                enabled = !readOnly,
-            )
-            AdminTextField(
-                label = "Hasta",
-                value = rule.endTime.orEmpty(),
-                onValueChange = { onChange(rule.copy(endTime = timeInput(it))) },
-                colors = colors,
-                modifier = Modifier.weight(1f),
-                placeholder = "—",
-                keyboardType = KeyboardType.Number,
-                enabled = !readOnly,
-            )
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuleTile("Horario", hours(rule), colors, !readOnly, Modifier.weight(1f)) { editingDetails = true }
+            RuleTile("Vigencia de la regla", validity(rule), colors, !readOnly, Modifier.weight(1f)) {
+                editingDetails = true
+            }
         }
-        Question("Vigencia de la regla", colors)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AdminTextField(
-                label = "Desde",
-                value = rule.validFrom.orEmpty(),
-                onValueChange = { onChange(rule.copy(validFrom = dateInput(it))) },
+        if (!readOnly) {
+            AdminPrimaryButton(
+                title = "Revisar cambio",
                 colors = colors,
-                modifier = Modifier.weight(1f),
-                placeholder = "Siempre",
-                keyboardType = KeyboardType.Number,
-                enabled = !readOnly,
+                modifier = Modifier.padding(top = 12.dp),
+                enabled = rule != saved && CashbackRules.percent(rule.percent) != null,
+                onClick = onReview,
             )
-            AdminTextField(
-                label = "Hasta",
-                value = rule.validTo.orEmpty(),
-                onValueChange = { onChange(rule.copy(validTo = dateInput(it))) },
-                colors = colors,
-                modifier = Modifier.weight(1f),
-                placeholder = "AAAA-MM-DD",
-                keyboardType = KeyboardType.Number,
-                enabled = !readOnly,
-            )
-        }
-        AdminTextField(
-            label = "Nombre de la regla",
-            value = rule.name,
-            onValueChange = { onChange(rule.copy(name = it.take(120))) },
-            colors = colors,
-            modifier = Modifier.padding(top = 8.dp),
-            enabled = !readOnly,
-        )
-        if (!readOnly && rule != saved) {
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AdminSecondaryButton(
-                    title = "Descartar",
-                    colors = colors,
-                    modifier = Modifier.weight(1f),
-                    outlined = true,
-                ) { onChange(saved) }
-                AdminPrimaryButton(
-                    title = "Revisar cambio",
-                    colors = colors,
-                    modifier = Modifier.weight(1f),
-                    enabled = CashbackRules.percent(rule.percent) != null,
-                    onClick = onReview,
+            if (rule != saved) {
+                Text(
+                    "Descartar cambios",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.textMuted,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .physicalPress(scale = PhysicalPressScale.Small) { onChange(saved) }
+                            .padding(10.dp),
                 )
             }
         }
     }
+    if (editingDetails) {
+        AdminSheet(title = "Horario y vigencia", colors = colors, busy = false, onDismiss = { editingDetails = false }) {
+            Question("Horario", colors)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AdminTextField(
+                    label = "Desde",
+                    value = rule.startTime.orEmpty(),
+                    onValueChange = { onChange(rule.copy(startTime = timeInput(it))) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    placeholder = "Todo el día",
+                    keyboardType = KeyboardType.Number,
+                )
+                AdminTextField(
+                    label = "Hasta",
+                    value = rule.endTime.orEmpty(),
+                    onValueChange = { onChange(rule.copy(endTime = timeInput(it))) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    placeholder = "—",
+                    keyboardType = KeyboardType.Number,
+                )
+            }
+            Question("Vigencia de la regla", colors)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AdminTextField(
+                    label = "Desde",
+                    value = rule.validFrom.orEmpty(),
+                    onValueChange = { onChange(rule.copy(validFrom = dateInput(it))) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    placeholder = "Siempre",
+                    keyboardType = KeyboardType.Number,
+                )
+                AdminTextField(
+                    label = "Hasta",
+                    value = rule.validTo.orEmpty(),
+                    onValueChange = { onChange(rule.copy(validTo = dateInput(it))) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    placeholder = "AAAA-MM-DD",
+                    keyboardType = KeyboardType.Number,
+                )
+            }
+            AdminTextField(
+                label = "Nombre de la regla",
+                value = rule.name,
+                onValueChange = { onChange(rule.copy(name = it.take(120))) },
+                colors = colors,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            AdminPrimaryButton(
+                title = "Listo",
+                colors = colors,
+                modifier = Modifier.padding(top = 12.dp),
+                onClick = { editingDetails = false },
+            )
+        }
+    }
 }
 
+@Composable
+private fun RuleTile(
+    label: String,
+    value: String,
+    colors: OperationalColors,
+    enabled: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    AdminPanel(
+        colors,
+        modifier
+            .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
+            .semantics(mergeDescendants = true) {},
+        padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textMuted, maxLines = 1)
+        Text(
+            value,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    }
+}
 @Composable
 private fun Question(
     text: String,
@@ -370,6 +416,35 @@ private fun Wallet(
 ) {
     val state by viewModel.uiState
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        val wallet = state.wallet
+        if (wallet == null) {
+            AdminHint("Cargando…", colors)
+            return@Column
+        }
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AdminCountTile(
+                wallet.customersWithBalance?.toString() ?: "—",
+                "Clientes con saldo",
+                colors,
+                Modifier.weight(1f).fillMaxHeight(),
+            )
+            AdminCountTile(
+                wallet.totalBalance?.let(::moneyLabel) ?: "—",
+                "Saldo total",
+                colors,
+                Modifier.weight(1f).fillMaxHeight(),
+            )
+            AdminCountTile(
+                moneyLabel(wallet.cashback),
+                when (state.walletPreset) {
+                    AdminPeriodPreset.TODAY -> "Dado hoy"
+                    else -> "Dado en ${state.walletPreset.label.lowercase()}"
+                },
+                colors,
+                Modifier.weight(1f).fillMaxHeight(),
+            )
+        }
+        AdminCapsLabel("Movimiento", colors, Modifier.padding(top = 12.dp))
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -383,22 +458,11 @@ private fun Wallet(
                 )
             }
         }
-        val wallet = state.wallet
-        if (wallet == null) {
-            AdminHint("Cargando…", colors)
-            return@Column
-        }
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AdminStatPanel("Recargas", moneyLabel(wallet.reloads), colors, Modifier.weight(1f).fillMaxHeight())
-            AdminStatPanel(
-                "Compras con saldo",
-                moneyLabel(wallet.purchases),
-                colors,
-                Modifier.weight(1f).fillMaxHeight(),
-            )
-            AdminStatPanel("Cashback dado", moneyLabel(wallet.cashback), colors, Modifier.weight(1f).fillMaxHeight())
-        }
         AdminPanel(colors, padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
+            AdminRow(title = "Recargas", colors = colors) { AdminRowValue(moneyLabel(wallet.reloads), colors) }
+            AdminRowDivider(colors)
+            AdminRow(title = "Compras con saldo", colors = colors) { AdminRowValue(moneyLabel(wallet.purchases), colors) }
+            AdminRowDivider(colors)
             AdminRow(
                 title = "Cancelaciones devueltas",
                 colors = colors,
@@ -443,45 +507,29 @@ private fun ReviewSheet(
         )
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.cardBackground)) {
             CompareRow("Antes", "Ahora", colors, header = true)
-            CompareRow(
-                before?.let { "${it.percent}%" } ?: "—",
-                "${CashbackRules.percent(after.percent) ?: after.percent}%",
-                colors,
-                changed = before?.percent != after.percent,
-            )
-            CompareRow(
-                before?.let { if (it.active) "Activa" else "Apagada" } ?: "—",
-                if (after.active) "Activa" else "Apagada",
-                colors,
-                changed = before?.active != after.active,
-            )
-            CompareRow(
-                before?.let { CashbackRules.daysLabel(it.activeDays) } ?: "—",
-                CashbackRules.daysLabel(after.activeDays),
-                colors,
-                changed = before?.activeDays != after.activeDays,
-            )
-            CompareRow(
-                before?.let(::hours) ?: "—",
-                hours(after),
-                colors,
-                changed = before?.let(::hours) != hours(after),
-            )
-            CompareRow(
-                before?.let(::validity) ?: "—",
-                validity(after),
-                colors,
-                changed = before?.let(::validity) != validity(after),
-            )
+            val rows =
+                listOf(
+                    (before?.let { "${percentLabel(percentOf(it))}%" } ?: "—") to "${percentLabel(percentOf(after))}%",
+                    (before?.let { if (it.active) "Activa" else "Apagada" } ?: "—") to
+                        if (after.active) "Activa" else "Apagada",
+                    (before?.let { CashbackRules.daysLabel(it.activeDays) } ?: "—") to
+                        CashbackRules.daysLabel(after.activeDays),
+                    (before?.let(::hours) ?: "—") to hours(after),
+                    (before?.let(::validity) ?: "—") to validity(after),
+                )
+            // Solo lo que cambia; si nada cambió se ve al menos el porcentaje.
+            rows.filterIndexed { index, (old, new) -> index == 0 || old != new }.forEach { (old, new) ->
+                CompareRow(old, new, colors, changed = old != new)
+            }
         }
         CashbackRules.percent(after.percent)?.toBigDecimalOrNull()?.let { percent ->
             val back = Example.multiply(percent).divide(BigDecimal(100), 2, RoundingMode.HALF_UP).toPlainString()
             Text(
                 buildAnnotatedString {
                     append("Con este cambio, una compra de ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append(moneyLabel("480.00")) }
+                    withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append(moneyLabelCents("480.00")) }
                     append(" le regresa ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append(moneyLabel(back)) }
+                    withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) { append(moneyLabelCents(back)) }
                     append(" de saldo al cliente.")
                 },
                 fontSize = 14.sp,
@@ -544,10 +592,10 @@ private fun CompareCell(
         color =
             when {
                 header -> colors.textMuted
-                accent -> colors.accentInk
+                accent -> if (colors.isDark) colors.accentLime else colors.accentInk
                 else -> colors.textPrimary
             },
-        modifier = modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+        modifier = modifier.padding(horizontal = 14.dp, vertical = 10.dp),
     )
 }
 
