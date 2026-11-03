@@ -86,7 +86,7 @@ class MenuWaiterPillUiTest {
     }
 
     @Test
-    fun `cancelar desde la pildora cierra la llamada y arranca la espera`() {
+    fun `cancelar desde la pildora cierra la llamada y deja volver a llamar enseguida`() {
         val cancelled = mutableListOf<String>()
         var current: TableCall? = call(CallStatus.PENDIENTE)
         setLayer(
@@ -105,13 +105,21 @@ class MenuWaiterPillUiTest {
         composeTestRule.waitForIdle()
 
         assertEquals(listOf("call-1"), cancelled)
-        pill().assertContentDescriptionEquals("Otra vez en 60 s")
+        // W13 (29 oct): sin espera al cancelar; solo después de una llamada atendida.
+        pill().assertContentDescriptionEquals("Llamar al mesero")
     }
 
     @Test
-    fun `junto a Pedir ya se encoge`() {
-        setLayer(compact = true)
+    fun `con carrito es una sola barra con Mesero adentro`() {
+        var opened = 0
+        setLayer(cart = MenuCartBar(count = 2, total = "\$96") { opened++ })
         composeTestRule.onNodeWithText("Mesero", useUnmergedTree = true).assertExists()
+        composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).assertContentDescriptionEquals("Ver carrito: 2 productos, \$96")
+        composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).performClick()
+        assertEquals(1, opened)
+        pill().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("¿Qué necesitas?").assertIsDisplayed()
     }
 
     @Test
@@ -129,11 +137,11 @@ class MenuWaiterPillUiTest {
                     onClearOptionalGroup = {},
                     onQuantityChange = {},
                     onAddProduct = {},
-                    waiterLayer = { compact, visible -> Text("capa compacta=$compact visible=$visible") },
+                    waiterLayer = { cart, visible -> Text("capa carrito=${cart != null} visible=$visible") },
                 )
             }
         }
-        composeTestRule.onNodeWithText("capa compacta=false visible=true").assertExists()
+        composeTestRule.onNodeWithText("capa carrito=false visible=true").assertExists()
     }
 
     @Test
@@ -153,11 +161,11 @@ class MenuWaiterPillUiTest {
                     onClearOptionalGroup = {},
                     onQuantityChange = {},
                     onAddProduct = {},
-                    waiterLayer = { compact, visible -> Text("capa compacta=$compact visible=$visible") },
+                    waiterLayer = { cart, visible -> Text("capa carrito=${cart != null} visible=$visible") },
                 )
             }
         }
-        composeTestRule.onNodeWithText("capa compacta=false visible=false").assertExists()
+        composeTestRule.onNodeWithText("capa carrito=false visible=false").assertExists()
     }
 
     @Test
@@ -191,7 +199,7 @@ class MenuWaiterPillUiTest {
 
     private fun setLayer(
         visible: Boolean = true,
-        compact: Boolean = false,
+        cart: MenuCartBar? = null,
         onCurrent: suspend (Int) -> Result<TableCall?> = { Result.success(null) },
         onCall: suspend (
             Int,
@@ -205,7 +213,7 @@ class MenuWaiterPillUiTest {
                 MenuWaiterLayer(
                     spaceId = 1,
                     visible = visible,
-                    compact = compact,
+                    cart = cart,
                     onCurrent = onCurrent,
                     onCall = onCall,
                     onCancel = onCancel,

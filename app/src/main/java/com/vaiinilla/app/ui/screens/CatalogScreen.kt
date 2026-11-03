@@ -103,6 +103,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.CourtsCarousel
+import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
@@ -170,8 +171,11 @@ fun CatalogScreen(
     onOpenCart: (() -> Unit)? = null,
     /** Abre "Desliza", el menú como feed de video; sin él no aparecen las pestañas. */
     onOpenFeed: (() -> Unit)? = null,
-    /** "Llamar al mesero" sobre la barra (MenuWaiterLayer); sin mesa no llega. Recibe (compacta, visible). */
-    waiterLayer: (@Composable (Boolean, Boolean) -> Unit)? = null,
+    /**
+     * "Llamar al mesero" sobre la barra (MenuWaiterLayer); sin mesa no llega. Recibe (carrito, visible): con
+     * carrito, la capa pinta una sola barra "Ver carrito" con "Mesero" adentro en lugar de [MenuCartShortcut].
+     */
+    waiterLayer: (@Composable (MenuCartBar?, Boolean) -> Unit)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -368,7 +372,7 @@ private fun CatalogContent(
     /** Abre el carrito desde el atajo flotante; sin él, el atajo no aparece. */
     onOpenCart: (() -> Unit)? = null,
     onOpenFeed: (() -> Unit)? = null,
-    waiterLayer: (@Composable (Boolean, Boolean) -> Unit)? = null,
+    waiterLayer: (@Composable (MenuCartBar?, Boolean) -> Unit)? = null,
 ) {
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
@@ -571,7 +575,7 @@ private fun CatalogContent(
         MenuCartShortcut(
             count = state.cartItemCount,
             total = moneyLabel(state.cartPreviewTotal),
-            visible = cartShortcutVisible,
+            visible = cartShortcutVisible && waiterLayer == null,
             onClick = { onOpenCart?.invoke() },
             modifier =
                 Modifier
@@ -581,7 +585,14 @@ private fun CatalogContent(
         )
 
         // Se esconde con la ficha de un platillo abierta, como "Pedir ya"; en Pedidos queda el botón de la tarjeta.
-        waiterLayer?.invoke(cartShortcutVisible, state.selectedProduct == null)
+        waiterLayer?.invoke(
+            if (cartShortcutVisible) {
+                MenuCartBar(state.cartItemCount, moneyLabel(state.cartPreviewTotal)) { onOpenCart?.invoke() }
+            } else {
+                null
+            },
+            state.selectedProduct == null,
+        )
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }

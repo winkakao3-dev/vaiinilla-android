@@ -69,6 +69,7 @@ import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.WhileStarted
@@ -1210,11 +1211,11 @@ fun AppNavHost(
                         )?.let { spaceId ->
                             val qrToken = orderState.guestVenue?.space?.qrToken
                             val alias = waiterCallAlias(studentAuthState.session?.displayName.orEmpty())
-                            val layer: @Composable (Boolean, Boolean) -> Unit = { compact, visible ->
+                            val layer: @Composable (MenuCartBar?, Boolean) -> Unit = { cart, visible ->
                                 MenuWaiterLayer(
                                     spaceId = spaceId,
                                     visible = visible,
-                                    compact = compact,
+                                    cart = cart,
                                     onCurrent = { id ->
                                         orderFlowViewModel.ensureClientContext()
                                         operationalViewModel.currentWaiterCall(id)
