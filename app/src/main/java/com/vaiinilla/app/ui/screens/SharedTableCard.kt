@@ -34,12 +34,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
@@ -153,6 +155,9 @@ fun SharedTableCard(
     if (!state.loaded) return
     val table = state.table
     if (table == null && qrToken == null) return
+    // «Pedir solo yo» esconde la invitación para ese QR; al escanear otro vuelve a salir (Doop L03).
+    var orderAlone by rememberSaveable(qrToken) { mutableStateOf(false) }
+    if (table == null && orderAlone) return
     Surface(
         modifier = modifier.fillMaxWidth().arrive(0, key = table?.spaceId ?: "unirse"),
         color = OrderTrackingCardBg,
@@ -166,7 +171,7 @@ fun SharedTableCard(
                     ).padding(16.dp),
         ) {
             if (table == null) {
-                JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin)
+                JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin, onOrderAlone = { orderAlone = true })
             } else {
                 TableContent(
                     table = table,
@@ -195,6 +200,7 @@ private fun JoinTable(
     words: SharedSpaceWords,
     onAliasChange: (String) -> Unit,
     onJoin: () -> Unit,
+    onOrderAlone: () -> Unit,
 ) {
     Text(
         words.title,
@@ -205,12 +211,13 @@ private fun JoinTable(
     Text(
         "¿Compartes ${words.thePlace}?",
         color = OrderTrackingCardText,
-        fontSize = 16.sp,
+        fontSize = 24.sp,
+        lineHeight = 28.sp,
         fontWeight = FontWeight.Black,
         modifier = Modifier.padding(top = 10.dp),
     )
     Text(
-        "Únete con un nombre para ver los pedidos de todos y la cuenta de ${words.thePlace}. " +
+        "Únete con un nombre para ver los pedidos de todos y pagar solo tu parte. " +
             "Los demás solo ven ese nombre.",
         color = OrderTrackingCardText.copy(alpha = 0.62f),
         fontSize = 13.sp,
@@ -234,6 +241,15 @@ private fun JoinTable(
     }
     Spacer(Modifier.height(12.dp))
     EditorialAccentButton(text = "Unirme a ${words.thePlace}", onClick = onJoin, enabled = state.canJoin)
+    Spacer(Modifier.height(8.dp))
+    SeaGlassButton(
+        tone = SeaGlassTone.vainilla,
+        onClick = onOrderAlone,
+        enabled = !state.busy,
+        modifier = Modifier.fillMaxWidth().height(50.dp).testTag("shared-table-order-alone"),
+    ) {
+        Text("Pedir solo yo", fontSize = 14.sp, fontWeight = FontWeight.Black)
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
