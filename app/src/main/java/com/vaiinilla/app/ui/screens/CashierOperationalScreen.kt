@@ -260,6 +260,7 @@ fun CashierOperationalScreen(
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
+    var cashDrawerOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
     var tick by remember { mutableIntStateOf(0) }
@@ -474,6 +475,15 @@ fun CashierOperationalScreen(
                                     {
                                         haptics.selection()
                                         onRequestCloseCash()
+                                    }
+                                } else {
+                                    null
+                                },
+                            onOpenCashDrawer =
+                                if (state.cashSessionOpen == true) {
+                                    {
+                                        haptics.selection()
+                                        cashDrawerOpen = true
                                     }
                                 } else {
                                     null
@@ -1311,6 +1321,9 @@ fun CashierOperationalScreen(
                 onDismiss = { if (!state.acting) openCashSheet = false },
                 onConfirm = onOpenCashSession,
             )
+        }
+        if (cashDrawerOpen) {
+            CashDrawerSheet(expectedCash = state.expectedCash, colors = colors, onDismiss = { cashDrawerOpen = false })
         }
         state.closeCash?.let { closeState ->
             CashCloseSheet(

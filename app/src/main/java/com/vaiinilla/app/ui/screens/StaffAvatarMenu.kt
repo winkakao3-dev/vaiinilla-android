@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
@@ -80,6 +81,8 @@ internal fun StaffAvatarMenu(
     onCloseCash: (() -> Unit)? = null,
     modeLabel: String = "",
     placeName: String = "",
+    /** N11: Caja con la caja abierta ve los movimientos del cajón. */
+    onOpenCashDrawer: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var shiftOpen by remember { mutableStateOf(false) }
@@ -115,6 +118,13 @@ internal fun StaffAvatarMenu(
                 expanded = false
                 shiftOpen = true
             },
+            onOpenCashDrawer =
+                onOpenCashDrawer?.let { open ->
+                    {
+                        expanded = false
+                        open()
+                    }
+                },
         )
     }
     if (shiftOpen) {
@@ -159,6 +169,7 @@ private fun StaffAccountCard(
     onChangeMode: () -> Unit,
     onCloseCash: (() -> Unit)?,
     onOpenShift: () -> Unit,
+    onOpenCashDrawer: (() -> Unit)?,
 ) {
     val reduceMotion = rememberReducedMotion()
     val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
@@ -249,6 +260,9 @@ private fun StaffAccountCard(
                             }
                         }
                     }
+                }
+                if (onOpenCashDrawer != null) {
+                    AccountRow(Icons.Outlined.PointOfSale, "Movimientos del cajón", colors = colors, onClick = onOpenCashDrawer)
                 }
                 if (onCloseCash != null) {
                     AccountRow(Icons.Outlined.Lock, "Cerrar caja", tint = coral, colors = colors, onClick = onCloseCash)
