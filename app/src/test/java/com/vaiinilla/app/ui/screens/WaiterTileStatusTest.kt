@@ -108,4 +108,42 @@ class WaiterTileStatusTest {
         assertEquals(null, pendingAfterPartial(payable, setOf("a", "b", "c", "d")))
         assertEquals(null, partialPayer(payable, setOf("a", "c")))
     }
+
+    @Test
+    fun `lo que sigue pone primero quien llama, luego lo listo, el turno por acabar y lo que falta cobrar`() {
+        val call =
+            TableCall(
+                "c1", mesa, null, CallReason.UTENSILIOS, CallStatus.PENDIENTE, "Ana", null,
+                "2026-11-02T19:59:00Z", null, null, 1,
+            )
+        val ending =
+            SpaceAvailability(
+                space = cancha,
+                state = SpaceAvailabilityState.OCUPADA,
+                settled = true,
+                endsAt = "2026-11-02T20:10:00Z",
+                releasesAt = null,
+                remainingSeconds = null,
+                graceMinutes = 5,
+                startedAt = "2026-11-02T19:00:00Z",
+            )
+        val mesa1 = TableSpace(1, "Mesa 1", "mesa")
+        val mesa2 = TableSpace(2, "Mesa 2", "mesa")
+        val toCollect = ending.copy(space = mesa2, state = SpaceAvailabilityState.POR_COBRAR, endsAt = null)
+        val items =
+            waiterNextUp(
+                listOf(
+                    BoardTable(mesa2, null, emptyList(), toCollect),
+                    BoardTable(cancha, null, emptyList(), ending),
+                    BoardTable(mesa1, null, listOf(order("a", OrderState.READY))),
+                    BoardTable(mesa, call, emptyList()),
+                ),
+                now,
+            )
+        assertEquals(
+            listOf("Mesa 3 te llama", "Llevar #1 a Mesa 1", "A Cancha Fútbol 7 le quedan 10 min", "Mesa 2 ya terminó"),
+            items.map { it.title },
+        )
+        assertEquals(listOf("Voy", "Entregar", "Ver", "Cobrar"), items.map { it.action })
+    }
 }

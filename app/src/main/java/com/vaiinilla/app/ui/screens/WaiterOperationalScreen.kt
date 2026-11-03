@@ -49,7 +49,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.RoomService
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PriorityHigh
@@ -245,6 +248,10 @@ fun WaiterOperationalScreen(
             } else {
                 list
             }
+        }
+    val nextUp =
+        remember(state.tables, kindFilter, tick) {
+            waiterNextUp(state.tables.filter { kindFilter == null || it.space.type == kindFilter })
         }
     val calling = state.tables.count { it.tableState() == TableState.CALL }
     val readyCount = state.tables.sumOf { table -> table.orders.count { it.state == OrderState.READY } }
@@ -487,7 +494,21 @@ fun WaiterOperationalScreen(
                     )
                 }
             } else {
-                items(sorted, key = { it.space.id }) { table ->
+                if (state.filterAttending) {
+                    items(nextUp, key = { "next-${it.kind}-${it.spaceId}-${it.title}" }, span = { fullWidth() }) { item ->
+                        WaiterNextUpRow(
+                            item = item,
+                            colors = colors,
+                            modifier = Modifier.animateItem(),
+                            onClick = {
+                                haptics.selection()
+                                openTableId = item.spaceId
+                                onOpenSpace(item.spaceId)
+                            },
+                        )
+                    }
+                }
+                items(if (state.filterAttending) emptyList() else sorted, key = { it.space.id }) { table ->
                     WaiterTile(
                         table = table,
                         tick = tick,
@@ -500,7 +521,7 @@ fun WaiterOperationalScreen(
                         },
                     )
                 }
-                if (sorted.isEmpty() && state.boardLoaded) {
+                if ((if (state.filterAttending) nextUp.isEmpty() else sorted.isEmpty()) && state.boardLoaded) {
                     item(key = "board-empty", span = fullWidth) {
                         Surface(
                             shape = RoundedCornerShape(26.dp),
@@ -1167,6 +1188,139 @@ private fun tileToneColor(
         TileTone.Collect -> if (colors.isDark) Color(0xFFE9A23B) else Color(0xFF9A5B00)
         TileTone.Open, TileTone.Free -> colors.textMuted
     }
+
+/** Qué tipo de pendiente es; el orden del enum es el de urgencia. */
+internal enum class NextUpKind { Call, Deliver, TurnEnding, Collect }
+
+internal data class WaiterNextUp(
+    val kind: NextUpKind,
+    val spaceId: Int,
+    val title: String,
+    val detail: String,
+    val action: String,
+)
+
+private const val TURN_ENDING_MS = 15 * 60_000L
+
+/** Lo que sigue en todo el lugar, de lo más urgente a lo menos: llamadas, lo listo, turnos por acabar y cuentas por cobrar. */
+internal fun waiterNextUp(
+    tables: List<BoardTable>,
+    now: Instant = Instant.now(),
+): List<WaiterNextUp> =
+    tables
+        .flatMap { table ->
+            val name = table.space.name
+            val id = table.space.id
+            buildList {
+                table.call?.let { call ->
+                    val who = listOfNotNull(call.reason.staffLabel, call.clientName).joinToString(" · ")
+                    val since = minutesSince(call.createdAt, now).let { if (it == "ahora") "ahora" else "hace $it" }
+                    if (call.status == CallStatus.EN_CAMINO) {
+                        add(WaiterNextUp(NextUpKind.Call, id, "Va ${call.takenBy?.name ?: "alguien"} a $name", listOf(since, who).filter { it.isNotBlank() }.joinToString(" · "), "Ver"))
+                    } else {
+                        add(WaiterNextUp(NextUpKind.Call, id, "$name te llama", listOf(since, who).filter { it.isNotBlank() }.joinToString(" · "), "Voy"))
+                    }
+                }
+                table.orders.filter { it.state == OrderState.READY }.forEach { order ->
+                    val detail =
+                        listOfNotNull(
+                            order.itemsSummary.takeIf { it.isNotBlank() },
+                            if (order.mustCollectBeforeDelivery) "cobrar antes" else "listo",
+                        ).joinToString(" · ")
+                    add(
+                        WaiterNextUp(
+                            NextUpKind.Deliver,
+                            id,
+                            "Llevar #${order.folio} a $name",
+                            detail,
+                            if (order.mustCollectBeforeDelivery) "Cobrar" else "Entregar",
+                        ),
+                    )
+                }
+                val availability = table.availability
+                val left =
+                    availability?.endsAt
+                        ?.takeIf { availability.state == SpaceAvailabilityState.OCUPADA }
+                        ?.let { runCatching { Duration.between(now, Instant.parse(it)).toMillis() }.getOrNull() }
+                if (left != null && left in 0..TURN_ENDING_MS) {
+                    add(WaiterNextUp(NextUpKind.TurnEnding, id, "A $name le quedan ${remainingText(left)}", "Pregúntales si alargan el turno", "Ver"))
+                }
+                if (availability?.state == SpaceAvailabilityState.POR_COBRAR || availability?.state == SpaceAvailabilityState.EN_GRACIA) {
+                    add(WaiterNextUp(NextUpKind.Collect, id, "$name ya terminó", "Falta cobrar para liberarla", "Cobrar"))
+                }
+            }
+        }.sortedBy { it.kind.ordinal }
+
+@Composable
+private fun WaiterNextUpRow(
+    item: WaiterNextUp,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val tone =
+        when (item.kind) {
+            NextUpKind.Call -> TileTone.Call
+            NextUpKind.Deliver -> TileTone.Ready
+            NextUpKind.TurnEnding -> TileTone.Turn
+            NextUpKind.Collect -> TileTone.Collect
+        }
+    val accent = tileToneColor(tone, colors)
+    val urgent = item.kind == NextUpKind.Call || item.kind == NextUpKind.Deliver
+    val shape = RoundedCornerShape(20.dp)
+    Surface(
+        shape = shape,
+        color = if (urgent) accent.copy(alpha = if (colors.isDark) 0.14f else 0.10f) else colors.cardBackground,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .border(1.dp, colors.cardBorder, shape)
+                .clip(shape)
+                .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = 0.9f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector =
+                        when (item.kind) {
+                            NextUpKind.Call -> Icons.Outlined.Notifications
+                            NextUpKind.Deliver -> Icons.Outlined.RoomService
+                            NextUpKind.TurnEnding -> Icons.Outlined.Schedule
+                            NextUpKind.Collect -> Icons.Outlined.Payments
+                        },
+                    contentDescription = null,
+                    tint = Color(0xFF1B1B18),
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(item.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.textPrimary)
+                if (item.detail.isNotBlank()) {
+                    Text(item.detail, fontSize = 13.sp, color = colors.textSecondary, maxLines = 2)
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (urgent) accent else colors.cardBorder,
+            ) {
+                Text(
+                    item.action,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = if (urgent) Color(0xFF1B1B18) else colors.textPrimary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun WaiterTile(
