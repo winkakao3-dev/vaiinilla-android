@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +35,10 @@ import com.vaiinilla.app.domain.model.needsCashCollection
  * mientras el cliente acerca su QR.
  */
 @Composable
-internal fun PickupDeliveryFooter(order: OrderDetail) {
+internal fun PickupDeliveryFooter(
+    order: OrderDetail,
+    bottomInsets: WindowInsets = WindowInsets(0),
+) {
     val colors = rememberOperationalColors()
     val summary = order.summary
     val paid = !summary.needsCashCollection
@@ -43,6 +48,7 @@ internal fun PickupDeliveryFooter(order: OrderDetail) {
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(colors.background)
+                .windowInsetsPadding(bottomInsets)
                 .padding(horizontal = 18.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

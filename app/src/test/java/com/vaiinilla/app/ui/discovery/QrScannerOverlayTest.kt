@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
+import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Assert.assertEquals
@@ -62,6 +65,30 @@ class QrScannerOverlayTest {
         composeTestRule.onNodeWithText("Para llevar o a domicilio en Pastelería Vaini").assertIsDisplayed()
         composeTestRule.onNodeWithText("Linterna").assertIsDisplayed()
         captureScreenRoboImage("lugar/l01_escanea_mesa.png")
+    }
+
+    @Test
+    fun `entregar con el QR del cliente lleva abajo a quien se entrega como C08`() {
+        val order = ScreenshotFixtures.sampleOrder(state = OrderState.READY)
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                QrScannerOverlay(
+                    title = "Apunta al QR de recogida que muestra el alumno",
+                    subtitle = null,
+                    systemBars = WindowInsets(top = 40, bottom = 24),
+                    onClose = {},
+                    torchAvailable = true,
+                    torchOn = false,
+                    onToggleTorch = {},
+                    tableCode = null,
+                    footer = { insets -> PickupDeliveryFooter(order, insets) },
+                )
+            }
+        }
+        composeTestRule.mainClock.advanceTimeBy(1_200)
+        composeTestRule.onNodeWithText("PAGADO").assertIsDisplayed()
+        captureScreenRoboImage("personal_c08_escaner_entrega.png")
     }
 
     @Test

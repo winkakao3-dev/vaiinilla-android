@@ -157,8 +157,11 @@ fun QrScannerDialog(
     subtitle: String? = null,
     alternative: QrScannerAlternative? = null,
     tableCode: QrScannerTableCode? = null,
-    /** Lo que se entrega, debajo del visor (C08): el cajero ve a quién busca mientras apunta. */
-    footer: (@Composable () -> Unit)? = null,
+    /**
+     * Lo que se entrega, debajo del visor (C08): el cajero ve a quién busca mientras apunta. Recibe el margen de la
+     * barra del sistema para que su fondo llegue hasta el borde, como la hoja del código de mesa.
+     */
+    footer: (@Composable (bottomInsets: WindowInsets) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var permissionGranted by remember {
@@ -447,7 +450,7 @@ internal fun QrScannerOverlay(
     onToggleTorch: () -> Unit,
     tableCode: QrScannerTableCode?,
     modifier: Modifier = Modifier,
-    footer: (@Composable () -> Unit)? = null,
+    footer: (@Composable (bottomInsets: WindowInsets) -> Unit)? = null,
 ) {
     val reduced = reducedMotion()
     val appear = remember { Animatable(if (reduced) 1f else 0f) }
@@ -556,13 +559,8 @@ internal fun QrScannerOverlay(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(systemBars.only(WindowInsetsSides.Bottom))
-                    .padding(bottom = 16.dp)
-                    .graphicsLayer {
-                        alpha = appear.value
-                        translationY = (1f - appear.value) * 24.dp.toPx()
-                    },
-            ) { footer() }
+                    .graphicsLayer { translationY = (1f - appear.value) * size.height },
+            ) { footer(systemBars.only(WindowInsetsSides.Bottom)) }
         } else {
             Spacer(Modifier.windowInsetsPadding(systemBars.only(WindowInsetsSides.Bottom)).height(24.dp))
         }

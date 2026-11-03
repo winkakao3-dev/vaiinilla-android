@@ -2678,7 +2678,7 @@ fun AppNavHost(
             footer =
                 operationalState.orders
                     .firstOrNull { it.summary.id == pendingPickupDelivery?.orderId }
-                    ?.let { order -> { PickupDeliveryFooter(order) } },
+                    ?.let { order -> { insets -> PickupDeliveryFooter(order, insets) } },
             onPayload = { rawValue ->
                 val target = pendingPickupDelivery
                 pendingPickupDelivery = null
