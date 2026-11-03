@@ -74,6 +74,7 @@ import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.WhileStarted
 import com.vaiinilla.app.ui.components.isRental
+import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.prefetchProductImages
 import com.vaiinilla.app.ui.counter.CashierStudentsEntry
 import com.vaiinilla.app.ui.counter.KitchenReservedEntry
@@ -1620,8 +1621,9 @@ fun AppNavHost(
                     lastOrder =
                         lastOrder?.let {
                             SupportLastOrder(
-                                title = "Pedido #${it.summary.folio}",
-                                detail = "${it.summary.state.label} · ${it.summary.destination.label}",
+                                folio = it.summary.folio,
+                                state = it.summary.state.label,
+                                total = moneyLabel(it.summary.total),
                             )
                         },
                     onOpenLastOrder = { navController.navigateStudent(Routes.STUDENT_TRACKING) },
