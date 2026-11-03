@@ -371,7 +371,7 @@ internal fun journeyNote(
         state == OrderState.NOT_PICKED_UP ->
             "Si fue un error o tuviste un problema, escríbele al negocio: desde su Caja pueden devolverte el dinero."
         state !in OPEN_STATES -> null
-        order.cashDue() -> "Hasta que pagues no se prepara nada y no se te cobra nada."
+        order.cashDue() -> "No se te cobra nada hasta que pagues."
         state == OrderState.AWAITING_ACCEPTANCE && order.answerBy != null ->
             "Si no contesta a tiempo, se cancela solo y no pagas nada."
         order.items.any { it.rejection != null } -> "Lo demás de tu pedido sigue igual."

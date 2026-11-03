@@ -87,7 +87,7 @@ class OrderJourneyTest {
     @Test
     fun notesWarnWhatMattersNow() {
         assertEquals(
-            "Hasta que pagues no se prepara nada y no se te cobra nada.",
+            "No se te cobra nada hasta que pagues.",
             journeyNote(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH), OrderJourney.COUNTER),
         )
         assertEquals(
