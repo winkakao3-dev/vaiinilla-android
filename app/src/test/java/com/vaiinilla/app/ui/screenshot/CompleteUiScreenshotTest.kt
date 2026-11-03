@@ -320,7 +320,9 @@ class CompleteUiScreenshotTest {
             }
         }
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("15%").performClick()
+        composeTestRule.onNodeWithText("#${pending.summary.folio}").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("15%", substring = true).performClick()
         composeTestRule.mainClock.advanceTimeBy(800)
         composeTestRule.onRoot().captureRoboImage("mesa/propina_caja.png")
     }
