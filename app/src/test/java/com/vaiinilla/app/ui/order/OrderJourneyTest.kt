@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.ui.components.moneyLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -34,7 +35,10 @@ class OrderJourneyTest {
         val bar = order(OrderState.PREPARING, space = "barra")
         assertEquals(listOf("Pagado", "Preparando", "Listo", "Entregado"), journeySteps(bar, OrderJourney.BAR))
         assertEquals(1, journeyStepIndex(bar, OrderJourney.BAR))
-        assertEquals(2, journeyStepIndex(order(OrderState.READY, space = "cancha"), OrderJourney.COURT_FOOD))
+        // Listo cierra «Listo» y espera el último paso, como Doop P2 y P7; en asiento, listo ya es «En camino».
+        assertEquals(3, journeyStepIndex(order(OrderState.READY, space = "cancha"), OrderJourney.COURT_FOOD))
+        assertEquals(3, journeyStepIndex(order(OrderState.READY), OrderJourney.COUNTER))
+        assertEquals(2, journeyStepIndex(order(OrderState.READY, space = "asiento"), OrderJourney.SEAT))
 
         val cash = order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)
         assertEquals("Por pagar", journeySteps(cash, OrderJourney.COUNTER).first())
@@ -91,6 +95,35 @@ class OrderJourneyTest {
             journeyNote(order(OrderState.PREPARING, space = "barra"), OrderJourney.BAR),
         )
         assertNull(journeyNote(order(OrderState.DELIVERED), OrderJourney.COUNTER))
+    }
+
+    @Test
+    fun captionTitleAndLeadTellWhereTheOrderIs() {
+        val bar = order(OrderState.PREPARING, space = "barra")
+        assertEquals(JourneyCaption("Preparando · en la barra", CaptionTone.WAITING), journeyCaption(bar, OrderJourney.BAR))
+        assertEquals("Te lo entregan en la barra.", journeyHeadline(bar, OrderJourney.BAR))
+        assertEquals("Pedido", journeyNoun(OrderJourney.BAR))
+        assertEquals("en la barra", journeyKindLabel(OrderJourney.BAR))
+
+        val ready = order(OrderState.READY)
+        assertEquals(CaptionTone.DONE, journeyCaption(ready, OrderJourney.COUNTER).tone)
+        assertEquals("Di tu folio o muestra este código. No tienes que formarte.", journeyLead(ready, OrderJourney.COUNTER))
+        // Sin el código en este teléfono no se promete un código: basta el folio.
+        assertEquals("Di tu folio 42 en la barra.", journeyLead(ready.copy(pickupToken = null), OrderJourney.COUNTER))
+
+        val cash = order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)
+        assertEquals("Por pagar · en Caja", journeyCaption(cash, OrderJourney.COUNTER).text)
+        assertEquals("Paga tu pedido en Caja.", journeyHeadline(cash, OrderJourney.COUNTER))
+
+        val court = order(OrderState.READY, space = "cancha")
+        assertEquals("Ya va a Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))
+
+        val canceled = order(OrderState.CANCELED)
+        val byCashier = canceled.copy(summary = canceled.summary.copy(canceledByRole = "cajero"))
+        assertEquals(CaptionTone.PROBLEM, journeyCaption(byCashier, OrderJourney.COUNTER).tone)
+        assertEquals("Cancelaron tu pedido.", journeyHeadline(byCashier, OrderJourney.COUNTER))
+        assertEquals("${moneyLabel("10.00")} a tu saldo Vaiinilla", journeyMoneyBack(byCashier))
+        assertNull(journeyLead(byCashier, OrderJourney.COUNTER))
     }
 
     private fun order(

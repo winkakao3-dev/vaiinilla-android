@@ -64,6 +64,8 @@ fun OrderConfirmationScreen(
     guest: Boolean = false,
     venue: JourneyVenue = JourneyVenue(),
     onAnnounceArrival: ((String) -> Unit)? = null,
+    /** «Pedir otra cosa» de un pedido cancelado o no recogido; sin él, el botón no se ve. */
+    onOpenMenu: (() -> Unit)? = null,
 ) {
     Box(
         modifier =
@@ -94,14 +96,32 @@ fun OrderConfirmationScreen(
             )
             return@Box
         }
+        val qrPayload =
+            confirmationTicketQrPayload(order).takeIf {
+                order.summary.destination != OrderDestination.HOME_DELIVERY
+            }
+        // Abierto desde Pedidos se sigue en la página del dibujo de Doop (P1 a P13). Recién comprado se queda la
+        // tienda con su celebración y su ticket.
+        if (!showTrackingButton && activeCelebration == null) {
+            OrderJourneyPage(
+                order = order,
+                qrPayload = qrPayload,
+                onBack = onReturnToMenu,
+                deliveryRequiresQr = deliveryRequiresQr,
+                venue = venue,
+                onAnnounceArrival = onAnnounceArrival?.let { announce -> { announce(order.summary.id) } },
+                onCurrentWaiterCall = onCurrentWaiterCall,
+                onCallWaiter = onCallWaiter,
+                onCancelWaiter = onCancelWaiter,
+                onOpenMenu = onOpenMenu,
+                guestNotice = GUEST_ORDER_NOTICE.takeIf { guest },
+            )
+            return@Box
+        }
         PickupJourneyScreen(
             order = order,
             // A domicilio no se recoge en barra: el código de entrega va en el texto del estado.
-            qrPayload =
-                confirmationTicketQrPayload(order).takeIf {
-                    order.summary.destination !=
-                        OrderDestination.HOME_DELIVERY
-                },
+            qrPayload = qrPayload,
             onBack = onReturnToMenu,
             onViewTracking = onViewTracking,
             celebration = activeCelebration?.kind,

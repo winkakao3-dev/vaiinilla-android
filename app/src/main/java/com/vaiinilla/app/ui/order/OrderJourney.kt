@@ -33,6 +33,8 @@ data class JourneyVenue(
     val driveThru: Boolean = false,
     val school: Boolean = false,
     val whatsappUrl: String? = null,
+    /** El nombre del negocio, para la fila de arriba del seguimiento. */
+    val name: String? = null,
 )
 
 internal fun orderJourney(
@@ -128,10 +130,17 @@ internal fun journeyStepIndex(
                 order.arrivedAt != null -> 2
                 else -> 1
             }
-        else ->
+        // Asiento: listo ya es «En camino». Los demás: listo cierra «Listo» y espera el último paso (Doop P2, P7).
+        OrderJourney.SEAT ->
             when (state) {
                 OrderState.AWAITING_ACCEPTANCE, OrderState.PENDING_PAYMENT -> 0
                 OrderState.READY, OrderState.ON_THE_WAY -> 2
+                else -> 1
+            }
+        else ->
+            when (state) {
+                OrderState.AWAITING_ACCEPTANCE, OrderState.PENDING_PAYMENT -> 0
+                OrderState.READY, OrderState.ON_THE_WAY -> steps.size - 1
                 else -> 1
             }
     }
@@ -374,6 +383,244 @@ internal fun journeyNote(
             "Si se cancela, el dinero regresa a su cartera."
         journey == OrderJourney.PREORDER_PICKUP && order.homeDelivery?.hasAmountDue == true ->
             "Al llegar muestra tu código. Lo que falta lo pagas ahí."
+        else -> null
+    }
+}
+
+/** El nombre corto de cada tipo, para la fila de arriba: «Pedido #27 · en la barra». */
+internal fun journeyKindLabel(journey: OrderJourney): String =
+    when (journey) {
+        OrderJourney.COUNTER -> "para llevar"
+        OrderJourney.DRIVE_THRU -> "drive-thru"
+        OrderJourney.TABLE -> "en tu mesa"
+        OrderJourney.BAR -> "en la barra"
+        OrderJourney.SEAT -> "a tu asiento"
+        OrderJourney.COURT_FOOD -> "a tu cancha"
+        OrderJourney.COURT_RENTAL -> "renta"
+        OrderJourney.SCHOOL -> "comedor"
+        OrderJourney.PREORDER_PICKUP -> "para recoger"
+        OrderJourney.HOME_DELIVERY -> "a domicilio"
+    }
+
+/** «Pedido», «Apartado» o «Encargo», como lo llama el dibujo. */
+internal fun journeyNoun(journey: OrderJourney): String =
+    when (journey) {
+        OrderJourney.SCHOOL -> "Apartado"
+        OrderJourney.PREORDER_PICKUP -> "Encargo"
+        else -> "Pedido"
+    }
+
+/** De qué color va la etiqueta de arriba: espera (yema), avanza bien (lima) o algo salió mal (coral). */
+internal enum class CaptionTone { WAITING, DONE, PROBLEM }
+
+internal data class JourneyCaption(
+    val text: String,
+    val tone: CaptionTone,
+)
+
+private fun OrderDetail.rejectedItems() = items.filter { it.rejection != null }
+
+private fun OrderDetail.depositPaid(): Boolean =
+    homeDelivery?.deposit.positive() != null && homeDelivery?.hasAmountDue == true &&
+        summary.state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)
+
+/** La etiqueta en mayúsculas sobre el título: en qué va y, si cabe, dónde. */
+internal fun journeyCaption(
+    order: OrderDetail,
+    journey: OrderJourney,
+): JourneyCaption {
+    val state = order.summary.state
+    val waiting = CaptionTone.WAITING
+    val done = CaptionTone.DONE
+    return when {
+        state == OrderState.CANCELED ->
+            JourneyCaption(
+                if (order.summary.canceledByRole in setOf("cocina", "cajero", "admin")) {
+                    "Cancelado por el negocio"
+                } else {
+                    "Cancelado"
+                },
+                CaptionTone.PROBLEM,
+            )
+        state == OrderState.NOT_PICKED_UP -> JourneyCaption("No recogido", CaptionTone.PROBLEM)
+        state == OrderState.EXPIRED -> JourneyCaption("Expirado", CaptionTone.PROBLEM)
+        state == OrderState.DELIVERED ->
+            JourneyCaption(journeySteps(order, journey).lastOrNull() ?: "Entregado", done)
+        order.cashDue() -> JourneyCaption("Por pagar · en Caja", waiting)
+        state == OrderState.AWAITING_ACCEPTANCE -> JourneyCaption("Por aceptar · no te cobramos nada", waiting)
+        state == OrderState.PENDING_PAYMENT && order.payBy != null -> JourneyCaption("Aceptado · falta tu pago", waiting)
+        state == OrderState.PENDING_PAYMENT -> JourneyCaption("Confirmando tu pago", waiting)
+        order.rejectedItems().isNotEmpty() && state != OrderState.READY ->
+            JourneyCaption("Preparando · un producto no se pudo", waiting)
+        state == OrderState.ON_THE_WAY -> JourneyCaption("En camino", done)
+        state == OrderState.READY ->
+            JourneyCaption(
+                when (journey) {
+                    OrderJourney.DRIVE_THRU -> "Listo · en la ventanilla"
+                    OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Listo · va en camino"
+                    OrderJourney.SCHOOL -> "Listo · en el comedor"
+                    OrderJourney.PREORDER_PICKUP -> "Listo · pasa por él"
+                    OrderJourney.HOME_DELIVERY -> "Listo · sale pronto"
+                    else -> "Listo · en la barra"
+                },
+                done,
+            )
+        else ->
+            when (journey) {
+                OrderJourney.DRIVE_THRU ->
+                    JourneyCaption(
+                        if (order.arrivedAt != null) "Preparando · ya llegaste" else "Preparando · llegas en tu auto",
+                        waiting,
+                    )
+                OrderJourney.TABLE -> JourneyCaption("Preparando · te lo llevan", waiting)
+                OrderJourney.BAR -> JourneyCaption("Preparando · en la barra", waiting)
+                OrderJourney.SEAT -> JourneyCaption("Preparando · a tu asiento", waiting)
+                OrderJourney.COURT_FOOD -> JourneyCaption("Preparando · a tu cancha", waiting)
+                OrderJourney.SCHOOL ->
+                    JourneyCaption(journeySchedule(order)?.let { "Apartado · para el $it" } ?: "Apartado", done)
+                OrderJourney.PREORDER_PICKUP, OrderJourney.HOME_DELIVERY ->
+                    JourneyCaption(
+                        if (order.depositPaid()) "Anticipo pagado · se está haciendo" else "Aceptado · se está haciendo",
+                        done,
+                    )
+                else -> JourneyCaption("Preparando", waiting)
+            }
+    }
+}
+
+/** El título grande: lo que pasa con tu pedido, en una frase. */
+internal fun journeyHeadline(
+    order: OrderDetail,
+    journey: OrderJourney,
+    now: Instant = Instant.now(),
+    zone: ZoneId = BusinessTime.zone,
+): String {
+    val state = order.summary.state
+    val place = order.place()
+    val today = now.atZone(zone).toLocalDate()
+    val rejected = order.rejectedItems()
+    return when {
+        state == OrderState.CANCELED ->
+            if (order.summary.canceledByRole in setOf("cocina", "cajero", "admin")) {
+                "Cancelaron tu pedido."
+            } else {
+                "Tu pedido se canceló."
+            }
+        state == OrderState.NOT_PICKED_UP -> "Tu pedido no se recogió a tiempo."
+        state == OrderState.EXPIRED -> "Este pedido expiró."
+        state == OrderState.DELIVERED ->
+            when (journey) {
+                OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Ya te lo entregaron."
+                OrderJourney.HOME_DELIVERY -> "Ya llegó a tu casa."
+                else -> "Ya lo recogiste."
+            }
+        order.cashDue() -> "Paga tu pedido en Caja."
+        state == OrderState.AWAITING_ACCEPTANCE ->
+            order.answerBy?.let { "El negocio te contesta ${deadlineLabel(it, zone, today)}." }
+                ?: "El negocio revisa tu encargo."
+        state == OrderState.PENDING_PAYMENT && order.payBy != null -> "Aceptaron tu encargo. Falta tu pago."
+        state == OrderState.PENDING_PAYMENT -> "Estamos confirmando tu pago."
+        rejected.isNotEmpty() && state != OrderState.READY ->
+            if (rejected.size == 1) {
+                "${rejected.first().productName} no se pudo. Lo demás sigue."
+            } else {
+                "${rejected.size} productos no se pudieron. Lo demás sigue."
+            }
+        state == OrderState.ON_THE_WAY ->
+            if (journey == OrderJourney.HOME_DELIVERY) "Va en camino a tu casa." else "Va en camino a $place."
+        state == OrderState.READY ->
+            when (journey) {
+                OrderJourney.DRIVE_THRU -> "Ya está. Te lo dan en la ventanilla."
+                OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Ya va a $place."
+                OrderJourney.SCHOOL -> "Ya está. Recógelo en el comedor."
+                OrderJourney.PREORDER_PICKUP -> "Ya está. Pasa por él."
+                OrderJourney.HOME_DELIVERY -> "Está listo. Pronto sale."
+                OrderJourney.BAR -> "Ya está. Te lo dan en la barra."
+                else -> "Ya está. Pasa a la barra por él."
+            }
+        else ->
+            when (journey) {
+                OrderJourney.DRIVE_THRU ->
+                    if (order.arrivedAt != null) "Ya saben que llegaste." else "Avísanos cuando entres al carril."
+                OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Te lo llevan a $place."
+                OrderJourney.BAR -> "Te lo entregan en la barra."
+                OrderJourney.SCHOOL -> journeySchedule(order)?.let { "Se recoge el $it." } ?: "Ya está apartado."
+                OrderJourney.PREORDER_PICKUP -> journeySchedule(order)?.let { "Pasa por él el $it." } ?: "Se está haciendo."
+                OrderJourney.HOME_DELIVERY -> journeySchedule(order)?.let { "Llega el $it." } ?: "Se está haciendo."
+                else -> "Tu pedido se está preparando."
+            }
+    }
+}
+
+/** El texto bajo el título: qué hacer ahora. `null` cuando el título ya lo dice todo. */
+internal fun journeyLead(
+    order: OrderDetail,
+    journey: OrderJourney,
+    now: Instant = Instant.now(),
+    zone: ZoneId = BusinessTime.zone,
+): String? {
+    val state = order.summary.state
+    val folio = order.summary.folio
+    val hasToken = !order.pickupToken.isNullOrBlank()
+    val today = now.atZone(zone).toLocalDate()
+    return when {
+        state == OrderState.NOT_PICKED_UP -> "El negocio ya no lo puede entregar."
+        state !in OPEN_STATES -> null
+        order.cashDue() ->
+            if (hasToken) "Di tu folio o muestra este código en Caja." else "Di tu folio $folio en Caja para pagar."
+        state == OrderState.AWAITING_ACCEPTANCE ->
+            if (order.summary.paymentMethod == PaymentMethod.STRIPE) {
+                "Si lo acepta, te pedimos el pago con tarjeta. Antes no se te cobra nada."
+            } else {
+                "Si lo acepta, te avisamos aquí. Antes no se te cobra nada."
+            }
+        state == OrderState.PENDING_PAYMENT && order.payBy != null ->
+            "Págalo ${deadlineLabel(order.payBy, zone, today)}. Empiezan cuando lo pagues."
+        state == OrderState.PENDING_PAYMENT -> null
+        order.rejectedItems().isNotEmpty() && state != OrderState.READY ->
+            "Lo que no se pudo ya no cuenta en tu total."
+        state == OrderState.ON_THE_WAY ->
+            order.homeDelivery?.code?.let { "Al recibirlo, dicta el código $it." }
+        state == OrderState.READY ->
+            when (journey) {
+                OrderJourney.COUNTER ->
+                    if (hasToken) "Di tu folio o muestra este código. No tienes que formarte." else "Di tu folio $folio en la barra."
+                OrderJourney.BAR -> "Di tu folio $folio en la barra."
+                OrderJourney.DRIVE_THRU -> "Di tu folio $folio en la ventanilla."
+                OrderJourney.TABLE -> "Tu mesero te lo lleva."
+                OrderJourney.SEAT -> "Te lo llevan a tu lugar."
+                OrderJourney.COURT_FOOD -> "Te lo llevan sin interrumpir el juego."
+                OrderJourney.SCHOOL, OrderJourney.PREORDER_PICKUP ->
+                    if (hasToken) "Muestra este código al recogerlo." else "Di tu folio $folio al recogerlo."
+                else -> null
+            }
+        else ->
+            when (journey) {
+                OrderJourney.COUNTER -> journeyHint(order, journey, now, zone)
+                OrderJourney.DRIVE_THRU ->
+                    if (order.arrivedAt != null) {
+                        "Lo terminan y te lo dan en la ventanilla."
+                    } else {
+                        "Así lo terminan para cuando llegues a la ventanilla."
+                    }
+                OrderJourney.TABLE -> if (order.summary.payAtEnd) "Va a tu cuenta. Pagas todo junto al final." else null
+                OrderJourney.BAR -> "Te llaman por tu folio $folio. Si te lo piden, muestra tu código."
+                OrderJourney.SEAT -> "No tienes que levantarte."
+                OrderJourney.COURT_FOOD -> "Lo dejan sin interrumpir el juego."
+                OrderJourney.SCHOOL -> "Se recoge en el comedor con tu código."
+                else -> null
+            }
+    }
+}
+
+/** A dónde regresa el dinero de un pedido cancelado, en grande; `null` si el servidor no lo deja ver. */
+internal fun journeyMoneyBack(order: OrderDetail): String? {
+    if (order.summary.state != OrderState.CANCELED) return null
+    val total = moneyLabel(order.summary.total)
+    return when {
+        order.summary.payAtEnd -> "No se te cobra nada"
+        order.summary.paymentMethod == PaymentMethod.BALANCE -> "$total a tu saldo Vaiinilla"
+        order.summary.paymentMethod == PaymentMethod.STRIPE && cancellationMoneyNote(order) != null -> "$total a tu tarjeta"
         else -> null
     }
 }

@@ -2064,8 +2064,10 @@ fun AppNavHost(
                                 driveThru = orderState.operationalStatus?.isDriveThru == true,
                                 school = orderState.operationalStatus?.isSchool == true,
                                 whatsappUrl = orderState.guestVenue?.establishment?.whatsappUrl,
+                                name = orderState.guestVenue?.establishment?.name,
                             ),
                         onAnnounceArrival = operationalViewModel::announceArrival,
+                        onOpenMenu = { navController.navigateStudent(Routes.CATALOG) },
                         onReturnToMenu = {
                             // Abierto desde Pedidos: atrás regresa a la lista. La selección se limpia allá,
                             // cuando esta pantalla ya salió, para no quedarse sin pedido a media animación.
