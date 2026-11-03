@@ -999,6 +999,25 @@ private val OrderDetail.isWaitingForFood: Boolean
 private fun customerStateLabel(order: OrderDetail): String =
     if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary)
 
+/** En ANTERIORES, un cancelado dice a dónde regresó el dinero, como «Cancelado · a tu saldo» (Doop L10). */
+internal fun pastOrderStateLabel(order: OrderDetail): String {
+    val base = customerStateLabel(order)
+    if (order.summary.state != OrderState.CANCELED || order.summary.payAtEnd) return base
+    val destination =
+        when (order.summary.paymentMethod) {
+            PaymentMethod.BALANCE -> "a tu saldo"
+            PaymentMethod.STRIPE ->
+                when (order.payment?.status) {
+                    StripePaymentStatus.REFUND_PENDING,
+                    StripePaymentStatus.REFUNDING,
+                    StripePaymentStatus.REFUNDED,
+                    -> "a tu tarjeta"
+                    else -> null
+                }
+            else -> null
+        }
+    return destination?.let { "$base · $it" } ?: base
+}
 internal val OrderTrackingCardBg = Color(0xE01C1D1B)
 internal val OrderTrackingCardText = Color(0xFFF5F2E8)
 
@@ -2045,7 +2064,7 @@ private fun PastOrderRow(
                 )
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    customerStateLabel(order),
+                    pastOrderStateLabel(order),
                     color = colors.muted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
