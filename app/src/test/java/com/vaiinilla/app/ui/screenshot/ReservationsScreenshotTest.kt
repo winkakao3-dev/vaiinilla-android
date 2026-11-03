@@ -3,13 +3,18 @@ package com.vaiinilla.app.ui.screenshot
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtDay
+import com.vaiinilla.app.domain.model.CourtProfile
 import com.vaiinilla.app.domain.model.CourtSchedule
 import com.vaiinilla.app.domain.model.CustomerPrice
 import com.vaiinilla.app.domain.model.Reservation
@@ -214,8 +219,44 @@ class ReservationsScreenshotTest {
         }
 
     @Test
-    fun reservations_payment() =
-        capture("reservations_payment.png") {
+    fun l08_paga_cancha() =
+        capture("lugar/l08_paga_cancha.png", VaiinillaThemeMode.Dark) {
+            val held = Instant.now()
+            val padel =
+                day.copy(
+                    now = held,
+                    opensAt = held.minus(2, ChronoUnit.HOURS),
+                    closesAt = held.plus(6, ChronoUnit.HOURS),
+                    durations = listOf(60, 90, 120),
+                    courts =
+                        listOf(
+                            day.courts.first().copy(
+                                customerPricePerHour = CustomerPrice(card = "350.00", cashOrBalance = "350.00"),
+                                busy = listOf(BusyInterval(held, held.plus(90, ChronoUnit.MINUTES), "reserva")),
+                                profile = CourtProfile(sport = "Pádel"),
+                            ),
+                        ),
+                )
+            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0E0F0D)), contentAlignment = Alignment.BottomCenter) {
+                Box(modifier = Modifier.background(LocalVaiinillaColors.current.paper, RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))) {
+                    ReservationPaymentContent(
+                        reservation =
+                            reservation(ReservationState.PENDING_PAYMENT, held, 90, hold = held.plusSeconds(292))
+                                .copy(customerPrice = CustomerPrice(card = "525.00", cashOrBalance = "525.00")),
+                        zone = zone,
+                        working = false,
+                        onPay = {},
+                        colors = LocalVaiinillaColors.current,
+                        cardAvailable = true,
+                        day = padel,
+                        startsNow = true,
+                    )
+                }
+            }
+        }
+
+    @Test
+    fun reservations_payment() =        capture("reservations_payment.png") {
             Box(modifier = Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper)) {
                 ReservationPaymentContent(
                     reservation =

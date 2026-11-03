@@ -1,0 +1,195 @@
+package com.vaiinilla.app.ui.reservations
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.vaiinilla.app.GuestReservationTest
+import com.vaiinilla.app.InMemoryGuestKeyVault
+import com.vaiinilla.app.data.guest.GuestReservationSession
+import com.vaiinilla.app.data.guest.GuestSessionStore
+import com.vaiinilla.app.domain.model.CourtDay
+import com.vaiinilla.app.domain.model.CourtSchedule
+import com.vaiinilla.app.domain.model.CustomerPrice
+import com.vaiinilla.app.domain.model.Reservation
+import com.vaiinilla.app.domain.model.ReservationAccess
+import com.vaiinilla.app.domain.model.ReservationPayment
+import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.repository.ReservationRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.time.Instant
+
+/** L08: "Rentar ahora" aparta de una vez y otro tiempo en la hoja de pago suelta el apartado y aparta otro. */
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class ReservationDurationChangeTest {
+    private val now = Instant.parse("2026-11-03T22:10:00Z")
+    private val calls = mutableListOf<String>()
+    private var failNextCreate = false
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(Dispatchers.Unconfined)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `rent now holds at once and another time swaps the hold`() {
+        val viewModel = loadedViewModel()
+
+        viewModel.rentNow()
+        val first = waitFor { viewModel.uiState.value.pending }
+        assertEquals(60, first.durationMinutes)
+        assertTrue(viewModel.uiState.value.pendingStartsNow)
+
+        viewModel.changePendingDuration(90)
+        val second = waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        viewModel.onHidden()
+
+        assertEquals(listOf("create ahora 60", "cancel r-1", "create ahora 90"), calls)
+        assertEquals("r-2", second.id)
+        assertNull(viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `when the new hold fails the court is left free and the sheet closes`() {
+        val viewModel = loadedViewModel()
+        viewModel.rentNow()
+        waitFor { viewModel.uiState.value.pending }
+
+        failNextCreate = true
+        viewModel.changePendingDuration(120)
+        val error = waitFor { viewModel.uiState.value.error }
+        viewModel.onHidden()
+
+        assertNull(viewModel.uiState.value.pending)
+        assertTrue(error, error.endsWith("La cancha quedó libre: vuelve a elegirla."))
+        assertEquals(listOf("create ahora 60", "cancel r-1", "create ahora 120"), calls)
+    }
+
+    private fun loadedViewModel(): ReservationsViewModel {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
+        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()))
+        val viewModel = ReservationsViewModel(FakeRepository(), session)
+        viewModel.onVisible(guestSlug = null, hasAccount = true)
+        waitFor { viewModel.uiState.value.day }
+        viewModel.selectCourt(7)
+        return viewModel
+    }
+
+    private fun <T : Any> waitFor(read: () -> T?): T {
+        repeat(150) {
+            read()?.let { return it }
+            Thread.sleep(20)
+        }
+        error("no llegó a tiempo")
+    }
+
+    private fun reservation(
+        id: String,
+        minutes: Int,
+        state: ReservationState,
+    ) = Reservation(
+        id = id,
+        courtId = 7,
+        courtName = "Cancha 1",
+        start = now,
+        end = now.plusSeconds(minutes * 60L),
+        durationMinutes = minutes,
+        amount = "350.00",
+        customerPrice = null,
+        state = state,
+        holdExpiresAt = now.plusSeconds(600),
+        orderId = null,
+        channel = "cliente",
+        customerName = null,
+        version = 1,
+    )
+
+    private inner class FakeRepository : ReservationRepository {
+        private var created = 0
+
+        override fun day(
+            date: String?,
+            access: ReservationAccess,
+        ): Result<CourtDay> =
+            Result.success(
+                CourtDay(
+                    date = "2026-11-03",
+                    today = "2026-11-03",
+                    timeZone = "America/Chihuahua",
+                    opensAt = now.minusSeconds(7_200),
+                    closesAt = now.plusSeconds(21_600),
+                    blockMinutes = 30,
+                    durations = listOf(60, 90, 120),
+                    daysAhead = 7,
+                    holdMinutes = 10,
+                    now = now,
+                    courts =
+                        listOf(
+                            CourtSchedule(
+                                id = 7,
+                                name = "Cancha 1",
+                                pricePerHour = "350.00",
+                                customerPricePerHour = CustomerPrice(card = "350.00", cashOrBalance = "350.00"),
+                                rentable = true,
+                                busy = emptyList(),
+                            ),
+                        ),
+                ),
+            )
+
+        override fun list(
+            access: ReservationAccess,
+            date: String?,
+        ): Result<List<Reservation>> = Result.success(emptyList())
+
+        override fun create(
+            access: ReservationAccess,
+            courtId: Int,
+            start: Instant?,
+            durationMinutes: Int,
+            customerName: String?,
+            idempotencyKey: String,
+        ): Result<Reservation> {
+            calls += "create ${start ?: "ahora"} $durationMinutes"
+            if (failNextCreate) return Result.failure(IllegalStateException("Ese horario ya se tomó."))
+            created++
+            return Result.success(reservation("r-$created", durationMinutes, ReservationState.PENDING_PAYMENT))
+        }
+
+        override fun pay(
+            access: ReservationAccess,
+            reservationId: String,
+            method: ReservationPaymentMethod,
+            cashReceived: String?,
+            idempotencyKey: String,
+        ): Result<ReservationPayment> = Result.failure(UnsupportedOperationException())
+
+        override fun cancel(
+            access: ReservationAccess,
+            reservationId: String,
+            idempotencyKey: String,
+        ): Result<Reservation> {
+            calls += "cancel $reservationId"
+            return Result.success(reservation(reservationId, 60, ReservationState.CANCELLED))
+        }
+    }
+}

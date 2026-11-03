@@ -44,6 +44,8 @@ data class ReservationsUiState(
     val mine: List<Reservation> = emptyList(),
     /** Reserva apartada esperando que el cliente elija cómo pagar. */
     val pending: Reservation? = null,
+    /** [pending] salió de "Rentar ahora": su tiempo corre desde que se apartó. */
+    val pendingStartsNow: Boolean = false,
     val working: Boolean = false,
     val error: String? = null,
     /** Aviso de éxito ("Cancha apartada", "Reserva cancelada"). */
@@ -211,7 +213,8 @@ class ReservationsViewModel
                 )
         }
 
-        fun selectRentNow() {
+        /** "Rentar ahora": aparta desde ya con el tiempo más corto que cabe; en la hoja de pago se cambia. */
+        fun rentNow() {
             val state = _uiState.value
             val day = state.day ?: return
             val court = state.selectedCourt ?: return
@@ -222,6 +225,7 @@ class ReservationsViewModel
                     selectedStart = null,
                     selectedDuration = durations.firstOrNull(),
                 )
+            reserve()
         }
 
         fun selectStart(start: Instant) {
@@ -271,6 +275,7 @@ class ReservationsViewModel
                             _uiState.value.copy(
                                 working = false,
                                 pending = reservation,
+                                pendingStartsNow = state.rentNow,
                                 selectedStart = null,
                                 rentNow = false,
                             )
@@ -287,11 +292,57 @@ class ReservationsViewModel
         /** Retoma el pago de una reserva que sigue apartada. */
         fun resumePayment(reservation: Reservation) {
             if (reservation.state != ReservationState.PENDING_PAYMENT) return
-            _uiState.value = _uiState.value.copy(pending = reservation, error = null)
+            _uiState.value = _uiState.value.copy(pending = reservation, pendingStartsNow = false, error = null)
         }
 
         fun dismissPayment() {
             _uiState.value = _uiState.value.copy(pending = null)
+        }
+
+        /**
+         * Otro tiempo desde la hoja de pago. El servidor no cambia la duración de un apartado: se suelta y se
+         * aparta otro. Si el nuevo no se logra, la cancha ya quedó libre y se pide elegirla otra vez.
+         */
+        fun changePendingDuration(minutes: Int) {
+            val state = _uiState.value
+            val reservation = state.pending ?: return
+            if (state.working || minutes == reservation.durationMinutes) return
+            val access = reservationAccess ?: return
+            _uiState.value = state.copy(working = true, error = null)
+            viewModelScope.launch {
+                val released =
+                    withContext(Dispatchers.IO) {
+                        repository.cancel(access, reservation.id, UUID.randomUUID().toString())
+                    }
+                released.exceptionOrNull()?.let { error ->
+                    _uiState.value = _uiState.value.copy(working = false, error = error.userMessage())
+                    return@launch
+                }
+                val held =
+                    withContext(Dispatchers.IO) {
+                        repository.create(
+                            access = access,
+                            courtId = reservation.courtId,
+                            start = if (state.pendingStartsNow) null else reservation.start,
+                            durationMinutes = minutes,
+                            customerName = null,
+                            idempotencyKey = UUID.randomUUID().toString(),
+                        )
+                    }
+                held.fold(
+                    onSuccess = { next -> _uiState.value = _uiState.value.copy(working = false, pending = next) },
+                    onFailure = { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                working = false,
+                                pending = null,
+                                pendingStartsNow = false,
+                                error = "${error.userMessage()} La cancha quedó libre: vuelve a elegirla.",
+                            )
+                    },
+                )
+                refresh()
+            }
         }
 
         fun pay(method: ReservationPaymentMethod) {

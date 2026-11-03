@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,11 +22,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
@@ -44,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,9 +56,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +82,8 @@ import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ClientCap
 import com.vaiinilla.app.ui.components.ClientPageHeader
+import com.vaiinilla.app.ui.components.ClientPillButton
+import com.vaiinilla.app.ui.components.ClientSheetHandle
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialConfirmSheet
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -81,6 +92,8 @@ import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.reducedMotion
+import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.walletTile
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
@@ -120,6 +133,8 @@ fun ReservationsScreen(
     onResumePayment: (Reservation) -> Unit,
     onCancel: (Reservation) -> Unit,
     onDismissMessage: () -> Unit,
+    /** Otro tiempo en la hoja de pago: suelta el apartado y aparta uno nuevo. */
+    onChangeDuration: (Int) -> Unit = {},
     /** "Tarjeta" solo si el dueño la activó en su panel. */
     cardAvailable: Boolean = false,
     /** Sin cuenta: se pide el nombre y se entra como invitado antes de ver horarios. */
@@ -264,12 +279,13 @@ fun ReservationsScreen(
     }
 
     state.pending?.let { reservation ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = onDismissPayment,
-            sheetState = sheetState,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = colors.paper,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            scrimColor = Color.Black.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+            dragHandle = { ClientSheetHandle() },
         ) {
             ReservationPaymentContent(
                 reservation = reservation,
@@ -281,11 +297,13 @@ fun ReservationsScreen(
                 // Sin cuenta no hay saldo ni tarjeta: el backend los rechaza para invitados.
                 cardAvailable = cardAvailable && !state.guestMode,
                 balanceAvailable = !state.guestMode,
+                day = day,
+                startsNow = state.pendingStartsNow,
+                onChangeDuration = onChangeDuration,
             )
         }
     }
 }
-
 /** «hoy, martes 3», «mañana, miércoles 4» o «jueves 5»: el día que se está viendo. */
 private fun dayHeadline(day: CourtDay): String {
     val date = LocalDate.parse(day.date)
@@ -376,7 +394,8 @@ private fun CourtCard(
     val start =
         when {
             !selected -> null
-            state.rentNow -> day.now
+            // "Rentar ahora" aparta de una vez: el tiempo se elige en la hoja de pago.
+            state.rentNow -> null
             else -> state.selectedStart
         }
     var zoomed by remember(court.id) { mutableStateOf(false) }
@@ -437,6 +456,7 @@ private fun CourtCard(
         if (canNow) {
             RentNowPill(
                 selected = selected && state.rentNow,
+                working = state.working,
                 onClick = {
                     if (!selected) onSelectCourt(court.id)
                     onRentNow()
@@ -570,6 +590,7 @@ private fun coralInk(colors: VaiinillaColors): Color = if (colors.isDark) Color(
 @Composable
 private fun RentNowPill(
     selected: Boolean,
+    working: Boolean,
     onClick: () -> Unit,
     colors: VaiinillaColors,
     modifier: Modifier = Modifier,
@@ -581,7 +602,7 @@ private fun RentNowPill(
             modifier
                 .fillMaxWidth()
                 .height(46.dp)
-                .physicalPress(onClick = onClick)
+                .physicalPress(enabled = !working, onClick = onClick)
                 .clip(RoundedCornerShape(99.dp))
                 .background(container),
         horizontalArrangement = Arrangement.Center,
@@ -595,7 +616,12 @@ private fun RentNowPill(
                 modifier = Modifier.padding(end = 6.dp).size(18.dp),
             )
         }
-        Text("Rentar ahora", color = content, fontSize = 15.sp, fontWeight = FontWeight.Black)
+        Text(
+            if (selected && working) "Apartando…" else "Rentar ahora",
+            color = content,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+        )
     }
 }
 
@@ -887,6 +913,13 @@ private fun Summary(
     }
 }
 
+const val RESERVATION_PAY_TAG = "reservation-pay"
+
+/**
+ * Pago de una cancha apartada como el dibujo de Doop (L08): cuánto tiempo, cómo pagas y un solo botón.
+ * El servidor no cambia la duración de un apartado, así que otro tiempo suelta este y aparta uno nuevo
+ * ([onChangeDuration]).
+ */
 @Composable
 internal fun ReservationPaymentContent(
     reservation: Reservation,
@@ -897,6 +930,10 @@ internal fun ReservationPaymentContent(
     cardAvailable: Boolean = false,
     balanceAvailable: Boolean = true,
     error: String? = null,
+    day: CourtDay? = null,
+    /** "Rentar ahora": el tiempo empezó al apartar, no a una hora elegida. */
+    startsNow: Boolean = false,
+    onChangeDuration: (Int) -> Unit = {},
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(reservation.id) {
@@ -906,127 +943,339 @@ internal fun ReservationPaymentContent(
         }
     }
     val remaining = reservation.holdExpiresAt?.let { (it.toEpochMilli() - nowMs).coerceAtLeast(0) }
+    val expired = remaining == 0L
+    val methods =
+        listOfNotNull(
+            ReservationPaymentMethod.CARD.takeIf { cardAvailable },
+            ReservationPaymentMethod.BALANCE.takeIf { balanceAvailable },
+            ReservationPaymentMethod.CASH,
+        )
+    var picked by rememberSaveable(reservation.id) { mutableStateOf(methods.first()) }
+    val method = picked.takeIf { it in methods } ?: methods.first()
+    var requested by remember(reservation.id) { mutableStateOf<Int?>(null) }
+    val court = day?.courts?.firstOrNull { it.id == reservation.courtId }
+    val held = reservation.durationMinutes
+    val durations = day?.durations?.takeIf { court != null }?.let { (it + held).distinct().sorted() } ?: listOf(held)
+    val available =
+        if (day != null && court != null) {
+            val withoutThisHold = court.copy(busy = court.busy.filterNot { it.start == reservation.start && it.end == reservation.end })
+            ReservationSlots.availableDurations(day, withoutThisHold, if (startsNow) day.now else reservation.start) + held
+        } else {
+            listOf(held)
+        }
+    val heldPrice =
+        reservation.customerPrice?.let { if (method == ReservationPaymentMethod.CARD) it.card else it.cashOrBalance }
+            ?: reservation.amount
+    val hourPrice =
+        court?.customerPricePerHour?.let { if (method == ReservationPaymentMethod.CARD) it.card else it.cashOrBalance }
+    val changing = working && requested != null
+    val times = "${reservation.start.atZone(zone).format(HOUR)} – ${reservation.end.atZone(zone).format(HOUR)}"
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp)
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(bottom = 20.dp),
     ) {
-        Column(modifier = Modifier.arrive(0)) {
-            Text(
-                "Paga tu cancha",
-                color = colors.ink,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = (-0.8).sp,
-            )
-            Text(
-                "${reservation.courtName ?: "Cancha"} · ${reservation.start.atZone(zone).format(HOUR)} – " +
-                    reservation.end.atZone(zone).format(HOUR),
-                color = colors.muted,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            if (remaining != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp).arrive(0),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
-                    if (remaining >
-                        0
-                    ) {
-                        "Apartada por ${clock(remaining)}"
-                    } else {
-                        "Venció el apartado: vuelve a elegir el horario."
+                    listOfNotNull(reservation.courtName ?: "Cancha", court?.profile?.sport).joinToString(" · "),
+                    color = colors.ink,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp,
+                    lineHeight = 30.sp,
+                )
+                Text(
+                    when {
+                        startsNow -> "Desde ahora hasta las ${reservation.end.atZone(zone).format(HOUR)}"
+                        day != null -> "${dayLabel(day, zone, reservation.start)} · $times"
+                        else -> times
                     },
-                    color = if (remaining > 60_000) colors.ink else colors.coral,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(top = 8.dp),
+                    color = colors.muted,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
+            if (remaining != null) HoldTag(remaining, colors)
         }
-        val prices = reservation.customerPrice
-        if (balanceAvailable) {
-            PayOption(
-                title = "Saldo",
-                detail = "Se paga al instante con tu cartera.",
-                amount = prices?.cashOrBalance ?: reservation.amount,
-                index = 1,
-                enabled = !working && remaining != 0L,
-                onClick = { onPay(ReservationPaymentMethod.BALANCE) },
-                colors = colors,
-            )
+        ClientCap("Elige cuánto tiempo", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp))
+        DurationTiles(
+            durations = durations,
+            available = available,
+            selected = requested.takeIf { changing } ?: held,
+            priceFor = { minutes ->
+                if (minutes == held) heldPrice else hourPrice?.let { ReservationSlots.amountFor(it, minutes) }
+            },
+            enabled = !working && !expired,
+            onSelect = { minutes ->
+                if (minutes != held) {
+                    requested = minutes
+                    onChangeDuration(minutes)
+                }
+            },
+            colors = colors,
+            modifier = Modifier.padding(top = 10.dp).arrive(1),
+        )
+        ClientCap("Cómo pagas", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp))
+        Column(
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            methods.forEachIndexed { index, option ->
+                PayMethodOption(
+                    method = option,
+                    selected = option == method,
+                    enabled = !working && !expired,
+                    onClick = { picked = option },
+                    colors = colors,
+                    modifier = Modifier.arrive(index + 2),
+                )
+            }
         }
         // La hoja tapa el aviso de la pantalla: si el pago falla, el motivo va aquí, junto a las opciones.
         error?.let { message ->
             Text(
                 message,
-                color = colors.coral,
+                color = coralInk(colors),
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Bold,
                 lineHeight = 18.sp,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                modifier =
+                    Modifier
+                        .padding(start = 20.dp, end = 20.dp, top = 12.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        if (cardAvailable) {
-            PayOption(
-                title = "Tarjeta",
-                detail = "Pago seguro con tu tarjeta.",
-                amount = prices?.card ?: reservation.amount,
-                index = if (balanceAvailable) 2 else 1,
-                enabled = !working && remaining != 0L,
-                onClick = { onPay(ReservationPaymentMethod.CARD) },
-                colors = colors,
-            )
-        }
-        PayOption(
-            title = "Efectivo en caja",
-            detail = "Paga en caja antes de que venza el apartado.",
-            amount = prices?.cashOrBalance ?: reservation.amount,
-            index = 1 + (if (balanceAvailable) 1 else 0) + (if (cardAvailable) 1 else 0),
-            enabled = !working && remaining != 0L,
-            onClick = { onPay(ReservationPaymentMethod.CASH) },
-            colors = colors,
+        Text(
+            if (expired) {
+                "Venció el apartado: vuelve a elegir el horario."
+            } else {
+                "Lo que pidas del menú te llega a la cancha. Si cancelas, lo pagado no se devuelve."
+            },
+            color = if (expired) coralInk(colors) else colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp),
+        )
+        ClientPillButton(
+            text =
+                when {
+                    changing -> "Apartando…"
+                    working -> "Pagando…"
+                    method == ReservationPaymentMethod.CASH -> "Pagar ${moneyLabel(heldPrice)} en caja"
+                    else -> "Pagar ${moneyLabel(heldPrice)}"
+                },
+            onClick = { onPay(method) },
+            enabled = !working && !expired,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 22.dp).testTag(RESERVATION_PAY_TAG),
+        )
+    }
+}
+
+/** "Apartada 4:52": amarilla mientras corre, roja en el último minuto y al vencer. */
+@Composable
+private fun HoldTag(
+    remaining: Long,
+    colors: VaiinillaColors,
+) {
+    val urgent = remaining < 60_000
+    Box(
+        modifier =
+            Modifier
+                .height(30.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background((if (urgent) colors.coral else colors.yolk).copy(alpha = if (colors.isDark) 0.14f else 0.3f))
+                .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            if (remaining > 0) "Apartada ${clock(remaining)}" else "Venció",
+            color =
+                when {
+                    urgent -> coralInk(colors)
+                    colors.isDark -> colors.yolk
+                    else -> colors.ink
+                },
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Black,
+            style = TextStyle(fontFeatureSettings = "tnum"),
+            maxLines = 1,
         )
     }
 }
 
 @Composable
-private fun PayOption(
-    title: String,
-    detail: String,
-    amount: String,
-    index: Int,
+private fun DurationTiles(
+    durations: List<Int>,
+    available: List<Int>,
+    selected: Int,
+    priceFor: (Int) -> String?,
     enabled: Boolean,
-    onClick: () -> Unit,
+    onSelect: (Int) -> Unit,
     colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .arrive(index)
-                .physicalPress(enabled = enabled, onClick = onClick)
-                .clip(RoundedCornerShape(22.dp))
-                .background(colors.paper2)
-                .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 14.dp)) {
-            Text(title, color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black)
-            Text(
-                detail,
-                color = colors.muted,
-                fontSize = 13.sp,
-                lineHeight = 17.sp,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+    // Tres o cuatro caben a lo ancho, como el dibujo; con más se desliza para que no se aprieten.
+    if (durations.size <= 4) {
+        Row(
+            modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            durations.forEach { minutes ->
+                DurationTile(
+                    minutes = minutes,
+                    price = priceFor(minutes),
+                    selected = minutes == selected,
+                    enabled = enabled && minutes in available,
+                    onClick = { onSelect(minutes) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
-        Text(moneyLabel(amount), color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
+    } else {
+        LazyRow(
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(durations, key = { it }) { minutes ->
+                DurationTile(
+                    minutes = minutes,
+                    price = priceFor(minutes),
+                    selected = minutes == selected,
+                    enabled = enabled && minutes in available,
+                    onClick = { onSelect(minutes) },
+                    colors = colors,
+                    modifier = Modifier.width(104.dp),
+                )
+            }
+        }
     }
 }
 
+@Composable
+private fun DurationTile(
+    minutes: Int,
+    price: String?,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    val still = reducedMotion()
+    val background by animateColorAsState(
+        if (selected) colors.ink else colors.paper2,
+        if (still) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "duration-background",
+    )
+    val content by animateColorAsState(
+        if (selected) colors.paper else colors.ink,
+        if (still) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "duration-content",
+    )
+    Column(
+        modifier =
+            modifier
+                .height(58.dp)
+                .graphicsLayer { alpha = if (enabled || selected) 1f else 0.35f }
+                .physicalPress(enabled = enabled && !selected, scale = PhysicalPressScale.Small) {
+                    haptics.selection()
+                    onClick()
+                }.clip(RoundedCornerShape(16.dp))
+                .background(background)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(durationLabel(minutes), color = content, fontSize = 15.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        price?.let {
+            Text(
+                moneyLabel(it),
+                color = content.copy(alpha = 0.6f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PayMethodOption(
+    method: ReservationPaymentMethod,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    val still = reducedMotion()
+    val shape = RoundedCornerShape(18.dp)
+    val border by animateColorAsState(
+        if (selected) colors.accent else Color.Transparent,
+        if (still) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "method-border",
+    )
+    val ring by animateDpAsState(
+        if (selected) 7.dp else 2.dp,
+        if (still) snap() else spring(dampingRatio = 0.6f, stiffness = 500f),
+        label = "method-ring",
+    )
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                    if (!selected) haptics.selection()
+                    onClick()
+                }.clip(shape)
+                .background(if (selected) colors.accent.copy(alpha = 0.08f) else colors.paper2)
+                .border(1.5.dp, border, shape)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .semantics {
+                    role = Role.RadioButton
+                    this.selected = selected
+                },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(method.label, color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            Text(
+                when (method) {
+                    ReservationPaymentMethod.CARD -> "Pago seguro con tu tarjeta"
+                    ReservationPaymentMethod.BALANCE -> "Se paga al instante con tu cartera"
+                    ReservationPaymentMethod.CASH -> "Paga en caja antes de que venza el apartado"
+                },
+                color = colors.muted,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Box(
+            modifier =
+                Modifier
+                    .size(22.dp)
+                    .border(ring, if (selected) colors.accent else colors.muted.copy(alpha = 0.35f), CircleShape),
+        )
+    }
+}
 @Composable
 private fun MyReservationCard(
     reservation: Reservation,
