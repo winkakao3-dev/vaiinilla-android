@@ -260,6 +260,21 @@ data class CremeStat(
     val highlighted: Boolean = false,
 )
 
+/**
+ * Las columnas parten las palabras («Recarga s», «Producto s») cuando no les cabe una etiqueta de unos 66 dp a la
+ * letra del sistema: con letra muy grande (L01) o con cuatro datos en un teléfono angosto. Entonces se apilan.
+ */
+internal fun cremeStatsStack(
+    screenWidthDp: Int,
+    fontScale: Float,
+    count: Int,
+): Boolean {
+    if (fontScale > 1.4f) return true
+    if (count <= 1) return false
+    val columnDp = (screenWidthDp - 40 - 12 * (count - 1)) / count.toFloat()
+    return columnDp < 66f * fontScale
+}
+
 /** La fila de datos del estilo CREME: etiqueta arriba, valor abajo, en columnas iguales. */
 @Composable
 fun CremeStatRow(
@@ -267,8 +282,9 @@ fun CremeStatRow(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    // Con la letra grande del sistema tres columnas parten las palabras («Recarga s»): se apilan (L01).
-    if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.4f) {
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    if (cremeStatsStack(screenWidthDp, fontScale, items.size)) {
         Column(
             modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
