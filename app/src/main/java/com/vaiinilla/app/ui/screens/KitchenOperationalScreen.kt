@@ -376,6 +376,10 @@ fun KitchenOperationalScreen(
                 }
             }
 
+            if (state.lastRefreshOk == false && queueOrders.isNotEmpty()) {
+                item(key = "kitchen-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
+            }
+
             item(key = "kitchen-title") {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),

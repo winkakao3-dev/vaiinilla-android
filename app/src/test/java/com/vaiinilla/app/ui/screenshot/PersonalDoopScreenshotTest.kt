@@ -14,6 +14,8 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.ui.screens.CashDrawerContent
+import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.KitchenSoldOutContent
 import com.vaiinilla.app.ui.screens.StaffShiftContent
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
@@ -106,6 +108,20 @@ class PersonalDoopScreenshotTest {
     fun `n11_cajon`() {
         capture("personal_n11_cajon.png") {
             OnPaper { CashDrawerContent(expectedCash = "1430.00", colors = rememberOperationalColors()) }
+        }
+    }
+
+    @Test
+    fun `n12_sin_internet`() {
+        val base = ScreenshotFixtures.sampleOrder(state = OrderState.PAID)
+        capture("personal_n12_sin_internet.png") {
+            KitchenOperationalScreen(
+                state = OperationalUiState(orders = listOf(base), lastRefreshOk = false),
+                onBack = {},
+                onStart = { _, _ -> },
+                onReady = { _, _ -> },
+                placeName = "Cafetería Central",
+            )
         }
     }
 

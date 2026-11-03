@@ -493,6 +493,10 @@ fun CashierOperationalScreen(
                 }
             }
 
+            if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
+                item(key = "cashier-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
+            }
+
             item(key = "cashier-title") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
