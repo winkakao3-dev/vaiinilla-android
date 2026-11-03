@@ -207,119 +207,6 @@ fun InvitationAcceptanceScreen(
     }
 }
 
-@Composable
-fun AuthorizedModeScreen(
-    state: AuthorizedAccessUiState,
-    onBack: (() -> Unit)?,
-    onSelectMode: (AuthorizedMode) -> Unit,
-    onSignOut: () -> Unit = {},
-    onRetry: () -> Unit = {},
-) {
-    var confirmingSignOut by remember { mutableStateOf(false) }
-    if (confirmingSignOut) {
-        SignOutConfirmDialog(onConfirm = onSignOut, onDismiss = { confirmingSignOut = false })
-    }
-    val colors = LocalVaiinillaColors.current
-    val activeContext = state.activeContext
-    val staffModes = state.modes.filter { it.role != OperationalRole.CLIENT }
-    val clientMode = state.modes.firstOrNull { it.role == OperationalRole.CLIENT }
-    // Una lista sencilla como la de Cuenta: sin encabezado de color ni lema, solo cómo entrar.
-    WalletScreenShell(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(bottom = 28.dp),
-        ) {
-            WalletSubflowTopBar(title = "Modos", onBack = onBack)
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
-            ) {
-                if (state.loading && staffModes.isEmpty()) {
-                    SkeletonBlock(modifier = Modifier.fillMaxWidth().height(120.dp), corner = 20.dp)
-                }
-                if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
-                    EmptyState(
-                        icon = Icons.Outlined.VpnKey,
-                        title = "Sin modos de personal",
-                        message = "Cuando administración te invite a Caja, Cocina o Mesero, aparecen aquí.",
-                    )
-                }
-                if (staffModes.isNotEmpty()) {
-                    SettingsGroup(title = "Personal") {
-                        staffModes.forEachIndexed { index, mode ->
-                            val isActive =
-                                activeContext?.role == mode.role &&
-                                    activeContext.establishmentId == mode.establishmentId &&
-                                    activeContext.membershipId == mode.membershipId
-                            SettingsRow(
-                                title =
-                                    if (isActive) {
-                                        "Continuar como ${mode.role.label}"
-                                    } else {
-                                        "Entrar como ${mode.role.label}"
-                                    },
-                                subtitle = mode.establishmentName,
-                                icon = staffModeIcon(mode.role),
-                                trailing = SettingsTrailing.Check,
-                                checked = isActive,
-                                enabled = !state.loading,
-                                onClick = { onSelectMode(mode) },
-                                showDivider = index != staffModes.lastIndex,
-                            )
-                        }
-                    }
-                }
-                adminCoverNote(staffModes)?.let { note ->
-                    Text(note, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp)
-                }
-                state.errorMessage?.let { error ->
-                    Surface(color = colors.coral.copy(alpha = 0.16f), shape = RoundedCornerShape(16.dp)) {
-                        Text(
-                            error,
-                            color = colors.ink,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(14.dp),
-                        )
-                    }
-                    TextButton(
-                        onClick = onRetry,
-                        enabled = !state.loading,
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                    ) {
-                        Text("Reintentar", color = colors.ink, fontWeight = FontWeight.Black)
-                    }
-                }
-                state.message?.let { message ->
-                    Text(message, color = colors.muted, fontWeight = FontWeight.SemiBold)
-                }
-                // Sin acceso de cliente no hay a dónde volver: antes este botón cerraba la sesión sin avisar.
-                if (clientMode != null) {
-                    SettingsGroup(title = "Cliente") {
-                        SettingsRow(
-                            title = "Pedir como cliente",
-                            icon = Icons.Outlined.Person,
-                            onClick = { onSelectMode(clientMode) },
-                            showDivider = false,
-                        )
-                    }
-                }
-                SettingsGroup(title = null) {
-                    SettingsRow(
-                        title = "Cerrar sesión",
-                        trailing = SettingsTrailing.None,
-                        onClick = { confirmingSignOut = true },
-                        showDivider = false,
-                    )
-                }
-            }
-        }
-    }
-}
-
 /**
  * Quien administra un negocio también tiene Caja, Mesero y Cocina ahí, para cubrir a quien falte. Se explica
  * debajo de la lista para que no parezca que alguien más le dio esos accesos.
@@ -338,15 +225,6 @@ internal fun adminCoverNote(staffModes: List<AuthorizedMode>): String? {
         "Entras con las mismas pantallas de ese rol y lo que hagas queda a tu nombre."
 }
 
-private fun staffModeIcon(role: OperationalRole) =
-    when (role) {
-        OperationalRole.CASHIER -> Icons.Outlined.PointOfSale
-        OperationalRole.KITCHEN -> Icons.Outlined.Restaurant
-        OperationalRole.WAITER -> Icons.Outlined.RoomService
-        OperationalRole.ADMIN -> Icons.Outlined.Storefront
-        OperationalRole.CLIENT -> Icons.Outlined.Person
-    }
-
 @Preview(name = "Invitación autorizada", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable
 private fun InvitationAcceptanceScreenPreview() {
@@ -356,35 +234,6 @@ private fun InvitationAcceptanceScreenPreview() {
             onBack = {},
             onAccept = {},
             onAuthenticate = {},
-        )
-    }
-}
-
-@Preview(name = "Modos autorizados", showBackground = true, widthDp = 411, heightDp = 891)
-@Composable
-private fun AuthorizedModeScreenPreview() {
-    VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
-        AuthorizedModeScreen(
-            state =
-                AuthorizedAccessUiState(
-                    modes =
-                        listOf(
-                            AuthorizedMode(
-                                role = OperationalRole.CASHIER,
-                                establishmentId = "e1",
-                                establishmentName = "Cafetería central",
-                                membershipId = "m1",
-                            ),
-                            AuthorizedMode(
-                                role = OperationalRole.KITCHEN,
-                                establishmentId = "e1",
-                                establishmentName = "Cafetería central",
-                                membershipId = "m2",
-                            ),
-                        ),
-                ),
-            onBack = {},
-            onSelectMode = {},
         )
     }
 }
