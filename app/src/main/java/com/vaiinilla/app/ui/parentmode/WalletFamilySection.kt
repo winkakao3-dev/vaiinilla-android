@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -542,7 +544,7 @@ private fun QuietRow(
     }
 }
 
-/** Una fila por hijo con su saldo, y una para agregar otro. */
+/** Una tarjeta por hijo con su saldo, dos por fila, y una fila para agregar otro. */
 @Composable
 private fun ChildrenList(
     children: ChildrenState,
@@ -585,9 +587,17 @@ private fun ChildrenList(
             )
         }
         else -> {
-            children.children.forEach { child ->
-                if (child.isAwaitingSchool) AwaitingRow(child) else ChildRow(child) { onOpen(child) }
+            val (awaiting, ready) = children.children.partition { it.isAwaitingSchool }
+            ready.chunked(2).forEach { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    pair.forEach { child -> ChildCard(child, { onOpen(child) }, Modifier.weight(1f).fillMaxHeight()) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
+            awaiting.forEach { AwaitingRow(it) }
             AddRow(isFirst = children.children.isEmpty(), onAdd = onAdd)
         }
     }
@@ -615,60 +625,64 @@ internal fun InitialsAvatar(
 }
 
 @Composable
-private fun ChildRow(
+private fun ChildCard(
     child: Dependent,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    val balance = child.balance?.let(::compactMoney).orEmpty()
+    val balance = child.balance?.let(::compactMoney) ?: "—"
     Column(
         modifier =
-            Modifier
-                .fillMaxWidth()
+            modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(colors.paper2)
+                .border(1.dp, colors.line, RoundedCornerShape(18.dp))
                 .testTag("child-${child.userId}")
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
                 .semantics(mergeDescendants = true) {
                     contentDescription =
                         "${child.name}, saldo $balance${if (child.isLowBalance) ", saldo bajo" else ""}"
-                },
+                }.padding(14.dp),
     ) {
-        Row(modifier = Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(child.initials, colors.paper2, colors.ink, colors.line)
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 13.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            InitialsAvatar(child.initials, colors.paper, colors.ink, colors.line, Modifier.size(38.dp))
+            Spacer(Modifier.weight(1f))
+            if (child.isLowBalance) {
                 Text(
-                    child.name,
-                    color = colors.ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    childRowLine(child),
-                    color = if (child.isLowBalance) colors.coral else colors.muted,
-                    fontWeight = if (child.isLowBalance) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 12.sp,
+                    "Saldo bajo",
+                    color = colors.coral,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    modifier =
+                        Modifier
+                            .clip(CircleShape)
+                            .background(colors.coral.copy(alpha = 0.14f))
+                            .padding(horizontal = 9.dp, vertical = 3.dp),
                 )
             }
-            Text(balance, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
-            Icon(
-                Icons.Outlined.ChevronRight,
-                contentDescription = null,
-                tint = colors.muted,
-                modifier = Modifier.size(18.dp),
-            )
         }
-        HorizontalDivider(color = colors.line, thickness = 1.dp, modifier = Modifier.padding(start = 57.dp))
+        Text(
+            childCardTitle(child),
+            color = colors.ink,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(balance, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 24.sp)
+        childTodayLine(child)?.let { Text(it, color = colors.muted, fontSize = 12.sp, maxLines = 1) }
     }
 }
 
-/** «3°B · Hoy le quedan $18», o «Saldo bajo · …» cuando bajó del aviso (Doop E02). */
-internal fun childRowLine(child: Dependent): String =
-    listOfNotNull(
-        if (child.isLowBalance) "Saldo bajo" else child.schoolLine ?: "Sin grupo",
-        child.controls?.availableToday?.let { "Hoy le quedan ${compactMoney(it)}" },
-    ).joinToString(" · ")
+/** «Sofía · 3°B», como en la tarjeta del dibujo (Doop E02). */
+internal fun childCardTitle(child: Dependent): String =
+    listOfNotNull(child.firstName, child.group?.trim()?.takeIf(String::isNotEmpty)).joinToString(" · ")
 
+/** «Hoy le quedan $18», o nada si el servidor no manda lo de hoy. */
+internal fun childTodayLine(child: Dependent): String? =
+    child.controls?.availableToday?.let { "Hoy le quedan ${compactMoney(it)}" }
 /** Hasta que la escuela aprueba, solo su nombre: ni saldo ni ficha que abrir. */
 @Composable
 private fun AwaitingRow(child: Dependent) {

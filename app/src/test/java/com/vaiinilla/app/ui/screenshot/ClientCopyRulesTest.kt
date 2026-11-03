@@ -5,7 +5,8 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentControls
 import com.vaiinilla.app.ui.parentmode.childReloadReach
-import com.vaiinilla.app.ui.parentmode.childRowLine
+import com.vaiinilla.app.ui.parentmode.childCardTitle
+import com.vaiinilla.app.ui.parentmode.childTodayLine
 import com.vaiinilla.app.ui.screens.pastOrderStateLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -27,7 +28,7 @@ class ClientCopyRulesTest {
     }
 
     @Test
-    fun `la fila del hijo dice cuánto le queda hoy`() {
+    fun `la tarjeta del hijo dice su grupo y cuánto le queda hoy`() {
         val child =
             Dependent(
                 userId = "s",
@@ -39,8 +40,9 @@ class ClientCopyRulesTest {
                 balance = BigDecimal("142"),
                 controls = DependentControls(dailyLimit = BigDecimal("60"), availableToday = BigDecimal("18")),
             )
-        assertEquals(true, childRowLine(child).endsWith("Hoy le quedan \$18"))
-        assertEquals(false, childRowLine(child.copy(controls = null)).contains("Hoy"))
+        assertEquals("Sofía · 3°B", childCardTitle(child))
+        assertEquals("Hoy le quedan \$18", childTodayLine(child))
+        assertEquals(null, childTodayLine(child.copy(controls = null)))
     }
 
     @Test
