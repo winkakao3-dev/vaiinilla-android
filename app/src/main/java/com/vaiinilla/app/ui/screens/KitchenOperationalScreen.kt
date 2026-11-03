@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -119,6 +121,41 @@ internal fun kitchenReadyOrders(orders: List<OrderDetail>): List<OrderDetail> =
         .sortedBy { it.summary.createdAt }
 
 /** Sin elegir pestaña, Cocina abre en la primera que tiene trabajo; si no hay nada, en Nuevas. */
+/** Un producto sumado de todas las comandas por hacer: «4 · Crepa de cajeta · #14 ×2 · #16 · #18». */
+internal data class KitchenProductTotal(
+    val name: String,
+    val quantity: Int,
+    val folios: List<Pair<Int, Int>>,
+)
+
+/** Lo que Cocina tiene que hacer, sumado por producto y sus opciones, de lo que más se repite a lo que menos. */
+internal fun kitchenProductTotals(orders: List<OrderDetail>): List<KitchenProductTotal> =
+    orders
+        .flatMap { order ->
+            order.activeItems
+                .filter { it.preparationStation == PreparationStation.KITCHEN }
+                .map { item -> Triple(kitchenProductName(item), order.summary.folio, item.quantity) }
+        }.groupBy { it.first }
+        .map { (name, lines) ->
+            KitchenProductTotal(
+                name = name,
+                quantity = lines.sumOf { it.third },
+                folios =
+                    lines
+                        .groupBy { it.second }
+                        .map { (folio, perFolio) -> folio to perFolio.sumOf { it.third } },
+            )
+        }.sortedByDescending { it.quantity }
+
+private fun kitchenProductName(item: OrderItem): String =
+    (listOf(item.productName) + item.options.map { it.name }).joinToString(" · ")
+
+/** Cocina ve en grande lo suyo; lo que se entrega en Caja queda en una línea aparte. */
+internal fun kitchenSplitItems(items: List<OrderItem>): Pair<List<OrderItem>, List<OrderItem>> {
+    val (kitchen, other) = items.partition { it.preparationStation == PreparationStation.KITCHEN }
+    return if (kitchen.isEmpty()) items to emptyList() else kitchen to other
+}
+
 internal fun kitchenDefaultTab(queue: List<OrderDetail>): KitchenTab =
     when {
         queue.any { kitchenTabOf(it) == KitchenTab.NEW } -> KitchenTab.NEW
@@ -158,6 +195,7 @@ fun KitchenOperationalScreen(
 
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var chosenTab by rememberSaveable { mutableStateOf<KitchenTab?>(null) }
+    var byProduct by rememberSaveable { mutableStateOf(false) }
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
     var moreOrderId by remember { mutableStateOf<String?>(null) }
@@ -315,7 +353,41 @@ fun KitchenOperationalScreen(
                 )
             }
 
-            item(key = "kitchen-tabs") {
+            item(key = "kitchen-view") {
+                SlidingSegments(
+                    labels = listOf("Por comanda", "Por producto"),
+                    selectedIndex = if (byProduct) 1 else 0,
+                    onSelect = { index ->
+                        haptics.selection()
+                        byProduct = index == 1
+                    },
+                    trackColor = colors.cardBackground,
+                    indicatorColor = colors.textPrimary,
+                    selectedContentColor = colors.background,
+                    idleContentColor = colors.textSecondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (byProduct) {
+                val todo = newOrders + preparingOrders
+                item(key = "kitchen-products") {
+                    val totals = remember(todo) { kitchenProductTotals(todo) }
+                    if (totals.isEmpty()) {
+                        KitchenEmptyCard(
+                            tab = KitchenTab.NEW,
+                            loading = kitchenQueue == QueuePresentation.Loading,
+                            otherWork = false,
+                            colors = colors,
+                            modifier = Modifier.animateItem(),
+                        )
+                    } else {
+                        KitchenProductList(totals = totals, ordersCount = todo.size, colors = colors, modifier = Modifier.animateItem())
+                    }
+                }
+            }
+
+            if (!byProduct) item(key = "kitchen-tabs") {
                 val counts = listOf(newOrders.size, preparingOrders.size, readyOrders.size)
                 SlidingSegments(
                     labels = KitchenTab.entries.mapIndexed { i, t -> "${t.label} ${counts[i]}" },
@@ -350,7 +422,7 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            if (tabOrders.isEmpty()) {
+            if (!byProduct && tabOrders.isEmpty()) {
                 item(key = "kitchen-empty-${tab.name}") {
                     when {
                         tab != KitchenTab.READY && kitchenQueue == QueuePresentation.Error ->
@@ -372,7 +444,7 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            items(tabOrders, key = { it.summary.id }) { order ->
+            items(if (byProduct) emptyList() else tabOrders, key = { it.summary.id }) { order ->
                 val orderTab = kitchenTabOf(order)
                 val inKitchen = order.summary.state == OrderState.PAID || order.summary.state == OrderState.PREPARING
                 // Cocina quita artículos de un pedido cobrado o en preparación; el último ya no se quita, se
@@ -616,9 +688,10 @@ private fun KitchenOrderCard(
                 }
                 KitchenAgeChip(createdAt = kitchenAgeStart(summary))
             }
+            // Lo rechazado no se prepara: no aparece en la comanda.
+            val (kitchenItems, cashierItems) = remember(order) { kitchenSplitItems(order.activeItems) }
             Column(modifier = Modifier.padding(top = 8.dp)) {
-                // Lo rechazado no se prepara: no aparece en la comanda.
-                order.activeItems.forEachIndexed { index, item ->
+                kitchenItems.forEachIndexed { index, item ->
                     if (index > 0) HorizontalDivider(color = KitchenLine.copy(alpha = 0.6f))
                     KitchenItemLine(
                         item = item,
@@ -626,6 +699,21 @@ private fun KitchenOrderCard(
                         onRemove = { onRemoveItem(item) },
                     )
                 }
+            }
+            if (cashierItems.isNotEmpty()) {
+                Text(
+                    "Lo de Caja va aparte: " + cashierItems.joinToString(", ") { "${it.quantity}× ${it.productName}" },
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = KitchenMuted,
+                    modifier =
+                        Modifier
+                            .padding(top = 6.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(KitchenLine.copy(alpha = 0.5f))
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                )
             }
             KitchenNotesNote(order.kitchenNotes, ink = KitchenInk, muted = KitchenMuted)
             when (tab) {
@@ -800,6 +888,69 @@ private fun KitchenMoreSheet(
             ) {
                 Icon(Icons.Outlined.Close, contentDescription = null, tint = coral, modifier = Modifier.size(20.dp))
                 Text("Rechazar todo el pedido", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = coral)
+            }
+        }
+    }
+}
+
+@Composable
+private fun KitchenProductList(
+    totals: List<KitchenProductTotal>,
+    ordersCount: Int,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Todo lo que falta, sumado: haces las crepas de una vez en vez de ir comanda por comanda.",
+            fontSize = 13.sp,
+            color = colors.textSecondary,
+        )
+        Text(
+            "POR HACER · $ordersCount ${if (ordersCount == 1) "COMANDA" else "COMANDAS"}",
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.4.sp,
+            color = colors.textSecondary,
+        )
+        Surface(shape = RoundedCornerShape(22.dp), color = KitchenPaper, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                totals.forEachIndexed { index, total ->
+                    if (index > 0) HorizontalDivider(color = KitchenLine, modifier = Modifier.padding(horizontal = 16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "${total.quantity}",
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Black,
+                            color = KitchenInk,
+                            modifier = Modifier.width(64.dp),
+                        )
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(total.name, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = KitchenInk)
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                total.folios.forEach { (folio, quantity) ->
+                                    Text(
+                                        if (quantity > 1) "#$folio ×$quantity" else "#$folio",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = KitchenMuted,
+                                        modifier =
+                                            Modifier
+                                                .clip(CircleShape)
+                                                .background(KitchenLine.copy(alpha = 0.6f))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
