@@ -260,12 +260,32 @@ class JvmRolesHarness {
                 if (waitFor(ROLE_STEP_MILLIS) { exists(enter and isEnabled()) }) {
                     compose.onAllNodes(enter and isEnabled())[0].performClick()
                     entered = waitFor(ROLE_STEP_MILLIS) { !exists(enter) }
+                } else {
+                    // MODOS-01: «¿Dónde trabajas hoy?» lista cada negocio con un botón por rol («Mesero»).
+                    entered = enterFromModesList(role.operationalRole.label)
                 }
             }
             if (!entered) error("No se pudo entrar como ${role.operationalRole.label}. En pantalla: ${summary()}")
         }
         pump(SETTLE_MILLIS, realTime = true)
         return "al frente ${role.cliName}: ${summary()}"
+    }
+
+    /** Toca el botón del rol que está debajo del negocio del sandbox en la lista de modos. */
+    private fun enterFromModesList(label: String): Boolean {
+        val business = compose.onAllNodes(hasText(SANDBOX_BUSINESS, substring = true)).fetchSemanticsNodes()
+        val top = business.firstOrNull()?.boundsInRoot?.top ?: return false
+        val roleButton = hasText(label) and hasClickAction() and isEnabled()
+        val buttons = compose.onAllNodes(roleButton)
+        val index =
+            buttons
+                .fetchSemanticsNodes()
+                .withIndex()
+                .filter { it.value.boundsInRoot.top > top }
+                .minByOrNull { it.value.boundsInRoot.top }
+                ?.index ?: return false
+        buttons[index].performClick()
+        return waitFor(ROLE_STEP_MILLIS) { !exists(hasText(MODES_TITLE)) }
     }
 
     /** Como escanear el QR o tocar un enlace con la app abierta: llega por onNewIntent, igual que en el teléfono. */
@@ -657,6 +677,8 @@ class JvmRolesHarness {
     }
 
     private companion object {
+        const val SANDBOX_BUSINESS = "Sandbox de agentes"
+        const val MODES_TITLE = "¿Dónde trabajas hoy?"
         const val IDLE_STEP_MILLIS = 100L
         const val IDLE_LIMIT_MINUTES = 15L
         const val FRAME_STEP_MILLIS = 50L
