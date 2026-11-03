@@ -3,8 +3,11 @@ package com.vaiinilla.app.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.Restaurant
@@ -39,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -46,10 +52,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.auth.student.StudentAuthSession
+import com.vaiinilla.app.domain.mode.AuthorizedInvitation
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.SettingsGroup
 import com.vaiinilla.app.ui.components.SettingsRow
@@ -96,15 +105,7 @@ fun InvitationAcceptanceScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                Text("Acceso invitado", color = colors.accent, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
-                Text(
-                    "Acepta la invitación para entrar a un modo autorizado.",
-                    color = colors.ink,
-                    fontSize = 28.sp,
-                    lineHeight = 31.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                InvitationHeader(invitation = state.invitation)
             }
             if (state.loading && state.invitation == null && state.errorMessage == null) {
                 item {
@@ -122,47 +123,20 @@ fun InvitationAcceptanceScreen(
             }
             state.invitation?.let { invitation ->
                 item {
-                    Surface(
-                        color = colors.paper2,
-                        shape = RoundedCornerShape(24.dp),
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                invitation.establishmentName.ifBlank { "Invitación de Vaiinilla" },
-                                color = colors.ink,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 20.sp,
-                            )
-                            if (invitation.role != null) {
-                                Text("Modo: ${invitation.role.label}", color = colors.ink, fontWeight = FontWeight.Bold)
-                            }
-                            if (invitation.invitedEmail.isNotBlank()) {
-                                Text("Invitada para: ${invitation.invitedEmail}", color = colors.muted)
-                            }
-                            if (invitation.requiresRemoteAcceptance) {
-                                Text(
-                                    "El servidor validará el token, tu correo y su vigencia al aceptar.",
-                                    color = colors.muted,
-                                )
-                            }
-                            if (expiresLabel != null) {
-                                Text("Válida hasta: $expiresLabel", color = colors.muted, fontSize = 13.sp)
-                            }
-                        }
-                    }
+                    InvitationDetails(invitation = invitation, session = state.session, expiresLabel = expiresLabel)
                 }
             }
             item {
-                state.session?.let { session ->
-                    Text("Sesión actual: ${session.email}", color = colors.muted)
-                    Text(
-                        if (session.emailVerified) "Correo verificado" else "Correo pendiente de verificación",
-                        color = if (session.emailVerified) colors.accent else colors.coral,
-                        fontWeight = FontWeight.Bold,
-                    )
-                } ?: run {
+                if (state.session == null) {
                     Text("Necesitas una cuenta verificada para continuar.", color = colors.muted)
                     EditorialAccentButton(text = "Iniciar sesión o registrarme", onClick = onAuthenticate)
+                } else {
+                    Text(
+                        "Al aceptar, apruebas los términos para personal y el aviso de privacidad vigentes.",
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
                 }
             }
             item {
@@ -197,11 +171,174 @@ fun InvitationAcceptanceScreen(
                 }
             }
             item {
-                EditorialAccentButton(
-                    text = if (state.loading && state.invitation != null) "Validando…" else "Aceptar invitación",
-                    onClick = onAccept,
-                    enabled = !state.loading && state.session != null && state.invitation != null,
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    EditorialAccentButton(
+                        text = if (state.loading && state.invitation != null) "Validando…" else "Aceptar invitación",
+                        onClick = onAccept,
+                        enabled = !state.loading && state.session != null && state.invitation != null,
+                    )
+                    EditorialSecondaryButton(text = "Ahora no", onClick = onBack)
+                }
+            }
+        }
+    }
+}
+
+/** El título del L14: quién invita y a qué rol, como «Trabaja en Caja». */
+internal fun invitationHeadline(invitation: AuthorizedInvitation?): Pair<String, String> {
+    val business = invitation?.establishmentName?.trim().orEmpty()
+    val inviter = if (business.isEmpty()) "Te invitan a Vaiinilla" else "$business te invita"
+    val role = invitation?.role
+    val title =
+        when {
+            invitation == null -> "Acepta la invitación para entrar a un modo autorizado."
+            role == OperationalRole.ADMIN -> "Administra el negocio"
+            role != null && role != OperationalRole.CLIENT -> "Trabaja en ${role.label}"
+            else -> "Únete al equipo"
+        }
+    return inviter to title
+}
+
+/** La invitación es para un correo: si la sesión es de otro, el servidor la va a rechazar. */
+internal fun invitationMatchesSession(
+    invitation: AuthorizedInvitation,
+    sessionEmail: String?,
+): Boolean? {
+    val invited = invitation.invitedEmail.trim()
+    val current = sessionEmail?.trim().orEmpty()
+    if (invited.isEmpty() || current.isEmpty()) return null
+    return invited.equals(current, ignoreCase = true)
+}
+
+@Composable
+private fun InvitationHeader(invitation: AuthorizedInvitation?) {
+    val colors = LocalVaiinillaColors.current
+    val (inviter, title) = invitationHeadline(invitation)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (invitation != null) {
+            val initial = invitation.establishmentName.trim().firstOrNull()?.uppercaseChar() ?: 'V'
+            Box(
+                modifier =
+                    Modifier
+                        .size(72.dp)
+                        .background(colors.paper2, RoundedCornerShape(20.dp))
+                        .border(1.dp, colors.line, RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(initial.toString(), color = colors.ink, fontSize = 30.sp, fontWeight = FontWeight.Black)
+            }
+            Text(
+                inviter,
+                color = colors.muted,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        } else {
+            Text("Acceso invitado", color = colors.accent, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+        }
+        Text(title, color = colors.ink, fontSize = 32.sp, lineHeight = 35.sp, fontWeight = FontWeight.Black)
+        if (invitation != null) {
+            Text(
+                "Entras con las mismas pantallas de ese rol y lo que hagas queda a tu nombre.",
+                color = colors.ink,
+                fontSize = 15.sp,
+                lineHeight = 21.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InvitationDetails(
+    invitation: AuthorizedInvitation,
+    session: StudentAuthSession?,
+    expiresLabel: String?,
+) {
+    val colors = LocalVaiinillaColors.current
+    val matches = invitationMatchesSession(invitation, session?.email)
+    Surface(
+        color = colors.paper2,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, colors.line),
+    ) {
+        Column {
+            var first = true
+            if (invitation.invitedEmail.isNotBlank()) {
+                InvitationDetailRow(label = "Invitada para", value = invitation.invitedEmail, ok = matches, divider = false)
+                first = false
+            }
+            if (session != null) {
+                val verified = if (session.emailVerified) "correo verificado" else "correo sin verificar"
+                InvitationDetailRow(
+                    label = "Tu sesión",
+                    value = "${session.email} · $verified",
+                    ok = session.emailVerified && matches != false,
+                    divider = !first,
                 )
+                first = false
+            }
+            if (expiresLabel != null) {
+                InvitationDetailRow(label = "Válida hasta", value = expiresLabel, ok = null, divider = !first)
+                first = false
+            }
+            if (invitation.requiresRemoteAcceptance) {
+                InvitationDetailRow(
+                    label = "Al aceptar",
+                    value = "Vaiinilla revisa tu correo y la vigencia",
+                    ok = null,
+                    divider = !first,
+                )
+            }
+        }
+    }
+    if (matches == false) {
+        Text(
+            "Entraste con otro correo. Sal y entra con ${invitation.invitedEmail} para aceptarla.",
+            color = colors.coral,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun InvitationDetailRow(
+    label: String,
+    value: String,
+    ok: Boolean?,
+    divider: Boolean,
+) {
+    val colors = LocalVaiinillaColors.current
+    Column {
+        if (divider) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(label, color = colors.muted, fontSize = 13.sp)
+                Text(value, color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
+            if (ok != null) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(22.dp)
+                            .background(
+                                (if (ok) colors.accent else colors.coral).copy(alpha = 0.22f),
+                                RoundedCornerShape(11.dp),
+                            ).semantics { contentDescription = if (ok) "Coincide" else "No coincide" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (ok) Icons.Outlined.Check else Icons.Outlined.Close,
+                        contentDescription = null,
+                        tint = if (ok) colors.accent else colors.coral,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
             }
         }
     }
