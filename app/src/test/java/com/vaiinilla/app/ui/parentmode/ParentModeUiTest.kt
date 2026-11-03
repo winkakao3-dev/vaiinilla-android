@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import kotlinx.coroutines.runBlocking
@@ -75,7 +76,7 @@ class ParentModeUiTest {
     }
 
     @Test
-    fun `la ficha del principal trae quién lo cuida, En Caja y Si deja la escuela`() {
+    fun `la ficha del principal abre Seguridad y tutores con PIN, tutores y lo de cuando se vaya`() {
         val state = ChildAccountState(ParentFixtures.ana, ParentFixtures.services(FakeGuardianship()))
         composeTestRule.setContent {
             ScreenshotTheme { ChildAccountContent(state = state, onChildChanged = {}, onUnlinked = {}, onBack = {}) }
@@ -83,16 +84,46 @@ class ParentModeUiTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Ana López").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Recargar con tarjeta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Recargar").assertIsDisplayed()
         composeTestRule.onNodeWithText("Hasta \$60 al día").assertIsDisplayed()
-        val list =
-            composeTestRule.onNodeWithTag("child-account-list")
-        list.performScrollToNode(hasText("Quién lo cuida"))
-        composeTestRule.onNodeWithText("Marta López (tú)").assertIsDisplayed()
-        list.performScrollToNode(hasText("Invitar a otro tutor"))
-        list.performScrollToNode(hasText("Recarga con tarjeta"))
-        list.performScrollToNode(hasText("Bloquear su credencial"))
-        list.performScrollToNode(hasText("Pedir que le devuelvan su saldo"))
+        // Su saldo ($40) ya bajó del aviso ($50) y el principal puede bloquear su credencial desde la ficha.
+        composeTestRule.onNodeWithText("Bajó de \$50").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("child-block").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("child-account-list").performScrollToNode(hasText("Recarga con tarjeta", substring = true))
+
+        composeTestRule.onNodeWithTag("child-security").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Seguridad de Ana").assertIsDisplayed()
+        composeTestRule.onNodeWithText("PIN en Caja").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Bloquear su credencial").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tú").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Luis López").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Invitar a otro tutor").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pasar a su propia cuenta").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Devolver su saldo").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pide que te regresen los \$40 que le quedan").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pedir que borren sus datos").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `con lo de hoy del servidor la ficha dice cuánto le queda y cuánto gastó`() {
+        val child =
+            ParentFixtures.ana.copy(
+                controls =
+                    ParentFixtures.ana.controls!!.copy(
+                        spentToday = java.math.BigDecimal("42.00"),
+                        availableToday = java.math.BigDecimal("18.00"),
+                    ),
+            )
+        val state = ChildAccountState(child, ParentFixtures.services(FakeGuardianship()))
+        composeTestRule.setContent {
+            ScreenshotTheme { ChildAccountContent(state = state, onChildChanged = {}, onUnlinked = {}, onBack = {}) }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Hoy le quedan \$18 de \$60").assertIsDisplayed()
+        composeTestRule.onNodeWithText("gastó \$42").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Hasta \$60 al día").assertDoesNotExist()
     }
 
     @Test
@@ -112,13 +143,17 @@ class ParentModeUiTest {
         }
         composeTestRule.waitForIdle()
 
-        val list =
-            composeTestRule.onNodeWithTag("child-account-list")
-        list.performScrollToNode(
-            hasText("Marta pone el límite, los bloqueos y las alergias. Tú ves, recargas y apartas."),
-        )
-        composeTestRule.onNodeWithText("En Caja").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Si deja la escuela").assertDoesNotExist()
+        // Sin ser principal no bloquea desde la ficha.
+        composeTestRule.onNodeWithTag("child-block").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("child-security").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule
+            .onNodeWithText("Marta pone el límite, los bloqueos y las alergias. Tú ves, recargas y apartas.")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("CÓMO COMPRA").assertDoesNotExist()
+        composeTestRule.onNodeWithText("PIN en Caja").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Devolver su saldo").assertDoesNotExist()
         composeTestRule.onNodeWithText("Invitar a otro tutor").assertDoesNotExist()
     }
 }

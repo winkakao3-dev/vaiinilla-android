@@ -101,6 +101,8 @@ internal fun ParentSheet(
     subtitle: String? = null,
     busy: Boolean = false,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
+    /** Lo que va antes del título, como el avatar del hijo en su recarga. */
+    leading: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // El estado de la hoja se recuerda con confirmValueChange como llave: una lambda nueva al cambiar busy
@@ -117,7 +119,11 @@ internal fun ParentSheet(
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).imePadding()) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(verticalAlignment = if (leading != null) Alignment.CenterVertically else Alignment.Top) {
+                if (leading != null) {
+                    leading()
+                    Spacer(Modifier.width(12.dp))
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(title, fontWeight = FontWeight.Black, fontSize = 22.sp, color = colors.textPrimary)
                     if (subtitle != null) {

@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.parentmode
 import android.content.Intent
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import com.vaiinilla.app.core.notifications.ChildDeepLink
@@ -85,7 +86,9 @@ class ChildNoticeWalletTest {
         showWallet()
 
         composeTestRule.waitUntil(10_000) { ChildDeepLinkStore.requestedChild.value == null }
-        composeTestRule.onNodeWithText("Mis hijos").assertExists()
+        // Sigue en Cartera: la sección de sus hijos con la tarjeta de Ana, sin ficha abierta.
+        composeTestRule.onNodeWithText("MIS HIJOS").assertExists()
+        composeTestRule.onNodeWithTag("child-u-ana").assertExists()
         composeTestRule.onAllNodesWithTag("child-account").fetchSemanticsNodes().let { assertEquals(0, it.size) }
     }
 }

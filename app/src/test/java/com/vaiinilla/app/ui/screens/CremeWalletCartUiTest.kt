@@ -314,7 +314,7 @@ class CremeWalletCartUiTest {
     }
 
     @Test
-    fun `la ficha del hijo trae sus pills y la fila de datos sin dibujo`() {
+    fun `la ficha del hijo trae su saldo, los cuatro botones y lo que cuida la caja como Doop`() {
         val state = ChildAccountState(ParentFixtures.ana, ParentFixtures.services(FakeGuardianship()))
         composeTestRule.setContent {
             ScreenshotTheme { ChildAccountContent(state = state, onChildChanged = {}, onUnlinked = {}, onBack = {}) }
@@ -324,14 +324,16 @@ class CremeWalletCartUiTest {
         composeTestRule.onNodeWithText("Ana López").assertIsDisplayed()
         composeTestRule.onNodeWithTag("child-reload").assertIsDisplayed()
         composeTestRule.onNodeWithTag("child-week").assertIsDisplayed()
-        // La tercera pill queda al borde de la fila, que se desliza: existe aunque no se vea entera.
-        composeTestRule.onNodeWithTag("child-controls").assertExists()
-        composeTestRule.onNodeWithText("Hoy le quedan").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Apartado").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Tutores").assertIsDisplayed()
-        composeTestRule.onNodeWithText("PIN en Caja").assertIsDisplayed()
-        // El servidor no manda lo que le queda hoy: la columna dice «—», no se esconde.
-        composeTestRule.onNodeWithText("—").assertIsDisplayed()
-        composeTestRule.onNodeWithText("No").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("child-controls").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("child-block").assertIsDisplayed()
+        composeTestRule.onNodeWithText("SU SALDO").assertIsDisplayed()
+        // El servidor no manda lo que le queda hoy: no se inventa la barra, se dice su límite.
+        composeTestRule.onNodeWithText("Hasta \$60 al día").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Hoy le quedan", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("SU COMIDA APARTADA").assertExists()
+        composeTestRule.onNodeWithText("LO QUE CUIDA LA CAJA").assertExists()
+        composeTestRule.onNodeWithText("Ninguna anotada").assertExists()
+        composeTestRule.onNodeWithText("Nada bloqueado").assertExists()
+        composeTestRule.onNodeWithText("Seguridad y tutores").assertIsDisplayed()
     }
 }

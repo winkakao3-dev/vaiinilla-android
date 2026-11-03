@@ -77,6 +77,8 @@ internal fun SchoolOptionsPage(
     /** El paso 3 de agregar a un hijo lleva a su ficha (con un monto, a recargarle eso). */
     onOpenChild: (Dependent, Int?) -> Unit = { _, _ -> },
     schoolName: String? = null,
+    /** «¿Eres el alumno?» de la primera vez del tutor cambia la página a la del alumno. */
+    onSwitchRole: (SchoolRole) -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
@@ -87,64 +89,73 @@ internal fun SchoolOptionsPage(
     val parentAccess = if (children.children.isEmpty()) children.isParentUnlocked else true
 
     Box(modifier = Modifier.fillMaxSize().testTag("school-options")) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 58.dp, bottom = 48.dp),
-        ) {
-            Text(
-                "CARTERA · ESCUELA",
-                color = colors.muted,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.2.sp,
+        if (role == SchoolRole.PARENT && children.children.isEmpty()) {
+            ParentFirstTimeContent(
+                parentAccess = parentAccess,
+                onAdd = { sheet = OptionsSheet.ADD },
+                onUnlock = { sheet = OptionsSheet.UNLOCK },
+                onStudent = { onSwitchRole(SchoolRole.STUDENT) },
             )
-            WholeWordTitle(
-                text = if (role == SchoolRole.PARENT) "Tutores" else "Alumnos",
-                color = colors.ink,
-                fontSize = 34.sp,
-                lineHeight = 38.sp,
-                letterSpacing = (-1.6).sp,
-                maxLines = 1,
-                modifier = Modifier.padding(top = 4.dp, bottom = 18.dp),
-            )
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 58.dp, bottom = 48.dp),
+            ) {
+                Text(
+                    "CARTERA · ESCUELA",
+                    color = colors.muted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.2.sp,
+                )
+                WholeWordTitle(
+                    text = if (role == SchoolRole.PARENT) "Tutores" else "Alumnos",
+                    color = colors.ink,
+                    fontSize = 34.sp,
+                    lineHeight = 38.sp,
+                    letterSpacing = (-1.6).sp,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 18.dp),
+                )
 
-            if (role == SchoolRole.PARENT) {
-                ParentOption(children, parentAccess, reduced) { sheet = it }
-            } else {
-                OptionRow(
-                    icon = Icons.Outlined.Tag,
-                    title = if (hasTutors) "Que otro tutor me agregue" else "Que mi tutor me agregue",
-                    detail = "Te damos un código y lo escribe en su app.",
-                    tag = "school-options-link-code",
-                ) { sheet = OptionsSheet.LINK_CODE }
-                // Quien ya cuida hijos no puede quedarse con la cuenta de otro: el servidor lo rechaza.
-                if (children.children.isEmpty() && !hasTutors) {
+                if (role == SchoolRole.PARENT) {
+                    ParentOption(children, parentAccess, reduced) { sheet = it }
+                } else {
                     OptionRow(
-                        icon = Icons.Outlined.Key,
-                        title = "Mi tutor ya me dio de alta",
-                        detail = "Escribe el código que te dio y te quedas con tu saldo y lo apartado.",
-                        tag = "school-options-claim",
-                    ) { sheet = OptionsSheet.CLAIM }
+                        icon = Icons.Outlined.Tag,
+                        title = if (hasTutors) "Que otro tutor me agregue" else "Que mi tutor me agregue",
+                        detail = "Te damos un código y lo escribe en su app.",
+                        tag = "school-options-link-code",
+                    ) { sheet = OptionsSheet.LINK_CODE }
+                    // Quien ya cuida hijos no puede quedarse con la cuenta de otro: el servidor lo rechaza.
+                    if (children.children.isEmpty() && !hasTutors) {
+                        OptionRow(
+                            icon = Icons.Outlined.Key,
+                            title = "Mi tutor ya me dio de alta",
+                            detail = "Escribe el código que te dio y te quedas con tu saldo y lo apartado.",
+                            tag = "school-options-claim",
+                        ) { sheet = OptionsSheet.CLAIM }
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(34.dp))
-            Text(
-                "Cómo funciona",
-                color = colors.ink,
-                fontWeight = FontWeight.Black,
-                fontSize = 19.sp,
-                modifier = Modifier.padding(bottom = 14.dp),
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                schoolGuideSteps(role, hasTutors).forEachIndexed { step, text ->
-                    GuideStep(step + 1, text, colors.ink, colors.paper2, colors.line)
+                Spacer(Modifier.height(34.dp))
+                Text(
+                    "Cómo funciona",
+                    color = colors.ink,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 19.sp,
+                    modifier = Modifier.padding(bottom = 14.dp),
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    schoolGuideSteps(role, hasTutors).forEachIndexed { step, text ->
+                        GuideStep(step + 1, text, colors.ink, colors.paper2, colors.line)
+                    }
                 }
             }
         }
