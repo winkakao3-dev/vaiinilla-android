@@ -1,5 +1,17 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -196,6 +208,23 @@ fun KitchenOperationalScreen(
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var chosenTab by rememberSaveable { mutableStateOf<KitchenTab?>(null) }
     var byProduct by rememberSaveable { mutableStateOf(false) }
+    // N02: «lista» espera 10 s para poder deshacerla sin servidor; al salir de la pantalla se manda ya.
+    val pendingReady = remember { mutableStateMapOf<String, Pair<Int, Long>>() }
+    val currentOnReady by rememberUpdatedState(onReady)
+    pendingReady.toList().forEach { (id, entry) ->
+        key(id) {
+            LaunchedEffect(id, entry.second) {
+                delay((entry.second - System.currentTimeMillis()).coerceAtLeast(0))
+                if (pendingReady.remove(id) != null) currentOnReady(id, entry.first)
+            }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            pendingReady.toList().forEach { (id, entry) -> currentOnReady(id, entry.first) }
+            pendingReady.clear()
+        }
+    }
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
     var moreOrderId by remember { mutableStateOf<String?>(null) }
@@ -463,12 +492,18 @@ fun KitchenOperationalScreen(
                         haptics.impact()
                         selectedOrderId = order.summary.id
                         if (orderTab == KitchenTab.PREPARING) {
-                            onReady(order.summary.id, order.summary.version)
+                            pendingReady[order.summary.id] =
+                                order.summary.version to System.currentTimeMillis() + KITCHEN_UNDO_MS
                         } else {
                             onStart(order.summary.id, order.summary.version)
                         }
                     },
                     onMore = if (canReject) ({ moreOrderId = order.summary.id }) else null,
+                    readyDeadline = pendingReady[order.summary.id]?.second,
+                    onUndoReady = {
+                        haptics.selection()
+                        pendingReady.remove(order.summary.id)
+                    },
                     primaryAnchor =
                         if (orderTab == KitchenTab.PREPARING) {
                             assistantKitchenReadyAnchor(order.summary.id)
@@ -645,6 +680,8 @@ private fun KitchenOrderCard(
     onRemoveItem: (OrderItem) -> Unit,
     onPrimary: () -> Unit,
     onMore: (() -> Unit)?,
+    readyDeadline: Long?,
+    onUndoReady: () -> Unit,
     primaryAnchor: String,
     registry: com.vaiinilla.app.ui.components.AssistantAnchorRegistry,
     modifier: Modifier = Modifier,
@@ -690,6 +727,45 @@ private fun KitchenOrderCard(
             }
             // Lo rechazado no se prepara: no aparece en la comanda.
             val (kitchenItems, cashierItems) = remember(order) { kitchenSplitItems(order.activeItems) }
+            // N02: con varias cosas se palomea lo que ya salió; solo vive en este teléfono.
+            val checkable = tab == KitchenTab.PREPARING && kitchenItems.size > 1
+            var checked by rememberSaveable(summary.id) { mutableStateOf(setOf<Int>()) }
+            if (checkable) {
+                val done = kitchenCheckedCount(kitchenItems, checked)
+                val progress by animateFloatAsState(
+                    targetValue = done / kitchenItems.size.toFloat(),
+                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 380f),
+                    label = "kitchen-check-progress",
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(6.dp)
+                                .clip(CircleShape)
+                                .background(KitchenLine),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(progress)
+                                .height(6.dp)
+                                .clip(CircleShape)
+                                .background(KitchenInk),
+                        )
+                    }
+                    Text(
+                        "$done de ${kitchenItems.size}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = KitchenMuted,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+            }
             Column(modifier = Modifier.padding(top = 8.dp)) {
                 kitchenItems.forEachIndexed { index, item ->
                     if (index > 0) HorizontalDivider(color = KitchenLine.copy(alpha = 0.6f))
@@ -697,6 +773,10 @@ private fun KitchenOrderCard(
                         item = item,
                         removable = canRemove(item),
                         onRemove = { onRemoveItem(item) },
+                        checked = if (checkable) item.id in checked else null,
+                        onToggle = {
+                            checked = if (item.id in checked) checked - item.id else checked + item.id
+                        },
                     )
                 }
             }
@@ -726,6 +806,13 @@ private fun KitchenOrderCard(
                         modifier = Modifier.padding(top = 12.dp),
                     )
                 else ->
+                    if (readyDeadline != null) {
+                        KitchenUndoReady(
+                            deadline = readyDeadline,
+                            onUndo = onUndoReady,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    } else {
                     KitchenPrimaryButton(
                         label = if (tab == KitchenTab.PREPARING) "Marcar lista" else "Empezar a preparar",
                         lime = tab == KitchenTab.PREPARING,
@@ -734,6 +821,7 @@ private fun KitchenOrderCard(
                         modifier = Modifier.padding(top = 12.dp).assistantAnchor(registry, primaryAnchor),
                         onClick = onPrimary,
                     )
+                    }
             }
             if (onMore != null) {
                 HorizontalDivider(color = KitchenLine, modifier = Modifier.padding(top = 14.dp))
@@ -772,22 +860,138 @@ private val KitchenLine = Color(0xFFD8CDB4)
 private val KitchenReadyInk = Color(0xFF3B5310)
 private val KitchenRemoveInk = Color(0xFF8A1D17)
 
+/** N02: la barra de «Deshacer» mientras corren los 10 segundos antes de mandar «lista». */
+@Composable
+private fun KitchenUndoReady(
+    deadline: Long,
+    onUndo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(deadline) {
+        while (now < deadline) {
+            delay(200)
+            now = System.currentTimeMillis()
+        }
+    }
+    val left = ((deadline - now).coerceAtLeast(0) + 999) / 1000
+    val progress = ((deadline - now).coerceAtLeast(0) / KITCHEN_UNDO_MS.toFloat()).coerceIn(0f, 1f)
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(KitchenLine.copy(alpha = 0.6f))
+                    .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Marcada como lista",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = KitchenInk,
+                modifier = Modifier.weight(1f),
+            )
+            CircularProgressIndicator(
+                progress = { progress },
+                color = KitchenInk,
+                trackColor = KitchenLine,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Deshacer",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Black,
+                color = KitchenPaper,
+                modifier =
+                    Modifier
+                        .clip(CircleShape)
+                        .background(KitchenInk)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onUndo)
+                        .heightIn(min = 48.dp)
+                        .padding(horizontal = 18.dp, vertical = 13.dp),
+            )
+        }
+        Text(
+            "En $left s se avisa al cliente. Antes puedes regresarla a «Preparando».",
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = KitchenMuted,
+            modifier = Modifier.padding(top = 6.dp, start = 4.dp),
+        )
+    }
+}
+
+internal const val KITCHEN_UNDO_MS = 10_000L
+
+/** Cuántas líneas ya se palomearon, de las que siguen en la comanda. */
+internal fun kitchenCheckedCount(
+    items: List<OrderItem>,
+    checked: Set<Int>,
+): Int = items.count { it.id in checked }
+
 @Composable
 private fun KitchenItemLine(
     item: OrderItem,
     removable: Boolean,
     onRemove: () -> Unit,
+    checked: Boolean? = null,
+    onToggle: () -> Unit = {},
 ) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.Top) {
+    val done = checked == true
+    val inkColor by animateColorAsState(if (done) KitchenMuted else KitchenInk, label = "kitchen-item-ink")
+    val strike = if (done) TextDecoration.LineThrough else TextDecoration.None
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    if (checked != null) {
+                        Modifier
+                            .toggleable(value = done, role = Role.Checkbox, onValueChange = { onToggle() })
+                    } else {
+                        Modifier
+                    },
+                ).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        if (checked != null) {
+            val box by animateColorAsState(if (done) KitchenInk else Color.Transparent, label = "kitchen-check")
+            Box(
+                modifier =
+                    Modifier
+                        .padding(end = 10.dp)
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(box)
+                        .border(2.dp, if (done) KitchenInk else KitchenLine, RoundedCornerShape(7.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (done) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, tint = KitchenPaper, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
         Text(
             "${item.quantity}×",
             fontSize = 16.sp,
             fontWeight = FontWeight.Black,
-            color = KitchenInk,
+            color = inkColor,
+            textDecoration = strike,
             modifier = Modifier.width(34.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.productName, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = KitchenInk)
+            Text(
+                item.productName,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = inkColor,
+                textDecoration = strike,
+            )
             val detail = item.options.joinToString(" · ") { it.name }
             if (detail.isNotEmpty()) {
                 Text(detail, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = KitchenMuted)
