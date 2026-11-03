@@ -644,7 +644,7 @@ private fun ChildRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    if (child.isLowBalance) "Saldo bajo" else child.schoolLine ?: "Sin grupo",
+                    childRowLine(child),
                     color = if (child.isLowBalance) colors.coral else colors.muted,
                     fontWeight = if (child.isLowBalance) FontWeight.Bold else FontWeight.Normal,
                     fontSize = 12.sp,
@@ -661,6 +661,13 @@ private fun ChildRow(
         HorizontalDivider(color = colors.line, thickness = 1.dp, modifier = Modifier.padding(start = 57.dp))
     }
 }
+
+/** «3°B · Hoy le quedan $18», o «Saldo bajo · …» cuando bajó del aviso (Doop E02). */
+internal fun childRowLine(child: Dependent): String =
+    listOfNotNull(
+        if (child.isLowBalance) "Saldo bajo" else child.schoolLine ?: "Sin grupo",
+        child.controls?.availableToday?.let { "Hoy le quedan ${compactMoney(it)}" },
+    ).joinToString(" · ")
 
 /** Hasta que la escuela aprueba, solo su nombre: ni saldo ni ficha que abrir. */
 @Composable
