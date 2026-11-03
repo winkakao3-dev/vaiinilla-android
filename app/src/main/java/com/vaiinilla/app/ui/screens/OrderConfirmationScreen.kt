@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
+import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -80,6 +82,22 @@ fun OrderConfirmationScreen(
         // Stripe orders must never expose the pickup QR before the backend
         // confirms the payment. READY/PRESENTING are still part of checkout.
         val stripeStatusScreen = stripeOrder && !stripeConfirmed
+        // Un encargo que espera al negocio o que ya se aceptó y falta pagar se sigue en la página del pedido (D1, D1b).
+        val awaitingBusiness =
+            order.awaitsAcceptanceBeforePaying() ||
+                (order.awaitsPaymentAfterAcceptance() && stripePaymentPhase !in STRIPE_SHEET_PHASES)
+        if (stripeStatusScreen && awaitingBusiness && !order.summary.state.isTerminalWithoutDelivery) {
+            OrderJourneyPage(
+                order = order,
+                qrPayload = null,
+                onBack = onViewTracking,
+                deliveryRequiresQr = deliveryRequiresQr,
+                venue = venue,
+                onPay = onRetryStripePayment.takeIf { order.awaitsPaymentAfterAcceptance() },
+                paying = retryingStripePayment,
+            )
+            return@Box
+        }
         if (stripeStatusScreen) {
             StripePaymentPendingScreen(
                 order = order,

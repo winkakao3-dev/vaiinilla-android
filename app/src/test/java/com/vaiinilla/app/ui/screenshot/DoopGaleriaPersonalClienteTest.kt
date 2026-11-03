@@ -310,6 +310,46 @@ class DoopGaleriaPersonalClienteTest {
         shot("cDP1_al_abrir")
     }
 
+    @Test fun cDP4_pedir_ubicacion() {
+        draw { Donde(DiscoveryUiState()) }
+        scrollTap("Cerca de ti")
+        shot("cDP4_pedir_ubicacion")
+    }
+
+    private fun onTheWay(): com.vaiinilla.app.domain.model.OrderDetail {
+        val base = ScreenshotFixtures.sampleOrder(state = OrderState.ON_THE_WAY, destination = com.vaiinilla.app.domain.model.OrderDestination.HOME_DELIVERY)
+        return base.copy(
+            homeDelivery =
+                com.vaiinilla.app.domain.model.OrderHomeDelivery(
+                    address = com.vaiinilla.app.domain.model.DeliveryAddress(address = "Aldama 1408, Centro", phone = "6140000000"),
+                    deposit = "41.00",
+                    dueOnArrival = "41.00",
+                    code = "4827",
+                ),
+        )
+    }
+
+    @Composable
+    private fun Journey() =
+        com.vaiinilla.app.ui.screens.OrderJourneyPage(
+            order = onTheWay(),
+            qrPayload = null,
+            onBack = {},
+            venue = com.vaiinilla.app.ui.order.JourneyVenue(name = "Pastelería Vaini", whatsappUrl = "https://wa.me/5216140000000"),
+        )
+
+    @Test fun cD4_pagar_resto() {
+        draw { Journey() }
+        scrollTap("Prefiero pagar con tarjeta")
+        shot("cD4_pagar_resto")
+    }
+
+    @Test fun cD7_que_paso() {
+        draw { Journey() }
+        scrollTap("Necesito ayuda")
+        shot("cD7_que_paso")
+    }
+
     @Test fun cDP2_primera_vez() {
         draw { Donde(DiscoveryUiState()) }
         shot("cDP2_primera_vez")

@@ -78,7 +78,7 @@ private val StripeLine = Color(0x42F3EFE4)
 private val StripeLime = Color(0xFFB7D464)
 private val StripeLimeInk = Color(0xFF172008)
 private val StripeCoral = Color(0xFFFF8F77)
-private val STRIPE_SHEET_PHASES =
+internal val STRIPE_SHEET_PHASES =
     setOf(
         StripePaymentPhase.READY,
         StripePaymentPhase.PRESENTING,

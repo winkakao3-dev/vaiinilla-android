@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screenshot
 
+import androidx.compose.ui.test.performScrollTo
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.asImageBitmap
@@ -101,6 +102,7 @@ class OrderJourneyScreenshotTest {
         venue: JourneyVenue = JourneyVenue(name = "Café Lumbre"),
         qrPayload: String? = null,
         waiter: Boolean = false,
+        pay: Boolean = false,
         before: () -> Unit = {},
     ) {
         val photo =
@@ -122,6 +124,7 @@ class OrderJourneyScreenshotTest {
                         onCallWaiter = if (waiter) ({ _, _, _ -> Result.failure(IllegalStateException("sin red")) }) else null,
                         onCancelWaiter = if (waiter) ({ Result.failure(IllegalStateException("sin red")) }) else null,
                         onOpenMenu = {},
+                        onPay = if (pay) ({}) else null,
                     )
                 }
             }
@@ -366,6 +369,17 @@ class OrderJourneyScreenshotTest {
 
     @Test
     fun d03_domicilio_en_camino() = capture("d03_domicilio_en_camino", homeOrder(OrderState.ON_THE_WAY), pasteleria)
+
+    @Test
+    fun d01b_domicilio_falta_anticipo() {
+        val base = homeOrder(OrderState.PENDING_PAYMENT)
+        capture(
+            "d01b_domicilio_falta_anticipo",
+            base.copy(payBy = java.time.Instant.parse("2026-11-04T18:00:00Z")),
+            pasteleria,
+            pay = true,
+        )
+    }
 
     @Test
     fun d05_domicilio_entregado() = capture("d05_domicilio_entregado", homeOrder(OrderState.DELIVERED), pasteleria)

@@ -1068,6 +1068,9 @@ fun AppNavHost(
                     state = discoveryState,
                     onQueryChange = discoveryViewModel::updateQuery,
                     onRetrySearch = discoveryViewModel::retrySearch,
+                    onEnableNearby = discoveryViewModel::enableNearby,
+                    onDisableNearby = discoveryViewModel::disableNearby,
+                    onNearbyDenied = discoveryViewModel::onNearbyPermissionDenied,
                     onSpaceTokenChange = discoveryViewModel::updateSpaceToken,
                     onOpenQrScanner = { qrScannerOpen = true },
                     onSelectEstablishment = { establishment ->

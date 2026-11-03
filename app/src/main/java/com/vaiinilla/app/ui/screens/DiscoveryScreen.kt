@@ -1,5 +1,14 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.core.location.HomeAddressLocator
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.outlined.NearMe
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -167,10 +176,39 @@ fun DiscoveryScreen(
     onOpenSchool: (MySchool) -> Unit = {},
     onLoadMore: () -> Unit = {},
     onRetrySearch: () -> Unit = {},
+    onEnableNearby: () -> Unit = {},
+    onDisableNearby: () -> Unit = {},
+    onNearbyDenied: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    var nearbyOpen by rememberSaveable { mutableStateOf(state.nearbyOrigin != null) }
+    var nearbyAsk by remember { mutableStateOf(false) }
+    val closeNearby = {
+        nearbyOpen = false
+        onDisableNearby()
+    }
+    BackHandler(enabled = nearbyOpen) { closeNearby() }
+    val nearbyPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                nearbyOpen = true
+                onEnableNearby()
+            } else {
+                nearbyOpen = false
+                onNearbyDenied()
+            }
+        }
+    val openNearby = {
+        if (HomeAddressLocator.hasLocationPermission(context)) {
+            nearbyOpen = true
+            onEnableNearby()
+        } else {
+            nearbyAsk = true
+        }
+    }
     val reduced = reducedMotion()
     var codeSheetOpen by remember { mutableStateOf(false) }
     LaunchedEffect(tableCodeRequest) {
@@ -243,7 +281,7 @@ fun DiscoveryScreen(
                     .then(if (codeSheetOpen) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
             AnimatedContent(
-                targetState = searching,
+                targetState = searching to nearbyOpen,
                 transitionSpec = {
                     if (reduced) {
                         fadeIn(snap()) togetherWith fadeOut(snap())
@@ -253,12 +291,13 @@ fun DiscoveryScreen(
                     }
                 },
                 label = "discovery-bar",
-            ) { inSearch ->
+            ) { (inSearch, inNearby) ->
                 if (inSearch) {
                     DiscoverySearchBar(query = state.query, onQueryChange = onQueryChange, onClose = closeSearch)
                 } else {
                     DiscoveryTopBar(
-                        onBack = onBack,
+                        title = if (inNearby) "Cerca de ti" else "Dónde pedir",
+                        onBack = if (inNearby) closeNearby else onBack,
                         profileInitials = profileInitials,
                         onOpenAccount = {
                             haptics.click()
@@ -279,7 +318,15 @@ fun DiscoveryScreen(
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
             ) {
                 notices(state = state)
-                if (searching) {
+                if (nearbyOpen && !searching) {
+                    nearbyResults(
+                        state = state,
+                        activeId = activeId,
+                        activeSpaceName = state.selected?.space?.name,
+                        onEnter = enterVenue,
+                        onLoadMore = onLoadMore,
+                    )
+                } else if (searching) {
                     searchResults(
                         state = state,
                         activeId = activeId,
@@ -313,6 +360,10 @@ fun DiscoveryScreen(
                                 haptics.click()
                                 searching = true
                             },
+                            onOpenNearby = {
+                                haptics.click()
+                                openNearby()
+                            },
                             modifier =
                                 Modifier.animateItem(
                                     fadeInSpec = if (reduced) snap() else spring(stiffness = 420f),
@@ -327,6 +378,16 @@ fun DiscoveryScreen(
                     }
                 }
             }
+        }
+
+        if (nearbyAsk) {
+            NearbyAskSheet(
+                onUse = {
+                    nearbyAsk = false
+                    nearbyPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                },
+                onDismiss = { nearbyAsk = false },
+            )
         }
 
         if (codeSheetOpen) {
@@ -364,6 +425,7 @@ private fun LazyListScope.notices(state: DiscoveryUiState) {
 
 @Composable
 private fun DiscoveryTopBar(
+    title: String = "Dónde pedir",
     onBack: (() -> Unit)?,
     profileInitials: String,
     onOpenAccount: () -> Unit,
@@ -385,7 +447,7 @@ private fun DiscoveryTopBar(
             Spacer(Modifier.width(12.dp))
         }
         Text(
-            "Dónde pedir",
+            title,
             color = colors.ink,
             fontSize = 24.sp,
             lineHeight = 28.sp,
@@ -502,6 +564,7 @@ private fun EntrySections(
     onContinueActive: () -> Unit,
     onOpenSchool: (MySchool) -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenNearby: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -560,6 +623,7 @@ private fun EntrySections(
             onClick = onOpenSearch,
             modifier = Modifier.padding(top = if (firstVisit) 28.dp else 24.dp).discoveryRise(7),
         )
+        NearbyRow(onClick = onOpenNearby, modifier = Modifier.padding(top = 10.dp).discoveryRise(7))
     }
 }
 
@@ -873,6 +937,186 @@ private fun SearchLauncher(
     }
 }
 
+/** «Cerca de ti» de la entrada (marco DP1): abre el permiso o, si ya lo dio, la lista. */
+@Composable
+private fun NearbyRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .padding(vertical = 8.dp)
+                .testTag("guest-nearby")
+                .semantics(mergeDescendants = true) { role = Role.Button },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.paper2),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.NearMe, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text("Cerca de ti", color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(
+                "Ordena los lugares por distancia. Pide tu ubicación solo para eso.",
+                color = colors.muted,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.muted)
+    }
+}
+
+/** Pedir la ubicación con su porqué antes del permiso del sistema (marco DP4). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NearbyAskSheet(
+    onUse: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.paper2,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier.size(104.dp).border(1.dp, colors.accent.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.size(82.dp).border(2.dp, colors.accent.copy(alpha = 0.7f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        Modifier.size(62.dp).clip(CircleShape).background(colors.ink),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Outlined.NearMe, contentDescription = null, tint = colors.onInk, modifier = Modifier.size(26.dp))
+                    }
+                }
+            }
+            Text(
+                "¿Te enseñamos lo que está cerca?",
+                color = colors.ink,
+                fontSize = 26.sp,
+                lineHeight = 30.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-0.8).sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 18.dp),
+            )
+            Text(
+                "Ordenamos los lugares del más cercano al más lejano.",
+                color = colors.muted,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Column(Modifier.fillMaxWidth().padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf(
+                    "Solo mientras tienes la app abierta.",
+                    "Solo para ordenar la lista, nada más.",
+                    "Si dices que no, igual puedes buscar por nombre.",
+                ).forEach { line ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Rounded.Check, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                        Text(line, color = colors.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            Box(
+                Modifier
+                    .padding(top = 22.dp)
+                    .fillMaxWidth()
+                    .height(54.dp)
+                    .physicalPress(onClick = onUse)
+                    .clip(CircleShape)
+                    .background(colors.accent)
+                    .semantics { role = Role.Button },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Usar mi ubicación", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            }
+            Text(
+                "Ahora no, buscar por nombre",
+                color = colors.ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier =
+                    Modifier
+                        .padding(top = 8.dp)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onDismiss)
+                        .padding(12.dp),
+            )
+        }
+    }
+}
+
+/** La lista de «Cerca de ti» (marco DP5). El servidor la ordena; aún no manda los metros de cada lugar. */
+private fun LazyListScope.nearbyResults(
+    state: DiscoveryUiState,
+    activeId: String?,
+    activeSpaceName: String?,
+    onEnter: (PublicEstablishment) -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    item(key = "nearby-caption") {
+        val colors = LocalVaiinillaColors.current
+        Row(
+            Modifier.padding(top = 4.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(Icons.Outlined.NearMe, contentDescription = null, tint = colors.accent, modifier = Modifier.size(14.dp))
+            Text(
+                state.locationMessage ?: if (state.locating) "Buscando dónde estás…" else "Del más cercano al más lejano",
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+    if ((state.loading || state.locating) && state.establishments.isEmpty()) {
+        items(3) { VenueSkeleton() }
+        return
+    }
+    val list = state.establishments
+    itemsIndexed(list, key = { _, it -> "cerca-${it.id}" }) { index, establishment ->
+        VenueRow(
+            establishment = establishment,
+            query = "",
+            active = activeId == establishment.id,
+            activeSpaceName = activeSpaceName,
+            divider = index != list.lastIndex,
+            onClick = { onEnter(establishment) },
+            modifier = Modifier.animateItem(),
+        )
+    }
+    if (state.nextCursor != null) {
+        item(key = "nearby-more") {
+            EditorialSecondaryButton(
+                text = if (state.loadingMore) "Cargando…" else "Ver más lugares",
+                onClick = onLoadMore,
+                enabled = !state.loadingMore,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+    }
+}
 private fun LazyListScope.searchResults(
     state: DiscoveryUiState,
     activeId: String?,

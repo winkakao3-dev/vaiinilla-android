@@ -87,7 +87,7 @@ class OrderJourneyTest {
     @Test
     fun notesWarnWhatMattersNow() {
         assertEquals(
-            "No se te cobra nada hasta que pagues.",
+            "Hasta que pagues no se prepara nada y no se te cobra nada.",
             journeyNote(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH), OrderJourney.COUNTER),
         )
         assertEquals(
@@ -113,7 +113,7 @@ class OrderJourneyTest {
 
         val cash = order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)
         assertEquals("Por pagar · en Caja", journeyCaption(cash, OrderJourney.COUNTER).text)
-        assertEquals("Paga tu pedido en Caja.", journeyHeadline(cash, OrderJourney.COUNTER))
+        assertEquals("Paga en Caja y empiezan tu pedido.", journeyHeadline(cash, OrderJourney.COUNTER))
 
         val court = order(OrderState.READY, space = "cancha")
         assertEquals("Ya va a Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))

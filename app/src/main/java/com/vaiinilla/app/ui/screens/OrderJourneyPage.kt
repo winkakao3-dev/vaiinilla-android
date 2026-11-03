@@ -1,5 +1,20 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.order.journeySeat
+import com.vaiinilla.app.ui.order.JourneySeat
+import com.vaiinilla.app.domain.model.amountDueOnAcceptance
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -43,7 +58,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -165,6 +179,9 @@ internal fun OrderJourneyPage(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     onOpenMenu: (() -> Unit)? = null,
     guestNotice: String? = null,
+    /** Pagar el encargo que ya aceptaron (D1b); null si no hay nada que pagar aquí. */
+    onPay: (() -> Unit)? = null,
+    paying: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -198,9 +215,29 @@ internal fun OrderJourneyPage(
             null
         }
     val arrival = onAnnounceArrival.takeIf { order.canAnnounceArrival(venue.driveThru) }
+    val context = LocalContext.current
+    var helpOpen by rememberSaveable(key) { mutableStateOf(false) }
+    var payRestOpen by rememberSaveable(key) { mutableStateOf(false) }
+    val writeToVenue: (String) -> Unit = { message ->
+        venue.whatsappUrl?.let { url ->
+            val glue = if ("?" in url) "&" else "?"
+            runCatching { uri.openUri("$url${glue}text=${android.net.Uri.encode(message)}") }
+        }
+    }
+    val home = journey == OrderJourney.HOME_DELIVERY
     val actions =
         buildList {
             val open = state !in setOf(OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED)
+            if (onPay != null) {
+                add(
+                    JourneyAction(
+                        if (paying) "Preparando pago…" else "Pagar ${moneyLabel(order.amountDueOnAcceptance)}",
+                        ButtonLook.LIME,
+                        null,
+                        onClick = onPay,
+                    ),
+                )
+            }
             if (codeUseful && !autoCode && !codeOpen && matrix != null) {
                 add(
                     JourneyAction("Mostrar código", ButtonLook.OUTLINE, Icons.Outlined.QrCode2, JOURNEY_SHOW_CODE_TAG) {
@@ -258,12 +295,42 @@ internal fun OrderJourneyPage(
             },
             colors = colors,
         )
+        if (home && state == OrderState.DELIVERED) {
+            DeliveredReceipt(
+                order = order,
+                colors = colors,
+                onReceipt = {
+                    val text =
+                        "Recibo del pedido #${order.summary.folio}" +
+                            (venue.name?.let { " de $it" } ?: "") + ": ${moneyLabel(order.summary.total)}."
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent.createChooser(
+                                android.content.Intent(android.content.Intent.ACTION_SEND)
+                                    .setType("text/plain")
+                                    .putExtra(android.content.Intent.EXTRA_TEXT, text),
+                                "Mandar recibo",
+                            ),
+                        )
+                    }
+                },
+                onInvoice =
+                    venue.whatsappUrl?.let {
+                        { writeToVenue("Hola, quiero factura del pedido #${order.summary.folio}.") }
+                    },
+                onAgain = onOpenMenu,
+            )
+            return@Column
+        }
         Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 18.dp)) {
             JourneyHeader(order, journey, colors)
             if (state == OrderState.CANCELED) {
                 orderCancellationNotice(order)?.let { notice ->
                     notice.reason?.let { CancelQuote(it, notice.title, colors, Modifier.arrive(3, key)) }
                 }
+            }
+            if (journey == OrderJourney.SEAT && state != OrderState.DELIVERED) {
+                journeySeat(order)?.let { SeatTiles(it, colors, Modifier.padding(top = 14.dp).arrive(3, key)) }
             }
             val steps = journeySteps(order, journey)
             if (steps.isNotEmpty()) {
@@ -287,7 +354,18 @@ internal fun OrderJourneyPage(
             ) {
                 FolioCodeCard(order, matrix, colors)
             }
-            OrderCard(order, journey, showCode, colors, Modifier.arrive(4, key))
+            val neverAccepted = state == OrderState.CANCELED && journeyMoneyBack(order) == "No te cobramos nada"
+            if (!neverAccepted) OrderCard(order, journey, showCode, colors, Modifier.arrive(4, key))
+            if (home && state == OrderState.ON_THE_WAY) {
+                order.homeDelivery?.dueOnArrival?.takeIf { order.homeDelivery.hasAmountDue }?.let { due ->
+                    PayAtDoorCard(due, order.homeDelivery.deposit, colors, Modifier.arrive(5, key))
+                    JourneyButton(
+                        JourneyAction("Prefiero pagar con tarjeta aquí", ButtonLook.OUTLINE, null) { payRestOpen = true },
+                        colors,
+                        Modifier.fillMaxWidth().arrive(5, key),
+                    )
+                }
+            }
             // La tarjeta del dinero ya dice a dónde regresó; la nota no lo repite.
             journeyNote(order, journey)
                 ?.takeUnless { journeyMoneyBack(order) != null && it == cancellationMoneyNote(order) }
@@ -310,7 +388,35 @@ internal fun OrderJourneyPage(
                 )
             }
             JourneyActions(actions, colors, Modifier.arrive(6, key))
+            if (home && venue.whatsappUrl != null && state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)) {
+                Text(
+                    if (state == OrderState.ON_THE_WAY) "No estaré en casa · Necesito ayuda" else "Algo cambió o necesito ayuda",
+                    color = colors.ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    textDecoration = TextDecoration.Underline,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .physicalPress(scale = PhysicalPressScale.Small) { helpOpen = true }
+                            .padding(10.dp),
+                )
+            }
         }
+    }
+    if (payRestOpen) {
+        PayRestSheet(order, venue.name, colors, onPay = null) { payRestOpen = false }
+    }
+    if (helpOpen) {
+        OrderHelpSheet(
+            order = order,
+            venueName = venue.name,
+            colors = colors,
+            onWrite = {
+                helpOpen = false
+                writeToVenue(it)
+            },
+        ) { helpOpen = false }
     }
     waiter?.let { WaiterCallHost(state = it, place = order.summary.space?.name) }
 }
@@ -336,11 +442,11 @@ private fun JourneyTopRow(
                     .background(colors.paper2)
                     .semantics {
                         role = Role.Button
-                        contentDescription = "Regresar"
+                        contentDescription = "Cerrar"
                     },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
+            Icon(Icons.Rounded.Close, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
         }
         Column(Modifier.weight(1f)) {
             if (venueName.isNullOrBlank()) {
@@ -759,6 +865,37 @@ private fun MoneyBackCard(
     colors: VaiinillaColors,
     modifier: Modifier = Modifier,
 ) {
+    if (title == "No te cobramos nada") {
+        Column(
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.accent.copy(alpha = 0.1f))
+                .border(1.dp, colors.accent.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                .padding(16.dp),
+        ) {
+            Text("TU DINERO", color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+            Text(
+                title,
+                color = colors.ink,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-0.8).sp,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            detail?.let {
+                Text(
+                    it,
+                    color = colors.ink2,
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+        return
+    }
     Row(
         modifier
             .fillMaxWidth()
@@ -898,7 +1035,7 @@ private fun JourneyActions(
 ) {
     if (actions.isEmpty()) return
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        val lead = if (actions.size % 2 == 1) actions.first() else null
+        val lead = if (actions.size % 2 == 1 || actions.first().look == ButtonLook.LIME) actions.first() else null
         lead?.let { JourneyButton(it, colors, Modifier.fillMaxWidth()) }
         actions.drop(if (lead != null) 1 else 0).chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -939,6 +1076,368 @@ private fun JourneyButton(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             action.icon?.let { Icon(it, contentDescription = null, tint = content, modifier = Modifier.size(18.dp)) }
             Text(action.text, color = content, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        }
+    }
+}
+
+/** Entregado a domicilio (marco D5): un recibo que se puede mandar y, abajo, pedir otra vez. */
+@Composable
+private fun DeliveredReceipt(
+    order: OrderDetail,
+    colors: VaiinillaColors,
+    onReceipt: () -> Unit,
+    onInvoice: (() -> Unit)?,
+    onAgain: (() -> Unit)?,
+) {
+    val summary = order.summary
+    var stars by rememberSaveable(summary.id) { mutableStateOf(0) }
+    val deposit = order.homeDelivery?.deposit?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+    val total = summary.total.toBigDecimalOrNull()
+    val rest = if (deposit != null && total != null) total - deposit else null
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(64.dp).clip(CircleShape).background(colors.accent), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Verified, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(32.dp))
+        }
+        Text(
+            "ENTREGADO",
+            color = colors.accent,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 2.2.sp,
+            modifier = Modifier.padding(top = 14.dp),
+        )
+        Text(
+            "¡Que lo disfruten!",
+            color = colors.ink,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-1.2).sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            "Ya quedó entregado y pagado.",
+            color = colors.ink2,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Column(
+            Modifier
+                .padding(top = 16.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.paper2)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            ReceiptRow(order.items.joinToString(" · ") { it.line() }, moneyLabel(summary.total), colors)
+            if (deposit != null) {
+                Divider(colors)
+                ReceiptRow("Anticipo", moneyLabel(deposit.toPlainString()), colors)
+            }
+            if (rest != null) {
+                Divider(colors)
+                ReceiptRow("Al recibir", moneyLabel(rest.toPlainString()), colors)
+            }
+            Divider(colors)
+            ReceiptRow("Pagaste en total", moneyLabel(summary.total), colors, strong = true)
+        }
+        Row(Modifier.padding(top = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            JourneyButton(
+                JourneyAction("Mandar recibo", ButtonLook.OUTLINE, Icons.Outlined.ChatBubbleOutline, onClick = onReceipt),
+                colors,
+                Modifier.weight(1f),
+            )
+            onInvoice?.let {
+                JourneyButton(JourneyAction("Pedir factura", ButtonLook.OUTLINE, null, onClick = it), colors, Modifier.weight(1f))
+            }
+        }
+        Column(
+            Modifier
+                .padding(top = 12.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.paper2)
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("¿Qué tal estuvo?", color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (1..5).forEach { star ->
+                    Icon(
+                        Icons.Rounded.Star,
+                        contentDescription = "$star de 5",
+                        tint = if (star <= stars) colors.yolk else colors.ink.copy(alpha = 0.15f),
+                        modifier =
+                            Modifier
+                                .size(34.dp)
+                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star },
+                    )
+                }
+            }
+            Text(
+                "Un toque basta.",
+                color = colors.muted,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+        onAgain?.let {
+            JourneyButton(
+                JourneyAction("Pedir otra vez", ButtonLook.INK, null, onClick = it),
+                colors,
+                Modifier.padding(top = 12.dp).fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReceiptRow(
+    label: String,
+    value: String,
+    colors: VaiinillaColors,
+    strong: Boolean = false,
+) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            color = if (strong) colors.ink else colors.ink2,
+            fontSize = 14.sp,
+            fontWeight = if (strong) FontWeight.Black else FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            value,
+            color = if (strong) colors.accent else colors.ink,
+            fontSize = if (strong) 18.sp else 14.sp,
+            fontWeight = FontWeight.Black,
+        )
+    }
+}
+
+/** Sala, fila y asiento en recuadros (marco P6), cuando el nombre del lugar los trae. */
+@Composable
+private fun SeatTiles(
+    seat: JourneySeat,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("SALA" to seat.room, "FILA" to seat.row, "ASIENTO" to seat.seat).forEach { (label, value) ->
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.paper2)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                Text(label, color = colors.muted, fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.3.sp)
+                Text(value, color = colors.ink, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+/** Cómo se paga en la puerta (marco D3): lo que falta y las dos formas que acepta quien lo lleva. */
+@Composable
+private fun PayAtDoorCard(
+    amount: String,
+    depositPaid: String?,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(colors.paper2)
+            .padding(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Pagas al recibir",
+                color = colors.muted,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(moneyLabel(amount), color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+        }
+        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Efectivo", "Transferencia").forEach { label ->
+                Text(
+                    label,
+                    color = colors.ink,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier =
+                        Modifier
+                            .clip(CircleShape)
+                            .background(colors.ink.copy(alpha = 0.08f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+        depositPaid?.let {
+            Text(
+                "El anticipo de ${moneyLabel(it)} ya está pagado; no se vuelve a cobrar.",
+                color = colors.ink2,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+    }
+}
+
+/** Pagar lo que falta con tarjeta (marco D4). El servidor aún no tiene cómo cobrarlo: sin [onPay] se queda apagado. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PayRestSheet(
+    order: OrderDetail,
+    venueName: String?,
+    colors: VaiinillaColors,
+    onPay: (() -> Unit)?,
+    onDismiss: () -> Unit,
+) {
+    val delivery = order.homeDelivery ?: return
+    val due = delivery.dueOnArrival ?: return
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.paper,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
+            Text(
+                listOfNotNull(venueName?.let { "PAGAR A ${it.uppercase()}" }, "PEDIDO #${order.summary.folio}").joinToString(" · "),
+                color = colors.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.4.sp,
+            )
+            Text(moneyLabel(due), color = colors.ink, fontSize = 36.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                "Es lo que falta de tu pedido. Solo se cobra esta parte.",
+                color = colors.ink2,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Column(
+                Modifier
+                    .padding(top = 14.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.paper2)
+                    .padding(horizontal = 14.dp, vertical = 2.dp),
+            ) {
+                ReceiptRow("Total", moneyLabel(order.summary.total), colors)
+                delivery.deposit?.let {
+                    Divider(colors)
+                    ReceiptRow("Ya pagaste", "−${moneyLabel(it)}", colors)
+                }
+                Divider(colors)
+                ReceiptRow("Pagas ahora", moneyLabel(due), colors, strong = true)
+            }
+            Spacer(Modifier.height(14.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+                    .physicalPress(enabled = onPay != null) { onPay?.invoke() }
+                    .graphicsLayer { alpha = if (onPay != null) 1f else 0.4f }
+                    .clip(CircleShape)
+                    .background(colors.accent),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Pagar ${moneyLabel(due)}", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            }
+            if (onPay == null) {
+                Text(
+                    "Todavía no se puede pagar aquí. Por ahora, págalo al recibirlo.",
+                    color = colors.muted,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+/** «¿Qué pasó?» (marco D7): cada caso le escribe al negocio con el mensaje ya armado y dice qué pasa con el dinero. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OrderHelpSheet(
+    order: OrderDetail,
+    venueName: String?,
+    colors: VaiinillaColors,
+    onWrite: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val folio = order.summary.folio
+    val cases =
+        listOf(
+            Triple(Icons.Outlined.Home, "No voy a estar en casa", "Le avisamos al negocio para cambiar la hora."),
+            Triple(Icons.Outlined.Schedule, "Cambiar la hora de entrega", "El negocio confirma la hora nueva antes de salir."),
+            Triple(Icons.Outlined.Place, "Ya pasó la hora y no llega", "Le preguntamos al negocio por dónde va."),
+            Triple(Icons.Outlined.PhotoCamera, "Llegó dañado o no es lo que pedí", "Mándale una foto por WhatsApp. No pagues el resto hasta que te conteste."),
+        )
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.paper,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                listOfNotNull("PEDIDO #$folio", venueName?.uppercase()).joinToString(" · "),
+                color = colors.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.4.sp,
+            )
+            Text("¿Qué pasó?", color = colors.ink, fontSize = 28.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp)
+            Text(
+                "En cada caso te decimos qué pasa con tu dinero.",
+                color = colors.ink2,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            cases.forEach { (icon, title, detail) ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .physicalPress(scale = PhysicalPressScale.Small) { onWrite("Pedido #$folio: $title.") }
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(colors.paper2)
+                        .padding(12.dp)
+                        .semantics(mergeDescendants = true) { role = Role.Button },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.ink.copy(alpha = 0.08f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp)) }
+                    Column(Modifier.weight(1f)) {
+                        Text(title, color = colors.ink, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(detail, color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.muted)
+                }
+            }
         }
     }
 }
