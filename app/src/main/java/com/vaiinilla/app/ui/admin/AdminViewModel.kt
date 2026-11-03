@@ -87,6 +87,8 @@ data class AdminUiState(
     val cashCheckFailed: Boolean = false,
     /** Arqueo: lo que debería haber al cerrar; null si el servidor no lo manda. */
     val cashExpected: String? = null,
+    /** Lo entregado hoy, que en el dibujo va debajo de los activos. */
+    val deliveredToday: List<OrderDetail> = emptyList(),
     val cashLastClose: CashLastClose? = null,
     /** Los cobros en efectivo de la sesión abierta, para la lista de Caja. */
     val cashOrders: List<OrderDetail> = emptyList(),
@@ -527,7 +529,18 @@ class AdminViewModel
                                 )
                             },
                         )
+                    if (filter == AdminOrderFilter.ACTIVE && !append) loadDeliveredToday()
                 }
+        }
+
+        private suspend fun loadDeliveredToday() {
+            val page =
+                withContext(Dispatchers.IO) {
+                    adminRepository.orders(AdminOrderFilter.DELIVERED.states, null)
+                }.getOrNull() ?: return
+            val today = java.time.LocalDate.now(BusinessTime.zone).toString()
+            _uiState.value =
+                _uiState.value.copy(deliveredToday = page.orders.filter { it.summary.operationalDate == today })
         }
 
         /** Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. */

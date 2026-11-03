@@ -855,9 +855,21 @@ internal fun AdminEmptyState(
     ) {
         if (icon != null) {
             Box(
-                Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(colors.textPrimary.copy(alpha = 0.1f)),
+                Modifier.size(84.dp).border(1.dp, colors.cardBorder, CircleShape),
                 contentAlignment = Alignment.Center,
-            ) { Icon(icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(28.dp)) }
+            ) {
+                Box(
+                    Modifier.size(64.dp).clip(CircleShape).background(colors.cardBackground),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = if (colors.isDark) colors.accentLime else colors.textPrimary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
         }
         Text(
             title,
@@ -879,7 +891,7 @@ internal fun AdminEmptyState(
         )
         if (action != null && onAction != null) {
             Spacer(Modifier.height(22.dp))
-            AdminPrimaryButton(title = action, colors = colors, icon = Icons.Outlined.Add, onClick = onAction)
+            AdminPrimaryButton(title = action, colors = colors, icon = Icons.Outlined.Add, fullWidth = false, onClick = onAction)
         }
     }
 }
@@ -971,6 +983,7 @@ internal fun AdminBadge(
     colors: OperationalColors,
     tone: AdminBadgeTone = AdminBadgeTone.NEUTRAL,
     dot: Boolean = false,
+    caps: Boolean = true,
 ) {
     val fg =
         when (tone) {
@@ -997,10 +1010,10 @@ internal fun AdminBadge(
     ) {
         if (dot) Box(Modifier.size(6.dp).clip(CircleShape).background(fg))
         Text(
-            text.uppercase(Locale("es", "MX")),
-            fontSize = 11.sp,
+            if (caps) text.uppercase(Locale("es", "MX")) else text,
+            fontSize = if (caps) 11.sp else 12.5.sp,
             fontWeight = FontWeight.Black,
-            letterSpacing = 0.9.sp,
+            letterSpacing = if (caps) 0.9.sp else 0.sp,
             color = fg,
             maxLines = 1,
         )

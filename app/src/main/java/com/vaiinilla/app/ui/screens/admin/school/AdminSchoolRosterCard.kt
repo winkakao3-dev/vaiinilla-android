@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
+import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.screens.admin.AdminSheet
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,13 +53,6 @@ internal fun RosterCard(
                     actions.onRetryRoster,
                 )
             roster == null -> AdminHint("Cargando el padrón…", colors)
-            pasting ->
-                RosterPaste(
-                    replacesCount = roster.size,
-                    colors = colors,
-                    enabled = enabled,
-                    onCancel = { pasting = false },
-                ) { students -> actions.onSaveRoster(students) { pasting = false } }
             roster.isEmpty() -> {
                 AdminHint(
                     "Sin padrón, cualquier tutor con el código puede dar de alta la matrícula que escriba. " +
@@ -94,10 +89,20 @@ internal fun RosterCard(
                     }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SchoolButton("Cambiar lista", colors, enabled) { pasting = true }
-                        SchoolButton("Quitar padrón", colors, enabled, destructive = true) { confirmsRemove = true }
+                        SchoolButton("Cambiar lista", colors, enabled, Modifier.weight(1f)) { pasting = true }
+                        SchoolButton("Quitar padrón", colors, enabled, Modifier.weight(1f), destructive = true) {
+                            confirmsRemove = true
+                        }
                     }
                 }
+            }
+        }
+    }
+    val roster = state.roster
+    if (pasting && roster != null) {
+        AdminSheet(title = "Pegar lista", colors = colors, busy = false, onDismiss = { pasting = false }) {
+            RosterPaste(replacesCount = roster.size, colors = colors, enabled = enabled) { students ->
+                actions.onSaveRoster(students) { pasting = false }
             }
         }
     }
@@ -109,7 +114,6 @@ private fun RosterPaste(
     replacesCount: Int,
     colors: OperationalColors,
     enabled: Boolean,
-    onCancel: () -> Unit,
     onSave: (List<RosterStudent>) -> Unit,
 ) {
     val haptics = rememberVaiinillaHaptics()
@@ -139,31 +143,27 @@ private fun RosterPaste(
                 if (result.students.size == 1) "Se leyó 1 alumno" else "Se leyeron ${result.students.size} alumnos",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = colors.textPrimary,
+                color = if (colors.isDark) colors.accentLime else colors.accentInk,
             )
             result.problems.take(3).forEach {
-                Text(it.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AdminCoral)
+                Text(it.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Yolk)
             }
             if (result.problems.size > 3) {
                 Text(
                     "y ${result.problems.size - 3} líneas más con problema",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = AdminCoral,
+                    color = Yolk,
                 )
             }
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        AdminPrimaryButton(
-            title = "Guardar padrón",
-            colors = colors,
-            modifier = Modifier.weight(1f),
-            enabled = enabled && result.canSave,
-        ) {
-            haptics.impact()
-            onSave(result.students)
-        }
-        SchoolButton("Cancelar", colors, enabled, onClick = onCancel)
+    AdminPrimaryButton(
+        title = "Guardar padrón",
+        colors = colors,
+        enabled = enabled && result.canSave,
+    ) {
+        haptics.impact()
+        onSave(result.students)
     }
 }

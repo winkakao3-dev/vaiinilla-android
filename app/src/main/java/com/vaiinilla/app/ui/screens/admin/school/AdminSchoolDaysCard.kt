@@ -1,5 +1,12 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
+import com.vaiinilla.app.ui.screens.admin.coralText
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminCoral
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.window.Dialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.snap
@@ -266,8 +273,9 @@ private fun MenuEditor(
     if (products == null) {
         AdminHint("Cargando el menú…", colors)
     } else {
-        Column {
-            products.filter { it.available }.forEach { product ->
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.cardInner).padding(horizontal = 12.dp)) {
+            products.filter { it.available }.forEachIndexed { index, product ->
+                if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
                 val isOn = product.id in current
                 Row(
                     modifier =
@@ -314,7 +322,7 @@ private fun MenuEditor(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        moneyLabel(product.digitalPrice),
+                        moneyLabelCents(product.digitalPrice),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textSecondary,
@@ -346,25 +354,14 @@ private fun MenuEditor(
                 1 -> "Se cancela 1 apartado y el saldo regresa a cada alumno."
                 else -> "Se cancelan $orders apartados y el saldo regresa a cada alumno."
             }
-        InlineConfirm(
+        CloseDayDialog(
             title = "¿Cerrar el ${SchoolDates.longLabel(date, today).lowercase()}?",
             message = "$what Ese día ya no se podrá apartar. Los tutores ven el motivo.",
-            confirmLabel = "Cerrar el día",
+            reason = reason,
             colors = colors,
             enabled = enabled && !state.saving,
-            destructive = true,
-            confirmEnabled = reason.trim().length in NoServiceDay.REASON_LENGTH,
+            onReason = { reason = it.take(NoServiceDay.REASON_LENGTH.last) },
             onCancel = { closing = false },
-            extra = {
-                OperationalField(
-                    value = reason,
-                    onValueChange = { reason = it.take(NoServiceDay.REASON_LENGTH.last) },
-                    label = "Motivo",
-                    colors = colors,
-                    placeholder = "Por qué no hay servicio",
-                    enabled = enabled,
-                )
-            },
         ) {
             closing = false
             actions.onCloseDay(date, reason)
@@ -374,8 +371,8 @@ private fun MenuEditor(
         Text(
             "Cerrar este día: no hay servicio",
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.textSecondary,
+            fontWeight = FontWeight.Bold,
+            color = colors.coralText,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -386,5 +383,62 @@ private fun MenuEditor(
                     .padding(vertical = 10.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
+    }
+}
+
+/** El aviso central para cerrar un día (marco 59): cancela lo apartado, por eso va con botón rojo y motivo. */
+@Composable
+private fun CloseDayDialog(
+    title: String,
+    message: String,
+    reason: String,
+    colors: OperationalColors,
+    enabled: Boolean,
+    onReason: (String) -> Unit,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    Dialog(onDismissRequest = onCancel) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.cardBackground)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                message,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            OperationalField(
+                value = reason,
+                onValueChange = onReason,
+                label = "Motivo",
+                colors = colors,
+                placeholder = "Por qué no hay servicio",
+                enabled = enabled,
+            )
+            AdminPrimaryButton(
+                title = "Cerrar el día",
+                colors = colors,
+                enabled = enabled && reason.trim().length in NoServiceDay.REASON_LENGTH,
+                fill = AdminCoral,
+                contentColor = Color.White,
+                onClick = onConfirm,
+            )
+            AdminSecondaryButton(title = "No", colors = colors, outlined = true, onClick = onCancel)
+        }
     }
 }

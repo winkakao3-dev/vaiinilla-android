@@ -143,6 +143,19 @@ internal fun AdminStaffSection(
                     InviteForm(colors, state, viewModel) {}
                 }
             }
+            item(key = "equipo") {
+                Column(Modifier.adminRise(2)) {
+                    AdminH2("Equipo", colors)
+                    AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                        AdminRow(
+                            title = "Tú",
+                            colors = colors,
+                            detail = "Dueño · todos los puestos",
+                            leading = { StaffAvatar("Tú", StaffRole.ADMIN, colors) },
+                        ) { AdminBadge("Admin", colors, AdminBadgeTone.OK) }
+                    }
+                }
+            }
             return@AdminSectionPage
         }
         item(key = "accesos") {

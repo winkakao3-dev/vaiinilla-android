@@ -65,6 +65,7 @@ internal fun AdminSectionPage(
     onBack: () -> Unit,
     subtitle: String? = null,
     eyebrow: String? = null,
+    inlineTitle: Boolean = false,
     trailing: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
@@ -76,6 +77,15 @@ internal fun AdminSectionPage(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors, onBack)
+                if (inlineTitle) {
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 22.sp,
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(start = 12.dp).semantics { heading() },
+                    )
+                }
                 androidx.compose.foundation.layout
                     .Spacer(Modifier.weight(1f))
                 trailing()
@@ -86,7 +96,7 @@ internal fun AdminSectionPage(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // El título grande de la sección, como el de la navegación de iOS.
-                item(key = "section-title") {
+                if (!inlineTitle) item(key = "section-title") {
                     Column(Modifier.padding(horizontal = 4.dp)) {
                         eyebrow?.let { AdminCapsLabel(it, colors) }
                         val compact = eyebrow != null || title.length > SECTION_TITLE_FITS

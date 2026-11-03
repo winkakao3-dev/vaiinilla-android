@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -132,6 +133,7 @@ internal fun AdminSchoolContent(
     val enabled = !readOnly && !state.saving
     AdminSectionPage(
         title = "Escuela",
+        inlineTitle = true,
         colors = colors,
         notice = state.notice,
         noticeIsError = state.noticeIsError,
@@ -151,15 +153,15 @@ internal fun AdminSchoolContent(
             }
             return@AdminSectionPage
         }
-        item(key = "tutores") { GuardianRequestsCard(state, settings, colors, enabled, actions) }
-        item(key = "quien-cuida") { GuardianshipsCard(state, colors, enabled, actions) }
-        item(key = "devoluciones") { StudentRequestsCard(state, colors, enabled, actions) }
         item(key = "codigo") { JoinCodeCard(settings, colors, enabled, actions) }
         item(key = "reglas") {
             SchoolRulesCard(settings, colors, enabled) { draft, done -> actions.onSave(draft, false, done) }
         }
         item(key = "cada-dia") { MenuDaysCard(state, products, colors, !readOnly, actions) }
         item(key = "padron") { RosterCard(state, colors, enabled, actions) }
+        item(key = "tutores") { GuardianRequestsCard(state, settings, colors, enabled, actions) }
+        item(key = "quien-cuida") { GuardianshipsCard(state, colors, enabled, actions) }
+        item(key = "devoluciones") { StudentRequestsCard(state, colors, enabled, actions) }
     }
 }
 
@@ -174,27 +176,25 @@ private fun JoinCodeCard(
     var confirmsRegenerate by remember { mutableStateOf(false) }
     AdminCard(colors, Modifier.animateContentSize(schoolSpring())) {
         AdminSectionTitle("Unirse a la escuela", colors)
-        AdminChoice(
-            question = "¿Quién puede entrar?",
+        Text("¿Quién puede entrar?", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+        AdminSegmented(
             options = listOf(false to "Cualquiera con el QR", true to "Solo con el código"),
             selected = settings.joinRequiresCode,
             colors = colors,
             enabled = enabled,
-        ) { requires ->
-            if (requires !=
-                settings.joinRequiresCode
-            ) {
-                actions.onSave(settings.copy(joinRequiresCode = requires), false) {}
-            }
-        }
+            onSelect = { requires ->
+                if (requires != settings.joinRequiresCode) {
+                    actions.onSave(settings.copy(joinRequiresCode = requires), false) {}
+                }
+            },
+        )
         val code = settings.joinCode
         if (code != null) {
             Text(
                 code,
-                fontSize = 34.sp,
+                fontSize = 30.sp,
                 fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 4.sp,
+                letterSpacing = 6.sp,
                 color = colors.textPrimary,
                 modifier = Modifier.padding(vertical = 4.dp),
             )
@@ -217,12 +217,13 @@ private fun JoinCodeCard(
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SchoolButton("Cambiar código", colors, enabled) { confirmsRegenerate = true }
+                    SchoolButton("Cambiar código", colors, enabled, Modifier.weight(1f)) { confirmsRegenerate = true }
                     if (!settings.joinRequiresCode) {
                         SchoolButton(
                             "Quitar código",
                             colors,
                             enabled,
+                            Modifier.weight(1f),
                             destructive = true,
                             onClick = actions.onRemoveJoinCode,
                         )
@@ -389,17 +390,18 @@ internal fun SchoolButton(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     destructive: Boolean = false,
+    primary: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = CircleShape
     Box(
         modifier =
             modifier
                 .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
                 .clip(shape)
-                .background(colors.cardInner)
+                .background(if (primary && enabled) colors.textPrimary else colors.cardInner)
                 .semantics { role = Role.Button }
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -410,6 +412,7 @@ internal fun SchoolButton(
                 when {
                     !enabled -> colors.textMuted
                     destructive -> AdminCoral
+                    primary -> colors.background
                     else -> colors.textPrimary
                 },
         )
@@ -503,13 +506,12 @@ internal fun PersonRow(
     }
 }
 
-/** Los botones de una fila, alineados con el texto (a la derecha del avatar). */
+/** Los botones de una fila. */
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 internal fun RowActions(content: @Composable RowScope.() -> Unit) {
     // Con la letra grande los botones bajan de renglón en vez de partir la palabra («Rechaza r», L01).
     androidx.compose.foundation.layout.FlowRow(
-        Modifier.padding(start = 56.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         content = content,
@@ -520,7 +522,7 @@ internal fun RowActions(content: @Composable RowScope.() -> Unit) {
 internal fun RowDivider(colors: OperationalColors) {
     Box(
         Modifier
-            .padding(start = 56.dp, top = 4.dp)
+            .padding(top = 4.dp)
             .fillMaxWidth()
             .height(1.dp)
             .background(colors.cardBorder),

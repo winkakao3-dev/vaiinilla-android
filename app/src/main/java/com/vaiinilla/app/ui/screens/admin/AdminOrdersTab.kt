@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import java.time.LocalDate
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -24,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ConfirmationNumber
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -267,7 +268,7 @@ private fun OrdersPage(
             }
             mode == OrdersMode.AWAITING ->
                 orderItems(state, awaiting, colors, actions, photos, OrdersMode.AWAITING, onTakeOrder) { open = it }
-            else ->
+            else -> {
                 orderItems(
                     state,
                     state.orders,
@@ -277,6 +278,24 @@ private fun OrdersPage(
                     OrdersMode.ORDERS,
                     onTakeOrder,
                 ) { open = it }
+                if (state.orderFilter == AdminOrderFilter.ACTIVE && state.deliveredToday.isNotEmpty()) {
+                    item(key = "entregados-hoy") {
+                        AdminCapsLabel(
+                            "Entregados hoy · ${state.deliveredToday.size}",
+                            colors,
+                            Modifier.padding(top = 14.dp, bottom = 4.dp),
+                        )
+                    }
+                    items(state.deliveredToday, key = { "entregado-${it.summary.id}" }) { order ->
+                        OrderRowCard(
+                            order = order,
+                            photo = order.items.firstOrNull()?.let { photos[it.productId] },
+                            colors = colors,
+                            modifier = Modifier.animateItem().padding(vertical = 4.dp),
+                        ) { open = order }
+                    }
+                }
+            }
         }
     }
     open?.let { order ->
@@ -427,7 +446,7 @@ private fun LazyListScope.orderItems(
             val takeOrder =
                 onTakeOrder != null && mode == OrdersMode.ORDERS && state.orderFilter == AdminOrderFilter.ACTIVE
             AdminEmptyState(
-                icon = Icons.Outlined.ConfirmationNumber,
+                icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                 title = title,
                 message = message,
                 colors = colors,
@@ -474,7 +493,8 @@ private fun emptyCopy(
         mode == OrdersMode.AWAITING ->
             "Nada por aceptar" to
                 "Los encargos y pedidos a domicilio nuevos esperan aquí tu sí."
-        filter == AdminOrderFilter.ACTIVE -> "Sin pedidos activos" to "Cuando alguien pida, lo ves aquí al momento."
+        filter == AdminOrderFilter.ACTIVE ->
+            "Sin pedidos por ahora" to "Cuando un cliente pida desde la app o tomes uno en Pedir, aparece aquí y te avisamos."
         filter == AdminOrderFilter.DELIVERED -> "Nada entregado todavía" to "Lo que entregues hoy sale en esta lista."
         filter == AdminOrderFilter.INCIDENTS ->
             "Sin incidencias" to
@@ -517,7 +537,7 @@ private fun OrderRowCard(
         AdminThumb(photo, order.items.firstOrNull()?.productName ?: "Pedido", colors, size = 46.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                listOfNotNull("#${summary.folio}", whoLabel(order) ?: whereLabel(order)).joinToString(" · "),
+                listOfNotNull("#${summary.folio}", summary.space?.name ?: whoLabel(order) ?: whereLabel(order)).joinToString(" · "),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = colors.textPrimary,
@@ -535,7 +555,7 @@ private fun OrderRowCard(
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                moneyLabel(summary.total),
+                moneyLabelCents(summary.total),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = if (summary.state == OrderState.DELIVERED) colors.textSecondary else colors.textPrimary,
@@ -547,14 +567,15 @@ private fun OrderRowCard(
 
 private fun orderSummaryLine(order: OrderDetail): String {
     val summary = order.summary
-    val products = order.items.joinToString(", ") { "${it.quantity} × ${it.productName}" }
+    val first = order.items.firstOrNull()?.productName
+    val more = (order.items.size - 1).takeIf { it > 0 }?.let { "y $it más" }
     val how =
         when {
             summary.destination == OrderDestination.HOME_DELIVERY -> "A domicilio"
             summary.paymentPending -> "por cobrar"
-            else -> chargedPaymentLabel(summary) ?: summary.paymentMethod.label
+            else -> (chargedPaymentLabel(summary) ?: summary.paymentMethod.label).lowercase()
         }
-    return listOfNotNull(products.ifBlank { null }, how, timeLabel(summary.createdAt)).joinToString(" · ")
+    return listOfNotNull(listOfNotNull(first, more).joinToString(" ").ifBlank { null }, how).joinToString(" · ")
 }
 
 private fun statusLabel(order: OrderDetail): String {
@@ -602,7 +623,7 @@ private fun OrderSheet(
             )
             whereLabel(order)?.let { AdminValueRow("Destino", it, colors) }
             whoLabel(order)?.let { AdminValueRow("Cliente", it, colors) }
-            timeLabel(summary.createdAt)?.let { AdminValueRow("Hora", it, colors, detail = summary.operationalDate) }
+            timeLabel(summary.createdAt)?.let { AdminValueRow("Hora", it, colors) }
             summary.cancelReason?.let { Text("Motivo: $it", fontSize = 13.sp, color = AdminCoral) }
             order.arrivedAt?.let { arrived ->
                 Text(
@@ -613,8 +634,8 @@ private fun OrderSheet(
                 )
             }
         }
-        AdminCard(colors) {
-            AdminSectionTitle("Productos", colors)
+        AdminCapsLabel("Productos", colors, Modifier.padding(top = 4.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             order.items.forEach { item ->
                 val details =
                     buildList {
@@ -627,7 +648,7 @@ private fun OrderSheet(
                     colors = colors,
                     detail = details.joinToString("\n").ifBlank { null },
                     leading = { AdminThumb(photos[item.productId], item.productName, colors) },
-                ) { AdminRowValue(moneyLabel(item.subtotal), colors) }
+                ) { AdminRowValue(moneyLabelCents(item.subtotal), colors) }
             }
             if (order.kitchenNotes.isNotBlank()) {
                 Text(
@@ -643,7 +664,7 @@ private fun OrderSheet(
             if (summary.cashbackAwarded.toBigDecimalOrNull()?.signum() == 1) {
                 AdminValueRow("Cashback otorgado", moneyLabel(summary.cashbackAwarded), colors)
             }
-            AdminValueRow("Total", moneyLabel(summary.total), colors, strong = true)
+            AdminValueRow("Total", moneyLabelCents(summary.total), colors, strong = true)
         }
     }
 }
@@ -663,5 +684,10 @@ private val ArrivalFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 private val TimeFormat = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.forLanguageTag("es-MX"))
 
+private val TodayFormat = DateTimeFormatter.ofPattern("'Hoy,' HH:mm")
+
 private fun timeLabel(iso: String): String? =
-    runCatching { TimeFormat.format(Instant.parse(iso).atZone(BusinessTime.zone)) }.getOrNull()
+    runCatching {
+        val at = Instant.parse(iso).atZone(BusinessTime.zone)
+        if (at.toLocalDate() == LocalDate.now(BusinessTime.zone)) TodayFormat.format(at) else TimeFormat.format(at)
+    }.getOrNull()

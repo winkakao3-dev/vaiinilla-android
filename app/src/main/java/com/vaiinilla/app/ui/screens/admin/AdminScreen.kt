@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -202,7 +203,7 @@ fun AdminScreen(
             )
         Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
             Column(modifier = Modifier.fillMaxSize()) {
-                if (restrictedMode != null) {
+                if (restrictedMode != null && !(readOnly && tab == AdminTab.BUSINESS)) {
                     Box(Modifier.statusBarsPadding()) { RestrictedBanner(restrictedMode, colors) }
                 }
                 AnimatedContent(
@@ -232,6 +233,7 @@ fun AdminScreen(
                                         sections.staff.uiState.value,
                                     ),
                                 onOpenOrders = { tab = AdminTab.ORDERS },
+                                onSeeAsCustomer = onChangeMode,
                                 onOpenSection = { section = it },
                             )
                         AdminTab.MENU ->
@@ -512,6 +514,10 @@ private fun AdminBusinessTab(
     val detail: (AdminSection) -> String = { businessDetail(it, state, store, spaces, readOnly) }
     val tiles = BusinessTiles.filter { it in sections }
     val wide = listOf(AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
+    if (readOnly) {
+        ReadOnlyBusiness(sections, colors, header, detail, onOpen)
+        return
+    }
     AdminHeroPage(
         cover = header.photoUrl,
         caption = "Administración · ${header.placeName}",
@@ -543,6 +549,54 @@ private fun AdminBusinessTab(
             item(key = "wide-${item.name}") {
                 BusinessWideRow(item, detail(item), readOnly, colors, Modifier.padding(top = 12.dp).adminRise(2)) {
                     onOpen(item)
+                }
+            }
+        }
+    }
+}
+
+/** Con el negocio suspendido (marco 38): el aviso y una sola lista, porque aquí solo se consulta. */
+@Composable
+private fun ReadOnlyBusiness(
+    sections: List<AdminSection>,
+    colors: OperationalColors,
+    header: AdminHeader,
+    detail: (AdminSection) -> String,
+    onOpen: (AdminSection) -> Unit,
+) {
+    AdminPage(caption = "Administración", title = "Mi negocio", colors = colors, trailing = { header.avatar() }) {
+        item(key = "aviso") {
+            Box(Modifier.padding(top = 10.dp, bottom = 10.dp).adminRise(1)) {
+                RestrictedBanner(RestrictedMode.READ_ONLY, colors, inset = false)
+            }
+        }
+        item(key = "lista") {
+            AdminPanel(colors, Modifier.adminRise(2), padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                val order =
+                    listOf(
+                        AdminSection.CASH,
+                        AdminSection.STORE,
+                        AdminSection.SPACES,
+                        AdminSection.STAFF,
+                        AdminSection.CASHBACK,
+                        AdminSection.SCHOOL,
+                    ).filter { it in sections }
+                order.forEachIndexed { index, section ->
+                    if (index > 0) AdminRowDivider(colors)
+                    AdminRow(
+                        title = section.label,
+                        colors = colors,
+                        detail = detail(section),
+                        onClick = { onOpen(section) },
+                        leading = { AdminIconBox(section.icon, colors) },
+                    ) {
+                        Icon(
+                            Icons.Outlined.Lock,
+                            contentDescription = "Solo lectura",
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
                 }
             }
         }
@@ -685,12 +739,13 @@ private fun BusinessWideRow(
 private fun RestrictedBanner(
     mode: RestrictedMode,
     colors: OperationalColors,
+    inset: Boolean = true,
 ) {
     val shape = RoundedCornerShape(22.dp)
     Row(
         modifier =
             Modifier
-                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+                .then(if (inset) Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp) else Modifier)
                 .fillMaxWidth()
                 .clip(shape)
                 .background(AdminCoral.copy(alpha = 0.1f))
@@ -708,7 +763,11 @@ private fun RestrictedBanner(
                 color = colors.textPrimary,
             )
             Text(
-                "El negocio está suspendido: solo se permiten las acciones de cierre compatibles con la suspensión.",
+                if (mode == RestrictedMode.READ_ONLY) {
+                    "Tu negocio está suspendido. Puedes ver tus datos y ventas, pero no cambiar nada ni recibir pedidos."
+                } else {
+                    "El negocio está suspendido: solo se permiten las acciones de cierre compatibles con la suspensión."
+                },
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textSecondary,

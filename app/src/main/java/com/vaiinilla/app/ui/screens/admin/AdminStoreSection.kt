@@ -416,6 +416,34 @@ private fun StoreQuestion(
 }
 
 /** Cómo está la cuenta de Stripe, en una franja de color: conectada (lima), pendiente (yema) o sin conectar. */
+/** La misma información en un renglón, para la tarjeta del marco 02a. */
+@Composable
+private fun StripeCompactLine(
+    step: StripeStep,
+    colors: OperationalColors,
+) {
+    val lime = if (colors.isDark) colors.accentLime else colors.accentInk
+    val (icon, text, tint) =
+        when (step) {
+            StripeStep.READY -> Triple(Icons.Outlined.Verified, "Cuenta de Stripe conectada", lime)
+            StripeStep.FINISH -> Triple(Icons.Outlined.HourglassTop, "Stripe está revisando tus datos", Yolk)
+            StripeStep.CONNECT -> Triple(Icons.Outlined.CreditCard, "Sin conectar", colors.textMuted)
+        }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(tint.copy(alpha = 0.14f))
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        Text(text, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, color = tint)
+    }
+}
+
 /** Sin conectar, en revisión o lista, con su ícono y lo que significa (marco 42). */
 @Composable
 private fun StripeStatusLine(
@@ -490,7 +518,7 @@ private fun StripeQuick(
         return
     }
     val step = stripeStep(state.stripe)
-    Box(Modifier.padding(top = 12.dp)) { StripeStatusLine(step, colors) }
+    Box(Modifier.padding(top = 12.dp)) { StripeCompactLine(step, colors) }
     when (step) {
         StripeStep.CONNECT ->
             AdminPrimaryButton(

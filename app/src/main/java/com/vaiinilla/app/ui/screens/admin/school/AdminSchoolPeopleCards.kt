@@ -1,5 +1,10 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
+import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.screens.admin.AdminBadgeTone
+import com.vaiinilla.app.ui.screens.admin.AdminBadge
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,17 +48,23 @@ internal fun GuardianRequestsCard(
     var rejecting by remember { mutableStateOf<String?>(null) }
     AdminCard(colors, Modifier.animateContentSize(schoolSpring())) {
         AdminSectionTitle("Tutores", colors)
-        AdminChoice(
-            question = "¿Quién decide quién cuida a cada alumno?",
+        Text(
+            "¿Quién decide quién cuida a cada alumno?",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.textPrimary,
+        )
+        AdminSegmented(
             options = listOf(true to "La escuela aprueba", false to "Entran solos"),
             selected = settings.guardiansNeedApproval,
             colors = colors,
             enabled = enabled,
-        ) { needsApproval ->
-            if (needsApproval != settings.guardiansNeedApproval) {
-                actions.onSave(settings.copy(guardiansNeedApproval = needsApproval), false) {}
-            }
-        }
+            onSelect = { needsApproval ->
+                if (needsApproval != settings.guardiansNeedApproval) {
+                    actions.onSave(settings.copy(guardiansNeedApproval = needsApproval), false) {}
+                }
+            },
+        )
         val requests = state.requests
         when {
             requests == null && state.requestsError != null ->
@@ -102,30 +113,25 @@ private fun GuardianRequestRow(
     onCancelReject: () -> Unit,
     onReject: () -> Unit,
 ) {
-    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        PersonRow(request.studentName, colors) {
-            Text(request.studentName, fontSize = 15.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-            if (request.studentLine.isNotEmpty()) {
-                Text(
-                    request.studentLine,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textSecondary,
-                )
-            }
-            Text(
-                "Lo pide ${request.guardianName}${request.guardianEmail?.let { " · $it" }.orEmpty()}",
-                fontSize = 13.sp,
-                color = colors.textPrimary,
-            )
-            Text(
-                request.facts(hasRoster),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                // Lo que no cuadra con el padrón sale en coral: es lo que la escuela debe revisar.
-                color = if (hasRoster && !request.inRoster) AdminCoral else colors.textSecondary,
-            )
-        }
+    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            listOf(request.studentName, request.studentLine).filter { it.isNotEmpty() }.joinToString(" · "),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+        )
+        Text(
+            "Lo pide ${request.guardianName}${request.guardianEmail?.let { " · $it" }.orEmpty()}",
+            fontSize = 13.sp,
+            color = colors.textPrimary,
+        )
+        Text(
+            request.facts(hasRoster),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            // Lo que no cuadra con el padrón sale en coral: es lo que la escuela debe revisar.
+            color = if (hasRoster && !request.inRoster) AdminCoral else colors.textSecondary,
+        )
         if (rejecting) {
             InlineConfirm(
                 title = "¿Rechazar a ${request.guardianName}?",
@@ -144,9 +150,9 @@ private fun GuardianRequestRow(
                 onConfirm = onReject,
             )
         } else {
-            RowActions {
-                SchoolButton("Aprobar", colors, enabled, onClick = onApprove)
-                SchoolButton("Rechazar", colors, enabled, destructive = true, onClick = onAskReject)
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SchoolButton("Aprobar", colors, enabled, Modifier.weight(1f), primary = true, onClick = onApprove)
+                SchoolButton("Rechazar", colors, enabled, Modifier.weight(1f), destructive = true, onClick = onAskReject)
             }
         }
     }
@@ -220,27 +226,31 @@ private fun StudentGuardians(
     onPromote: (SchoolGuardianship) -> Unit,
 ) {
     val first = rows.firstOrNull() ?: return
-    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        PersonRow(first.studentName, colors) {
-            Text(first.studentName, fontSize = 15.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-            if (first.studentLine.isNotEmpty()) {
-                Text(
-                    first.studentLine,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textSecondary,
-                )
-            }
-        }
+    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            listOf(first.studentName, first.studentLine).filter { it.isNotEmpty() }.joinToString(" · "),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+        )
         rows.forEach { guardianship ->
-            Column(Modifier.padding(start = 56.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    guardianship.guardianName + guardianship.guardianEmail?.let { " · $it" }.orEmpty(),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textPrimary,
-                )
-                if (guardianship.isPrincipal) Text("Pone los controles", fontSize = 12.sp, color = colors.textSecondary)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            guardianship.guardianName,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary,
+                        )
+                        guardianship.guardianEmail?.let {
+                            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        }
+                    }
+                    if (guardianship.isPrincipal) AdminBadge("Pone los controles", colors, AdminBadgeTone.OK)
+                }
                 when (confirming) {
                     "q${guardianship.id}" ->
                         InlineConfirm(
@@ -275,9 +285,12 @@ private fun StudentGuardians(
                                     "Que ponga los controles",
                                     colors,
                                     enabled,
+                                    Modifier.weight(1.4f),
                                 ) { onAsk("p${guardianship.id}") }
                             }
-                            SchoolButton("Quitar", colors, enabled, destructive = true) { onAsk("q${guardianship.id}") }
+                            SchoolButton("Quitar", colors, enabled, Modifier.weight(1f), destructive = true) {
+                                onAsk("q${guardianship.id}")
+                            }
                         }
                 }
             }
@@ -342,27 +355,35 @@ private fun StudentRequestRow(
     onReject: (String) -> Unit,
 ) {
     val refund = request.kind == StudentRequestKind.REFUND
-    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        PersonRow(request.studentName, colors) {
-            Text(request.studentName, fontSize = 15.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-            request.studentLine?.let {
-                Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
-            }
+    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            listOfNotNull(request.studentName, request.studentLine).joinToString(" · "),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+        )
+        Text(
+            "Lo pide ${request.guardianName}${request.guardianEmail?.let { " · $it" }.orEmpty()}",
+            fontSize = 13.sp,
+            color = colors.textPrimary,
+        )
+        AdminBadge(
+            studentRequestWhat(request),
+            colors,
+            if (refund) AdminBadgeTone.OK else AdminBadgeTone.DANGER,
+            caps = false,
+        )
+        request.note?.let {
             Text(
-                studentRequestWhat(request),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textPrimary,
-            )
-            Text(
-                "Lo pide ${request.guardianName}${request.guardianEmail?.let { " · $it" }.orEmpty()}",
+                "“$it”",
                 fontSize = 13.sp,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontWeight = FontWeight.SemiBold,
                 color = colors.textPrimary,
             )
-            request.note?.let { Text("“$it”", fontSize = 13.sp, color = colors.textSecondary) }
-            studentRequestWarning(request)?.let {
-                Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AdminCoral)
-            }
+        }
+        studentRequestWarning(request)?.let {
+            Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Yolk)
         }
         when (confirming) {
             "r${request.id}" ->
@@ -401,13 +422,17 @@ private fun StudentRequestRow(
                 ) { onReject(reason) }
             }
             else ->
-                RowActions {
+                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     SchoolButton(
                         if (refund) "Ya se lo entregué" else "Dar de baja",
                         colors,
                         enabled && request.canResolve,
+                        Modifier.weight(1f),
+                        primary = true,
                     ) { onAsk("r${request.id}") }
-                    SchoolButton("Rechazar", colors, enabled, destructive = true) { onAsk("x${request.id}") }
+                    SchoolButton("Rechazar", colors, enabled, Modifier.weight(1f), destructive = true) {
+                        onAsk("x${request.id}")
+                    }
                 }
         }
     }
@@ -417,7 +442,7 @@ private fun StudentRequestRow(
 internal fun studentRequestWhat(request: SchoolStudentRequest): String {
     if (request.kind != StudentRequestKind.REFUND) return "Borrar sus datos"
     val method = request.refundMethod?.let { " ${it.label.lowercase()}" }.orEmpty()
-    return "Devolver ${moneyLabel(request.amountToRefund)}$method"
+    return "Devolver ${moneyLabelCents(request.amountToRefund)}$method"
 }
 
 internal fun studentRequestWarning(request: SchoolStudentRequest): String? =

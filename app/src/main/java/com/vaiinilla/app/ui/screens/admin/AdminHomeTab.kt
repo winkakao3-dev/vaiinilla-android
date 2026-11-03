@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -111,6 +112,7 @@ internal fun AdminHomeTab(
     setup: List<AdminSetupStep>,
     onOpenOrders: () -> Unit,
     onOpenSection: (AdminSection) -> Unit,
+    onSeeAsCustomer: () -> Unit = {},
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
     val presentDialog = LocalAdminDialog.current
@@ -119,8 +121,8 @@ internal fun AdminHomeTab(
     val summary = state.summary
     AdminHeroPage(
         cover = header.photoUrl,
-        caption = "Administración",
-        title = header.placeName,
+        caption = "Administración · ${header.placeName}",
+        title = "Mi negocio",
         colors = colors,
         compactTitle = header.placeName,
         compactLogo = header.logoUrl,
@@ -140,12 +142,13 @@ internal fun AdminHomeTab(
         }
         item(key = "tienda-lista") {
             AnimatedVisibility(
-                visible = setup.any { !it.done },
+                // Recién lista y sin ventas todavía, se queda a la vista con su botón (marco 07); después estorba.
+                visible = setup.isNotEmpty() && (setup.any { !it.done } || summary?.orders == 0),
                 enter =
                     fadeIn(spring(stiffness = 400f)) + expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)),
                 exit = fadeOut(spring(stiffness = 600f)) + shrinkVertically(spring(stiffness = 600f)),
             ) {
-                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection)
+                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer)
             }
         }
         item(key = "ventas-titulo") {
@@ -250,9 +253,11 @@ private fun SetupChecklist(
     colors: OperationalColors,
     modifier: Modifier,
     onOpenSection: (AdminSection) -> Unit,
+    onSeeAsCustomer: () -> Unit,
 ) {
+    val ready = setup.none { !it.done }
     Column(modifier) {
-        AdminH2("Para dejar lista tu tienda", colors)
+        AdminH2(if (ready) "Tu tienda está lista" else "Para dejar lista tu tienda", colors)
         AdminPanel(
             colors,
             padding =
@@ -288,6 +293,15 @@ private fun SetupChecklist(
                     step.detail?.let { AdminRowValue(it, colors, muted = true) }
                 }
             }
+        }
+        if (ready) {
+            AdminPrimaryButton(
+                title = "Así la ve tu cliente",
+                colors = colors,
+                modifier = Modifier.padding(top = 12.dp),
+                icon = Icons.Outlined.ShoppingCart,
+                onClick = onSeeAsCustomer,
+            )
         }
     }
 }

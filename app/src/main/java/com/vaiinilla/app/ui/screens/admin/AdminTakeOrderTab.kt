@@ -1,5 +1,16 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.domain.model.OptionGroup
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -618,6 +629,7 @@ private fun OrderBar(
 }
 
 /** Las opciones de un producto antes de sumarlo; cerrar la hoja no lo agrega. */
+/** Elegir las opciones de un producto a pantalla completa, como el marco 32: foto, grupos y abajo cuántos y agregar. */
 @Composable
 private fun OptionsSheet(
     line: CartLine,
@@ -627,50 +639,206 @@ private fun OptionsSheet(
     onDismiss: () -> Unit,
     onAdd: () -> Unit,
 ) {
-    AdminSheet(title = line.product.name, colors = colors, busy = false, onDismiss = onDismiss) {
-        AdminHint("Para $destination · ${moneyLabel(line.product.counterPrice)}", colors)
-        OpcionesMostrador(
-            linea = line,
-            colors = colors,
-            onOpcion = { group, optionId ->
-                onChange(
-                    line.copy(selectedOptionIds = alternarOpcionMostrador(line.selectedOptionIds, group, optionId)),
-                )
-            },
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                "Cantidad",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textPrimary,
-                modifier = Modifier.weight(1f),
-            )
-            Stepper(Icons.Rounded.Remove, "Uno menos", colors.textPrimary) {
-                onChange(line.copy(quantity = (line.quantity - 1).coerceAtLeast(1)))
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .statusBarsPadding()
+                .padding(top = 12.dp)
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(colors.background),
+        ) {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                Box(Modifier.fillMaxWidth().height(190.dp).background(colors.cardBackground)) {
+                    line.product.imageUrl?.let {
+                        ProductImage(imageUrl = it, contentDescription = "", modifier = Modifier.fillMaxSize())
+                    }
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Brush.verticalGradient(0.3f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))),
+                    )
+                    Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                        Text(line.product.name, fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        Text(
+                            "${moneyLabelCents(line.product.counterPrice)} · $destination",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.85f),
+                        )
+                    }
+                    Box(Modifier.align(Alignment.TopEnd).padding(10.dp)) {
+                        AdminRoundButton(Icons.Rounded.Close, "Cerrar", colors, onDismiss)
+                    }
+                }
+                Column(
+                    Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    line.product.optionGroups.forEach { group ->
+                        OptionGroupBlock(group, line.selectedOptionIds, colors) { optionId ->
+                            onChange(
+                                line.copy(
+                                    selectedOptionIds = alternarOpcionMostrador(line.selectedOptionIds, group, optionId),
+                                ),
+                            )
+                        }
+                    }
+                }
             }
-            RollingCount(line.quantity, colors.textPrimary)
-            Stepper(Icons.Rounded.Add, "Uno más", colors.textPrimary) {
-                onChange(line.copy(quantity = (line.quantity + 1).coerceAtMost(COUNTER_LINE_QUANTITY_MAX)))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
+            Row(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(
+                    Modifier
+                        .height(54.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, colors.cardBorder, CircleShape)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Stepper(Icons.Rounded.Remove, "Uno menos", colors.textPrimary) {
+                        onChange(line.copy(quantity = (line.quantity - 1).coerceAtLeast(1)))
+                    }
+                    RollingCount(line.quantity, colors.textPrimary)
+                    Stepper(Icons.Rounded.Add, "Uno más", colors.textPrimary) {
+                        onChange(line.copy(quantity = (line.quantity + 1).coerceAtMost(COUNTER_LINE_QUANTITY_MAX)))
+                    }
+                }
+                val missing =
+                    line.product.optionGroups.firstOrNull { group ->
+                        group.options.count { it.id in line.selectedOptionIds } < group.minimumSelections
+                    }
+                AdminPrimaryButton(
+                    title =
+                        if (missing == null) {
+                            "Agregar ${line.quantity} · ${moneyLabel(Money.counterPreview(listOf(line)))}"
+                        } else {
+                            "Elige ${missing.name.lowercase()}"
+                        },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                    enabled = missing == null,
+                    onClick = onAdd,
+                )
             }
         }
-        val ready = opcionesValidas(line)
-        AdminPrimaryButton(
-            if (ready) {
-                "Agregar ${line.quantity} · ${moneyLabel(
-                    Money.counterPreview(listOf(line)),
-                )}"
-            } else {
-                "Elige las opciones obligatorias"
-            },
-            colors,
-            enabled = ready,
-            onClick = onAdd,
-        )
     }
 }
 
-/** El resumen antes de mandarlo: cada producto con su cantidad, el nombre del cliente y el botón de enviar. */
+@Composable
+private fun OptionGroupBlock(
+    group: OptionGroup,
+    selected: Set<Int>,
+    colors: OperationalColors,
+    onOption: (Int) -> Unit,
+) {
+    val chosen = group.options.count { it.id in selected }
+    val required = group.minimumSelections >= 1
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(group.name, fontSize = 17.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                Text(
+                    if (group.maximumSelections == 1) "Elige 1" else "Hasta ${group.maximumSelections}",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textMuted,
+                )
+            }
+            when {
+                required && chosen >= group.minimumSelections -> AdminBadge("Listo", colors, AdminBadgeTone.OK)
+                required -> AdminBadge("Obligatorio", colors, AdminBadgeTone.WARN)
+                else -> AdminBadge("Opcional", colors, AdminBadgeTone.NEUTRAL)
+            }
+        }
+        if (group.maximumSelections == 1) {
+            group.options.chunked(OPTION_TILES_PER_ROW).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { option ->
+                        val on = option.id in selected
+                        val bg = animateSelectionColor(if (on) colors.textPrimary else colors.cardBackground, "opcion")
+                        val ink = animateSelectionColor(if (on) colors.background else colors.textPrimary, "opcion-tinta")
+                        val extra = option.extraPrice.toBigDecimalOrNull()?.takeIf { it.signum() == 1 }
+                        Text(
+                            option.name + (extra?.let { " +${moneyLabel(it.toPlainString())}" } ?: ""),
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ink,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(bg)
+                                    .border(1.dp, if (on) colors.textPrimary else colors.cardBorder, RoundedCornerShape(14.dp))
+                                    .selectable(selected = on, role = Role.RadioButton, onClick = { onOption(option.id) })
+                                    .padding(horizontal = 6.dp, vertical = 13.dp),
+                        )
+                    }
+                    repeat(OPTION_TILES_PER_ROW - row.size) { Box(Modifier.weight(1f)) }
+                }
+            }
+        } else {
+            group.options.forEach { option ->
+                val on = option.id in selected
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.cardBackground)
+                        .selectable(selected = on, role = Role.Checkbox, onClick = { onOption(option.id) })
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (on) colors.accentLime else Color.Transparent)
+                            .border(1.5.dp, if (on) colors.accentLime else colors.textMuted, RoundedCornerShape(6.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (on) {
+                            Icon(
+                                Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = colors.accentInk,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        option.name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    option.extraPrice.toBigDecimalOrNull()?.takeIf { it.signum() == 1 }?.let {
+                        Text(
+                            "+${moneyLabelCents(it.toPlainString())}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val OPTION_TILES_PER_ROW = 3
 @Composable
 private fun ReviewSheet(
     lines: List<CartLine>,
@@ -687,36 +855,51 @@ private fun ReviewSheet(
     onSend: () -> Unit,
 ) {
     val missing = lines.filter { !opcionesValidas(it) }
-    AdminSheet(title = "Pedido para $destination", colors = colors, busy = sending, onDismiss = onDismiss) {
+    val total = moneyLabelCents(Money.counterPreview(lines))
+    AdminSheet(
+        title = if (toAccount) "Pedido de $destination" else "Pedido para $destination",
+        colors = colors,
+        busy = sending,
+        onDismiss = onDismiss,
+    ) {
         AdminHint(
-            if (toAccount) "Se suma a la cuenta de $destination; se cobra al final." else "Caja lo cobra y lo manda a cocina.",
+            if (toAccount) {
+                "Va a cocina y se suma a la cuenta abierta de la mesa. Se cobra al final en Caja."
+            } else {
+                "Caja lo cobra y lo manda a cocina."
+            },
             colors,
         )
-        AdminPanel(
-            colors,
-            padding =
-                androidx.compose.foundation.layout
-                    .PaddingValues(horizontal = 14.dp, vertical = 2.dp),
-        ) {
+        Column {
             lines.forEachIndexed { index, line ->
                 if (index > 0) AdminRowDivider(colors)
+                val options =
+                    line.product.optionGroups
+                        .flatMap { it.options }
+                        .filter { it.id in line.selectedOptionIds }
+                        .joinToString(" · ") { it.name }
                 AdminRow(
                     title = line.product.name,
                     colors = colors,
-                    detail = moneyLabel(Money.counterPreview(listOf(line))),
+                    detail = options.ifBlank { moneyLabelCents(Money.counterPreview(listOf(line))) },
                     leading = { AdminThumb(line.product.imageUrl, line.product.name, colors) },
                 ) {
-                    Stepper(
-                        Icons.Rounded.Remove,
-                        "Quitar uno de ${line.product.name}",
-                        colors.textPrimary,
-                    ) { onStep(line.product.id, -1) }
-                    RollingCount(line.quantity, colors.textPrimary)
-                    Stepper(
-                        Icons.Rounded.Add,
-                        "Agregar otro ${line.product.name}",
-                        colors.textPrimary,
-                    ) { onStep(line.product.id, 1) }
+                    Row(
+                        Modifier.clip(CircleShape).border(1.dp, colors.cardBorder, CircleShape),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Stepper(
+                            Icons.Rounded.Remove,
+                            "Quitar uno de ${line.product.name}",
+                            colors.textPrimary,
+                        ) { onStep(line.product.id, -1) }
+                        RollingCount(line.quantity, colors.textPrimary)
+                        Stepper(
+                            Icons.Rounded.Add,
+                            "Agregar otro ${line.product.name}",
+                            colors.textPrimary,
+                        ) { onStep(line.product.id, 1) }
+                    }
                 }
             }
         }
@@ -734,27 +917,47 @@ private fun ReviewSheet(
                 onOption(line, group, optionId)
             })
         }
-        AdminTextField(
-            label = "Nombre del cliente (opcional)",
-            value = name,
-            onValueChange = onName,
-            colors = colors,
-            placeholder = "Para llamarlo cuando esté listo",
-            enabled = !sending,
-        )
+        if (!toAccount) {
+            AdminTextField(
+                label = "Nombre del cliente (opcional)",
+                value = name,
+                onValueChange = onName,
+                colors = colors,
+                placeholder = "Para llamarlo cuando esté listo",
+                enabled = !sending,
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Total",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(total, fontSize = 18.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+        }
         error?.let { Text(it, color = colors.coralText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
-        AdminPrimaryButton(
-            title =
-                if (toAccount) {
-                    "A la cuenta · ${moneyLabel(Money.counterPreview(lines))}"
-                } else {
-                    "Enviar a Caja · ${moneyLabel(Money.counterPreview(lines))}"
-                },
-            colors = colors,
-            busy = sending,
-            enabled = missing.isEmpty() && !sending,
-            onClick = onSend,
-        )
+        if (toAccount) {
+            AdminPrimaryButton(
+                title = "A la cuenta de $destination",
+                colors = colors,
+                icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                busy = sending,
+                enabled = missing.isEmpty() && !sending,
+                fill = colors.accentLime,
+                contentColor = colors.accentInk,
+                onClick = onSend,
+            )
+        } else {
+            AdminPrimaryButton(
+                title = "Enviar a Caja",
+                colors = colors,
+                busy = sending,
+                enabled = missing.isEmpty() && !sending,
+                onClick = onSend,
+            )
+        }
     }
 }
 

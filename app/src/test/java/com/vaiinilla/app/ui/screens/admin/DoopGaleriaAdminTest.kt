@@ -579,6 +579,12 @@ class DoopGaleriaAdminTest {
         shot("a05_invitar")
     }
 
+    @Test fun a05b_primera_invitacion() {
+        val vm = AdminStaffViewModel(hung<AdminStaffRepository>()).apply { put(AdminStaffUiState(loading = false)) }
+        section { AdminStaffSection(vm, it, false, {}) }
+        shot("a05b_primera_invitacion")
+    }
+
     @Test fun a53_cambiar_rol() {
         val vm = staffVm()
         section { AdminStaffSection(vm, it, false, {}) }
@@ -851,7 +857,16 @@ class DoopGaleriaAdminTest {
 
     @Test fun a59_cerrar_dia() {
         school()
-        scrollToAndTap("Cerrar este día")
+        val target = hasText("Cerrar este día", substring = true)
+        val scrollers = rule.onAllNodes(hasScrollAction())
+        for (i in scrollers.fetchSemanticsNodes().indices) {
+            if (runCatching { scrollers[i].performScrollToNode(target) }.isSuccess) break
+        }
+        settle()
+        // El campo del aviso toma el foco y su cursor parpadea: con el reloj automático nunca queda quieta.
+        rule.mainClock.autoAdvance = false
+        rule.onAllNodes(target).onLast().performClick()
+        rule.mainClock.advanceTimeBy(1_500)
         shot("a59_cerrar_dia")
     }
 
