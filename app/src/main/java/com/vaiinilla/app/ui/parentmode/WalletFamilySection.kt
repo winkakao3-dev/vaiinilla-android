@@ -19,11 +19,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Backpack
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.FamilyRestroom
 import androidx.compose.material.icons.outlined.Schedule
@@ -64,6 +60,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -441,71 +441,72 @@ internal fun WalletFamilySection(
     }
 }
 
-/** Al final de la cartera y en voz baja: quien solo paga su comida lo pasa de largo. */
+/**
+ * Al final de la cartera y en voz baja: quien solo paga su comida lo pasa de largo. Una sola acción para el
+ * tutor y el alumno entra por el enlace de abajo, sin preguntar «¿Eres tutor o alumno?» (Doop E05).
+ */
 @Composable
 private fun RoleChooser(onRole: (SchoolRole) -> Unit) {
-    val colors = LocalVaiinillaColors.current
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("¿Eres tutor o alumno?", color = colors.muted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.height(IntrinsicSize.Min)) {
-            RoleCard(
-                icon = Icons.Outlined.FamilyRestroom,
-                title = "Soy tutor",
-                detail = "Agrega a tu hijo y recárgale",
-                tag = "wallet-school-parent",
-            ) { onRole(SchoolRole.PARENT) }
-            RoleCard(
-                icon = Icons.Outlined.Backpack,
-                title = "Soy alumno",
-                detail = "Que tu tutor te agregue",
-                tag = "wallet-school-student",
-            ) { onRole(SchoolRole.STUDENT) }
-        }
-    }
-}
-
-@Composable
-private fun RowScope.RoleCard(
-    icon: ImageVector,
-    title: String,
-    detail: String,
-    tag: String,
-    onClick: () -> Unit,
-) {
     val colors = LocalVaiinillaColors.current
     val shape = RoundedCornerShape(18.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier =
             Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .testTag(tag)
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .fillMaxWidth()
                 .clip(shape)
                 .background(colors.paper2)
                 .border(1.dp, colors.line, shape)
-                .padding(14.dp),
+                .padding(16.dp),
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(colors.paper).border(1.dp, colors.line, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Outlined.FamilyRestroom, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
+                Text("Cuida lo que come tu hijo en la escuela", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(
+                    "Recárgale, aparta su comida y pon sus límites.",
+                    color = colors.muted,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                )
+            }
+        }
         Box(
             modifier =
                 Modifier
-                    .size(
-                        40.dp,
-                    ).clip(CircleShape)
-                    .background(colors.paper)
-                    .border(1.dp, colors.line, CircleShape),
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("wallet-school-parent")
+                    .physicalPress(scale = PhysicalPressScale.Small) { onRole(SchoolRole.PARENT) }
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(colors.ink),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
+            Text("Agregar a mi hijo", color = colors.onInk, fontWeight = FontWeight.Black, fontSize = 15.sp)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
-            Text(detail, color = colors.muted, fontSize = 12.sp, lineHeight = 16.sp)
-        }
+        Text(
+            buildAnnotatedString {
+                append("¿Eres el alumno? ")
+                withStyle(SpanStyle(color = colors.ink, fontWeight = FontWeight.Black)) { append("Usa el código de tu tutor") }
+            },
+            color = colors.muted,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag("wallet-school-student")
+                    .physicalPress(scale = PhysicalPressScale.Small) { onRole(SchoolRole.STUDENT) }
+                    .padding(vertical = 6.dp)
+                    .minTouchTarget(),
+        )
     }
 }
-
 @Composable
 private fun QuietRow(
     icon: ImageVector,

@@ -49,7 +49,7 @@ class SchoolRoleUiTest {
     }
 
     @Test
-    fun `quien no tiene hijos ni tutor elige entre Soy tutor y Soy alumno`() {
+    fun `quien no tiene hijos ni tutor agrega a su hijo o entra como alumno sin elegir rol`() {
         val roles = mutableListOf<SchoolRole>()
         composeTestRule.setContent {
             ScreenshotTheme {
@@ -65,7 +65,8 @@ class SchoolRoleUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("¿Eres tutor o alumno?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("¿Eres tutor o alumno?").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Agregar a mi hijo").assertIsDisplayed()
         composeTestRule.onNodeWithTag("wallet-school-parent").performClick()
         composeTestRule.onNodeWithTag("wallet-school-student").performClick()
         assertEquals(listOf(SchoolRole.PARENT, SchoolRole.STUDENT), roles)
