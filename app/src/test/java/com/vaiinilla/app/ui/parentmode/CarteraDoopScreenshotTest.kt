@@ -153,6 +153,7 @@ class CarteraDoopScreenshotTest {
                 onUnsettledChange = {},
                 onCredited = {},
                 onDismiss = {},
+                initialAmount = 200,
             )
         }
         settle()

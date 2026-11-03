@@ -1,6 +1,18 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -326,6 +338,8 @@ internal fun ChildReloadSheet(
         }
     }
     val amount = model.amount
+    val quickShown = ChildReloadModel.QUICK_AMOUNTS.take(3)
+    var typingOther by rememberSaveable { mutableStateOf(false) }
     val buttonState =
         when (val phase = model.phase) {
             ChildReloadModel.Phase.Editing, is ChildReloadModel.Phase.Failed ->
@@ -349,39 +363,40 @@ internal fun ChildReloadSheet(
                     "${compactMoney(phase.amount)} para ${child.firstName}",
                 )
         }
+    val reach = childReloadReach(balance, amount, child.controls?.dailyLimit)
     val hint =
         when (val phase = model.phase) {
             is ChildReloadModel.Phase.Failed -> phase.message
-            is ChildReloadModel.Phase.Review ->
-                "Se cobran ${compactMoney(phase.chargedCents.centsToMoney())} con la comisión de la tarjeta, " +
-                    "y a ${child.firstName} le llegan ${compactMoney(amount ?: BigDecimal.ZERO)}."
             ChildReloadModel.Phase.InReview ->
                 "Tu pago sigue en revisión. Si el banco lo aprueba, el saldo llega solo; no pagues otra vez."
-            else ->
-                model.problem
-                    ?: childReloadReach(balance, amount, child.controls?.dailyLimit)
-                    ?: range?.label
-                    ?: "Escribe cuánto o elige un monto"
+            else -> model.problem ?: reach ?: range?.label ?: "Escribe cuánto o elige un monto"
         }
+    val hintColor =
+        when {
+            model.phase is ChildReloadModel.Phase.Failed || model.problem != null -> ErrorCoral
+            hint == reach && model.phase !is ChildReloadModel.Phase.InReview -> LocalVaiinillaColors.current.accent
+            else -> colors.textSecondary
+        }
+    val limit = child.controls?.dailyLimit
 
     ParentSheet(
         title = "Recargar a ${child.firstName}",
-        subtitle = "Tiene ${compactMoney(balance)}",
+        subtitle = "Tiene ${compactMoney(balance)}" + (limit?.let { " · su límite es ${compactMoney(it)} al día" } ?: ""),
         colors = colors,
         busy = model.isBusy,
         onDismiss = onDismiss,
+        leading = {
+            InitialsAvatar(
+                child.initials.take(1),
+                ChildAvatarFill,
+                ChildAvatarInk,
+                Color.Transparent,
+                Modifier.size(44.dp),
+                shape = RoundedCornerShape(15.dp),
+                fontSize = 18,
+            )
+        },
         footer = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                ChildReloadModel.QUICK_AMOUNTS.forEach { quick ->
-                    ChipButton(
-                        label = moneyLabel(quick),
-                        enabled = !model.isBusy,
-                        colors = colors,
-                        selected = amount != null && amount.compareTo(quick.toBigDecimal()) == 0,
-                        modifier = Modifier.weight(1f),
-                    ) { model.choose(quick) }
-                }
-            }
             MorphingButton(state = buttonState, enabled = model.canAct, colors = colors, testTag = "child-reload-pay") {
                 when (model.phase) {
                     is ChildReloadModel.Phase.Review -> model.proceedToPayment()
@@ -396,7 +411,7 @@ internal fun ChildReloadSheet(
         },
     ) {
         // El campo real está debajo; se ve el monto grande.
-        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
             BasicTextField(
                 value = model.amountText,
                 onValueChange = model::edit,
@@ -409,26 +424,107 @@ internal fun ChildReloadSheet(
                         .testTag("child-reload-amount")
                         .semantics { contentDescription = "Monto a recargar" },
             )
-            Text(
-                "$" + model.amountText.ifEmpty { "0" },
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Black,
-                fontSize = 60.sp,
-                letterSpacing = (-2).sp,
-                maxLines = 1,
-            )
+            AnimatedContent(
+                targetState = "$" + model.amountText.ifEmpty { "0" },
+                transitionSpec = {
+                    if (reduced) {
+                        fadeIn(snap()) togetherWith fadeOut(snap())
+                    } else {
+                        (fadeIn(spring(stiffness = 400f)) + scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.9f)) togetherWith
+                            fadeOut(spring(stiffness = 800f))
+                    }
+                },
+                label = "reload-amount",
+            ) { text ->
+                Text(
+                    text,
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 56.sp,
+                    letterSpacing = (-2.6).sp,
+                    maxLines = 1,
+                )
+            }
         }
-        CenteredNote(
-            hint,
-            if (model.phase is ChildReloadModel.Phase.Failed ||
-                model.problem != null
+        CenteredNote(hint, hintColor)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        ) {
+            quickShown.forEach { quick ->
+                ChipButton(
+                    label = moneyLabel(quick),
+                    enabled = !model.isBusy,
+                    colors = colors,
+                    selected = !typingOther && amount != null && amount.compareTo(quick.toBigDecimal()) == 0,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    typingOther = false
+                    model.choose(quick)
+                }
+            }
+            val other = typingOther || (amount != null && quickShown.none { amount.compareTo(it.toBigDecimal()) == 0 })
+            ChipButton(
+                label = "Otra",
+                enabled = !model.isBusy,
+                colors = colors,
+                selected = other,
+                modifier = Modifier.weight(1f).testTag("child-reload-other"),
             ) {
-                ErrorCoral
-            } else {
-                colors.textSecondary
-            },
-        )
+                typingOther = true
+                model.edit("")
+                runCatching { focus.requestFocus() }
+            }
+        }
+        ReloadBreakdown(amount, (model.phase as? ChildReloadModel.Phase.Review)?.chargedCents?.centsToMoney(), colors)
     }
 }
+
+/**
+ * Recarga, comisión y lo que pagas. La comisión la calcula el servidor al abrir el pago: antes de eso no se inventa,
+ * se dice que se ve antes de pagar.
+ */
+@Composable
+private fun ReloadBreakdown(
+    amount: BigDecimal?,
+    charged: BigDecimal?,
+    colors: com.vaiinilla.app.ui.screens.OperationalColors,
+) {
+    if (amount == null || amount.signum() <= 0) return
+    val line = LocalVaiinillaColors.current.ink.copy(alpha = 0.1f)
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 18.dp)) {
+        androidx.compose.material3.HorizontalDivider(color = line, thickness = 1.dp)
+        BreakdownRow("Recarga", amount.money2(), colors.textSecondary, Modifier.padding(top = 8.dp))
+        if (charged != null) {
+            BreakdownRow("Comisión de la tarjeta", (charged - amount).max(BigDecimal.ZERO).money2(), colors.textSecondary)
+            BreakdownRow("Pagas", charged.money2(), colors.textPrimary, bold = true)
+        } else {
+            BreakdownRow("Comisión de la tarjeta", "La ves antes de pagar", colors.textSecondary)
+        }
+    }
+}
+
+@Composable
+private fun BreakdownRow(
+    label: String,
+    value: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    bold: Boolean = false,
+) {
+    Row(modifier = modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+        Text(
+            label,
+            color = color,
+            fontWeight = if (bold) FontWeight.Black else FontWeight.Bold,
+            fontSize = if (bold) 16.sp else 14.5.sp,
+            modifier = Modifier.weight(1f),
+        )
+        Text(value, color = color, fontWeight = if (bold) FontWeight.Black else FontWeight.Bold, fontSize = if (bold) 16.sp else 14.5.sp)
+    }
+}
+
+/** "$200.00": el desglose va con centavos, como el cobro. */
+private fun BigDecimal.money2(): String = "$" + String.format(java.util.Locale.US, "%,.2f", this)
 
 private fun Long.centsToMoney(): BigDecimal = BigDecimal.valueOf(this, 2)
