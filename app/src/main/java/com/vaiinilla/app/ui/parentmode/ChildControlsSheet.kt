@@ -1,6 +1,37 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import com.vaiinilla.app.domain.guardianship.compactMoney
+import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import java.math.BigDecimal
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -100,6 +131,9 @@ internal fun ChildControlsSheet(
     var state by remember { mutableStateOf<MorphState>(MorphState.Idle("Guardar")) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmsUnlink by remember { mutableStateOf(false) }
+    var showAllAllergens by remember { mutableStateOf(false) }
+    var lastThreshold by remember { mutableStateOf(current.lowBalanceAlert) }
+    val vColors = LocalVaiinillaColors.current
     var unlinking by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) { services.catalog.getCatalog() }
@@ -139,8 +173,8 @@ internal fun ChildControlsSheet(
     }
 
     ParentSheet(
-        title = "Controles",
-        subtitle = child.name,
+        title = "Controles de ${child.firstName}",
+        subtitle = "La caja los revisa en cada compra",
         colors = colors,
         busy = state.isBusy || unlinking,
         onDismiss = onDismiss,
@@ -164,100 +198,127 @@ internal fun ChildControlsSheet(
                 modifier = Modifier.testTag("controls-read-only"),
             )
         }
-        OperationalField(
-            value = dailyLimit,
-            onValueChange = { dailyLimit = it },
-            label = "Límite por día",
-            colors = colors,
-            placeholder = "Sin límite",
-            supporting =
-                limitProblem
-                    ?: ChildControlsRules.zeroNote(
-                        dailyLimit,
-                        "Con \$0 ${child.firstName} no puede comprar nada sin ti.",
+        ControlCard(Modifier.alpha(if (principal) 1f else 0.6f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+                    ControlTitle("Límite por día")
+                    ControlNote(
+                        limitProblem
+                            ?: ChildControlsRules.zeroNote(dailyLimit, "Con \$0 ${child.firstName} no puede comprar nada sin ti.")
+                            ?: "Lo más que puede gastar al día",
+                        isError = limitProblem != null,
                     )
-                    ?: "Lo más que ${child.firstName} gasta en un día sin ti.",
-            isError = limitProblem != null,
-            keyboardType = KeyboardType.Decimal,
-            enabled = principal,
-        )
-        OperationalField(
-            value = lowBalance,
-            onValueChange = { lowBalance = it },
-            label = "Avísame si su saldo baja de",
-            colors = colors,
-            placeholder = "Sin aviso",
-            supporting =
-                lowProblem
-                    ?: ChildControlsRules.zeroNote(
-                        lowBalance,
-                        "Con \$0 no te avisamos nunca; deja el campo vacío si no quieres aviso.",
-                    )
-                    ?: "Te llega una notificación para recargarle.",
-            isError = lowProblem != null,
-            keyboardType = KeyboardType.Decimal,
-        )
-        Column(
-            modifier = Modifier.alpha(if (principal) 1f else 0.6f),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            SheetSectionTitle(
-                "Alergias",
-                colors,
-                "No se le vende ni se le aparta nada que las tenga, ni lo que la escuela no ha revisado.",
-            )
-            ChipFlow {
-                SchoolAllergen.entries.forEach { allergen ->
-                    ToggleChip(allergen.label, allergen in allergens, colors, enabled = principal) {
-                        allergens = if (allergen in allergens) allergens - allergen else allergens + allergen
-                        touched()
-                    }
+                }
+                MoneyStepper(
+                    value = TypedAmount.parse(dailyLimit),
+                    emptyLabel = "Sin límite",
+                    enabled = principal,
+                    tag = "controls-limit",
+                ) {
+                    dailyLimit = TypedAmount.editable(it)
+                    touched()
                 }
             }
         }
+        ControlCard(Modifier.alpha(if (principal) 1f else 0.6f)) {
+            ControlTitle("Alergias")
+            ControlNote("Se le muestran bloqueadas con el motivo. No se le vende ni se le aparta nada que las tenga.")
+            ChipFlow {
+                allergens.sortedBy { it.label }.forEach { allergen ->
+                    PillChip("${allergen.label} ×", PillStyle.Allergy, enabled = principal, description = "Quitar ${allergen.label}") {
+                        allergens = allergens - allergen
+                        touched()
+                    }
+                }
+                if (showAllAllergens) {
+                    SchoolAllergen.entries.filterNot { it in allergens }.forEach { allergen ->
+                        PillChip("+ ${allergen.label}", PillStyle.Off, enabled = principal, description = "Agregar ${allergen.label}") {
+                            allergens = allergens + allergen
+                            touched()
+                        }
+                    }
+                } else if (principal && allergens.size < SchoolAllergen.entries.size) {
+                    PillChip("+ Otra", PillStyle.Off, enabled = true, description = "Agregar otra alergia", tag = "controls-more-allergens") {
+                        showAllAllergens = true
+                    }
+                }
+                if (allergens.isEmpty() && !principal) ControlNote("Ninguna anotada")
+            }
+        }
         if (categories.isNotEmpty()) {
-            Column(
-                modifier = Modifier.alpha(if (principal) 1f else 0.6f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                SheetSectionTitle("No puede comprar", colors, "Lo de estas categorías no se le cobra.")
+            ControlCard(Modifier.alpha(if (principal) 1f else 0.6f)) {
+                ControlTitle("No puede comprar")
                 ChipFlow {
                     categories.forEach { category ->
-                        ToggleChip(category.name, category.id in blockedCategories, colors, enabled = principal) {
-                            blockedCategories =
-                                if (category.id in
-                                    blockedCategories
-                                ) {
-                                    blockedCategories - category.id
-                                } else {
-                                    blockedCategories +
-                                        category.id
-                                }
+                        val on = category.id in blockedCategories
+                        PillChip(category.name, if (on) PillStyle.On else PillStyle.Off, enabled = principal, selected = on) {
+                            blockedCategories = if (on) blockedCategories - category.id else blockedCategories + category.id
                             touched()
                         }
                     }
                 }
             }
         }
-        OperationalField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = "Nota para la cafetería",
-            colors = colors,
-            placeholder = "Por ejemplo: sin picante",
-            supporting =
-                if (notes.length >
-                    ChildControlsRules.NOTES_LIMIT
-                ) {
-                    "Hasta ${ChildControlsRules.NOTES_LIMIT} letras."
-                } else {
-                    null
-                },
-            isError = notes.length > ChildControlsRules.NOTES_LIMIT,
-            singleLine = false,
-            minLines = 2,
-            enabled = principal,
-        )
+        ControlCard {
+            val threshold = TypedAmount.parse(lowBalance)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+                    ControlTitle(if (threshold != null) "Avísame si baja de ${compactMoney(threshold)}" else "Avísame si su saldo baja")
+                    ControlNote(
+                        lowProblem
+                            ?: ChildControlsRules.zeroNote(lowBalance, "Con \$0 no te avisamos nunca; apágalo si no quieres aviso.")
+                            ?: "Te llega un aviso para recargarle",
+                        isError = lowProblem != null,
+                    )
+                }
+                Switch(
+                    checked = threshold != null,
+                    onCheckedChange = { on ->
+                        lowBalance = if (on) TypedAmount.editable(lastThreshold ?: DEFAULT_LOW_BALANCE) else ""
+                        if (!on) lastThreshold = threshold
+                        touched()
+                    },
+                    colors =
+                        SwitchDefaults.colors(
+                            checkedTrackColor = vColors.accent,
+                            checkedThumbColor = vColors.accentInk,
+                            checkedBorderColor = vColors.accent,
+                            uncheckedTrackColor = vColors.line,
+                            uncheckedThumbColor = vColors.muted,
+                            uncheckedBorderColor = vColors.line,
+                        ),
+                    modifier = Modifier.testTag("controls-low-switch"),
+                )
+            }
+            AnimatedVisibility(
+                visible = threshold != null,
+                enter = if (reduced) fadeIn(snap()) else fadeIn() + expandVertically(spring(dampingRatio = 0.86f, stiffness = 380f)),
+                exit = if (reduced) fadeOut(snap()) else fadeOut() + shrinkVertically(spring(stiffness = 500f)),
+            ) {
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
+                    MoneyStepper(value = threshold, emptyLabel = "—", enabled = true, tag = "controls-low", allowEmpty = false) {
+                        lowBalance = TypedAmount.editable(it)
+                        touched()
+                    }
+                }
+            }
+        }
+        ControlCard(Modifier.alpha(if (principal) 1f else 0.6f)) {
+            ControlTitle("Nota para la cafetería")
+            OperationalField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = "",
+                colors = colors,
+                placeholder = "Por ejemplo: que siempre se lleve una fruta",
+                supporting =
+                    if (notes.length > ChildControlsRules.NOTES_LIMIT) "Hasta ${ChildControlsRules.NOTES_LIMIT} letras." else null,
+                isError = notes.length > ChildControlsRules.NOTES_LIMIT,
+                singleLine = false,
+                minLines = 2,
+                enabled = principal,
+            )
+        }
         Row(
             modifier =
                 Modifier
@@ -301,4 +362,173 @@ internal fun ChildControlsSheet(
             onDismiss = { confirmsUnlink = false },
         )
     }
+}
+
+private val DEFAULT_LOW_BALANCE = BigDecimal("50")
+private val STEP = BigDecimal("10")
+
+/** − $60 +, de 10 en 10. Por debajo de $10 queda sin monto (sin límite) si [allowEmpty]. */
+@Composable
+private fun MoneyStepper(
+    value: BigDecimal?,
+    emptyLabel: String,
+    enabled: Boolean,
+    tag: String,
+    allowEmpty: Boolean = true,
+    onChange: (BigDecimal?) -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val reduced = reducedMotion()
+    Row(
+        modifier = Modifier.height(40.dp).clip(RoundedCornerShape(percent = 50)).background(colors.line).testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepButton("−", "Bajar", enabled && (value != null && (allowEmpty || value > STEP))) {
+            haptics.selection()
+            val next = value?.subtract(STEP)
+            onChange(if (next == null || next < STEP) (if (allowEmpty) null else STEP) else next)
+        }
+        AnimatedContent(
+            targetState = value?.let(::compactMoney) ?: emptyLabel,
+            transitionSpec = {
+                if (reduced) {
+                    fadeIn(snap()) togetherWith fadeOut(snap())
+                } else {
+                    (fadeIn(spring(stiffness = 500f)) + slideInVertically(spring(dampingRatio = 0.7f, stiffness = 500f)) { it / 2 }) togetherWith
+                        (fadeOut(spring(stiffness = 800f)) + slideOutVertically(spring(stiffness = 800f)) { -it / 2 })
+                }
+            },
+            label = "stepper",
+        ) { text ->
+            Text(
+                text,
+                color = colors.ink,
+                fontWeight = FontWeight.Black,
+                fontSize = if (value == null) 13.sp else 16.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.widthIn(min = 62.dp).padding(horizontal = 4.dp),
+            )
+        }
+        StepButton("+", "Subir", enabled) {
+            haptics.selection()
+            onChange(value?.add(STEP) ?: STEP)
+        }
+    }
+}
+
+@Composable
+private fun StepButton(
+    symbol: String,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Box(
+        modifier =
+            Modifier
+                .size(40.dp)
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
+                .alpha(if (enabled) 1f else 0.35f)
+                .semantics {
+                    contentDescription = description
+                    role = Role.Button
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(symbol, color = colors.ink2, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+    }
+}
+
+private enum class PillStyle { On, Off, Allergy }
+
+/** Las pastillas de Doop: lo elegido en tinta, la alergia en coral con su ×, lo que se puede agregar en papel 3. */
+@Composable
+private fun PillChip(
+    text: String,
+    style: PillStyle,
+    enabled: Boolean,
+    selected: Boolean = false,
+    description: String? = null,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val background by animateColorAsState(
+        when (style) {
+            PillStyle.On -> colors.ink
+            PillStyle.Off -> colors.line
+            PillStyle.Allergy -> colors.coral.copy(alpha = 0.18f)
+        },
+        spring(stiffness = 600f),
+        label = "pill-bg",
+    )
+    val ink by animateColorAsState(
+        when (style) {
+            PillStyle.On -> colors.paper
+            PillStyle.Off -> colors.ink2
+            PillStyle.Allergy -> colors.errorText
+        },
+        spring(stiffness = 600f),
+        label = "pill-ink",
+    )
+    Box(
+        modifier =
+            Modifier
+                .let { if (tag != null) it.testTag(tag) else it }
+                .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small) {
+                    haptics.selection()
+                    onClick()
+                }.height(34.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(background)
+                .semantics {
+                    role = Role.Checkbox
+                    this.selected = selected || style == PillStyle.Allergy
+                    if (description != null) contentDescription = description
+                }.padding(horizontal = 13.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = ink, fontWeight = FontWeight.ExtraBold, fontSize = 13.5.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun ControlCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(LocalVaiinillaColors.current.paper2)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun ControlTitle(text: String) {
+    Text(text, color = LocalVaiinillaColors.current.ink, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+}
+
+@Composable
+private fun ControlNote(
+    text: String,
+    isError: Boolean = false,
+) {
+    val colors = LocalVaiinillaColors.current
+    Text(
+        text,
+        color = if (isError) colors.errorText else colors.muted,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        lineHeight = 17.sp,
+    )
 }
