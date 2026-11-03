@@ -40,6 +40,12 @@ import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material.icons.outlined.LocalBar
+import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.PreparationStation
 import androidx.compose.foundation.layout.FlowRow
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.ui.components.arrive
@@ -618,6 +624,7 @@ fun WaiterOperationalScreen(
     if (open != null && state.pendingRental == null) {
         WaiterTableSheet(
             table = open,
+            stations = remember(state.counterCatalog) { productStations(state.counterCatalog) },
             tick = tick,
             acting = state.acting,
             readOnly = readOnly,
@@ -1521,6 +1528,8 @@ private fun waiterSince(iso: String): String {
 @Composable
 private fun WaiterTableSheet(
     table: BoardTable,
+    /** N08: la estación de cada producto por nombre; vacío si el catálogo no llegó. */
+    stations: Map<String, PreparationStation> = emptyMap(),
     tick: Int,
     acting: Boolean,
     readOnly: Boolean,
@@ -1768,6 +1777,7 @@ private fun WaiterTableSheet(
                                     }
                                     WaiterSheetOrderRow(
                                         order = row.order,
+                                        stations = stations,
                                         amount = row.amount,
                                         readOnly = readOnly,
                                         canDeliver = canChargeAndDeliver && row.live,
@@ -1829,6 +1839,160 @@ private fun WaiterTableSheet(
     }
 }
 
+/** Un renglón del resumen del pedido: «2× Coca-Cola de vidrio». */
+internal data class SummaryLine(
+    val quantity: Int,
+    val name: String,
+)
+
+internal data class StationSplit(
+    val counter: List<SummaryLine>,
+    val kitchen: List<SummaryLine>,
+)
+
+internal fun productStations(catalog: Catalog?): Map<String, PreparationStation> =
+    catalog?.products?.associate { it.name.trim().lowercase() to it.preparationStation }.orEmpty()
+
+/**
+ * N08: parte «2× Coca-Cola, 1× Crepa de cajeta» en lo que se sirve en Caja y lo que hace Cocina, según la estación
+ * de cada producto en el catálogo. Lo que no se reconoce cuenta como de Cocina, para nunca decir «llévalo ya» de más.
+ */
+internal fun splitByStation(
+    itemsSummary: String,
+    stations: Map<String, PreparationStation>,
+): StationSplit {
+    val lines =
+        itemsSummary.split(",").mapNotNull { raw ->
+            val text = raw.trim()
+            if (text.isEmpty()) return@mapNotNull null
+            val match = Regex("""^(\d+)\s*[×x]\s*(.+)$""").find(text)
+            if (match != null) SummaryLine(match.groupValues[1].toInt(), match.groupValues[2].trim()) else SummaryLine(1, text)
+        }
+    val (counter, kitchen) = lines.partition { stations[it.name.lowercase()] == PreparationStation.CASHIER }
+    return StationSplit(counter = counter, kitchen = kitchen)
+}
+
+/** N08: lo de Caja se lleva ya y la comida espera a Cocina; «Ya las llevé» es una marca solo de este teléfono. */
+@Composable
+private fun WaiterStationSplit(
+    orderId: String,
+    split: StationSplit,
+    readOnly: Boolean,
+    colors: OperationalColors,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    var carried by rememberSaveable(orderId) { mutableStateOf(false) }
+    val blue = tileToneColor(TileTone.Turn, colors)
+    val yolk = tileToneColor(TileTone.Kitchen, colors)
+    val counterBg = animateSelectionColor(if (carried) colors.cardInner else blue.copy(alpha = 0.12f), "counter-part")
+    val counterBorder = animateSelectionColor(if (carried) colors.cardBorder else blue, "counter-border")
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(counterBg)
+                    .border(if (carried) 1.dp else 2.dp, counterBorder, RoundedCornerShape(20.dp))
+                    .padding(14.dp),
+        ) {
+            StationHeader(
+                icon = Icons.Outlined.LocalBar,
+                tint = blue,
+                title = if (carried) "Lo de Caja · ya lo llevaste" else "Lo de Caja · llévalo ya",
+                subtitle = "No pasa por Cocina: lo recoges en Caja",
+                colors = colors,
+            )
+            split.counter.forEach { StationLine(it, colors, done = carried) }
+            if (!readOnly) {
+                Row(
+                    modifier =
+                        Modifier
+                            .padding(top = 10.dp)
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(CircleShape)
+                            .background(if (carried) colors.buttonSecondary else blue)
+                            .physicalPress {
+                                if (carried) haptics.selection() else haptics.success()
+                                carried = !carried
+                            }.semantics { contentDescription = if (carried) "Desmarcar lo de Caja" else "Ya llevé lo de Caja" },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        if (carried) Icons.Outlined.Undo else Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = if (carried) colors.textPrimary else Color(0xFF0B2236),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        if (carried) "Desmarcar" else "Ya lo llevé",
+                        color = if (carried) colors.textPrimary else Color(0xFF0B2236),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+        }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.cardInner)
+                    .padding(14.dp),
+        ) {
+            StationHeader(
+                icon = Icons.Outlined.Restaurant,
+                tint = yolk,
+                title = "Comida · la hace Cocina",
+                subtitle = "Te avisamos cuando esté lista",
+                colors = colors,
+            )
+            split.kitchen.forEach { StationLine(it, colors, done = false) }
+        }
+    }
+}
+
+@Composable
+private fun StationHeader(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    title: String,
+    subtitle: String,
+    colors: OperationalColors,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = 0.9f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF1B1B18), modifier = Modifier.size(20.dp))
+        }
+        Column {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+            Text(subtitle, color = colors.textSecondary, fontSize = 12.5.sp)
+        }
+    }
+}
+
+@Composable
+private fun StationLine(
+    line: SummaryLine,
+    colors: OperationalColors,
+    done: Boolean,
+) {
+    Text(
+        "${line.quantity} × ${line.name}",
+        color = if (done) colors.textMuted else colors.textPrimary,
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
 /**
  * Un pedido de la cuenta. Listo, se entrega con dos toques: el primero pregunta y el segundo
  * confirma, porque un toque por error lo marcaba entregado sin forma de deshacerlo.
@@ -1841,9 +2005,14 @@ internal fun WaiterSheetOrderRow(
     colors: OperationalColors,
     onDeliver: (BoardOrder) -> Unit,
     amount: String? = null,
+    stations: Map<String, PreparationStation> = emptyMap(),
 ) {
     // La pregunta se queda hasta que el mesero confirme o cancele: si se iba sola, parecía que el botón no hacía nada.
     var confirming by remember(order.id) { mutableStateOf(false) }
+    val split =
+        remember(order.itemsSummary, stations) {
+            splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
+        }
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1888,6 +2057,9 @@ internal fun WaiterSheetOrderRow(
                 }
                 else -> OrderStateChip(order.state.label.uppercase(), colors.textSecondary, colors.pillBackground)
             }
+        }
+        if (split != null && (order.state == OrderState.PREPARING || order.state == OrderState.PAID)) {
+            WaiterStationSplit(orderId = order.id, split = split, readOnly = readOnly, colors = colors)
         }
         // La confirmación va en su propio renglón: junto al pedido lo apretaba a una palabra por línea (I03).
         if (confirming && order.state == OrderState.READY && canDeliver) {
