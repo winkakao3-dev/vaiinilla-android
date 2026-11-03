@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.mode.AuthorizedInvitation
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.ui.mode.AuthorizedAccessUiState
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
+import com.vaiinilla.app.ui.screens.formatInvitationExpiry
 import com.vaiinilla.app.ui.screens.invitationHeadline
 import com.vaiinilla.app.ui.screens.invitationMatchesSession
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
@@ -54,6 +55,11 @@ class StaffInvitationScreenshotTest {
         assertEquals(true, invitationMatchesSession(invitation, "Lupita.R@correo.mx"))
         assertEquals(false, invitationMatchesSession(invitation, "otra@correo.mx"))
         assertNull(invitationMatchesSession(invitation, null))
+    }
+
+    @Test
+    fun `la vigencia dice el dia como el dibujo`() {
+        assertEquals("viernes 6 de nov, 18:00", formatInvitationExpiry(invitation.expiresAt!!))
     }
 
     @Test
