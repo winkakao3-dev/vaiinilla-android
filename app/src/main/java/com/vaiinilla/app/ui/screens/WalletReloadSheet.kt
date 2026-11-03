@@ -14,14 +14,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,7 +36,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,12 +46,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,7 +65,7 @@ import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.RollingText
-import com.vaiinilla.app.ui.components.minTouchTarget
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -64,19 +76,21 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /** Billetes con los que suele recargar la gente. */
 private val ReloadQuickAmounts = listOf(50, 100, 200, 500)
 
-/** "Recargar $100 a Ana": el botón repite a quién y cuánto antes de mover el dinero. */
-internal fun walletReloadLabel(
-    amount: BigDecimal?,
-    client: WalletClient,
-): String =
+private const val ReloadSearchMinLength = 2
+private const val ReloadSearchDebounceMs = 350L
+private const val ReloadScrollDelayMs = 280L
+
+/** "Recargar $100 en efectivo": a quién va lo dice la fila marcada, cuánto lo repite el botón. */
+internal fun walletReloadLabel(amount: BigDecimal?): String =
     if (amount == null || amount.signum() <= 0) {
-        "Recargar a ${client.name}"
+        "Recargar en efectivo"
     } else {
-        "Recargar ${moneyLabel(Money.format(amount))} a ${client.name}"
+        "Recargar ${moneyLabel(Money.format(amount))} en efectivo"
     }
 
 private val LastOrderDay = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("es-MX"))
@@ -108,9 +122,15 @@ internal fun walletClientDetail(
         .joinToString(" · ")
         .ifBlank { null }
 
-/** "Tiene $321.95": el saldo antes de recargar. */
-internal fun walletClientBalance(client: WalletClient): String? =
-    client.balance?.toBigDecimalOrNull()?.let { "Tiene ${moneyLabel(Money.format(it))}" }
+/** La fila del cliente: lo que lo distingue de un homónimo y su saldo antes de recargar. */
+internal fun walletClientRowDetail(
+    client: WalletClient,
+    today: LocalDate = BusinessTime.today(),
+): String? =
+    listOfNotNull(
+        walletClientDetail(client, today),
+        client.balance?.toBigDecimalOrNull()?.let { "saldo ${moneyLabel(Money.format(it))}" },
+    ).joinToString(" · ").ifBlank { null }
 
 /** Lo escrito como monto, o null si no es un monto positivo. */
 internal fun walletReloadAmount(text: String): BigDecimal? =
@@ -168,8 +188,8 @@ internal fun WalletReloadSheet(
 }
 
 /**
- * Recarga en dos pasos: primero se encuentra al cliente (buscar o escanear su QR) y después
- * aparece el monto. Así no se escribe dinero antes de saber a quién va.
+ * Recarga en una sola hoja: se busca al cliente (o se escanea su QR) y, al marcarlo, aparece el
+ * monto debajo. Así no se escribe dinero antes de saber a quién va.
  */
 @Composable
 internal fun WalletReloadContent(
@@ -198,67 +218,95 @@ internal fun WalletReloadContent(
     val receiptAtOpen = remember { receipt?.movementId }
     val done = receipt?.takeIf { it.movementId != receiptAtOpen }
     val reduced = reducedMotion()
-    val step =
-        when {
-            done != null -> 2
-            selected != null -> 1
-            else -> 0
-        }
+
+    val scroll = rememberScrollState()
+    // El monto y el botón aparecen debajo de los resultados: la hoja baja sola para que no queden escondidos.
+    LaunchedEffect(selected?.userId, amountText.isEmpty()) {
+        if (selected == null) return@LaunchedEffect
+        delay(ReloadScrollDelayMs)
+        scroll.animateScrollTo(scroll.maxValue)
+    }
+
+    LaunchedEffect(query) {
+        if (query.trim().length < ReloadSearchMinLength) return@LaunchedEffect
+        delay(ReloadSearchDebounceMs)
+        searched = true
+        onSearch(query)
+    }
 
     AnimatedContent(
-        targetState = step,
+        targetState = done != null,
         transitionSpec = {
             if (reduced) {
                 fadeIn(snap()) togetherWith fadeOut(snap())
             } else {
-                val direction = if (targetState > initialState) 1 else -1
                 (
-                    slideInHorizontally(spring(dampingRatio = 0.9f, stiffness = 500f)) { it / 5 * direction } +
+                    slideInHorizontally(spring(dampingRatio = 0.9f, stiffness = 500f)) { it / 5 } +
                         fadeIn(spring(stiffness = 400f))
                 ) togetherWith fadeOut(spring(stiffness = 600f))
             }
         },
         label = "wallet-reload-step",
-    ) { current ->
+    ) { finished ->
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp)
+                    .verticalScroll(scroll)
+                    .imePadding()
+                    .padding(horizontal = 16.dp)
                     .navigationBarsPadding()
                     .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            when (current) {
-                0 ->
-                    FindClientStep(
-                        query = query,
-                        onQueryChange = {
-                            query = it
-                            searched = false
-                        },
-                        searched = searched,
-                        searching = searching,
-                        clients = clients,
-                        colors = colors,
-                        onSearch = {
+            if (finished) {
+                done?.let { ReloadDone(it, colors, onDone) }
+            } else {
+                ReloadHeader(colors)
+                if (pendingReload != null) {
+                    PendingReloadCard(pendingReload, reloading, colors, onConfirmPending, onDiscardPending)
+                }
+                ClientSearchField(
+                    query = query,
+                    onQueryChange = {
+                        query = it
+                        searched = false
+                    },
+                    onSubmit = {
+                        if (query.trim().length >= ReloadSearchMinLength) {
                             searched = true
                             onSearch(query)
-                        },
-                        onScan = onScan,
-                        onPick = {
-                            onDismissError()
-                            selected = it
-                        },
-                        pendingReload = pendingReload,
-                        reloading = reloading,
-                        errorMessage = errorMessage,
-                        onConfirmPending = onConfirmPending,
-                        onDiscardPending = onDiscardPending,
-                    )
-                1 ->
-                    selected?.let { client ->
-                        AmountStep(
+                        }
+                    },
+                    onScan = onScan,
+                    colors = colors,
+                )
+                ClientResults(
+                    clients = clients,
+                    selected = selected,
+                    searched = searched,
+                    searching = searching,
+                    colors = colors,
+                    onPick = {
+                        onDismissError()
+                        selected = it
+                    },
+                )
+                if (selected == null) ReloadError(errorMessage)
+                AnimatedContent(
+                    targetState = selected,
+                    contentKey = { it != null },
+                    transitionSpec = {
+                        if (reduced) {
+                            fadeIn(snap()) togetherWith fadeOut(snap())
+                        } else {
+                            fadeIn(spring(stiffness = 400f)) togetherWith fadeOut(spring(stiffness = 600f))
+                        }
+                    },
+                    label = "wallet-reload-amount",
+                ) { client ->
+                    if (client != null) {
+                        AmountSection(
                             client = client,
                             amountText = amountText,
                             onAmountChange = { amountText = it },
@@ -267,113 +315,192 @@ internal fun WalletReloadContent(
                             reloading = reloading,
                             errorMessage = errorMessage,
                             pendingReload = pendingReload,
-                            onConfirmPending = onConfirmPending,
-                            onDiscardPending = onDiscardPending,
                             colors = colors,
-                            onChangeClient = {
-                                onDismissError()
-                                selected = null
-                                amountText = ""
-                            },
                             onReload = { amount -> onReload(client.userId, Money.format(amount)) },
                         )
                     }
-                else ->
-                    done?.let { ReloadDone(it, colors, onDone) }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FindClientStep(
+private fun ReloadHeader(colors: OperationalColors) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Recargar saldo", fontSize = 28.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+        Text(
+            "El cliente te da el efectivo y se le abona a su cartera al momento.",
+            fontSize = 14.sp,
+            color = colors.textSecondary,
+        )
+    }
+}
+
+@Composable
+private fun ClientSearchField(
     query: String,
     onQueryChange: (String) -> Unit,
-    searched: Boolean,
-    searching: Boolean,
-    clients: List<WalletClient>,
-    colors: OperationalColors,
-    onSearch: () -> Unit,
+    onSubmit: () -> Unit,
     onScan: () -> Unit,
-    onPick: (WalletClient) -> Unit,
-    pendingReload: PendingReloadUi?,
-    reloading: Boolean,
-    errorMessage: String?,
-    onConfirmPending: () -> Unit,
-    onDiscardPending: () -> Unit,
+    colors: OperationalColors,
 ) {
-    Column {
-        Text("Recargar saldo", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
-        Text("¿A quién?", fontSize = 30.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-    }
-    if (pendingReload != null) {
-        PendingReloadCard(pendingReload, reloading, colors, onConfirmPending, onDiscardPending)
-    }
-    ReloadError(errorMessage)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        OperationalField(
+    val shape = CircleShape
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .clip(shape)
+                .background(colors.cardBackground)
+                .padding(start = 16.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.Outlined.Search,
+            contentDescription = null,
+            tint = colors.textSecondary,
+            modifier = Modifier.size(20.dp),
+        )
+        BasicTextField(
             value = query,
             onValueChange = onQueryChange,
-            label = "Nombre o identificador",
-            colors = colors,
+            singleLine = true,
+            textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary),
+            cursorBrush = SolidColor(colors.textPrimary),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
             modifier = Modifier.weight(1f),
+            decorationBox = { field ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) {
+                        Text("Nombre o identificador", fontSize = 15.sp, color = colors.textSecondary, maxLines = 1)
+                    }
+                    field()
+                }
+            },
         )
-        Box(
+        Row(
             modifier =
                 Modifier
                     .physicalPress(scale = PhysicalPressScale.Small, onClick = onScan)
-                    .semantics { contentDescription = "Escanear QR del cliente" }
-                    .size(58.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.cardInner)
-                    .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center,
+                    .semantics(mergeDescendants = true) { contentDescription = "Escanear QR del cliente" }
+                    .height(36.dp)
+                    .clip(CircleShape)
+                    .background(colors.textPrimary)
+                    .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = colors.textPrimary)
+            Icon(
+                Icons.Outlined.QrCodeScanner,
+                contentDescription = null,
+                tint = colors.background,
+                modifier = Modifier.size(18.dp),
+            )
+            Text("Su QR", fontSize = 13.sp, fontWeight = FontWeight.Black, color = colors.background, maxLines = 1)
         }
     }
-    ChipButton(
-        label = if (searching) "Buscando…" else "Buscar",
-        enabled = !searching && query.trim().length >= 2,
-        colors = colors,
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onSearch,
-    )
-    if (searched && !searching && clients.isEmpty()) {
+}
+
+@Composable
+private fun ClientResults(
+    clients: List<WalletClient>,
+    selected: WalletClient?,
+    searched: Boolean,
+    searching: Boolean,
+    colors: OperationalColors,
+    onPick: (WalletClient) -> Unit,
+) {
+    // Una búsqueda nueva no le quita la marca al cliente ya elegido: el botón ya no dice su nombre.
+    val shown =
+        selected
+            ?.takeIf { pick -> clients.none { it.userId == pick.userId } }
+            ?.let { listOf(it) + clients }
+            ?: clients
+    if (searching) {
+        Text("Buscando…", fontSize = 13.sp, color = colors.textSecondary)
+    } else if (searched && clients.isEmpty()) {
         Text(
             "Nadie con ese nombre en este lugar. Prueba con el identificador o escanea su QR.",
             fontSize = 13.sp,
             color = colors.textSecondary,
         )
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        clients.forEach { client ->
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .physicalPress(scale = PhysicalPressScale.Nav) { onPick(client) }
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.cardInner)
-                        .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                ClientInitials(client.name)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(client.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
-                    walletClientDetail(client)?.let {
-                        Text(it, fontSize = 12.sp, color = colors.textSecondary, maxLines = 2)
-                    }
-                    walletClientBalance(client)?.let {
-                        Text(it, fontSize = 12.sp, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
-                    }
+    if (shown.isEmpty()) return
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.cardBackground)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+    ) {
+        shown.forEachIndexed { index, client ->
+            key(client.userId) {
+                if (index > 0) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp)
+                                .height(1.dp)
+                                .background(colors.cardBorder),
+                    )
                 }
+                ClientRow(client, isSelected = client.userId == selected?.userId, colors) { onPick(client) }
+            }
+        }
+    }
+    Text(
+        "Ves parte del correo para no confundir a dos personas con el mismo nombre.",
+        fontSize = 12.sp,
+        color = colors.textSecondary,
+    )
+}
+
+@Composable
+private fun ClientRow(
+    client: WalletClient,
+    isSelected: Boolean,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val border = animateSelectionColor(if (isSelected) colors.accentLime else Color.Transparent, "reload-client-border")
+    val tint =
+        animateSelectionColor(if (isSelected) colors.accentLime.copy(alpha = 0.08f) else Color.Transparent, "reload-client-tint")
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { if (isSelected) selected = true }
+                .physicalPress(scale = PhysicalPressScale.Nav, onClick = onClick)
+                .clip(shape)
+                .background(tint)
+                .border(2.dp, border, shape)
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ClientInitials(client.name)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(client.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
+            walletClientRowDetail(client)?.let {
+                Text(it, fontSize = 12.sp, color = colors.textSecondary, maxLines = 2)
+            }
+        }
+        if (isSelected) {
+            Box(
+                modifier = Modifier.size(22.dp).clip(CircleShape).background(colors.accentLime),
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
-                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    Icons.Rounded.Check,
                     contentDescription = null,
-                    tint = colors.textSecondary,
+                    tint = colors.accentInk,
+                    modifier = Modifier.size(14.dp),
                 )
             }
         }
@@ -381,7 +508,7 @@ private fun FindClientStep(
 }
 
 @Composable
-private fun AmountStep(
+private fun AmountSection(
     client: WalletClient,
     amountText: String,
     onAmountChange: (String) -> Unit,
@@ -390,101 +517,107 @@ private fun AmountStep(
     reloading: Boolean,
     errorMessage: String?,
     pendingReload: PendingReloadUi?,
-    onConfirmPending: () -> Unit,
-    onDiscardPending: () -> Unit,
     colors: OperationalColors,
-    onChangeClient: () -> Unit,
     onReload: (BigDecimal) -> Unit,
 ) {
     val amount = walletReloadAmount(amountText)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Recargar a", fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
-            Text(client.name, fontSize = 24.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-            walletClientDetail(client)?.let { Text(it, fontSize = 12.sp, color = colors.textSecondary) }
-            walletClientBalance(client)?.let {
-                Text(it, fontSize = 14.sp, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text(
+            "¿CUÁNTO RECARGA?",
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 11.sp,
+            letterSpacing = 1.5.sp,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            ReloadQuickAmounts.forEach { bill ->
+                val value = bill.toBigDecimal()
+                ReloadAmountChip(
+                    label = moneyLabel(bill),
+                    isSelected = amount != null && amount.compareTo(value) == 0,
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                ) { onAmountChange(bill.toString()) }
             }
         }
-        Text(
-            "Cambiar",
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = colors.textPrimary,
-            modifier =
-                Modifier
-                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onChangeClient)
-                    .padding(horizontal = 8.dp, vertical = 10.dp)
-                    .minTouchTarget(),
+        OperationalField(
+            value = amountText,
+            onValueChange = { raw -> onAmountChange(MoneyInput.sanitize(raw)) },
+            label = "Otro monto",
+            colors = colors,
+            placeholder = "0.00",
+            keyboardType = KeyboardType.Decimal,
         )
-    }
-    Text(
-        "¿CUÁNTO RECARGA?",
-        fontWeight = FontWeight.Black,
-        fontSize = 11.sp,
-        letterSpacing = 1.2.sp,
-        color = colors.textSecondary,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        ReloadQuickAmounts.forEach { bill ->
-            val value = bill.toBigDecimal()
-            ChipButton(
-                label = moneyLabel(bill),
-                enabled = true,
-                colors = colors,
-                modifier = Modifier.weight(1f),
-                selected = amount != null && amount.compareTo(value) == 0,
-            ) { onAmountChange(bill.toString()) }
+        val before = client.balance?.toBigDecimalOrNull()
+        if (before != null && amount != null) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(colors.cardBackground)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Saldo de ${client.name.substringBefore(' ')} después",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    moneyLabel(Money.format(before + amount)),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.textPrimary,
+                )
+            }
         }
-    }
-    OperationalField(
-        value = amountText,
-        onValueChange = { raw -> onAmountChange(MoneyInput.sanitize(raw)) },
-        label = "Otro monto",
-        colors = colors,
-        placeholder = "0.00",
-        keyboardType = KeyboardType.Decimal,
-    )
-    val before = client.balance?.toBigDecimalOrNull()
-    if (before != null && amount != null) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.cardBackground)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Saldo de ${client.name.substringBefore(' ')} después",
-                fontSize = 14.sp,
-                color = colors.textSecondary,
-            )
-            Text(
-                moneyLabel(Money.format(before + amount)),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                color = colors.textPrimary,
-            )
+        if (!canReload && blockedReason != null) {
+            Text(blockedReason, fontSize = 13.sp, color = colors.textSecondary)
         }
+        ReloadError(errorMessage)
+        ActionPill(
+            label = walletReloadLabel(amount),
+            enabled = canReload && amount != null && pendingReload == null,
+            loading = reloading,
+            colors = colors,
+            inverted = true,
+            shape = CircleShape,
+            height = 58.dp,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Black,
+        ) { amount?.let(onReload) }
     }
-    if (!canReload && blockedReason != null) {
-        Text(blockedReason, fontSize = 13.sp, color = colors.textSecondary)
-    }
-    if (pendingReload != null) {
-        PendingReloadCard(pendingReload, reloading, colors, onConfirmPending, onDiscardPending)
-    }
-    ReloadError(errorMessage)
-    ActionPill(
-        label = walletReloadLabel(amount, client),
-        enabled = canReload && amount != null && pendingReload == null,
-        loading = reloading,
-        colors = colors,
-    ) { amount?.let(onReload) }
 }
 
+@Composable
+private fun ReloadAmountChip(
+    label: String,
+    isSelected: Boolean,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(16.dp)
+    val container = animateSelectionColor(if (isSelected) colors.accentLime else colors.cardBackground, "reload-chip")
+    val ink = animateSelectionColor(if (isSelected) colors.accentInk else colors.textPrimary, "reload-chip-ink")
+    Box(
+        modifier =
+            modifier
+                .semantics { if (isSelected) selected = true }
+                .physicalPress(onClick = onClick)
+                .height(52.dp)
+                .clip(shape)
+                .background(container),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, fontWeight = FontWeight.Black, fontSize = 17.sp, color = ink, maxLines = 1)
+    }
+}
 /** El error de la recarga, dentro de la hoja: detrás de ella la pantalla de Caja no se ve. */
 @Composable
 private fun ReloadError(message: String?) {

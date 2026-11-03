@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -49,13 +50,13 @@ class WalletReloadContentTest {
 
         composeTestRule.onNodeWithText("Ana López").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Recargar a Ana López").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Recargar en efectivo").assertIsNotEnabled()
 
         composeTestRule.onNodeWithText("$100").performClick()
         composeTestRule.waitForIdle()
         assertEquals(emptyList<Pair<String, String>>(), reloads)
 
-        composeTestRule.onNodeWithText("Recargar $100 a Ana López").performClick()
+        composeTestRule.onNodeWithText("Recargar $100 en efectivo").performScrollTo().performClick()
         assertEquals(listOf("u-ana" to "100.00"), reloads)
     }
 
@@ -66,7 +67,7 @@ class WalletReloadContentTest {
         assertNull(walletReloadAmount("0"))
         assertNull(walletReloadAmount(""))
         assertNull(walletReloadAmount("1.234"))
-        assertEquals("Recargar $50 a Ana López", walletReloadLabel(BigDecimal("50"), ana))
+        assertEquals("Recargar $50 en efectivo", walletReloadLabel(BigDecimal("50")))
     }
 
     @Test
@@ -76,9 +77,9 @@ class WalletReloadContentTest {
             ana.copy(maskedEmail = "a***@ejemplo.com", lastOrderAt = "2026-10-28T19:04:11.000Z", balance = "321.95")
 
         assertEquals("A-102 · a***@ejemplo.com · Pidió ayer", walletClientDetail(conDatos, hoy))
-        assertEquals("Tiene $321.95", walletClientBalance(conDatos))
+        assertEquals("A-102 · a***@ejemplo.com · Pidió ayer · saldo $321.95", walletClientRowDetail(conDatos, hoy))
         assertEquals("A-102", walletClientDetail(ana, hoy))
-        assertNull(walletClientBalance(ana))
+        assertEquals("A-102", walletClientRowDetail(ana, hoy))
         assertNull(walletClientDetail(ana.copy(contextualId = null), hoy))
     }
 
