@@ -19,7 +19,6 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -115,16 +114,16 @@ class WeekPlannerGridUiTest {
     }
 
     @Test
-    fun `los productos van en dos columnas`() {
+    fun `los productos van en renglones, uno bajo otro, como Doop`() {
         showPlanner()
 
         val first = composeTestRule.onNodeWithTag("week-product-10").getBoundsInRoot()
         val second = composeTestRule.onNodeWithTag("week-product-11").getBoundsInRoot()
         val third = composeTestRule.onNodeWithTag("week-product-12").getBoundsInRoot()
-        assertEquals(first.top, second.top)
-        assertTrue(second.left > first.right)
+        assertEquals(first.left, second.left)
         assertEquals(first.left, third.left)
-        assertNotEquals(first.top, third.top)
+        assertTrue(second.top >= first.bottom)
+        assertTrue(third.top >= second.bottom)
     }
 
     @Test
@@ -138,7 +137,7 @@ class WeekPlannerGridUiTest {
     }
 
     @Test
-    fun `lo elegido se marca alrededor de la foto`() {
+    fun `lo elegido llena su círculo y deja cambiar cuántos`() {
         showPlanner()
 
         composeTestRule.onNodeWithTag("week-picked-10", useUnmergedTree = true).assertDoesNotExist()
@@ -160,7 +159,7 @@ class WeekPlannerGridUiTest {
         composeTestRule.mainClock.advanceTimeBy(2_000)
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("Apartar comida").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Apartar para Ana").assertIsDisplayed()
         composeTestRule.onNodeWithTag("week-reserve").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cerrar sin apartar").assertIsDisplayed()
     }

@@ -297,25 +297,29 @@ internal fun ChildAccountContent(
     }
 
     val close = { sheet = null }
+    var reloadOverWeek by remember { mutableStateOf(false) }
+
+    @Composable
+    fun ReloadSheet(onClosed: () -> Unit) =
+        ChildReloadSheet(
+            child = child,
+            balance = state.balance,
+            account = state.account,
+            range = state.wallet?.reloadRange,
+            unsettledReloadId = state.unsettledReloadId,
+            onUnsettledChange = { state.unsettledReloadId = it },
+            onCredited = { amount ->
+                state.say("Listo: ${compactMoney(amount)} para ${child.firstName}.")
+                scope.launch { state.refreshWallet() }
+            },
+            onDismiss = {
+                pendingReloadAmount = null
+                onClosed()
+            },
+            initialAmount = pendingReloadAmount,
+        )
     when (sheet) {
-        ChildSheet.RELOAD ->
-            ChildReloadSheet(
-                child = child,
-                balance = state.balance,
-                account = state.account,
-                range = state.wallet?.reloadRange,
-                unsettledReloadId = state.unsettledReloadId,
-                onUnsettledChange = { state.unsettledReloadId = it },
-                onCredited = { amount ->
-                    state.say("Listo: ${compactMoney(amount)} para ${child.firstName}.")
-                    scope.launch { state.refreshWallet() }
-                },
-                onDismiss = {
-                    pendingReloadAmount = null
-                    close()
-                },
-                initialAmount = pendingReloadAmount,
-            )
+        ChildSheet.RELOAD -> ReloadSheet(close)
         ChildSheet.CONTROLS ->
             ChildControlsSheet(
                 child = child,
@@ -339,7 +343,8 @@ internal fun ChildAccountContent(
                 balance = state.balance,
                 onReserved = { days -> scope.launch { state.didReserve(days) } },
                 onDismiss = close,
-            )
+                onReload = { reloadOverWeek = true },
+            ).also { if (reloadOverWeek) ReloadSheet { reloadOverWeek = false } }
         ChildSheet.OWN_ACCOUNT -> AccountCodeSheet(child, state.services.guardianship, onDismiss = close)
         ChildSheet.GUARDIAN_CODE -> GuardianCodeSheet(child, state.services.guardianship, onDismiss = close)
         ChildSheet.REFUND, ChildSheet.DATA_REMOVAL ->
