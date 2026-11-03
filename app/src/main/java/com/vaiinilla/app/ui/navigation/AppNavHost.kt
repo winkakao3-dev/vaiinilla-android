@@ -647,11 +647,10 @@ fun AppNavHost(
                 OperationalRole.KITCHEN -> Routes.KITCHEN
                 OperationalRole.WAITER -> Routes.WAITER
                 OperationalRole.ADMIN -> Routes.ADMIN
-                OperationalRole.CLIENT -> Routes.CATALOG
+                // Pedir como cliente es buscar dónde pedir: el menú sin lugar elegido cargaba el negocio de la
+                // membresía de cliente, con el encabezado vacío («M», «MENÚ»).
+                OperationalRole.CLIENT -> Routes.DISCOVERY
             }
-        if (modeRole == OperationalRole.CLIENT) {
-            orderFlowViewModel.refresh()
-        }
         navController.navigate(targetRoute) {
             popUpTo(Routes.DISCOVERY) {
                 inclusive = false
