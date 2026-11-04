@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.guest.GuestIdentityRequiredException
 import com.vaiinilla.app.data.guest.GuestReservationSession
@@ -85,6 +86,9 @@ class ReservationsViewModel
         val paidOrderEvents: Flow<CreatedOrder> = paidOrders.receiveAsFlow()
 
         private var pollingJob: Job? = null
+
+        /** Un reintento de apartar o pagar reusa la llave: el servidor no aparta ni cobra dos veces. */
+        private val retryKeys = RetryKeys()
 
         /** Cuenta con sesión, o invitado en [guestSlug] si no la hay. Null = no hay negocio que rentar. */
         private var reservationAccess: ReservationAccess? = null
@@ -257,18 +261,21 @@ class ReservationsViewModel
             val court = state.selectedCourt ?: return
             val minutes = state.selectedDuration ?: return
             _uiState.value = state.copy(working = true, error = null, notice = null)
+            val start = if (state.rentNow) null else state.selectedStart
+            val signature = arrayOf<Any?>("reserve", court.id, start, minutes)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
                         repository.create(
                             access = access,
                             courtId = court.id,
-                            start = if (state.rentNow) null else state.selectedStart,
+                            start = start,
                             durationMinutes = minutes,
                             customerName = null,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            idempotencyKey = retryKeys.keyFor(*signature),
                         )
                     }
+                result.onSuccess { retryKeys.forget(*signature) }
                 result.fold(
                     onSuccess = { reservation ->
                         _uiState.value =
@@ -358,9 +365,10 @@ class ReservationsViewModel
                             reservationId = reservation.id,
                             method = method,
                             cashReceived = null,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            idempotencyKey = retryKeys.keyFor("pay", reservation.id, method),
                         )
                     }
+                result.onSuccess { retryKeys.forget("pay", reservation.id, method) }
                 result.fold(
                     onSuccess = { payment ->
                         _uiState.value =

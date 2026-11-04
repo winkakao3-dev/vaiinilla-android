@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.contract.UnreadableOrders
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.MutationIdempotency
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.runCatchingCancellable
@@ -112,6 +113,9 @@ class OperationalViewModel
         val orderAdvanceEvents: Flow<OrderAdvance> = orderAdvances.receiveAsFlow()
         private var clientTrackingBaselineReady = false
         private var mutationErrorVisible = false
+
+        /** Abrir/cerrar caja, crear producto o llamar mesero: el reintento reusa la llave hasta que confirman. */
+        private val retryKeys = RetryKeys()
         private var errorClearJob: Job? = null
 
         // Cada refresh() lleva su número: una respuesta más vieja que la ya aplicada se descarta.
@@ -482,11 +486,12 @@ class OperationalViewModel
                 viewModelScope.launch {
                     val result =
                         withContext(Dispatchers.IO) {
-                            openCashSession(wireAmount, UUID.randomUUID().toString())
+                            openCashSession(wireAmount, retryKeys.keyFor("open-cash", wireAmount))
                         }
                     if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                     result
                         .onSuccess {
+                            retryKeys.forget("open-cash", wireAmount)
                             _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
                         }.onFailure { error ->
                             // Si el POST llegó pero la respuesta se perdió, la sesión ya
@@ -529,7 +534,10 @@ class OperationalViewModel
                     withContext(Dispatchers.IO) {
                         cashSessionRepository.activeSessionId().mapCatching { id ->
                             val sessionId = id ?: error("No hay una caja abierta.")
-                            closeCashSession(sessionId, finalAmount, UUID.randomUUID().toString()).getOrThrow()
+                            val key = retryKeys.keyFor("close-cash", sessionId, finalAmount)
+                            closeCashSession(sessionId, finalAmount, key)
+                                .getOrThrow()
+                                .also { retryKeys.forget("close-cash", sessionId, finalAmount) }
                         }
                     }
                 if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
@@ -1441,8 +1449,9 @@ class OperationalViewModel
             viewModelScope.launch {
                 val created =
                     withContext(Dispatchers.IO) {
-                        catalogRepository.createProduct(draft, UUID.randomUUID().toString())
+                        catalogRepository.createProduct(draft, retryKeys.keyFor("create-product", draft))
                     }
+                created.onSuccess { retryKeys.forget("create-product", draft) }
                 val createdProduct =
                     created
                         .getOrElse { error ->
@@ -1588,7 +1597,10 @@ class OperationalViewModel
             orderId: String?,
         ): Result<TableCall> =
             withContext(Dispatchers.IO) {
-                waiterRepository.call(espacioId, reason, orderId, UUID.randomUUID().toString())
+                val signature = arrayOf<Any?>("call-waiter", espacioId, reason, orderId)
+                waiterRepository
+                    .call(espacioId, reason, orderId, retryKeys.keyFor(*signature))
+                    .onSuccess { retryKeys.forget(*signature) }
             }
 
         suspend fun cancelWaiterCall(call: TableCall): Result<TableCall> =

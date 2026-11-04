@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.StaffInvitation
@@ -42,6 +43,9 @@ class AdminStaffViewModel
         private val repository: AdminStaffRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminStaffUiState())
+
+        /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
+        private val retryKeys = RetryKeys()
         val uiState: State<AdminStaffUiState> = _uiState
         private var noticeJob: Job? = null
         private var loadJob: Job? = null
@@ -111,7 +115,9 @@ class AdminStaffViewModel
         ) {
             val normalized = StaffRules.email(email) ?: return showNotice("Escribe un correo válido.", isError = true)
             mutate("Invitación creada y correo enviado.", onDone) {
-                repository.invite(normalized, role, UUID.randomUUID().toString()).map { }
+                retryKeys
+                    .withKey("invite", normalized, role) { key -> repository.invite(normalized, role, key) }
+                    .map { }
             }
         }
 

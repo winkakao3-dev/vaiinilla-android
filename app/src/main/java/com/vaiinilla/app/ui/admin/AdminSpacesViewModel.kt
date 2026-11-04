@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
@@ -51,6 +52,9 @@ class AdminSpacesViewModel
         private val reservations: ReservationRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminSpacesUiState())
+
+        /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
+        private val retryKeys = RetryKeys()
         val uiState: State<AdminSpacesUiState> = _uiState
         private var noticeJob: Job? = null
         private var scope: String? = null
@@ -103,7 +107,10 @@ class AdminSpacesViewModel
         ) {
             SpaceRules.nameProblem(name)?.let { return showNotice(it, isError = true) }
             mutate("${name.trim()} creado", onDone = onDone) {
-                repository.create(name, type, UUID.randomUUID().toString(), capacity).map { }
+                retryKeys
+                    .withKey("create", name.trim(), type, capacity) { key ->
+                        repository.create(name, type, key, capacity)
+                    }.map { }
             }
         }
 
@@ -121,7 +128,9 @@ class AdminSpacesViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        repository.createBatch(type, prefix, from!!, to!!, UUID.randomUUID().toString(), capacity)
+                        retryKeys.withKey("batch", type, prefix, from, to, capacity) { key ->
+                            repository.createBatch(type, prefix, from!!, to!!, key, capacity)
+                        }
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(
