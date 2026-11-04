@@ -197,7 +197,7 @@ private fun LazyListScope.dayCutItems(
         cut == null && state.dayError != null ->
             item(key = "day-error") { AdminLoadError(state.dayError, colors, viewModel::loadDay) }
         cut == null -> item(key = "day-loading") { AdminHint("Cargando el corte…", colors) }
-        cut.shifts.isEmpty() ->
+        cut.shifts.isEmpty() && cut.outsideShift.orders == 0 ->
             item(key = "day-empty") {
                 AdminEmptyState(
                     icon = Icons.Outlined.PointOfSale,
@@ -207,16 +207,25 @@ private fun LazyListScope.dayCutItems(
                 )
             }
         else -> {
-            item(key = "day-cash") {
-                CashPanel(
-                    cut.cash,
-                    colors,
-                    title = "Efectivo del día",
-                    pendingNote = "Falta cerrar un turno para comparar con lo contado.".takeIf { !cut.final },
-                )
+            if (cut.shifts.isNotEmpty()) {
+                item(key = "day-cash") {
+                    CashPanel(
+                        cut.cash,
+                        colors,
+                        title = "Efectivo del día",
+                        pendingNote = "Falta cerrar un turno para comparar con lo contado.".takeIf { !cut.final },
+                    )
+                }
             }
             item(key = "shifts-title") {
-                AdminH2(if (cut.shifts.size == 1) "1 turno" else "${cut.shifts.size} turnos", colors)
+                AdminH2(
+                    when (cut.shifts.size) {
+                        0 -> "Sin turnos de Caja"
+                        1 -> "1 turno"
+                        else -> "${cut.shifts.size} turnos"
+                    },
+                    colors,
+                )
             }
             item(key = "shifts") {
                 AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
@@ -229,6 +238,18 @@ private fun LazyListScope.dayCutItems(
                             onClick = { viewModel.openShift(shift.id) },
                         ) {
                             ArqueoBadge(shift.cash, colors, open = shift.open)
+                        }
+                    }
+                    if (cut.outsideShift.orders > 0) {
+                        if (cut.shifts.isNotEmpty()) AdminRowDivider(colors)
+                        val orders = cut.outsideShift.orders
+                        val count = if (orders == 1) "1 pedido cobrado" else "$orders pedidos cobrados"
+                        AdminRow(
+                            title = "Sin turno (en línea)",
+                            detail = "$count sin caja abierta",
+                            colors = colors,
+                        ) {
+                            AdminRowValue(moneyLabel(cut.outsideShift.sales), colors)
                         }
                     }
                 }
@@ -415,6 +436,15 @@ private fun LazyListScope.breakdownItems(
             if (b.summary.rentals.isNotZero()) CashLine("Rentas de pista o cancha", b.summary.rentals, colors)
             if (b.summary.discounts.isNotZero()) CashLine("Descuentos", b.summary.discounts, colors, negative = true)
             if (b.summary.delivery.isNotZero()) CashLine("Envíos", b.summary.delivery, colors)
+            if (b.refunds.rejectedItems.isNotZero()) {
+                CashLine("Devuelto por artículos rechazados", b.refunds.rejectedItems, colors, negative = true)
+            }
+            if (b.refunds.reservations.isNotZero()) {
+                CashLine("Reembolsos de reservas", b.refunds.reservations, colors, negative = true)
+            }
+            if (b.refunds.handedBack.isNotZero()) {
+                CashLine("Devoluciones entregadas", b.refunds.handedBack, colors, negative = true)
+            }
             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                 Text(
                     "Cancelados",

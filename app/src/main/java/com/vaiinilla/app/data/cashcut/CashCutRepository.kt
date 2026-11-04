@@ -148,12 +148,26 @@ data class Cancelled(
     val amount: String,
 )
 
+/** Lo que se le devolvió al cliente. Informativo: ya no está en las ventas. */
+data class Refunds(
+    val rejectedItems: String = "0.00",
+    val reservations: String = "0.00",
+    val handedBack: String = "0.00",
+)
+
+/** Lo cobrado el día sin caja abierta (en línea); ya va sumado en las ventas del día. */
+data class OutsideShift(
+    val orders: Int = 0,
+    val sales: String = "0.00",
+)
+
 /** Lo mismo para el corte y el reporte: ventas y sus desgloses. */
 data class SalesBreakdown(
     val summary: SalesSummary,
     val payments: List<PaymentLine>,
     val tips: Tips,
     val cancelled: Cancelled,
+    val refunds: Refunds = Refunds(),
     val categories: List<CategoryLine>,
     val products: List<ProductLine>,
     val staff: List<StaffLine>,
@@ -176,6 +190,7 @@ data class DayCut(
     val cash: CutCash,
     val breakdown: SalesBreakdown,
     val generatedAt: String?,
+    val outsideShift: OutsideShift = OutsideShift(),
 )
 
 data class AccountingReport(
@@ -301,6 +316,19 @@ private data class CancelledDto(
 )
 
 @Serializable
+private data class RefundsDto(
+    @SerialName("articulos_rechazados") val articulosRechazados: String = "0.00",
+    @SerialName("reembolsos_reserva") val reembolsosReserva: String = "0.00",
+    @SerialName("devoluciones_entregadas") val devolucionesEntregadas: String = "0.00",
+)
+
+@Serializable
+private data class OutsideShiftDto(
+    val pedidos: Int = 0,
+    val ventas: String = "0.00",
+)
+
+@Serializable
 private data class CategoryDto(
     val categoria: String = "Sin categoría",
     val cantidad: Int = 0,
@@ -350,6 +378,8 @@ private data class BreakdownDto(
     @SerialName("formas_pago") val formasPago: List<PaymentDto> = emptyList(),
     val propinas: TipsDto = TipsDto(),
     val cancelados: CancelledDto = CancelledDto(),
+    val devoluciones: RefundsDto = RefundsDto(),
+    @SerialName("sin_turno") val sinTurno: OutsideShiftDto? = null,
     @SerialName("por_categoria") val porCategoria: List<CategoryDto> = emptyList(),
     @SerialName("por_producto") val porProducto: List<ProductDto> = emptyList(),
     @SerialName("por_personal") val porPersonal: List<StaffDto> = emptyList(),
@@ -376,6 +406,8 @@ private data class BreakdownDto(
             payments = formasPago.map { PaymentLine(it.metodo, it.pedidos, it.monto) },
             tips = Tips(propinas.total, propinas.efectivo, propinas.terminal),
             cancelled = Cancelled(cancelados.pedidos, cancelados.monto),
+            refunds =
+                with(devoluciones) { Refunds(articulosRechazados, reembolsosReserva, devolucionesEntregadas) },
             categories = porCategoria.map { CategoryLine(it.categoria, it.cantidad, it.importe) },
             products = porProducto.map { ProductLine(it.producto, it.categoria, it.cantidad, it.importe) },
             staff = porPersonal.map { StaffLine(it.usuarioId, it.nombre, it.rol, it.pedidos, it.ventas, it.ticket) },
@@ -419,6 +451,7 @@ object CashCutJson {
             cash = (dto.efectivo ?: CashDto()).toDomain(),
             breakdown = dto.breakdown(),
             generatedAt = dto.generadoEn,
+            outsideShift = dto.sinTurno?.let { OutsideShift(it.pedidos, it.ventas) } ?: OutsideShift(),
         )
     }
 

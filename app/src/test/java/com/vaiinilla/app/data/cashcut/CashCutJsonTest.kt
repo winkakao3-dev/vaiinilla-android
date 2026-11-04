@@ -76,6 +76,23 @@ class CashCutJsonTest {
         assertNull(day.cash.counted)
         assertNull(day.cash.result)
         assertEquals("1020.00", day.cash.expected)
+        assertEquals(0, day.outsideShift.orders)
+    }
+
+    @Test
+    fun `corte del dia con lo cobrado sin caja y las devoluciones`() {
+        val raw =
+            """
+            {"data": {"fecha": "2026-11-09", "tipo": "parcial", "turnos": [],
+              "sin_turno": {"pedidos": 2, "ventas": "150.00"},
+              "devoluciones": {"articulos_rechazados": "120.00", "reembolsos_reserva": "0.00",
+                "devoluciones_entregadas": "30.00"}}}
+            """.trimIndent()
+        val day = CashCutJson.dayCut(raw)
+        assertEquals(2, day.outsideShift.orders)
+        assertEquals("150.00", day.outsideShift.sales)
+        assertEquals("120.00", day.breakdown.refunds.rejectedItems)
+        assertEquals("30.00", day.breakdown.refunds.handedBack)
     }
 
     @Test

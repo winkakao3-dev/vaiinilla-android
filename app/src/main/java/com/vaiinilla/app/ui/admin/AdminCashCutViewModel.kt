@@ -94,6 +94,7 @@ class AdminCashCutViewModel
         private var noticeJob: Job? = null
         private var dayJob: Job? = null
         private var reportJob: Job? = null
+        private var shiftJob: Job? = null
 
         /** Para probar sin reloj; en la app es hoy del teléfono. */
         internal var today: () -> LocalDate = { LocalDate.now(ZoneId.systemDefault()) }
@@ -151,19 +152,24 @@ class AdminCashCutViewModel
         }
 
         fun openShift(sessionId: String) {
+            shiftJob?.cancel()
             update { copy(shiftLoading = true) }
-            viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.shiftCut(sessionId) }
-                result
-                    .onSuccess { cut -> update { copy(shiftLoading = false, shiftCut = cut) } }
-                    .onFailure { error ->
-                        update { copy(shiftLoading = false) }
-                        notify(error.toUserFacingMessage("No se pudo cargar el turno."), isError = true)
-                    }
-            }
+            shiftJob =
+                viewModelScope.launch {
+                    val result = withContext(Dispatchers.IO) { repository.shiftCut(sessionId) }
+                    result
+                        .onSuccess { cut -> update { copy(shiftLoading = false, shiftCut = cut) } }
+                        .onFailure { error ->
+                            update { copy(shiftLoading = false) }
+                            notify(error.toUserFacingMessage("No se pudo cargar el turno."), isError = true)
+                        }
+                }
         }
 
-        fun closeShift() = update { copy(shiftCut = null) }
+        fun closeShift() {
+            shiftJob?.cancel()
+            update { copy(shiftCut = null, shiftLoading = false) }
+        }
 
         fun selectPeriod(period: ReportPeriod) {
             if (period == _uiState.value.period && _uiState.value.report != null) return
