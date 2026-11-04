@@ -357,6 +357,9 @@ class SpacesScreenshotTest {
             }
         }
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Sin propina", substring = true).performClick()
+        composeTestRule.mainClock.advanceTimeBy(400)
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("10%").performClick()
         composeTestRule.mainClock.advanceTimeBy(800)
         composeTestRule.onRoot().captureRoboImage("mesa/propina_cuenta.png")

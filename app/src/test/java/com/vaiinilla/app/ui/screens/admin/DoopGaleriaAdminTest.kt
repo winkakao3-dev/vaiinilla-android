@@ -947,14 +947,41 @@ class DoopGaleriaAdminTest {
         shot("a60_pegar_lista")
     }
 
-    @Test
-    @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
-    fun a63_dia_sin_servicio() {
+    private fun schoolAt(text: String) {
         school()
-        val day = hasText("Vie") or hasContentDescription("Vie", substring = true)
-        press(rule.onAllNodes(day).onFirst())
+        val target = hasText(text, substring = true)
+        val scrollers = rule.onAllNodes(hasScrollAction())
+        for (i in scrollers.fetchSemanticsNodes().indices) {
+            if (runCatching { scrollers[i].performScrollToNode(target) }.isSuccess) break
+        }
+        settle()
+    }
+
+    @Test
+    fun a58_menu_del_dia() {
+        schoolAt("Cada día")
+        press(rule.onAllNodes(hasText("Mié")).onFirst())
+        settle()
+        shot("a58_menu_del_dia")
+    }
+
+    @Test
+    fun a61_tutores() {
+        schoolAt("Quién decide")
+        shot("a61_tutores")
+    }
+
+    @Test
+    fun a62_devoluciones() {
+        schoolAt("Devoluciones y bajas")
+        shot("a62_devoluciones")
+    }
+
+    @Test
+    fun a63_dia_sin_servicio() {
+        schoolAt("Cada día")
+        press(rule.onAllNodes(hasText("Vie") or hasContentDescription("Vie", substring = true)).onFirst())
         rule.mainClock.advanceTimeBy(1_000)
         rule.waitForIdle()
         shot("a63_dia_sin_servicio")
-    }
-}
+    }}
