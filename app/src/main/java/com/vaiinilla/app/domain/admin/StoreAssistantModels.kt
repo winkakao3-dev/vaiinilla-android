@@ -81,6 +81,8 @@ sealed interface AssistantStep {
 
     data class Settings(
         val patchBody: String,
+        /** Nombre de cada campo para decir cuál no se pudo guardar. */
+        val titles: Map<String, String> = emptyMap(),
     ) : AssistantStep {
         override val label = "Ajustes de la tienda"
     }
@@ -114,7 +116,7 @@ sealed interface AssistantStep {
 /** Los pasos en el orden en que se aplican: primero ajustes y lugares, luego menú, fotos y al final el equipo. */
 fun AssistantProposal.steps(): List<AssistantStep> =
     buildList {
-        patchBody?.let { add(AssistantStep.Settings(it)) }
+        patchBody?.let { add(AssistantStep.Settings(it, changes.associate { c -> c.field to c.title })) }
         spaces.forEach { add(AssistantStep.Spaces(it)) }
         menu.forEach { add(AssistantStep.Menu(it)) }
         storePhotos.forEach { (kind, id) -> add(AssistantStep.StorePhoto(kind, id)) }

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
@@ -32,6 +33,7 @@ import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 private const val EMPTY_BODY = "{}"
@@ -175,7 +177,7 @@ class RemoteAdminStoreRepository(
         idempotencyKey: String,
     ): Result<Unit> =
         when (step) {
-            is AssistantStep.Settings -> patchConfig(step.patchBody).map { }
+            is AssistantStep.Settings -> applyAssistantSettings(step)
             is AssistantStep.Spaces ->
                 apiClient
                     .post(
@@ -213,6 +215,31 @@ class RemoteAdminStoreRepository(
                     .mapApiErrors()
         }
 
+    /**
+     * Todos los ajustes en un PATCH. Si el servidor rechaza uno (por ejemplo una regla que cruza dos
+     * campos), se guardan uno por uno para no perder los demás.
+     */
+    private fun applyAssistantSettings(step: AssistantStep.Settings): Result<Unit> {
+        val together = patchConfig(step.patchBody)
+        if (together.isSuccess) return Result.success(Unit)
+        val firstError = together.exceptionOrNull()!!
+        // Solo si el servidor rechazó el contenido (4xx de validación); sin red o sin permiso no se insiste.
+        val status = (firstError.cause as? ApiClientException)?.httpStatus
+        if (status != HTTP_BAD_REQUEST && status != HTTP_CONFLICT && status != HTTP_UNPROCESSABLE) {
+            return Result.failure(firstError)
+        }
+        val fields = Json.parseToJsonElement(step.patchBody).jsonObject
+        val failed = mutableListOf<String>()
+        var cause: Throwable? = null
+        fields.forEach { (field, value) ->
+            patchConfig(JsonObject(mapOf(field to value)).toString()).onFailure {
+                failed += step.titles[field] ?: field
+                cause = cause ?: it
+            }
+        }
+        return if (failed.isEmpty()) Result.success(Unit) else Result.failure(AssistantPartialFailure(failed, cause))
+    }
+
     /** La categoría (si no existe) y sus productos uno por uno; si alguno falla sigue con los demás. */
     private fun applyAssistantMenu(
         step: AssistantStep.Menu,
@@ -226,7 +253,7 @@ class RemoteAdminStoreRepository(
                     .post(
                         "catalogo/categorias",
                         assistantJson.encodeCategory(category.name, 0),
-                        key("$idempotencyKey-categoria"),
+                        key(MutationIdempotency.assistant(idempotencyKey, "categoria")),
                     ).mapCatching(assistantJson::parseId)
                     .mapApiErrors()
                     .getOrElse { return Result.failure(it) }
@@ -238,7 +265,7 @@ class RemoteAdminStoreRepository(
                     .post(
                         "catalogo/productos",
                         assistantJson.encodeProduct(categoryId, product),
-                        key("$idempotencyKey-producto-$index"),
+                        key(MutationIdempotency.assistant(idempotencyKey, "producto", "$index")),
                     ).mapCatching(assistantJson::parseId)
                     .mapApiErrors()
             val productId =
@@ -255,7 +282,7 @@ class RemoteAdminStoreRepository(
                     photo.image.filename,
                     photo.image.mimeType,
                     photo.image.bytes,
-                    key("$idempotencyKey-foto-$index"),
+                    key(MutationIdempotency.assistant(idempotencyKey, "foto", "$index")),
                 ).mapApiErrors()
                 .onFailure {
                     failed += "foto de ${product.name}"
@@ -435,6 +462,10 @@ class RemoteAdminSpacesRepository(
 }
 
 /** Parte de un paso del asistente no se pudo guardar; [items] dice qué (productos o fotos). */
+private const val HTTP_BAD_REQUEST = 400
+private const val HTTP_CONFLICT = 409
+private const val HTTP_UNPROCESSABLE = 422
+
 class AssistantPartialFailure(
     val items: List<String>,
     cause: Throwable?,
