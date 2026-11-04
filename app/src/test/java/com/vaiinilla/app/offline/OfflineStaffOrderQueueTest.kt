@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.offline.OfflineOrderAcceptedException
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderStore
 import com.vaiinilla.app.domain.offline.OfflineStaffOrdersSnapshot
@@ -389,6 +390,34 @@ class OfflineStaffOrderQueueTest {
             assertEquals(listOf("malo", "malo", "malo", "bueno"), repository.keys)
             assertEquals(OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM, queue.state.value.problems.single().problem)
             assertTrue(queue.state.value.pending.isEmpty())
+            queue.stop()
+        }
+
+    @Test
+    fun `un 503 sin sobre (servidor caido) no cuenta: nunca se aparta`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'M', "Mesa 1", "")
+            repository.next = { Result.failure(ApiClientException("HTTP_503", "Servicio no disponible.", 503)) }
+            repeat(5) { queue.flush() }
+            assertEquals(1, queue.state.value.pending.size)
+            assertTrue(queue.state.value.problems.isEmpty())
+            queue.stop()
+        }
+
+    @Test
+    fun `si respondio 2xx con un cuerpo ilegible, ya llego y no se vuelve a mandar`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'M', "Mesa 1", "")
+            repository.next = { Result.failure(OfflineOrderAcceptedException(IllegalArgumentException("json"))) }
+            queue.flush()
+            assertTrue(queue.state.value.pending.isEmpty())
+            assertTrue(queue.state.value.problems.isEmpty())
             queue.stop()
         }
 }

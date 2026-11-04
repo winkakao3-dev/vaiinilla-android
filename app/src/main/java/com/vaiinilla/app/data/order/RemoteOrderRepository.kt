@@ -14,6 +14,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.offline.OfflineOrderAcceptedException
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import java.time.Instant
@@ -58,9 +59,13 @@ class RemoteOrderRepository(
     ): Result<CreatedOrder> =
         apiClient
             .post(path = "pedidos", body = body, headers = mapOf("Idempotency-Key" to idempotencyKey))
-            .mapCatching { contractJson.parseCreatedOrder(it) }
-            .mapCatching { created -> created.copy(order = pickupTokenStore.attach(created.order)) }
             .mapApiErrors()
+            .mapCatching { raw ->
+                // Ya respondió 2xx: si el cuerpo no se entiende, el pedido igual quedó registrado.
+                runCatching { contractJson.parseCreatedOrder(raw) }
+                    .map { created -> created.copy(order = pickupTokenStore.attach(created.order)) }
+                    .getOrElse { throw OfflineOrderAcceptedException(it) }
+            }
 
     override fun getOrder(orderId: String): Result<OrderDetail> =
         apiClient
