@@ -260,7 +260,7 @@ private fun StoreCover(
                         }
                     }
                 }
-                val assistantMode = flow.assistantMode
+                val assistantMode = config.assistantMode
                 if (assistantMode != null) {
                     StoreQuestion("¿Quién usa el asistente de IA?", colors, Modifier.padding(top = 14.dp))
                     FlowRow(
@@ -272,7 +272,11 @@ private fun StoreCover(
                                 label = option.label,
                                 selected = assistantMode == option,
                                 colors = colors,
-                                onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(assistantMode = option)) },
+                                onClick = {
+                                    if (enabled && option != assistantMode) {
+                                        saveNow(viewModel, flow, flow.copy(assistantMode = option))
+                                    }
+                                },
                                 height = 40.dp,
                             )
                         }

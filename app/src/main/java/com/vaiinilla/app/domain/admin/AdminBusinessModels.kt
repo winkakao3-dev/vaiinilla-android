@@ -187,7 +187,8 @@ data class StoreConfig(
             orderWindows = orderWindows,
             kitchenPreparesUnpaid = kitchenPreparesUnpaid,
             spaceDelivery = spaceDelivery,
-            assistantMode = assistantMode,
+            // asistente_modo no va en cada guardado: solo cuando el dueño lo cambia (si no, pisaría lo que Vaiinilla
+            // cambió mientras tanto, y un servidor sin la migración 180 rechazaría todo el flujo).
         )
 }
 
@@ -202,7 +203,7 @@ data class StoreFlow(
     val kitchenPreparesUnpaid: Boolean = true,
     /** null: el servidor no lo conoce y no se envía. */
     val spaceDelivery: SpaceDelivery? = null,
-    /** null: el servidor no lo conoce y no se envía. */
+    /** null: no se cambia (solo se manda al elegirlo). */
     val assistantMode: AssistantMode? = null,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =

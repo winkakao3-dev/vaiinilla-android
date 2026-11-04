@@ -32,8 +32,10 @@ data class CustomerAssistantState(
     val needsName: Boolean = false,
     val enteringName: Boolean = false,
     val nameError: String? = null,
+    /** La tienda apagó el asistente para clientes (ASSISTANT_DISABLED): ya no se platica ni se reintenta. */
+    val closed: Boolean = false,
 ) {
-    val canSend: Boolean get() = !thinking && !needsName && remaining > 1
+    val canSend: Boolean get() = !thinking && !needsName && !closed && remaining > 1
 
     /** Solo el pedido más reciente se puede poner en el carrito: los de antes ya los reemplazó. */
     val latestOrderTurn: Int get() = turns.indexOfLast { it.order != null }
@@ -80,7 +82,8 @@ class CustomerAssistantViewModel
 
         fun retry(prepare: suspend () -> Unit = {}) {
             val current = _state.value
-            if (current.thinking || current.needsName || current.turns.lastOrNull()?.fromCustomer != true) return
+            val waiting = current.thinking || current.needsName || current.closed
+            if (waiting || current.turns.lastOrNull()?.fromCustomer != true) return
             ask(prepare)
         }
 
@@ -174,10 +177,17 @@ class CustomerAssistantViewModel
                                 remaining = reply.remainingMessages,
                             )
                         },
-                        onFailure = { error -> now.copy(thinking = false, error = errorMessage(error)) },
+                        onFailure = { error ->
+                            now.copy(thinking = false, error = errorMessage(error), closed = isDisabled(error))
+                        },
                     )
             }
         }
+
+        private fun isDisabled(error: Throwable): Boolean =
+            generateSequence(error) { it.cause }.filterIsInstance<ApiClientException>().any {
+                it.code == "ASSISTANT_DISABLED"
+            }
 
         /** Lo que el servidor explica para el asistente (apagado, otro lugar, muchos mensajes) se dice tal cual. */
         private fun errorMessage(error: Throwable): String {
@@ -192,6 +202,12 @@ class CustomerAssistantViewModel
 
         private companion object {
             const val MAX_NAME = 60
-            val SERVER_WORDED = setOf("ASSISTANT_UNAVAILABLE", "CONTEXT_MISMATCH", "RATE_LIMITED", "VALIDATION_ERROR")
+            val SERVER_WORDED = setOf(
+                    "ASSISTANT_UNAVAILABLE",
+                    "ASSISTANT_DISABLED",
+                    "CONTEXT_MISMATCH",
+                    "RATE_LIMITED",
+                    "VALIDATION_ERROR",
+                )
         }
     }

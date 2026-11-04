@@ -581,6 +581,9 @@ private fun StoreFormPage(
             state.busy,
             enabled = name.isNotBlank() && slugValid && closeValid,
         ) {
+            // Solo si lo cambió: si no, pisaría lo que el dueño cambió mientras tanto.
+            val assistantChange =
+                listOfNotNull(assistant?.takeIf { it != store?.assistantMode }?.let { "asistente_modo" to it })
             val optional =
                 mapOf(
                     "descripcion" to description,
@@ -601,7 +604,7 @@ private fun StoreFormPage(
                     "tipo" to type,
                     "zona_horaria" to zone,
                     "hora_cierre_forzado" to "$close:00",
-                ) + optional + listOfNotNull(assistant?.let { "asistente_modo" to it }),
+                ) + optional + assistantChange,
                 image,
                 maps,
             )

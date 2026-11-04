@@ -82,6 +82,22 @@ class CustomerAssistantViewModelTest {
         assertEquals("El asistente no está disponible. Pide desde el menú o llama al mesero.", vm.state.value.error)
     }
 
+    @Test
+    fun `si la tienda lo apaga se cierra la platica sin reintento`() {
+        val message = "Este lugar no tiene asistente. Pide desde el menú o llama al mesero."
+        val repository = FakeRepository(failure = ApiClientException("ASSISTANT_DISABLED", message, 403))
+        val vm = CustomerAssistantViewModel(repository)
+        vm.onVisible("est-1:4", "est-1")
+        vm.send("Hola")
+        waitUntil { vm.state.value.error != null }
+        assertEquals(message, vm.state.value.error)
+        assertTrue(vm.state.value.closed)
+        assertFalse(vm.state.value.canSend)
+        vm.retry()
+        Thread.sleep(50)
+        assertEquals(1, repository.started)
+    }
+
     private fun waitUntil(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!condition()) {

@@ -20,7 +20,7 @@ class AssistantModeTest {
     }
 
     @Test
-    fun `el flujo manda asistente_modo solo si el servidor lo conoce`() {
+    fun `el flujo manda asistente_modo solo cuando el duenio lo elige`() {
         val json = AdminBusinessJson()
         val base = StoreFlow("boliche", false, true, true, 5, emptyList())
         assertFalse("asistente_modo" in Json.parseToJsonElement(json.encodeFlow(base)).jsonObject)

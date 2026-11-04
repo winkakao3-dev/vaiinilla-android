@@ -211,7 +211,7 @@ fun CustomerAssistantScreen(
                     state.error != null ->
                         Column(Modifier.padding(start = 36.dp)) {
                             Text(state.error, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.ink2)
-                            Chip("Reintentar", colors, Modifier.padding(top = 8.dp), onRetry)
+                            if (!state.closed) Chip("Reintentar", colors, Modifier.padding(top = 8.dp), onRetry)
                         }
                     state.options.isNotEmpty() ->
                         FlowRow(
