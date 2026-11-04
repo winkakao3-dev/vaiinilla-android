@@ -210,6 +210,9 @@ fun AppNavHost(
     val sharedTableViewModel: SharedTableViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
+    val platformViewModel: com.vaiinilla.app.ui.platform.PlatformViewModel = viewModel()
+    val storeAccessContext = androidx.compose.ui.platform.LocalContext.current
+    val storeAccessMemory = remember { StoreAccessMemory.from(storeAccessContext) }
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
     val walletViewModel: WalletViewModel = viewModel()
     val childrenViewModel: ChildrenViewModel = viewModel()
@@ -719,6 +722,16 @@ fun AppNavHost(
     ) {
         if (studentAuthState.session?.emailVerified == true) {
             authorizedAccessViewModel.refreshModes(force = true)
+            platformViewModel.checkAuthority()
+        } else {
+            platformViewModel.clearOnSignOut()
+        }
+    }
+
+    val storeAccessPending = pendingStoreAccess(authorizedAccessState.modes, storeAccessMemory)?.establishmentId
+    LaunchedEffect(storeAccessPending) {
+        if (storeAccessPending != null && navController.currentDestination?.route != Routes.STORE_ACCESS) {
+            navController.navigate(Routes.STORE_ACCESS) { launchSingleTop = true }
         }
     }
 
@@ -1202,7 +1215,38 @@ fun AppNavHost(
                     },
                     onSignOut = { signOutAndFinish() },
                     onRetry = { authorizedAccessViewModel.refreshModes(force = true) },
+                    isPlatformAuthority = platformViewModel.state.value.authority?.isAuthority == true,
+                    onOpenPlatform = { navController.navigate(Routes.PLATFORM) { launchSingleTop = true } },
                 )
+            }
+
+            composable(Routes.PLATFORM) {
+                com.vaiinilla.app.ui.screens.platform.PlatformScreen(
+                    viewModel = platformViewModel,
+                    onExit = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.STORE_ACCESS) {
+                val mode = pendingStoreAccess(authorizedAccessState.modes, storeAccessMemory)
+                LaunchedEffect(mode == null) { if (mode == null) navController.popBackStack() }
+                if (mode != null) {
+                    com.vaiinilla.app.ui.screens.platform.StoreAccessScreen(
+                        storeName = mode.establishmentName,
+                        busy = authorizedAccessState.loading,
+                        onConfigure = {
+                            authorizedAccessViewModel.activateMode(mode) {
+                                storeAccessMemory.markSeen(mode.establishmentId)
+                                operationalViewModel.setRole(mode.role)
+                                navigateAuthorizedMode(mode.role)
+                            }
+                        },
+                        onLater = {
+                            storeAccessMemory.markSeen(mode.establishmentId)
+                            navController.popBackStack()
+                        },
+                    )
+                }
             }
 
             composable(Routes.CATALOG) {
@@ -1555,7 +1599,9 @@ fun AppNavHost(
                         childrenViewModel.state.load()
                     }
                 }
-                val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
+                val hasStaffModes =
+                    authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT } ||
+                        platformViewModel.state.value.authority?.isAuthority == true
                 WalletAccountScreen(
                     onBack = { navController.popBackStack() },
                     displayName = studentAuthState.session?.displayName.orEmpty(),

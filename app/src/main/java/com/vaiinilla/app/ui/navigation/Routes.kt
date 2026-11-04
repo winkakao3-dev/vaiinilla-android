@@ -19,6 +19,8 @@ object Routes {
     const val AUTH_FORGOT = "auth/forgot?returnRoute={returnRoute}"
     const val STAFF_INVITATION = "staff/invitation?token={token}"
     const val STAFF_MODES = "staff/modes"
+    const val PLATFORM = "platform"
+    const val STORE_ACCESS = "staff/store-access"
     const val STUDENT_TRACKING = "student/tracking"
     const val ASSISTANT = "assistant"
     const val ASSISTANT_CHAT = "assistant/chat"
