@@ -42,7 +42,7 @@ class PayAtEndSeatTest {
             join = { alias ->
                 joined += alias
                 if (alias == "Naev") {
-                    Result.failure(ApiClientException(PARTICIPANT_NAME_TAKEN, "Ya hay una persona…", 409))
+                    Result.failure<Unit>(ApiClientException(PARTICIPANT_NAME_TAKEN, "Ya hay una persona…", 409))
                 } else {
                     Result.success(Unit)
                 }
@@ -90,7 +90,7 @@ class PayAtEndSeatTest {
             createSeatingAtTableIfNeeded<String>(
                 create = { Result.failure(needsSeat()) },
                 aliases = listOf("Naev"),
-                join = { Result.failure(ApiClientException("SESSION_CLOSED", "La mesa se acaba de cerrar", 409)) },
+                join = { Result.failure<Unit>(ApiClientException("SESSION_CLOSED", "La mesa se acaba de cerrar", 409)) },
             )
         assertEquals("La mesa se acaba de cerrar", result.exceptionOrNull()?.message)
     }
