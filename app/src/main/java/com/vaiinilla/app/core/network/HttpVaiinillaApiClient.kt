@@ -26,7 +26,8 @@ class HttpVaiinillaApiClient
     ) : VaiinillaApiClient {
         override val baseUrl: String = environment.apiBaseUrl
 
-        private val cacheableGetPaths = setOf("wallets/me", "pedidos")
+        // `catalogo`: el menú que Mesero y Caja usan para tomar pedidos sin internet.
+        private val cacheableGetPaths = setOf("wallets/me", "pedidos", "catalogo")
 
         override fun readCachedGet(
             path: String,

@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.order
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.data.offline.OfflineOrderBody
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -15,6 +16,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import java.time.Instant
 
 class RemoteOrderRepository(
     private val apiClient: VaiinillaApiClient,
@@ -34,6 +36,29 @@ class RemoteOrderRepository(
             .mapCatching { created ->
                 created.copy(order = pickupTokenStore.attach(created.order))
             }.mapApiErrors()
+
+    override fun offlineOrderBody(
+        request: CreateOrderRequest,
+        orderId: String,
+        capturedAt: Instant,
+        localFolio: String,
+    ): String =
+        OfflineOrderBody.withOfflineCapture(
+            body = contractJson.encodeCreateRequest(request),
+            orderId = orderId,
+            capturedAt = capturedAt,
+            localFolio = localFolio,
+        )
+
+    override fun sendOfflineOrder(
+        body: String,
+        idempotencyKey: String,
+    ): Result<CreatedOrder> =
+        apiClient
+            .post(path = "pedidos", body = body, headers = mapOf("Idempotency-Key" to idempotencyKey))
+            .mapCatching { contractJson.parseCreatedOrder(it) }
+            .mapCatching { created -> created.copy(order = pickupTokenStore.attach(created.order)) }
+            .mapApiErrors()
 
     override fun getOrder(orderId: String): Result<OrderDetail> =
         apiClient
