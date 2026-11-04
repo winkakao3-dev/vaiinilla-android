@@ -111,7 +111,12 @@ class AddChildFlowScreenshotTest {
 
     @Test
     fun l15_primera_recarga() {
-        val child = ParentFixtures.tilin.copy(schoolState = GuardianshipState.APPROVED, balance = BigDecimal.ZERO, group = "3°B")
+        val child =
+            ParentFixtures.tilin.copy(
+                schoolState = GuardianshipState.APPROVED,
+                balance = BigDecimal.ZERO,
+                group = "3°B",
+            )
         show(SchoolGuardianship(child), startsWithSchoolCode = false)
         fillAndSubmit(child.name)
         waitForTag("added-child-reload")
@@ -121,7 +126,12 @@ class AddChildFlowScreenshotTest {
 
     @Test
     fun l16_esperando_a_la_escuela() {
-        val child = ParentFixtures.tilin.copy(schoolState = GuardianshipState.PENDING, group = "3°B", studentId = "A100")
+        val child =
+            ParentFixtures.tilin.copy(
+                schoolState = GuardianshipState.PENDING,
+                group = "3°B",
+                studentId = "A100",
+            )
         show(SchoolGuardianship(child), startsWithSchoolCode = false)
         fillAndSubmit(child.name)
         waitForTag("added-child-done")
