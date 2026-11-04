@@ -317,7 +317,7 @@ class OperationalViewModel
                         // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
                         val merged =
                             when {
-                                role == OperationalRole.CLIENT -> orders
+                                role == OperationalRole.CLIENT -> keepNewerVersions(_uiState.value.orders, orders)
                                 fullSync -> reconcileOrders(_uiState.value.orders, orders)
                                 else -> mergeOrders(_uiState.value.orders, orders)
                             }
@@ -1742,6 +1742,17 @@ internal fun reconcileOrders(
     incoming: List<OrderDetail>,
 ): List<OrderDetail> {
     if (incoming.size >= FULL_LIST_LIMIT) return mergeOrders(current, incoming)
+    return keepNewerVersions(current, incoming)
+}
+
+/**
+ * Lista completa del cliente: manda el servidor, salvo un pedido que aquí ya va en una versión más nueva (una
+ * respuesta lenta que salió antes del último cambio no lo regresa a su estado anterior).
+ */
+internal fun keepNewerVersions(
+    current: List<OrderDetail>,
+    incoming: List<OrderDetail>,
+): List<OrderDetail> {
     val localById = current.associateBy { it.summary.id }
     return incoming.map { order -> newerOrder(localById[order.summary.id], order) }
 }
