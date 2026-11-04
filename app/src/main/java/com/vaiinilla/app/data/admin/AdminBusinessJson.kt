@@ -20,6 +20,7 @@ import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -77,7 +78,12 @@ class AdminBusinessJson {
     // region Flujo de mi tienda
 
     fun parseStoreConfig(raw: String): StoreConfig =
-        json.decodeFromString<BizEnvelope<StoreConfigDto>>(raw).data.toDomain()
+        json
+            .decodeFromString<BizEnvelope<StoreConfigDto>>(raw)
+            .data
+            .toDomain()
+            // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de aquí.
+            .also { Venue.update(it.typeWire) }
 
     fun encodeFlow(flow: StoreFlow): String =
         buildJsonObject {
@@ -306,6 +312,7 @@ class AdminBusinessJson {
 
     fun parseSchedule(raw: String): ReservationSchedule {
         val data = json.decodeFromString<BizEnvelope<ScheduleDto>>(raw).data
+        data.tipoEstablecimiento?.let(Venue::update)
         return ReservationSchedule(
             opening = data.apertura.take(5),
             closing = data.cierre.take(5),
@@ -627,4 +634,5 @@ private data class ScheduleDto(
     @SerialName("dias_semana") val diasSemana: List<Int>? = null,
     @SerialName("bloque_min") val bloqueMin: Int? = null,
     @SerialName("duraciones_min") val duracionesMin: List<Int>? = null,
+    @SerialName("tipo_establecimiento") val tipoEstablecimiento: String? = null,
 )

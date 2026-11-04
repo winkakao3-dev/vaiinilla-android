@@ -590,7 +590,9 @@ private fun CreateSheet(
         Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (if (many) SpaceType.batchTypes else SpaceType.entries).forEach { option ->
-                ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option == type) {
+                // Fuera de un boliche el mismo tipo sirve para canchas y pistas: que se encuentre.
+                val chip = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label
+                ChipButton(label = chip, enabled = !saving, colors = colors, selected = option == type) {
                     if (prefix == type.label) prefix = option.label
                     type = option
                 }
@@ -770,7 +772,7 @@ private fun EditSheet(
             ) {
                 SpaceType.entries.forEach { option ->
                     ChipButton(
-                        label = option.label,
+                        label = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label,
                         enabled = !saving,
                         colors = colors,
                         selected =
