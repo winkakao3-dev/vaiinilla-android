@@ -427,18 +427,20 @@ private fun Wallet(
             AdminHint("Cargando…", colors)
             return@Column
         }
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AdminCountTile(
                 wallet.customersWithBalance?.toString() ?: "—",
                 "Clientes con saldo",
                 colors,
-                Modifier.weight(1f).fillMaxHeight(),
+                Modifier.weight(1f),
+                labelMinLines = 2,
             )
             AdminCountTile(
                 wallet.totalBalance?.let(::moneyLabel) ?: "—",
                 "Saldo total",
                 colors,
-                Modifier.weight(1f).fillMaxHeight(),
+                Modifier.weight(1f),
+                labelMinLines = 2,
             )
             AdminCountTile(
                 moneyLabel(wallet.cashback),
@@ -447,7 +449,8 @@ private fun Wallet(
                     else -> "Dado en ${state.walletPreset.label.lowercase()}"
                 },
                 colors,
-                Modifier.weight(1f).fillMaxHeight(),
+                Modifier.weight(1f),
+                labelMinLines = 2,
             )
         }
         AdminCapsLabel("Movimiento", colors, Modifier.padding(top = 12.dp))

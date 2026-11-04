@@ -480,6 +480,8 @@ internal fun AdminCountTile(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     tint: Color? = null,
+    /** En una fila de mosaicos, todos reservan las mismas líneas para que midan igual sin cortarse. */
+    labelMinLines: Int = 1,
     onClick: (() -> Unit)? = null,
 ) {
     AdminPanel(
@@ -496,13 +498,16 @@ internal fun AdminCountTile(
             color = tint ?: colors.textPrimary,
             maxLines = 1,
             autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 26.sp),
+            modifier = Modifier.height(34.dp),
         )
         Text(
             label,
             fontSize = 12.5.sp,
+            lineHeight = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textMuted,
             maxLines = 2,
+            minLines = labelMinLines,
             modifier = Modifier.padding(top = 2.dp),
         )
     }
