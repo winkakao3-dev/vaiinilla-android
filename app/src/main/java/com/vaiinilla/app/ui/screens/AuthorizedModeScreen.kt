@@ -153,6 +153,7 @@ fun AuthorizedModeScreen(
     onRetry: () -> Unit = {},
     isPlatformAuthority: Boolean = false,
     onOpenPlatform: () -> Unit = {},
+    onContinueAsClient: () -> Unit = {},
 ) {
     var confirmingSignOut by remember { mutableStateOf(false) }
     if (confirmingSignOut) {
@@ -383,10 +384,8 @@ fun AuthorizedModeScreen(
                 }
 
                 // Sin acceso de cliente no hay a dónde volver: antes este botón cerraba la sesión sin avisar.
-                if (clientMode != null) {
-                    Box(Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp)) { SectionCaption("Cliente") }
-                    ClientModeCard(onClick = { onSelectMode(clientMode) })
-                }
+                Box(Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp)) { SectionCaption("Cliente") }
+                ClientModeCard(onClick = { clientMode?.let(onSelectMode) ?: onContinueAsClient() })
                 Box(
                     modifier =
                         Modifier

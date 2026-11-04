@@ -135,6 +135,14 @@ class PlatformViewModel
             }
         }
 
+        /** Para decidir a dónde va la cuenta al entrar; un fallo de red no la trata como autoridad. */
+        suspend fun fetchIsAuthority(): Boolean {
+            val firebase = auth.getIdToken(forceRefresh = false).getOrNull() ?: return false
+            val authority = repository.authority(firebase).getOrNull() ?: return false
+            update { copy(authority = authority) }
+            return authority.isAuthority
+        }
+
         fun clearOnSignOut() {
             token = null
             tokenUntil = 0

@@ -767,8 +767,30 @@ fun AppNavHost(
         orderFlowViewModel.claimGuestOrders(onClaimed = operationalViewModel::refresh)
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
-        if (!navController.popBackStack(returnRoute, inclusive = false)) {
-            navController.navigate(returnRoute) { launchSingleTop = true }
+        fun continueToReturnRoute() {
+            if (!navController.popBackStack(returnRoute, inclusive = false)) {
+                navController.navigate(returnRoute) { launchSingleTop = true }
+            }
+        }
+        // Quien venía a pagar o a otra pantalla sigue ahí; solo quien entró sin rumbo elige con qué acceso.
+        val choosesAccess = returnRoute == Routes.DISCOVERY || returnRoute == Routes.CATALOG
+        if (!choosesAccess) {
+            continueToReturnRoute()
+            return
+        }
+        val modesRefreshed = CompletableDeferred<Boolean>()
+        authorizedAccessViewModel.refreshModes(force = true) { modesRefreshed.complete(it) }
+        launchNavScope.launch {
+            modesRefreshed.await()
+            val hasStaff = hasStaffLaunchModes(authorizedAccessViewModel.state.value.modes.map { it.role })
+            if (hasStaff || platformViewModel.fetchIsAuthority()) {
+                navController.navigate(Routes.STAFF_MODES) {
+                    popUpTo(returnRoute) { inclusive = false }
+                    launchSingleTop = true
+                }
+            } else {
+                continueToReturnRoute()
+            }
         }
     }
 
@@ -802,7 +824,7 @@ fun AppNavHost(
                         hasStaffLaunchModes(
                             authorizedAccessViewModel.state.value.modes
                                 .map { it.role },
-                        ),
+                        ) || platformViewModel.fetchIsAuthority(),
                     hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
                     modesLoaded = modesLoaded,
                 )
@@ -1217,6 +1239,14 @@ fun AppNavHost(
                     onRetry = { authorizedAccessViewModel.refreshModes(force = true) },
                     isPlatformAuthority = platformViewModel.state.value.authority?.isAuthority == true,
                     onOpenPlatform = { navController.navigate(Routes.PLATFORM) { launchSingleTop = true } },
+                    onContinueAsClient = {
+                        val target =
+                            if (studentAuthViewModel.state.value.guestVenue != null) Routes.CATALOG else Routes.DISCOVERY
+                        navController.navigate(target) {
+                            popUpTo(Routes.STAFF_MODES) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 

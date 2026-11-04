@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -124,8 +125,9 @@ fun PlatformScreen(
         }
     }
     val colors = LocalVaiinillaColors.current
+    com.vaiinilla.app.ui.components.ResizeForKeyboard()
     Box(Modifier.fillMaxSize().background(colors.paper)) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             Box(Modifier.weight(1f)) {
                 when (val page = state.page) {
                     PlatformPage.Pulse -> PulsePage(state, viewModel)
@@ -816,6 +818,7 @@ private fun ConfirmOverlay(
             .clickable(enabled = false) {}
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
     ) {
