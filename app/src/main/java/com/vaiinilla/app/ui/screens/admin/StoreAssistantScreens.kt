@@ -39,8 +39,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
-import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -514,7 +514,11 @@ private fun Bubble(
 ) {
     val mine = message.fromOwner
     val photoIds = PHOTO_TOKEN.findAll(message.text).map { it.groupValues[1] }.toList()
-    val text = message.text.replace(PHOTO_TOKEN, "").replace(Regex(" {2,}"), " ").trim()
+    val text =
+        message.text
+            .replace(PHOTO_TOKEN, "")
+            .replace(Regex(" {2,}"), " ")
+            .trim()
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
@@ -672,7 +676,18 @@ private fun AssistantReview(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 product.photoId?.let { PhotoThumb(state.photos[it], colors, size = 40) }
-                                Column(Modifier.weight(1f).padding(start = if (product.photoId != null) 10.dp else 0.dp)) {
+                                Column(
+                                    Modifier.weight(1f).padding(
+                                        start =
+                                            if (product.photoId !=
+                                                null
+                                            ) {
+                                                10.dp
+                                            } else {
+                                                0.dp
+                                            },
+                                    ),
+                                ) {
                                     Text(
                                         product.name,
                                         fontSize = 13.5.sp,
@@ -719,7 +734,11 @@ private fun AssistantReview(
             }
             if (proposal.invites.isNotEmpty()) {
                 item {
-                    ReviewSection("Tu equipo", colors, reasons["personal"] ?: "A cada uno le llega una invitación por correo.") {
+                    ReviewSection(
+                        "Tu equipo",
+                        colors,
+                        reasons["personal"] ?: "A cada uno le llega una invitación por correo.",
+                    ) {
                         proposal.invites.forEachIndexed { index, invite ->
                             if (index > 0) AdminRowDivider(colors)
                             ItemRow(invite.email, AssistantLabels.role(invite.role), colors)
@@ -845,7 +864,12 @@ private fun PhotoThumb(
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap != null) {
-            Image(bitmap, contentDescription = "Foto", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Image(
+                bitmap,
+                contentDescription = "Foto",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
             Icon(Icons.Rounded.AddPhotoAlternate, null, tint = colors.textMuted, modifier = Modifier.size(18.dp))
         }

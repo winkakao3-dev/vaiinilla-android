@@ -170,7 +170,11 @@ class StoreAssistantJson(
     }
 
     private fun JsonObject.text(key: String): String? =
-        (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+        (this[key] as? JsonPrimitive)
+            ?.takeIf { it.isString }
+            ?.contentOrNull
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
 
     private fun valueLabel(
         field: String,

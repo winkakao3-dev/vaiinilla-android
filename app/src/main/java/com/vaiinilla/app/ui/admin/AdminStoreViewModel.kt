@@ -6,14 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.data.admin.AssistantPartialFailure
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
 import com.vaiinilla.app.domain.admin.AssistantUpload
-import com.vaiinilla.app.domain.admin.steps
-import com.vaiinilla.app.data.admin.AssistantPartialFailure
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
@@ -24,6 +23,7 @@ import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
+import com.vaiinilla.app.domain.admin.steps
 import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
@@ -240,9 +240,21 @@ class AdminStoreViewModel
             if (!current.canAddPhoto) return
             current.pendingPhotoId?.let { removeAssistantPhoto() }
             val now = _assistant.value
-            val id = "foto${(now.photos.keys.mapNotNull { it.removePrefix("foto").toIntOrNull() }.maxOrNull() ?: 0) + 1}"
+            val id = "foto${(
+                now.photos.keys
+                    .mapNotNull {
+                        it
+                            .removePrefix(
+                                "foto",
+                            ).toIntOrNull()
+                    }.maxOrNull() ?: 0
+            ) + 1}"
             _assistant.value =
-                now.copy(photos = now.photos + (id to AssistantPhoto(id, image, logo)), pendingPhotoId = id, error = null)
+                now.copy(
+                    photos = now.photos + (id to AssistantPhoto(id, image, logo)),
+                    pendingPhotoId = id,
+                    error = null,
+                )
         }
 
         /** Quita la foto que aún no se manda. */
@@ -330,7 +342,9 @@ class AdminStoreViewModel
         private fun askAssistant(messages: List<AssistantMessage>) {
             _assistant.value = _assistant.value.copy(thinking = true, error = null)
             viewModelScope.launch {
-                val photoIds = _assistant.value.photos.keys.toList()
+                val photoIds =
+                    _assistant.value.photos.keys
+                        .toList()
                 val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds) }
                 val current = _assistant.value
                 _assistant.value =

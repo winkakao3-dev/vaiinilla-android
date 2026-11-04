@@ -72,8 +72,9 @@ class StoreAssistantJsonTest {
     fun `manda los ids de las fotos con la platica`() {
         val body =
             Json
-                .parseToJsonElement(json.encodeMessages(listOf(AssistantMessage(true, "Mi logo [foto1]")), listOf("foto1")))
-                .jsonObject
+                .parseToJsonElement(
+                    json.encodeMessages(listOf(AssistantMessage(true, "Mi logo [foto1]")), listOf("foto1")),
+                ).jsonObject
         assertEquals("foto1", body["fotos"]!!.jsonArray[0].jsonPrimitive.content)
     }
 
@@ -95,7 +96,14 @@ class StoreAssistantJsonTest {
         assertNull(proposal.patchBody)
         assertEquals("Tus pistas.", proposal.sectionReasons["espacios"])
         assertEquals(7, proposal.menu.single().existingId)
-        assertEquals("foto2", proposal.menu.single().products.single().photoId)
+        assertEquals(
+            "foto2",
+            proposal.menu
+                .single()
+                .products
+                .single()
+                .photoId,
+        )
         val steps = proposal.steps()
         assertTrue(steps[0] is AssistantStep.Spaces)
         assertTrue(steps[1] is AssistantStep.Menu)
