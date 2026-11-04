@@ -1564,7 +1564,9 @@ class OrderFlowViewModel
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return
             val paymentStatus = order.payment?.status
             val phaseBeforeRetry = _uiState.value.stripePaymentPhase
-            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry)) return
+            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry, orderClosed = order.summary.state.isClosed)) {
+                return
+            }
 
             val key =
                 resolveIdempotencyKey(

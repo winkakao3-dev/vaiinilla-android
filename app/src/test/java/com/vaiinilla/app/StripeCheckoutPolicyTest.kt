@@ -13,6 +13,7 @@ import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canRetryStripePayment
 import com.vaiinilla.app.ui.order.canSubmitCart
 import com.vaiinilla.app.ui.order.isMissingOrder
+import com.vaiinilla.app.ui.order.isTerminalStripeConfirmationPhase
 import com.vaiinilla.app.ui.order.purchaseCelebrationFor
 import com.vaiinilla.app.ui.order.stripePhaseFromBackend
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
@@ -116,6 +117,35 @@ class StripeCheckoutPolicyTest {
         assertEquals(StripePaymentPhase.PENDING, stripePhaseFromBackend(stillPending))
         assertEquals(StripePaymentPhase.FAILED, stripePhaseFromBackend(failed))
         assertEquals(StripePaymentPhase.CANCELED, stripePhaseFromBackend(canceled))
+    }
+
+    @Test
+    fun `a closed card order stops waiting instead of polling until it times out`() {
+        listOf(OrderState.CANCELED, OrderState.EXPIRED, OrderState.NOT_PICKED_UP).forEach { state ->
+            listOf(StripePaymentStatus.PENDING, StripePaymentStatus.CONFIRMED).forEach { status ->
+                val phase = stripePhaseFromBackend(stripeOrder(state, status))
+                assertEquals(StripePaymentPhase.CANCELED, phase)
+                assertTrue(phase.isTerminalStripeConfirmationPhase())
+            }
+        }
+    }
+
+    @Test
+    fun `a refund in progress on a closed order is still shown as a refund`() {
+        assertEquals(
+            StripePaymentPhase.REFUNDING,
+            stripePhaseFromBackend(stripeOrder(OrderState.CANCELED, StripePaymentStatus.REFUNDING)),
+        )
+    }
+
+    @Test
+    fun `a closed order is never retried`() {
+        assertFalse(
+            canRetryStripePayment(StripePaymentStatus.FAILED, StripePaymentPhase.FAILED, orderClosed = true),
+        )
+        assertFalse(
+            canRetryStripePayment(StripePaymentStatus.PENDING, StripePaymentPhase.TIMED_OUT, orderClosed = true),
+        )
     }
 
     @Test
