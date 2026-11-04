@@ -947,8 +947,7 @@ class DoopGaleriaAdminTest {
         shot("a60_pegar_lista")
     }
 
-    private fun schoolAt(text: String) {
-        school()
+    private fun schoolScrollTo(text: String) {
         val target = hasText(text, substring = true)
         val scrollers = rule.onAllNodes(hasScrollAction())
         for (i in scrollers.fetchSemanticsNodes().indices) {
@@ -957,31 +956,39 @@ class DoopGaleriaAdminTest {
         settle()
     }
 
+    private fun schoolAt(text: String) {
+        school()
+        schoolScrollTo(text)
+    }
+
     @Test
     fun a58_menu_del_dia() {
-        schoolAt("Cada día")
+        schoolAt("Cerrar este día")
         press(rule.onAllNodes(hasText("Mié")).onFirst())
         settle()
+        schoolScrollTo("Cerrar este día")
         shot("a58_menu_del_dia")
     }
 
     @Test
     fun a61_tutores() {
-        schoolAt("Quién decide")
+        schoolAt("Quién cuida a cada alumno")
         shot("a61_tutores")
     }
 
     @Test
     fun a62_devoluciones() {
-        schoolAt("Devoluciones y bajas")
+        schoolAt("Dar de baja")
         shot("a62_devoluciones")
     }
 
     @Test
     fun a63_dia_sin_servicio() {
-        schoolAt("Cada día")
+        schoolAt("Cerrar este día")
         press(rule.onAllNodes(hasText("Vie") or hasContentDescription("Vie", substring = true)).onFirst())
         rule.mainClock.advanceTimeBy(1_000)
         rule.waitForIdle()
+        schoolScrollTo("Volver a abrir")
         shot("a63_dia_sin_servicio")
-    }}
+    }
+}
