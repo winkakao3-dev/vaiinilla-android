@@ -90,6 +90,7 @@ import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeStep
 import com.vaiinilla.app.domain.admin.stripeStep
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
@@ -234,6 +235,24 @@ private fun StoreCover(
                         height = 40.dp,
                     )
                 }
+                val spaceDelivery = flow.spaceDelivery
+                if (spaceDelivery != null) {
+                    StoreQuestion("En mesa o lugar, ¿cómo les llega?", colors, Modifier.padding(top = 14.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SpaceDelivery.entries.forEach { option ->
+                            AdminFilterChip(
+                                label = spaceDeliveryLabel(option),
+                                selected = spaceDelivery == option,
+                                colors = colors,
+                                onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(spaceDelivery = option)) },
+                                height = 40.dp,
+                            )
+                        }
+                    }
+                }
             }
         }
         item {
@@ -254,6 +273,14 @@ private fun StoreCover(
         }
     }
 }
+
+/** Las opciones de entrega en mesa o lugar, como las lee el dueño. */
+internal fun spaceDeliveryLabel(option: SpaceDelivery): String =
+    when (option) {
+        SpaceDelivery.TABLE -> "Te lo llevamos"
+        SpaceDelivery.BAR -> "Pasa por él"
+        SpaceDelivery.BOTH -> "Las dos"
+    }
 
 /** Los chips de la portada guardan al tocarlos; lo demás del flujo se edita en su página. */
 private fun saveNow(

@@ -436,6 +436,7 @@ fun StudentTrackingScreen(
                                             spaceType = animatedSelected.summary.space?.type,
                                             payAtEnd = animatedSelected.summary.payAtEnd,
                                             skipsKitchen = animatedSelected.skipsKitchen,
+                                            pickUpAtBar = animatedSelected.summary.pickUpAtBar,
                                         )
                                     }
                                 }
@@ -977,6 +978,8 @@ private fun activeOrderLine(order: OrderDetail): String {
     val step =
         if (order.reservation != null) {
             order.reservation?.let { rentalScheduleLabel(it) }
+        } else if (summary.pickUpAtBar && !summary.state.isTerminalWithoutDelivery) {
+            "pasa por él a la barra"
         } else if (summary.space?.type == "mesa" && !summary.state.isTerminalWithoutDelivery) {
             "te lo llevan a la mesa"
         } else if (summary.space?.type == "cancha" && !summary.state.isTerminalWithoutDelivery) {
@@ -989,6 +992,7 @@ private fun activeOrderLine(order: OrderDetail): String {
                 order.payment?.status,
                 summary.space?.type,
                 summary.payAtEnd,
+                summary.pickUpAtBar,
             ).trimEnd('.').replaceFirstChar { it.lowercase() }
         }
     return listOfNotNull(what, step?.takeIf { it.isNotBlank() }).joinToString(" · ")
@@ -1530,7 +1534,9 @@ private fun InlinePickupQr(order: OrderDetail) {
             }
         }
         Text(
-            if (order.summary.destination == OrderDestination.IN_SPACE) {
+            if (order.summary.pickUpAtBar) {
+                "Pasa a la barra por él y muéstralo en Caja."
+            } else if (order.summary.destination == OrderDestination.IN_SPACE) {
                 "El personal lo llevará a ${SpaceCopy.yourPlace(order.summary.space?.type)}. Muéstrales este QR."
             } else {
                 "Muéstralo en Caja cuando recojas tu pedido."
@@ -1556,9 +1562,10 @@ private fun foodProgressSteps(order: OrderDetail): List<String> {
     val summary = order.summary
     val first = if (summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd) "Por pagar" else "Pagado"
     val last =
-        when (summary.space?.type) {
-            "mesa" -> "En tu mesa"
-            "cancha" -> "En tu cancha"
+        when {
+            summary.pickUpAtBar -> "En la barra"
+            summary.space?.type == "mesa" -> "En tu mesa"
+            summary.space?.type == "cancha" -> "En tu cancha"
             else -> "Listo"
         }
     return listOf(first, "Recibido", "Preparando", last)

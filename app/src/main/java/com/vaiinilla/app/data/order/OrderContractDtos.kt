@@ -33,6 +33,9 @@ data class CreateOrderRequestDto(
     @SerialName("al_recibir") val paysOnArrival: Boolean? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("con_anticipo") val withDeposit: Boolean? = null,
+    // «Pasa por él»: solo viaja cuando es true, para no cambiar los pedidos de siempre.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("recoge_en_barra") val pickUpAtBar: Boolean? = null,
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -232,6 +235,8 @@ data class OrderDetailDto(
     @SerialName("sesion_espacio_id") val tableSessionId: String? = null,
     /** El backend dispensa el QR para entregar este pedido (va a una cuenta abierta); uno anterior no lo envía. */
     @SerialName("entrega_sin_qr") val deliveryWithoutQr: Boolean = false,
+    /** «Pasa por él»; un servidor anterior no lo envía y lo lleva el mesero. */
+    @SerialName("recoge_en_barra") val pickUpAtBar: Boolean = false,
     /** Solo viene en pedidos de mostrador; un servidor anterior no lo envía. */
     @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
     /** Con qué se cobró de verdad, `"mixto"` si hubo partes con métodos distintos; un servidor anterior no lo envía. */

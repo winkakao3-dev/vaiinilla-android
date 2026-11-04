@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -64,6 +65,7 @@ class GuestSessionStore
                         photoUrl = prefs.getString(KEY_PHOTO_URL, null),
                         logoUrl = prefs.getString(KEY_LOGO_URL, null),
                         allowsPayAtEnd = prefs.getBoolean(KEY_ALLOWS_PAY_AT_END, false),
+                        spaceDelivery = SpaceDelivery.fromWire(prefs.getString(KEY_SPACE_DELIVERY, null)),
                     ),
                 space = space,
             )
@@ -87,6 +89,7 @@ class GuestSessionStore
                 putString(KEY_PHOTO_URL, context.establishment.photoUrl)
                 putString(KEY_LOGO_URL, context.establishment.logoUrl)
                 putBoolean(KEY_ALLOWS_PAY_AT_END, context.establishment.allowsPayAtEnd)
+                putString(KEY_SPACE_DELIVERY, context.establishment.spaceDelivery.wire)
                 val space = context.space
                 if (space == null) {
                     remove(KEY_SPACE_ID)
@@ -117,6 +120,7 @@ class GuestSessionStore
                 remove(KEY_PHOTO_URL)
                 remove(KEY_LOGO_URL)
                 remove(KEY_ALLOWS_PAY_AT_END)
+                remove(KEY_SPACE_DELIVERY)
                 remove(KEY_ID_REQUIRED)
                 remove(KEY_SPACE_ID)
                 remove(KEY_SPACE_NAME)
@@ -276,6 +280,7 @@ class GuestSessionStore
             const val KEY_PHOTO_URL = "photo_url"
             const val KEY_LOGO_URL = "logo_url"
             const val KEY_ALLOWS_PAY_AT_END = "allows_pay_at_end"
+            const val KEY_SPACE_DELIVERY = "space_delivery"
             const val KEY_SPACE_ID = "space_id"
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"

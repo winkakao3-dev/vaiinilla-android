@@ -1716,6 +1716,7 @@ fun AppNavHost(
                         onSpaceChange = orderFlowViewModel::updateCheckoutSpace,
                         onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
                         onPayAtEnd = orderFlowViewModel::selectPayAtEnd,
+                        onPickUpAtBarChange = orderFlowViewModel::updateCheckoutPickUpAtBar,
                         onConfirm = {
                             if (guestAuthRequired) {
                                 studentAuthViewModel.ensureVenueContext(
@@ -2348,6 +2349,7 @@ fun AppNavHost(
                                     CashierContext(cashOpen = operationalState.cashSessionOpen),
                                 )
                             },
+                            onPickUpAtBarChange = waiterViewModel::updateCounterPickUpAtBar,
                             submitAction =
                                 if (operationalState.cashSessionOpen == true) "Cobrar después" else "Crear pedido",
                             onSubmitAndCollect =

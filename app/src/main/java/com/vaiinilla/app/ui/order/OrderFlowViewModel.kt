@@ -935,6 +935,12 @@ class OrderFlowViewModel
                 )
         }
 
+        /** «Pasa por él» (true) o «Te lo llevamos» (false), cuando el negocio ofrece las dos. */
+        fun updateCheckoutPickUpAtBar(pickUpAtBar: Boolean) {
+            pendingIdempotencyKey = null
+            _uiState.value = _uiState.value.copy(checkoutPickUpAtBar = pickUpAtBar, createOrderError = null)
+        }
+
         /** Pagar al final: efectivo, sumado a la cuenta del espacio y cobrado al irse. */
         fun selectPayAtEnd() {
             pendingIdempotencyKey = null
@@ -1063,6 +1069,7 @@ class OrderFlowViewModel
                         delivery = current.homeCheckout.address.takeIf { home },
                         paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
                         withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
+                        pickUpAtBar = !home && current.pickUpAtBarForOrder,
                     )
                 // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
                 // respondería con un 400 sin explicación (COMPRA-18).

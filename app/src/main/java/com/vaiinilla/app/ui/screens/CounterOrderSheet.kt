@@ -166,6 +166,8 @@ internal fun CounterOrderSheet(
     submitAction: String = "Enviar a Caja",
     /** Solo en Caja con la caja abierta: crea el pedido y abre su cobro. El otro botón lo deja por cobrar (G03). */
     onSubmitAndCollect: ((List<CartLine>, String) -> Unit)? = null,
+    /** Solo en Caja: con las dos formas de entrega, marca si el cliente pasa por él a la barra. */
+    onPickUpAtBarChange: ((Boolean) -> Unit)? = null,
 ) {
     var nombre by remember { mutableStateOf("") }
     var buscar by remember { mutableStateOf("") }
@@ -254,6 +256,19 @@ internal fun CounterOrderSheet(
                     }
                 }
                 Spacer(Modifier.size(44.dp))
+            }
+            if (onPickUpAtBarChange != null && state.counterOrderSpace != null && state.spaceDelivery.asksCustomer) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CategoriaChip("Te lo llevamos", elegida = !state.counterPickUpAtBar, colors = colors) {
+                        onPickUpAtBarChange(false)
+                    }
+                    CategoriaChip("Pasa por él", elegida = state.counterPickUpAtBar, colors = colors) {
+                        onPickUpAtBarChange(true)
+                    }
+                }
             }
             CounterInlineField(
                 value = buscar,

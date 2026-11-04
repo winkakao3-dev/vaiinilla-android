@@ -114,6 +114,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.CheckoutDestinationPicker
+import com.vaiinilla.app.ui.components.CheckoutSpaceDeliveryPicker
 import com.vaiinilla.app.ui.components.CheckoutSpaceOption
 import com.vaiinilla.app.ui.components.CheckoutSpacePicker
 import com.vaiinilla.app.ui.components.CremeDivider
@@ -137,6 +138,7 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.asksForDeliveryDate
+import com.vaiinilla.app.ui.order.asksSpaceDelivery
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canDeliverHome
 import com.vaiinilla.app.ui.order.canPayAtEnd
@@ -176,6 +178,8 @@ fun CartScreen(
     onSpaceChange: (Int) -> Unit = {},
     onPaymentChange: (PaymentMethod) -> Unit,
     onPayAtEnd: () -> Unit = {},
+    /** «Pasa por él» (true) o «Te lo llevamos» (false); solo se pregunta si el negocio ofrece las dos. */
+    onPickUpAtBarChange: (Boolean) -> Unit = {},
     onConfirm: () -> Unit,
     onResolvePendingStripePayment: () -> Unit = {},
     walletBalance: String? = null,
@@ -374,6 +378,20 @@ fun CartScreen(
                                         onSpaceChange(it)
                                     },
                                     spaceType = state.checkoutSpace?.type,
+                                )
+                            }
+                        }
+                    }
+                    if (state.asksSpaceDelivery) {
+                        item(key = "space-delivery") {
+                            Column(Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
+                                CartSectionHead(title = "¿Cómo te llega?", meta = "Tú eliges")
+                                CheckoutSpaceDeliveryPicker(
+                                    pickUpAtBar = state.checkoutPickUpAtBar,
+                                    onSelect = {
+                                        haptics.selection()
+                                        onPickUpAtBarChange(it)
+                                    },
                                 )
                             }
                         }

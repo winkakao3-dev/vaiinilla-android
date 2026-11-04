@@ -155,13 +155,28 @@ internal fun trackingStepTitle(
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
     payAtEnd: Boolean = false,
+    destination: OrderDestination = OrderDestination.TAKE_AWAY,
+    pickUpAtBar: Boolean = false,
 ): String =
     payAtEndStepTitle(state, payAtEnd)
+        ?: spaceReadyTitle(state, destination, pickUpAtBar)
         ?: timelineSteps
             .firstOrNull { it.state == state }
             ?.title
             ?.invoke(paymentMethod, paymentStatus)
         ?: state.label.uppercase()
+
+/** En mesa o lugar, listo dice cómo llega: «Te lo llevamos» va en camino, «Pasa por él» espera en la barra. */
+private fun spaceReadyTitle(
+    state: OrderState,
+    destination: OrderDestination,
+    pickUpAtBar: Boolean,
+): String? =
+    when {
+        state != OrderState.READY || destination != OrderDestination.IN_SPACE -> null
+        pickUpAtBar -> "LISTO, PASA A LA BARRA"
+        else -> "EN CAMINO"
+    }
 
 /** Un pedido a la cuenta no se cobra al pedir: sus dos primeros pasos lo dicen así. */
 private fun payAtEndStepTitle(
@@ -193,9 +208,12 @@ internal fun trackingStepDescription(
     paymentStatus: StripePaymentStatus?,
     spaceType: String? = null,
     payAtEnd: Boolean = false,
+    pickUpAtBar: Boolean = false,
 ): String =
     if (payAtEndStepDescription(state, payAtEnd) != null) {
         payAtEndStepDescription(state, payAtEnd).orEmpty()
+    } else if (state == OrderState.READY && destination == OrderDestination.IN_SPACE && pickUpAtBar) {
+        "Tu pedido está listo, pasa a la barra."
     } else if (state == OrderState.READY && destination == OrderDestination.IN_SPACE) {
         "El personal lo llevará a ${SpaceCopy.yourPlace(spaceType)}."
     } else {
@@ -363,6 +381,8 @@ fun OrderTrackingTimeline(
     payAtEnd: Boolean = false,
     /** Pedido sin cocina: "Preparando" queda omitido. */
     skipsKitchen: Boolean = false,
+    /** «Pasa por él»: listo dice que pase a la barra en lugar de que va en camino. */
+    pickUpAtBar: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val view = LocalView.current
@@ -380,7 +400,7 @@ fun OrderTrackingTimeline(
             val skipped = skipsKitchen && step.state == OrderState.PREPARING
             TimelineRow(
                 stepNumber = index + 1,
-                title = trackingStepTitle(step.state, paymentMethod, paymentStatus, payAtEnd),
+                title = trackingStepTitle(step.state, paymentMethod, paymentStatus, payAtEnd, destination, pickUpAtBar),
                 description =
                     if (skipped) {
                         PREPARING_SKIPPED_NOTE
@@ -392,6 +412,7 @@ fun OrderTrackingTimeline(
                             paymentStatus,
                             spaceType,
                             payAtEnd,
+                            pickUpAtBar,
                         )
                     },
                 isSkipped = skipped,

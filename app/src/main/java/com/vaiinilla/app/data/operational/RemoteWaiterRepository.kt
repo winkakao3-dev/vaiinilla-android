@@ -6,6 +6,7 @@ import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
@@ -73,6 +74,7 @@ class RemoteWaiterRepository(
                 callsEnabled = boardEndpoint || callsEnabled,
                 deliveryRequiresQr = policy.deliveryRequiresQr,
                 allowsPayAtEnd = policy.allowsPayAtEnd,
+                spaceDelivery = SpaceDelivery.fromWire(policy.spaceDelivery),
             )
         }.mapApiErrors()
 

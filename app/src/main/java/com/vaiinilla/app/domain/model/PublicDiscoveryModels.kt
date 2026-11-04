@@ -14,6 +14,8 @@ data class PublicEstablishment(
     val whatsappUrl: String? = null,
     /** El negocio deja pagar al final en una mesa; el invitado aún sin sesión no tiene el estado operativo. */
     val allowsPayAtEnd: Boolean = false,
+    /** «Te lo llevamos», «Pasa por él» o ambas; el invitado sin sesión lo lee de aquí. */
+    val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
 )
 
 /** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */
