@@ -63,6 +63,9 @@ class OfflineStaffOrderQueue(
     private var flushJob: Job? = null
     private val sending = Mutex()
 
+    /** Errores 5xx seguidos por pedido (en memoria): al tercero se aparta y la fila sigue. */
+    private val serverFailures = mutableMapOf<String, Int>()
+
     /** Pedidos que se acaban de mandar bien, para que la pantalla avise con su folio real. */
     var onSent: ((localFolio: String, folio: Int) -> Unit)? = null
 
@@ -167,6 +170,9 @@ class OfflineStaffOrderQueue(
                         remove(order.id)
                         onAlreadyRegistered?.invoke(order.localFolio)
                     }
+                    OfflineStaffOrderRules.isServerError(error) && serverFailed(order.id) -> {
+                        mark(order.id, OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM)
+                    }
                     OfflineStaffOrderRules.shouldRetryLater(error) -> return
                     else -> mark(order.id, error.toUserFacingMessage("No se pudo registrar el pedido."))
                 }
@@ -175,6 +181,18 @@ class OfflineStaffOrderQueue(
             sending.unlock()
             _state.value = _state.value.copy(isSending = false)
         }
+    }
+
+    /** Cuenta un 5xx de [id]; `true` cuando ya van [OfflineStaffOrderRules.MAXIMUM_SERVER_FAILURES]. */
+    @Synchronized
+    private fun serverFailed(id: String): Boolean {
+        val failures = (serverFailures[id] ?: 0) + 1
+        if (failures >= OfflineStaffOrderRules.MAXIMUM_SERVER_FAILURES) {
+            serverFailures.remove(id)
+            return true
+        }
+        serverFailures[id] = failures
+        return false
     }
 
     /** El personal ya lo resolvió de otra forma (lo capturó a mano, se canceló): se quita de la lista. */
@@ -226,6 +244,8 @@ class OfflineStaffOrderQueue(
                         val error = withContext(io) { send(order.body, order.idempotencyKey) }.exceptionOrNull()
                         when {
                             error == null || OfflineStaffOrderRules.alreadyRegistered(error) -> null
+                            OfflineStaffOrderRules.isServerError(error) && serverFailed(order.id) ->
+                                OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM
                             OfflineStaffOrderRules.shouldRetryLater(error) -> return
                             else -> error.toUserFacingMessage("No se pudo registrar el pedido.")
                         }

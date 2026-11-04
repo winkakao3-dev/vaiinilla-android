@@ -24,13 +24,15 @@ class AndroidConnectivityWatcher(
         return AutoCloseable { if (registered) runCatching { manager.unregisterNetworkCallback(networkCallback) } }
     }
 
-    // Ante la duda (sin servicio o sin permiso) se dice que sí: se intenta con red como antes.
+    // Solo «no» cuando de plano no hay red o no tiene salida a internet. No se exige VALIDATED: un Wi‑Fi que corta
+    // la prueba de Google, o los segundos en que Android aún valida, harían guardar todo como sin internet. Ante la
+    // duda (sin servicio o sin permiso) se dice que sí: se intenta con red como antes.
     override fun hasInternet(): Boolean {
         val manager = manager ?: return true
         return runCatching {
-            val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            val network = manager.activeNetwork ?: return false
+            val capabilities = manager.getNetworkCapabilities(network) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }.getOrDefault(true)
     }
 }

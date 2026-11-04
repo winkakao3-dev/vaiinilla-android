@@ -365,4 +365,30 @@ class OfflineStaffOrderQueueTest {
             assertTrue(store.saved.getValue(caja).orders.isEmpty())
             queue.stop()
         }
+
+    @Test
+    fun `un pedido con el mismo 500 tres veces se aparta y no atora a los de atras`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "malo", 'M', "Mesa 1", "")
+            queue.enqueue(request, "bueno", 'M', "Mesa 2", "")
+            repository.next = { Result.failure(ApiClientException("INTERNAL_ERROR", "Error interno.", 500)) }
+            queue.flush()
+            queue.flush()
+            assertEquals(listOf("malo", "malo"), repository.keys)
+            repository.next = {
+                if (repository.keys.last() == "malo") {
+                    Result.failure(ApiClientException("INTERNAL_ERROR", "Error interno.", 500))
+                } else {
+                    Result.success(CreatedOrder(order = ScreenshotFixtures.sampleOrder()))
+                }
+            }
+            queue.flush()
+            assertEquals(listOf("malo", "malo", "malo", "bueno"), repository.keys)
+            assertEquals(OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM, queue.state.value.problems.single().problem)
+            assertTrue(queue.state.value.pending.isEmpty())
+            queue.stop()
+        }
 }
