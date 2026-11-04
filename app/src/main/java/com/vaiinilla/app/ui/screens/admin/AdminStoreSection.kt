@@ -90,6 +90,7 @@ import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeStep
 import com.vaiinilla.app.domain.admin.stripeStep
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -259,6 +260,31 @@ private fun StoreCover(
                         }
                     }
                 }
+                val assistantMode = flow.assistantMode
+                if (assistantMode != null) {
+                    StoreQuestion("¿Quién usa el asistente de IA?", colors, Modifier.padding(top = 14.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AssistantMode.entries.forEach { option ->
+                            AdminFilterChip(
+                                label = option.label,
+                                selected = assistantMode == option,
+                                colors = colors,
+                                onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(assistantMode = option)) },
+                                height = 40.dp,
+                            )
+                        }
+                    }
+                    Text(
+                        assistantModeHint(assistantMode),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.muted,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
         item {
@@ -279,6 +305,14 @@ private fun StoreCover(
         }
     }
 }
+
+/** Qué hace cada opción del asistente, en palabras del dueño. */
+internal fun assistantModeHint(mode: AssistantMode): String =
+    when (mode) {
+        AssistantMode.BOTH -> "Te ayuda a configurar la tienda y tus clientes le preguntan qué pedir."
+        AssistantMode.STAFF -> "Solo te ayuda a configurar la tienda; tus clientes no lo ven."
+        AssistantMode.NONE -> "Nadie lo ve: configuras paso a paso y los clientes piden desde el menú."
+    }
 
 /** Las opciones de entrega en mesa o lugar, como las lee el dueño. */
 internal fun spaceDeliveryLabel(option: SpaceDelivery): String =

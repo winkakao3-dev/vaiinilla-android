@@ -54,6 +54,8 @@ data class PlatformStore(
     @SerialName("tiktok_url") val tiktokUrl: String? = null,
     @SerialName("whatsapp_url") val whatsappUrl: String? = null,
     @SerialName("sitio_web_url") val websiteUrl: String? = null,
+    /** `ambos`, `personal` o `ninguno`; null si el servidor todavía no lo conoce. */
+    @SerialName("asistente_modo") val assistantMode: String? = null,
     /** Solo viene en la lista: `asignado`, `invitado` o `sin_asignar`. */
     val administrador: String? = null,
     val stripe: PlatformStripe? = null,

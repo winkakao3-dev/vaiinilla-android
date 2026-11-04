@@ -212,6 +212,7 @@ fun AppNavHost(
     val reservationsViewModel: ReservationsViewModel = viewModel()
     val sharedTableViewModel: SharedTableViewModel = viewModel()
     val assistantViewModel: CustomerAssistantViewModel = viewModel()
+    val openOrderAssistant = { navController.navigate(Routes.ORDER_ASSISTANT) { launchSingleTop = true } }
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val platformViewModel: com.vaiinilla.app.ui.platform.PlatformViewModel = viewModel()
@@ -1355,9 +1356,13 @@ fun AppNavHost(
                                         orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
                                             ?: sharedTableViewModel.uiState.value.table
                                                 ?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
-                                    onOpenAssistant = {
-                                        navController.navigate(Routes.ORDER_ASSISTANT) { launchSingleTop = true }
-                                    },
+                                    // Solo si la tienda tiene el asistente para clientes.
+                                    onOpenAssistant =
+                                        if (orderState.guestVenue?.establishment?.assistantForCustomers == false) {
+                                            null
+                                        } else {
+                                            openOrderAssistant
+                                        },
                                 )
                             }
                             layer

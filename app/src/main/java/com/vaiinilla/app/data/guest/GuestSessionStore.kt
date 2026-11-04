@@ -66,6 +66,7 @@ class GuestSessionStore
                         logoUrl = prefs.getString(KEY_LOGO_URL, null),
                         allowsPayAtEnd = prefs.getBoolean(KEY_ALLOWS_PAY_AT_END, false),
                         spaceDelivery = SpaceDelivery.fromWire(prefs.getString(KEY_SPACE_DELIVERY, null)),
+                        assistantForCustomers = prefs.getBoolean(KEY_ASSISTANT_FOR_CUSTOMERS, true),
                     ),
                 space = space,
             )
@@ -90,6 +91,7 @@ class GuestSessionStore
                 putString(KEY_LOGO_URL, context.establishment.logoUrl)
                 putBoolean(KEY_ALLOWS_PAY_AT_END, context.establishment.allowsPayAtEnd)
                 putString(KEY_SPACE_DELIVERY, context.establishment.spaceDelivery.wire)
+                putBoolean(KEY_ASSISTANT_FOR_CUSTOMERS, context.establishment.assistantForCustomers)
                 val space = context.space
                 if (space == null) {
                     remove(KEY_SPACE_ID)
@@ -281,6 +283,7 @@ class GuestSessionStore
             const val KEY_LOGO_URL = "logo_url"
             const val KEY_ALLOWS_PAY_AT_END = "allows_pay_at_end"
             const val KEY_SPACE_DELIVERY = "space_delivery"
+            const val KEY_ASSISTANT_FOR_CUSTOMERS = "assistant_for_customers"
             const val KEY_SPACE_ID = "space_id"
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"

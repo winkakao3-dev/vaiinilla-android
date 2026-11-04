@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.data.platform.PlatformStore
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
 import com.vaiinilla.app.ui.platform.PlatformPage
 import com.vaiinilla.app.ui.platform.PlatformUiState
@@ -491,6 +492,8 @@ private fun StoreFormPage(
     var type by rememberSaveable { mutableStateOf(store?.tipo ?: "cafeteria") }
     var zone by rememberSaveable { mutableStateOf(store?.timeZone ?: "America/Chihuahua") }
     var close by rememberSaveable { mutableStateOf(store?.forcedClose?.take(5) ?: "03:00") }
+    // Qué asistentes de IA tiene; solo al editar y si el servidor ya lo conoce.
+    var assistant by rememberSaveable { mutableStateOf(store?.assistantMode) }
     var more by rememberSaveable { mutableStateOf(false) }
     var description by rememberSaveable { mutableStateOf(store?.descripcion.orEmpty()) }
     var address by rememberSaveable { mutableStateOf(store?.direccion.orEmpty()) }
@@ -553,6 +556,10 @@ private fun StoreFormPage(
             hint = "Hora del día en que se cierran los pendientes, como 03:00.",
             keyboardType = KeyboardType.Number,
         )
+        assistant?.let { mode ->
+            SectionLabel("Asistente de IA")
+            Chips(AssistantMode.entries.map { it.wire to it.label }, mode) { assistant = it }
+        }
         TextAction(if (more) "Ocultar foto, dirección y redes" else "Foto, dirección, horario y redes (opcional)") { more = !more }
         if (more) {
             TextAction(if (image != null) "Foto lista · cambiar" else "Elegir foto") {
@@ -594,7 +601,7 @@ private fun StoreFormPage(
                     "tipo" to type,
                     "zona_horaria" to zone,
                     "hora_cierre_forzado" to "$close:00",
-                ) + optional,
+                ) + optional + listOfNotNull(assistant?.let { "asistente_modo" to it }),
                 image,
                 maps,
             )

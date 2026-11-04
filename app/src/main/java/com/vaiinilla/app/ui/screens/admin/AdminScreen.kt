@@ -188,6 +188,8 @@ fun AdminScreen(
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
     val welcome = rememberStoreWelcome(scope)
     val setup = adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
+    // El dueño o Vaiinilla pueden apagar el asistente de la tienda (asistente_modo «ninguno»).
+    val assistantForStaff = sections.store.uiState.value.config?.assistantMode?.forStaff != false
 
     AdminDialogHost(colors) {
         if (assistantOpen) {
@@ -198,6 +200,7 @@ fun AdminScreen(
         // Bienvenida (marco AS1): la primera vez que entra a una tienda que todavía no está lista.
         if (offerWelcome &&
             !readOnly &&
+            assistantForStaff &&
             !welcome.seen &&
             sections.store.uiState.value.config != null &&
             showsStoreSetup(setup)
@@ -234,6 +237,7 @@ fun AdminScreen(
                     colors,
                     readOnly,
                     onOpenAssistant = { assistantOpen = true },
+                    assistantForStaff = assistantForStaff,
                 ) { section = null }
             }
             return@AdminDialogHost
@@ -273,7 +277,8 @@ fun AdminScreen(
                                 header = header,
                                 setup = setup,
                                 onOpenOrders = { tab = AdminTab.ORDERS },
-                                onOpenAssistant = if (readOnly) null else ({ assistantOpen = true }),
+                                onOpenAssistant =
+                                    if (readOnly || !assistantForStaff) null else ({ assistantOpen = true }),
                                 onSeeAsCustomer = onChangeMode,
                                 onOpenSection = { section = it },
                             )
@@ -503,6 +508,7 @@ private fun AdminSectionContent(
     colors: OperationalColors,
     readOnly: Boolean,
     onOpenAssistant: () -> Unit,
+    assistantForStaff: Boolean = true,
     onBack: () -> Unit,
 ) {
     when (section) {
@@ -521,7 +527,7 @@ private fun AdminSectionContent(
                 colors,
                 readOnly,
                 onBack,
-                onOpenAssistant = onOpenAssistant.takeUnless { readOnly },
+                onOpenAssistant = onOpenAssistant.takeUnless { readOnly || !assistantForStaff },
             )
         }
         AdminSection.SCHOOL ->

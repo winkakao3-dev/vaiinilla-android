@@ -20,6 +20,7 @@ import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -90,6 +91,7 @@ class AdminBusinessJson {
             put("cocina_prepara_sin_cobrar", flow.kitchenPreparesUnpaid)
             // Solo si el servidor lo conoce: uno anterior rechaza la clave.
             flow.spaceDelivery?.let { put("entrega_en_espacio", it.wire) }
+            flow.assistantMode?.let { put("asistente_modo", it.wire) }
             put(
                 "franjas_pedido",
                 buildJsonArray {
@@ -418,6 +420,7 @@ private data class StoreConfigDto(
     @SerialName("cocina_prepara_sin_cobrar") val cocinaPreparaSinCobrar: Boolean = true,
     @SerialName("tipos_disponibles") val tiposDisponibles: List<String>? = null,
     @SerialName("entrega_en_espacio") val entregaEnEspacio: String? = null,
+    @SerialName("asistente_modo") val asistenteModo: String? = null,
     // Repostería (CASA-02, CASA-03); un servidor anterior no los envía y la app se comporta como siempre.
     @SerialName("reparto_activo") val repartoActivo: Boolean? = null,
     @SerialName("reparto_radio_km") val repartoRadioKm: JsonPrimitive? = null,
@@ -451,6 +454,7 @@ private data class StoreConfigDto(
             kitchenPreparesUnpaid = cocinaPreparaSinCobrar,
             availableTypes = tiposDisponibles,
             spaceDelivery = entregaEnEspacio?.let(SpaceDelivery::fromWire),
+            assistantMode = asistenteModo?.let(AssistantMode::fromWire),
             homeDelivery =
                 repartoActivo?.let { enabled ->
                     HomeDeliverySettings(

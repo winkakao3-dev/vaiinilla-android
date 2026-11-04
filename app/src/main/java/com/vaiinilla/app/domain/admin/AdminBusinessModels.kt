@@ -1,6 +1,7 @@
 package com.vaiinilla.app.domain.admin
 
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -171,6 +172,8 @@ data class StoreConfig(
     val location: StoreLocation? = null,
     /** «Te lo llevamos», «Pasa por él» o ambas; null si el servidor todavía no lo conoce. */
     val spaceDelivery: SpaceDelivery? = null,
+    /** Qué asistentes de IA tiene; null si el servidor todavía no lo conoce. */
+    val assistantMode: AssistantMode? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -184,6 +187,7 @@ data class StoreConfig(
             orderWindows = orderWindows,
             kitchenPreparesUnpaid = kitchenPreparesUnpaid,
             spaceDelivery = spaceDelivery,
+            assistantMode = assistantMode,
         )
 }
 
@@ -198,6 +202,8 @@ data class StoreFlow(
     val kitchenPreparesUnpaid: Boolean = true,
     /** null: el servidor no lo conoce y no se envía. */
     val spaceDelivery: SpaceDelivery? = null,
+    /** null: el servidor no lo conoce y no se envía. */
+    val assistantMode: AssistantMode? = null,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =
         copy(
