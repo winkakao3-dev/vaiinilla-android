@@ -98,10 +98,13 @@ class AdminStoreViewModel
         val assistant: State<StoreAssistantState> = _assistant
         private var noticeJob: Job? = null
         private var scope: String? = null
+        private var assistantJob: Job? = null
 
         fun onVisible(scope: String) {
             if (scope != this.scope) {
                 this.scope = scope
+                // Otra tienda u otro modo: lo que el asistente estaba guardando no sigue en la nueva.
+                assistantJob?.cancel()
                 _uiState.value = AdminStoreUiState()
                 _assistant.value = StoreAssistantState()
             }
@@ -298,45 +301,53 @@ class AdminStoreViewModel
             if (current.applying) return
             val baseKey = current.proposalKey ?: UUID.randomUUID().toString()
             val steps = proposal.steps()
+            val startScope = scope
             _assistant.value =
                 current.copy(applying = true, error = null, failures = emptyList(), proposalKey = baseKey)
-            viewModelScope.launch {
-                var applied = current.appliedSteps
-                val failures = mutableListOf<Pair<String, String>>()
-                steps.forEachIndexed { index, step ->
-                    if (index in applied) return@forEachIndexed
-                    _assistant.value = _assistant.value.copy(progress = "Guardando ${index + 1} de ${steps.size}")
-                    val result =
-                        withContext(Dispatchers.IO) {
-                            repository.applyAssistantStep(step, _assistant.value.photos, "$baseKey-$index")
-                        }
-                    result.fold(
-                        onSuccess = { applied = applied + index },
-                        onFailure = {
-                            // Ya estaba invitado: no es un error, ya quedó.
-                            if ((it as? CatalogRepositoryException)?.code in ALREADY_INVITED) {
-                                applied = applied + index
-                            } else {
-                                failures += step.label to assistantStepError(it)
+            assistantJob =
+                viewModelScope.launch {
+                    var applied = current.appliedSteps
+                    val failures = mutableListOf<Pair<String, String>>()
+                    steps.forEachIndexed { index, step ->
+                        if (index in applied) return@forEachIndexed
+                        // Si cambió de tienda a media aplicación, no se escribe nada más.
+                        if (scope != startScope) return@launch
+                        _assistant.value = _assistant.value.copy(progress = "Guardando ${index + 1} de ${steps.size}")
+                        val result =
+                            withContext(Dispatchers.IO) {
+                                repository.applyAssistantStep(
+                                    step,
+                                    _assistant.value.photos,
+                                    MutationIdempotency.assistant(baseKey, "$index"),
+                                )
                             }
-                        },
-                    )
-                }
-                if (proposal.patchBody != null || proposal.storePhotos.isNotEmpty()) refresh()
-                if (failures.isEmpty()) {
-                    _assistant.value = StoreAssistantState()
-                    showNotice("Tu tienda quedó configurada", isError = false)
-                    onDone()
-                } else {
-                    _assistant.value =
-                        _assistant.value.copy(
-                            applying = false,
-                            progress = null,
-                            appliedSteps = applied,
-                            failures = failures,
+                        result.fold(
+                            onSuccess = { applied = applied + index },
+                            onFailure = {
+                                // Ya estaba invitado: no es un error, ya quedó.
+                                if ((it as? CatalogRepositoryException)?.code in ALREADY_INVITED) {
+                                    applied = applied + index
+                                } else {
+                                    failures += step.label to assistantStepError(it)
+                                }
+                            },
                         )
+                    }
+                    refresh()
+                    if (failures.isEmpty()) {
+                        _assistant.value = StoreAssistantState()
+                        showNotice("Tu tienda quedó configurada", isError = false)
+                        onDone()
+                    } else {
+                        _assistant.value =
+                            _assistant.value.copy(
+                                applying = false,
+                                progress = null,
+                                appliedSteps = applied,
+                                failures = failures,
+                            )
+                    }
                 }
-            }
         }
 
         private fun askAssistant(messages: List<AssistantMessage>) {
@@ -551,6 +562,8 @@ internal fun assistantErrorMessage(error: Throwable): String =
     when ((error as? CatalogRepositoryException)?.code) {
         "ASSISTANT_UNAVAILABLE" -> "El asistente no está disponible ahorita. Puedes configurar tu tienda paso a paso."
         "ASSISTANT_CONVERSATION_TOO_LONG" -> "La plática ya está muy larga. Revisa la propuesta o empieza de nuevo."
+        "ASSISTANT_REPLY_TOO_LONG" ->
+            "Es mucho para una sola vez. Mándame una parte del menú, acéptala y seguimos con lo demás."
         "RATE_LIMITED" -> "Muchos mensajes seguidos. Espera unos minutos y vuelve a intentar."
         else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
     }
