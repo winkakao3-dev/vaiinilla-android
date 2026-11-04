@@ -83,7 +83,12 @@ data class BoardOrderDto(
     @SerialName("pago_pendiente") val paymentPending: Boolean = false,
     /** Va a la cuenta de la mesa y se paga al final; un servidor anterior no lo manda. */
     @SerialName("pago_diferido") val payAtEnd: Boolean = false,
-)
+    /** «Pasa por él»: listo lo entrega Caja en la barra. Un servidor anterior no lo manda. */
+    @SerialName("recoge_en_barra") val pickUpAtBar: Boolean = false,
+) {
+    /** Listo para recoger en la barra: es de Caja, el mesero no lo entrega. */
+    val waitsAtBar: Boolean get() = pickUpAtBar && estado == OrderState.READY.wireValue
+}
 
 @Serializable
 data class BoardTableDto(
@@ -453,7 +458,8 @@ fun BoardTableDto.toDomain(): BoardTable =
         // Una llamada o un pedido con un valor nuevo del servidor no tira el tablero entero: la mesa se sigue
         // viendo sin eso, y el pedido se cuenta para pedir actualizar la app.
         call = llamada?.let { runCatching { it.toDomain() }.getOrNull() },
-        orders = pedidos.mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
+        // «Pasa por él» listo es de Caja: no sale con «Entregar» en el tablero del mesero.
+        orders = pedidos.filterNot { it.waitsAtBar }.mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
         recentRejections =
             rechazadosRecientes.map {
                 RejectedOrder(

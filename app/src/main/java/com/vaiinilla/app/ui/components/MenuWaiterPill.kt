@@ -107,10 +107,12 @@ fun MenuWaiterLayer(
     modifier: Modifier = Modifier,
     /** «la Mesa 4», para la hoja antes de llamar. */
     place: String? = null,
+    /** Sin cuenta y sin nombre: la hoja lo pide antes de sentarlo en la mesa. */
+    onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
     val state =
-        remember(spaceId) {
-            MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable)
+        remember(spaceId, onJoinAs != null) {
+            MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable, onJoinAs)
         }
     MenuWaiterLayer(state = state, visible = visible, cart = cart, place = place, modifier = modifier)
 }

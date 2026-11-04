@@ -96,8 +96,11 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             orderId,
             folio,
             state,
+            // Un servidor anterior no manda destino ni recogeEnBarra: el texto de siempre.
+            inSpace = data["destino"] == "en_espacio",
             noticeId = noticeId,
             acceptedAwaitingPayment = data["pagarTrasAceptar"] == "true",
+            pickUpAtBar = data["recogeEnBarra"] == "true",
         )
     }
 

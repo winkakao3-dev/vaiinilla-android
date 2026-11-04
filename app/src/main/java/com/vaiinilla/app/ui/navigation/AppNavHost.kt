@@ -367,6 +367,7 @@ fun AppNavHost(
                     spaceType = event.spaceType,
                     noticeId = noticeId,
                     acceptedAwaitingPayment = event.acceptedAwaitingPayment,
+                    pickUpAtBar = event.pickUpAtBar,
                 )
             ReceivedNoticeLog.record(
                 context = appContext,
@@ -1254,6 +1255,8 @@ fun AppNavHost(
                                 waiterCallAlias(
                                     studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName(),
                                 )
+                            val guestNeedsName =
+                                studentAuthState.session == null && orderFlowViewModel.guestDisplayName().isBlank()
                             val layer: @Composable (MenuCartBar?, Boolean) -> Unit = { cart, visible ->
                                 MenuWaiterLayer(
                                     spaceId = spaceId,
@@ -1272,6 +1275,13 @@ fun AppNavHost(
                                         qrToken?.let { token ->
                                             { sharedTableViewModel.joinForWaiterCall(token, alias) }
                                         },
+                                    // Sin cuenta y sin nombre no se sienta como «Cliente»: la hoja le pide el suyo.
+                                    onJoinAs =
+                                        qrToken
+                                            ?.takeIf { guestNeedsName }
+                                            ?.let { token ->
+                                                { name: String -> sharedTableViewModel.joinForWaiterCall(token, name) }
+                                            },
                                     place =
                                         orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
                                             ?: sharedTableViewModel.uiState.value.table

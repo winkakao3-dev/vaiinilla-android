@@ -86,6 +86,8 @@ object OrderAdvanceNotifier {
                 "por_cobrar" -> "Pedido #$folio por cobrar" to "Entro un pedido en efectivo."
                 "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
                 "listo_mesero" -> "Pedido #$folio listo" to "Entregar al espacio del alumno."
+                // «Pasa por él»: el cliente viene a la barra y Caja se lo entrega.
+                "listo_barra" -> "Pedido #$folio listo" to "El cliente pasa a recogerlo a la barra."
                 // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
                 "por_aceptar" -> "Encargo #$folio por aceptar" to "Acéptalo o recházalo en Pedidos."
                 "pedido_domicilio" -> "Pedido #$folio a domicilio" to "Entró un pedido para entregar."
@@ -238,6 +240,7 @@ object OrderAdvanceNotifier {
         spaceType: String? = null,
         noticeId: String? = null,
         acceptedAwaitingPayment: Boolean = false,
+        pickUpAtBar: Boolean = false,
     ): Shown {
         val title = "Pedido #$folio"
         val text =
@@ -248,6 +251,7 @@ object OrderAdvanceNotifier {
                     newState,
                     inSpace,
                     spaceType,
+                    pickUpAtBar,
                 )
             }
         if (!canPost(context)) return Shown(title, text, posted = false)
@@ -332,17 +336,25 @@ object OrderAdvanceNotifier {
     private fun Intent.withNoticeId(noticeId: String?): Intent =
         if (noticeId == null) this else putExtra(EXTRA_NOTICE_ID, noticeId)
 
+    internal const val PICK_UP_AT_BAR_TEXT = "Tu pedido está listo, pasa a la barra."
+
     internal fun messageFor(
         state: OrderState,
         inSpace: Boolean = false,
         spaceType: String? = null,
+        pickUpAtBar: Boolean = false,
     ): String =
         when (state) {
             OrderState.PENDING_PAYMENT -> "Caja espera tu pago."
             OrderState.PAID -> "Pago confirmado. Cocina recibió tu comanda."
             OrderState.PREPARING -> "Tu comida se está preparando."
             OrderState.READY ->
-                if (inSpace) SpaceCopy.readyInSpace(spaceType) else "Tu pedido está listo. Recógelo en la barra."
+                when {
+                    // «Pasa por él»: el cliente pidió en su lugar pero lo recoge en la barra.
+                    pickUpAtBar -> PICK_UP_AT_BAR_TEXT
+                    inSpace -> SpaceCopy.readyInSpace(spaceType)
+                    else -> "Tu pedido está listo. Recógelo en la barra."
+                }
             OrderState.DELIVERED -> "Pedido entregado. Buen provecho."
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."

@@ -215,6 +215,44 @@ class MenuWaiterCallTest {
             assertEquals("Llamar al mesero todavía no está disponible en esta cafetería.", state.error)
         }
 
+    @Test
+    fun `sin cuenta pide el nombre antes de sentarlo y llama con lo que eligio`() =
+        runTest {
+            var calls = 0
+            val joinedAs = mutableListOf<String>()
+            val state =
+                MenuWaiterCallState(
+                    spaceId = 1,
+                    onCurrent = { Result.success(null) },
+                    onCall = { _, _, _ ->
+                        calls++
+                        if (calls == 1) Result.failure(notAtTable()) else Result.success(call(CallStatus.PENDIENTE))
+                    },
+                    onCancel = { Result.success(it) },
+                    onJoinTable = { error("No debe sentarlo como Cliente") },
+                    onJoinAs = { name ->
+                        joinedAs += name
+                        if (joinedAs.size == 1) {
+                            Result.failure(OrderRepositoryException("PARTICIPANT_NAME_TAKEN", "Ya está."))
+                        } else {
+                            Result.success(Unit)
+                        }
+                    },
+                )
+            state.tap()
+            assertFalse(state.send(CallReason.CUENTA))
+            assertTrue(state.askingName)
+            assertNull(state.error)
+            // Otro de la mesa ya usa ese nombre: se queda pidiéndolo.
+            assertFalse(state.sendWithName("  Ana "))
+            assertTrue(state.askingName)
+            assertEquals(MenuWaiterCallState.NAME_TAKEN_MESSAGE, state.error)
+            assertTrue(state.sendWithName("Ana Sofía"))
+            assertFalse(state.askingName)
+            assertEquals(listOf("Ana", "Ana Sofía"), joinedAs)
+            assertEquals(MenuWaiterPhase.OPEN, state.phase)
+        }
+
     private fun notAtTable() =
         OrderRepositoryException(
             "NO_ACTIVE_ORDER_IN_SPACE",

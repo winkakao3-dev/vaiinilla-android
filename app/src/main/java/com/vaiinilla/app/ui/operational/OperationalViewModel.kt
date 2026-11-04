@@ -427,6 +427,7 @@ class OperationalViewModel
                                 inSpace = order.summary.destination == OrderDestination.IN_SPACE,
                                 spaceType = order.summary.space?.type,
                                 acceptedAwaitingPayment = acceptedAwaitingPayment(before, after),
+                                pickUpAtBar = order.summary.pickUpAtBar,
                             ),
                         )
                     }
@@ -1650,7 +1651,8 @@ internal fun staffAlertsFor(
                     when {
                         summary.state == OrderState.PENDING_PAYMENT && summary.needsCashCollection ->
                             StaffAlertKind.CASH_DUE
-                        summary.state == OrderState.READY && summary.destination == OrderDestination.TAKE_AWAY ->
+                        summary.state == OrderState.READY &&
+                            (summary.destination == OrderDestination.TAKE_AWAY || summary.pickUpAtBar) ->
                             StaffAlertKind.READY_FOR_PICKUP
                         else -> null
                     }
@@ -1837,6 +1839,8 @@ data class OrderAdvance(
     val spaceType: String? = null,
     /** El negocio aceptó el encargo y ahora le toca pagar al cliente. */
     val acceptedAwaitingPayment: Boolean = false,
+    /** «Pasa por él»: listo dice que pase a la barra, no que va a su lugar. */
+    val pickUpAtBar: Boolean = false,
 )
 
 /**

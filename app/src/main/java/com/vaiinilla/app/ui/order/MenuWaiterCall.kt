@@ -81,7 +81,17 @@ class MenuWaiterCallState(
     private val onCall: suspend (Int, CallReason, String?) -> Result<TableCall>,
     private val onCancel: suspend (TableCall) -> Result<TableCall>,
     private val onJoinTable: (suspend () -> Result<Unit>)?,
+    /**
+     * Sin cuenta y sin nombre: en lugar de sentarlo como «Cliente», la hoja le pide su nombre (con el aviso de
+     * términos) y se une a la mesa con él. Dos invitados ya no chocan con el mismo nombre.
+     */
+    private val onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
+    /** La hoja pide el nombre antes de llamar; [pendingReason] es lo que eligió. */
+    var askingName by mutableStateOf(false)
+        private set
+    private var pendingReason: CallReason? = null
+
     var phase by mutableStateOf(MenuWaiterPhase.IDLE)
         private set
     var call by mutableStateOf<TableCall?>(null)
@@ -136,6 +146,8 @@ class MenuWaiterCallState(
         if (phase == MenuWaiterPhase.CHOOSING) phase = MenuWaiterPhase.IDLE
         showsCall = false
         error = null
+        askingName = false
+        pendingReason = null
     }
 
     fun tick() {
@@ -149,6 +161,37 @@ class MenuWaiterCallState(
         error = null
         val result = callJoiningIfNeeded(reason)
         busy = false
+        return finish(result)
+    }
+
+    /** Con el nombre escrito: se une a la mesa con él y hace la llamada que había elegido. */
+    suspend fun sendWithName(name: String): Boolean {
+        val reason = pendingReason ?: return false
+        val join = onJoinAs ?: return false
+        val clean = name.trim().replace(Regex("\\s+"), " ")
+        if (busy) return false
+        if (clean.isEmpty()) {
+            error = NAME_REQUIRED_MESSAGE
+            return false
+        }
+        busy = true
+        error = null
+        val joined = join(clean.take(SHARED_TABLE_ALIAS_MAX))
+        val result = joined.fold(onSuccess = { onCall(spaceId, reason, null) }, onFailure = { Result.failure(it) })
+        busy = false
+        if (result.isFailure && result.exceptionOrNull()?.errorCode() == NAME_TAKEN) {
+            error = NAME_TAKEN_MESSAGE
+            return false
+        }
+        if (result.isSuccess) {
+            askingName = false
+            pendingReason = null
+        }
+        return finish(result)
+    }
+
+    private fun finish(result: Result<TableCall>): Boolean {
+        if (result.exceptionOrNull() === NameNeeded) return false
         return result.fold(
             onSuccess = { created ->
                 call = created
@@ -195,6 +238,11 @@ class MenuWaiterCallState(
         val first = onCall(spaceId, reason, null)
         val cause = first.exceptionOrNull() ?: return first
         if (cause.errorCode() != NOT_AT_TABLE) return first
+        if (onJoinAs != null) {
+            pendingReason = reason
+            askingName = true
+            return Result.failure(NameNeeded)
+        }
         val join = onJoinTable ?: return Result.failure(IllegalStateException(NOT_AT_TABLE_MESSAGE))
         join().onFailure { return Result.failure(it) }
         return onCall(spaceId, reason, null)
@@ -207,7 +255,13 @@ class MenuWaiterCallState(
         const val NOT_AT_TABLE = "NO_ACTIVE_ORDER_IN_SPACE"
         const val RATE_LIMITED = "RATE_LIMITED"
         const val NOT_AT_TABLE_MESSAGE = "Para llamar al mesero, únete a la mesa en Pedidos."
+        const val NAME_TAKEN = "PARTICIPANT_NAME_TAKEN"
+        const val NAME_TAKEN_MESSAGE = "Alguien en la mesa ya usa ese nombre. Escribe otro."
+        const val NAME_REQUIRED_MESSAGE = "Escribe tu nombre para avisarle al mesero."
     }
+
+    /** No es un error: la hoja pide el nombre antes de llamar. */
+    private object NameNeeded : IllegalStateException("Falta el nombre")
 }
 
 private fun Throwable.errorCode(): String? =
