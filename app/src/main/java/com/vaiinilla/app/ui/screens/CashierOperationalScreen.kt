@@ -2056,7 +2056,7 @@ private fun AddProductSheet(
 }
 
 /** Motivos que Cocina da con más frecuencia: un toque los escribe. */
-private val RejectionQuickReasons = listOf("Se acabó el producto", "Faltan ingredientes", "Cocina saturada")
+private val RejectionQuickReasons = listOf("Se acabó el producto", "Faltan ingredientes")
 
 /**
  * Cocina rechaza un pedido y explica por qué: el cliente ve el motivo en su seguimiento. Es una hoja,
@@ -2087,6 +2087,7 @@ internal fun KitchenRejectDialog(
             onConfirm = onConfirm,
             itemName = itemName,
             warning = warning,
+            onCancel = onDismiss,
         )
     }
 }
@@ -2100,6 +2101,7 @@ internal fun KitchenRejectContent(
     onConfirm: (reason: String) -> Unit,
     itemName: String? = null,
     warning: String? = null,
+    onCancel: (() -> Unit)? = null,
 ) {
     var picked by remember { mutableStateOf(RejectionQuickReasons.first()) }
     var other by remember { mutableStateOf("") }
@@ -2205,6 +2207,17 @@ internal fun KitchenRejectContent(
                 fill = Color(0xFFE5645A),
                 contentColor = Color.White,
             ) { onConfirm(reason) }
+        }
+        if (onCancel != null) {
+            ActionPill(
+                label = "Cancelar",
+                enabled = true,
+                loading = false,
+                colors = colors,
+                outlined = true,
+                modifier = Modifier.arrive(2),
+                onClick = onCancel,
+            )
         }
     }
 }

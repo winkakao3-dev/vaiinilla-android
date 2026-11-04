@@ -650,6 +650,52 @@ class DoopGaleriaPersonalClienteTest {
         shot("cC08_escanear")
     }
 
+    private fun kitchenTicket(state: OrderState, vararg lines: Triple<String, Int, com.vaiinilla.app.domain.model.PreparationStation>) =
+        ScreenshotFixtures.sampleOrder(state = state).let { base ->
+            val item = base.items.first()
+            base.copy(
+                summary = base.summary.copy(id = "t", folio = 12),
+                items = lines.mapIndexed { i, (name, qty, station) -> item.copy(id = i + 1, productName = name, quantity = qty, preparationStation = station, options = emptyList(), notes = "") },
+            )
+        }
+
+    @Test fun cN02_palomear() {
+        val order =
+            kitchenTicket(
+                OrderState.PREPARING,
+                Triple("Cheesecake de maracuyá", 1, com.vaiinilla.app.domain.model.PreparationStation.KITCHEN),
+                Triple("Latte con avena", 2, com.vaiinilla.app.domain.model.PreparationStation.KITCHEN),
+                Triple("Crepa de Nutella", 1, com.vaiinilla.app.domain.model.PreparationStation.KITCHEN),
+            )
+        draw {
+            KitchenOperationalScreen(state = OperationalUiState(role = OperationalRole.KITCHEN, orders = listOf(order)), onBack = {}, onStart = { _, _ -> }, onReady = { _, _ -> })
+        }
+        tap("Preparando")
+        tap("Cheesecake de maracuyá")
+        tap("Latte con avena")
+        shot("cN02_palomear")
+    }
+
+    @Test fun cN09_solo_lo_suyo() {
+        val order =
+            kitchenTicket(
+                OrderState.PAID,
+                Triple("Crepa de cajeta", 2, com.vaiinilla.app.domain.model.PreparationStation.KITCHEN),
+                Triple("Coca-Cola", 2, com.vaiinilla.app.domain.model.PreparationStation.CASHIER),
+                Triple("Agua de jamaica", 1, com.vaiinilla.app.domain.model.PreparationStation.CASHIER),
+            )
+        draw {
+            KitchenOperationalScreen(state = OperationalUiState(role = OperationalRole.KITCHEN, orders = listOf(order)), onBack = {}, onStart = { _, _ -> }, onReady = { _, _ -> })
+        }
+        shot("cN09_solo_lo_suyo")
+    }
+
+    @Test fun cDP3_buscar() {
+        draw {
+            Donde(DiscoveryUiState(query = "pa", establishments = listOf(pasteleria)))
+        }
+        shot("cDP3_buscar")
+    }
     @Test fun cK02b_preparando() {
         draw { Kitchen() }
         tap("Preparando")
@@ -728,18 +774,50 @@ class DoopGaleriaPersonalClienteTest {
         shot("cD10_elige_mapa")
     }
 
-    @Test fun c15c_compra_raiz() {
-        val order = ScreenshotFixtures.sampleOrder(state = OrderState.PAID, paymentMethod = PaymentMethod.STRIPE, destination = OrderDestination.TAKE_AWAY)
+    private fun depositOrder(state: OrderState) =
+        com.vaiinilla.app.ui.screenshot.ScreenshotFixtures.sampleOrder(state = state, paymentMethod = PaymentMethod.STRIPE, destination = OrderDestination.HOME_DELIVERY).let { base ->
+            base.copy(
+                summary = base.summary.copy(id = "d1", folio = 1, total = "1070.29", deliveryDate = "2026-11-07", deliverySlot = "10:00-12:00"),
+                homeDelivery =
+                    com.vaiinilla.app.domain.model.OrderHomeDelivery(
+                        address = com.vaiinilla.app.domain.model.DeliveryAddress(address = "Aldama 1408, Centro", phone = "6140000000"),
+                        deposit = "535.15",
+                        dueOnArrival = "535.14",
+                        code = null,
+                    ),
+            )
+        }
+
+    @Test fun c14_procesando() {
         rule.mainClock.autoAdvance = false
         rule.setContent {
             ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
-                PurchaseSuccessScreen(order, PurchaseCelebrationKind.PAYMENT_CONFIRMED, {}, 600_000)
+                com.vaiinilla.app.ui.screens.StripePaymentPendingScreen(
+                    order = depositOrder(OrderState.PENDING_PAYMENT),
+                    phase = com.vaiinilla.app.ui.order.StripePaymentPhase.PROCESSING_CONFIRMATION,
+                    message = null,
+                    retrying = false,
+                    onRetry = {},
+                    onRefresh = {},
+                    onReturnToCart = {},
+                    onViewOrders = {},
+                )
             }
         }
-        repeat(30) {
-            rule.mainClock.advanceTimeBy(100)
+        repeat(12) { rule.mainClock.advanceTimeBy(100) }
+        rule.onRoot().captureRoboImage("galeria/c14_procesando.png")
+    }
+    @Test fun c15c_compra_raiz() {
+        draw {
+            PurchaseSuccessScreen(
+                order = depositOrder(OrderState.PAID),
+                kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,
+                onFollowOrder = {},
+                onViewOrders = {},
+                venue = com.vaiinilla.app.ui.order.JourneyVenue(name = "Mi negocio"),
+            )
         }
-        rule.onRoot().captureRoboImage("galeria/c15_compra_confirmada.png")
+        shot("c15_compra_confirmada")
     }
 
     @Test fun cN06b_por_atender() {
@@ -816,7 +894,7 @@ class DoopGaleriaPersonalClienteTest {
         draw {
             val colors = rememberOperationalColors()
             Column(Modifier.fillMaxSize().background(colors.background)) {
-                KitchenRejectContent(folio = 14, colors = colors, onConfirm = {})
+                KitchenRejectContent(folio = 14, colors = colors, onConfirm = {}, onCancel = {})
             }
         }
         shot("cK03_rechazar")

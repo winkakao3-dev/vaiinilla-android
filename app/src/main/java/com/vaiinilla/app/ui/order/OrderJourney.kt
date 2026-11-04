@@ -347,6 +347,9 @@ internal fun journeyFacts(
             state == OrderState.AWAITING_ACCEPTANCE -> add(JourneyFact("Total", moneyLabel(summary.total)))
             state == OrderState.PENDING_PAYMENT -> add(JourneyFact("Total", moneyLabel(summary.total), FactTone.DUE))
             state == OrderState.CANCELED && order.neverCharged() -> add(JourneyFact("Total", moneyLabel(summary.total)))
+            order.rejectedAmount().signum() > 0 && state != OrderState.CANCELED -> {
+                add(JourneyFact("Pagaste", moneyLabel(summary.total.toBigDecimalOrNull()?.add(order.rejectedAmount())?.toPlainString() ?: summary.total)))
+            }
             else -> {
                 val how =
                     when (summary.paymentMethod) {
@@ -382,13 +385,12 @@ internal fun journeyFacts(
                 }
             }
         }
-        val rejected =
-            order.items
-                .mapNotNull { it.rejection?.amount?.toBigDecimalOrNull() }
-                .fold(BigDecimal.ZERO, BigDecimal::add)
+        val rejected = order.rejectedAmount()
         if (rejected.signum() > 0 && state != OrderState.CANCELED) {
             add(JourneyFact("Te regresamos", moneyLabel(rejected), FactTone.GOOD))
+            add(JourneyFact("Tu pedido ahora", moneyLabel(summary.total)))
         }
+        if (state == OrderState.NOT_PICKED_UP) add(JourneyFact("Devolución", "La decide el negocio"))
         summary.combinedSavings.positive()?.let { add(JourneyFact("Ahorraste", moneyLabel(it), FactTone.GOOD)) }
         if (state != OrderState.CANCELED) {
             summary.cashbackAwarded.positive()?.let {
@@ -419,7 +421,7 @@ internal fun journeyNote(
             "Si no contesta a tiempo, se cancela solo y no pagas nada."
         state == OrderState.PENDING_PAYMENT && order.payBy != null ->
             "Si no lo pagas antes de esa hora, el pedido se cancela solo y no te cobramos nada."
-        order.items.any { it.rejection != null } -> "Lo demás de tu pedido sigue igual."
+        order.items.any { it.rejection != null } -> "Si ya no quieres lo demás, avísale al negocio antes de que lo terminen."
         journey == OrderJourney.DRIVE_THRU && state != OrderState.READY ->
             "Si llegas y aún no está listo, espera cerca de la ventanilla: te lo dan en cuanto salga."
         journey == OrderJourney.BAR -> "Si te mueves a una mesa, dile al mesero tu folio."
@@ -465,6 +467,11 @@ internal data class JourneyCaption(
 )
 
 private fun OrderDetail.rejectedItems() = items.filter { it.rejection != null }
+
+private const val REASON_IN_TITLE = 18
+
+private fun OrderDetail.rejectedAmount(): BigDecimal =
+    items.mapNotNull { it.rejection?.amount?.toBigDecimalOrNull() }.fold(BigDecimal.ZERO, BigDecimal::add)
 
 private fun OrderDetail.depositPaid(): Boolean =
     homeDelivery?.deposit.positive() != null && homeDelivery?.hasAmountDue == true &&
@@ -583,7 +590,11 @@ internal fun journeyHeadline(
         state == OrderState.PENDING_PAYMENT -> "Estamos confirmando tu pago."
         rejected.isNotEmpty() && state != OrderState.READY ->
             if (rejected.size == 1) {
-                "${rejected.first().productName} no se pudo. Lo demás sigue."
+                val live = order.items.filter { it.rejection == null }
+                val first = rejected.first()
+                val what = first.rejection?.reason?.takeIf { it.length <= REASON_IN_TITLE }?.lowercase() ?: "no se pudo"
+                val rest = if (live.size == 1) "${live.first().productName} sigue." else "Lo demás sigue."
+                "${first.productName} $what. $rest"
             } else {
                 "${rejected.size} productos no se pudieron. Lo demás sigue."
             }
@@ -648,8 +659,20 @@ internal fun journeyLead(
         state == OrderState.PENDING_PAYMENT && order.payBy != null ->
             "Tienes hasta ${deadlineLabel(order.payBy, zone, today)}. Empiezan tu ${order.itemWord(journey)} en cuanto entre tu pago."
         state == OrderState.PENDING_PAYMENT -> null
-        order.rejectedItems().isNotEmpty() && state != OrderState.READY ->
-            "Lo que no se pudo ya no cuenta en tu total."
+        order.rejectedItems().isNotEmpty() && state != OrderState.READY -> {
+            val back = order.rejectedAmount()
+            val to =
+                when (order.summary.paymentMethod) {
+                    PaymentMethod.BALANCE -> "a tu cartera Vaiinilla"
+                    PaymentMethod.STRIPE -> "a tu tarjeta"
+                    PaymentMethod.CASH -> null
+                }
+            if (to != null && back.signum() > 0 && !order.summary.payAtEnd) {
+                "Te regresamos ${moneyLabel(back)} $to. No tienes que hacer nada."
+            } else {
+                "Lo que no se pudo ya no cuenta en tu total."
+            }
+        }
         state == OrderState.ON_THE_WAY ->
             when {
                 order.homeDelivery?.hasAmountDue == true ->

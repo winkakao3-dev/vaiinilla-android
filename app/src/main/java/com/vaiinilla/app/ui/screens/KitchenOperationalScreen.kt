@@ -896,7 +896,7 @@ private fun KitchenOrderCard(
             }
             if (cashierItems.isNotEmpty()) {
                 Text(
-                    "Lo de Caja va aparte: " + cashierItems.joinToString(", ") { "${it.quantity}× ${it.productName}" },
+                    (if (summary.space != null) "Las lleva el mesero: " else "Lo de Caja va aparte: ") + cashierItems.joinToString(", ") { "${it.quantity}× ${it.productName}" },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = KitchenMuted,

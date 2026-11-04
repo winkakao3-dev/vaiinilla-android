@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
@@ -70,10 +73,10 @@ import com.vaiinilla.app.ui.order.canShowStripeAbandon
 import com.vaiinilla.app.ui.order.orderCancellationNotice
 import kotlinx.coroutines.delay
 
-private val StripeBg = Color(0xFF0D0D0D)
+private val StripeBg = Color(0xFF1C1C1A)
 private val StripeInk = Color(0xFFF3EFE4)
 private val StripeMuted = Color(0xFFB8B3AA)
-private val StripePanel = Color(0xFF1A1B19)
+private val StripePanel = Color(0xFF2A2B28)
 private val StripeLine = Color(0x42F3EFE4)
 private val StripeLime = Color(0xFFB7D464)
 private val StripeLimeInk = Color(0xFF172008)
@@ -286,7 +289,7 @@ fun StripePaymentPendingScreen(
                             StripePaymentPhase.TIMED_OUT -> Icons.Outlined.Refresh
                             StripePaymentPhase.AWAITING_ACCEPTANCE -> Icons.Outlined.Schedule
                             StripePaymentPhase.AWAITING_PAYMENT -> Icons.Outlined.CreditCard
-                            else -> Icons.Outlined.Sync
+                            else -> if (displayedWaiting) Icons.Filled.ShoppingBag else Icons.Outlined.Sync
                         }
                     val displayedTint =
                         when (it) {
@@ -330,7 +333,7 @@ fun StripePaymentPendingScreen(
                                     else -> "Estado del pago"
                                 },
                             tint = displayedTint,
-                            modifier = Modifier.size(62.dp),
+                            modifier = Modifier.size(if (displayedWaiting) 30.dp else 62.dp),
                         )
                     }
                 }
@@ -362,13 +365,15 @@ fun StripePaymentPendingScreen(
                     )
                 }
                 Spacer(Modifier.height(24.dp))
+                val depositDue = order.homeDelivery?.takeIf { it.hasAmountDue }?.deposit
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = StripePanel,
                     shape = RoundedCornerShape(20.dp),
                 ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -384,20 +389,54 @@ fun StripePaymentPendingScreen(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                             )
-                            Text(
-                                "Pedido #${order.summary.folio}",
-                                color = StripeInk,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Black,
-                            )
+                            if (!waiting) {
+                                Text(
+                                    "Pedido #${order.summary.folio}",
+                                    color = StripeInk,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black,
+                                )
+                            }
                         }
                         Text(
-                            moneyLabel(if (awaitingAcceptance || awaitingPayment) amountDue else order.summary.total),
+                            moneyLabel(
+                                when {
+                                    awaitingAcceptance || awaitingPayment -> amountDue
+                                    depositDue != null -> depositDue
+                                    else -> order.summary.total
+                                },
+                            ),
                             color = StripeInk,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
                         )
                     }
+                    if (depositDue != null) {
+                        Text(
+                            "Anticipo · ${moneyLabel(order.homeDelivery!!.dueOnArrival.orEmpty().ifBlank { "0" })} al recibir",
+                            color = StripeMuted,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+                        )
+                    }
+                    if (waiting) {
+                        LinearProgressIndicator(
+                            color = StripeLime,
+                            trackColor = StripeLine,
+                            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 16.dp).height(3.dp).clip(CircleShape),
+                        )
+                    }
+                    }
+                }
+                if (waiting) {
+                    Spacer(Modifier.height(12.dp))
+                    StripeSecondaryAction(
+                        label = "Actualizar estado",
+                        onClick = onRefresh,
+                        enabled = !abandoning,
+                    )
                 }
             }
 
@@ -442,6 +481,7 @@ fun StripePaymentPendingScreen(
                             enabled = !retrying,
                         )
                     }
+                    waiting -> Unit
                     else -> {
                         StripeActionButton(
                             label = "Ver mis pedidos",

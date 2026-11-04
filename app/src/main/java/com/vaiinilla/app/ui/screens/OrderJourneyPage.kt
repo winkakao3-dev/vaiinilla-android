@@ -355,7 +355,7 @@ internal fun OrderJourneyPage(
                 FolioCodeCard(order, matrix, colors)
             }
             val neverAccepted = state == OrderState.CANCELED && journeyMoneyBack(order) == "No te cobramos nada"
-            if (!neverAccepted) OrderCard(order, journey, showCode, colors, Modifier.arrive(4, key))
+            if (!neverAccepted) OrderCard(order, journey, showCode || state == OrderState.NOT_PICKED_UP, colors, Modifier.arrive(4, key))
             if (home && state == OrderState.ON_THE_WAY) {
                 order.homeDelivery?.dueOnArrival?.takeIf { order.homeDelivery.hasAmountDue }?.let { due ->
                     PayAtDoorCard(due, order.homeDelivery.deposit, colors, Modifier.arrive(5, key))
@@ -624,20 +624,42 @@ private fun OrderCard(
     val live = order.items.filter { it.rejection == null }
     val anyRejected = order.items.any { it.rejection != null }
     val facts = journeyFacts(order, journey)
+    // Con algo que no se pudo, lo que pediste y las cuentas van por separado (Doop P12).
+    if (anyRejected) {
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(colors.paper2)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                order.items.forEachIndexed { index, item ->
+                    if (index > 0) Divider(colors)
+                    ItemRow(item, colors)
+                }
+            }
+            if (facts.isNotEmpty()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(colors.paper2)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                ) {
+                    facts.forEach { fact -> FactRow(fact, colors) }
+                }
+            }
+        }
+        return
+    }
     Column(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .background(colors.paper2),
     ) {
-        if (anyRejected) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                order.items.forEachIndexed { index, item ->
-                    if (index > 0) Divider(colors)
-                    ItemRow(item, colors)
-                }
-            }
-        } else {
+        run {
             if (!compact) {
                 CardPhoto(order, journey, live, colors)
             }
@@ -757,7 +779,7 @@ private fun ItemRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                item.rejection?.reason?.let { "$it · no se te cobra" } ?: "Se está preparando",
+                item.rejection?.reason?.let { "$it · te lo regresamos" } ?: "Se está preparando",
                 color = if (off) colors.coral else colors.muted,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
@@ -1035,9 +1057,11 @@ private fun JourneyActions(
 ) {
     if (actions.isEmpty()) return
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Dos cortas caben juntas («Llamar» y «WhatsApp»); una larga se cortaría, así que van una bajo la otra.
+        val stacked = actions.any { it.text.length > 14 }
         val lead = if (actions.size % 2 == 1 || actions.first().look == ButtonLook.LIME) actions.first() else null
         lead?.let { JourneyButton(it, colors, Modifier.fillMaxWidth()) }
-        actions.drop(if (lead != null) 1 else 0).chunked(2).forEach { pair ->
+        actions.drop(if (lead != null) 1 else 0).chunked(if (stacked) 1 else 2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 pair.forEach { JourneyButton(it, colors, Modifier.weight(1f)) }
             }

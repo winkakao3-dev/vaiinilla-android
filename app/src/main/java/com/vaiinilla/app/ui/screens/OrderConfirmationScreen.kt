@@ -114,13 +114,28 @@ fun OrderConfirmationScreen(
             )
             return@Box
         }
+        // A domicilio no hay ticket que mostrar: la compra se confirma en su página y se sigue en la del pedido.
+        val delivery = order.summary.destination == OrderDestination.HOME_DELIVERY
+        if (delivery && activeCelebration != null) {
+            PurchaseSuccessScreen(
+                order = order,
+                kind = activeCelebration.kind,
+                venue = venue,
+                onFollowOrder = { onPurchaseCelebrationFinished(activeCelebration.orderId) },
+                onViewOrders = {
+                    onPurchaseCelebrationFinished(activeCelebration.orderId)
+                    onViewTracking()
+                },
+            )
+            return@Box
+        }
         val qrPayload =
             confirmationTicketQrPayload(order).takeIf {
                 order.summary.destination != OrderDestination.HOME_DELIVERY
             }
         // Abierto desde Pedidos se sigue en la página del dibujo de Doop (P1 a P13). Recién comprado se queda la
         // tienda con su celebración y su ticket.
-        if (!showTrackingButton && activeCelebration == null) {
+        if ((!showTrackingButton || delivery) && activeCelebration == null) {
             OrderJourneyPage(
                 order = order,
                 qrPayload = qrPayload,

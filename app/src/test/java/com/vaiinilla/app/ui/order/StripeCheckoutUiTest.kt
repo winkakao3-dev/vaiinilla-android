@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.vaiinilla.app.domain.model.OrderPayment
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -238,17 +239,18 @@ class StripeCheckoutUiTest {
                 PurchaseSuccessScreen(
                     order = order,
                     kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,
-                    onFinished = { finished = true },
-                    durationMillis = 0,
+                    onFollowOrder = { finished = true },
+                    onViewOrders = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("¡Compra confirmada!").assertIsDisplayed()
+        composeTestRule.onNodeWithText("¡Compra\nconfirmada!").assertIsDisplayed()
         composeTestRule
             .onNodeWithText("Tu pago fue autorizado y tu pedido ya está en marcha.")
             .assertIsDisplayed()
-        composeTestRule.onNodeWithText("Pedido #${order.summary.folio}").assertIsDisplayed()
+        composeTestRule.onNodeWithText("PEDIDO #${order.summary.folio}").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Seguir pedido").performScrollTo().performClick()
         composeTestRule.runOnIdle { assertTrue(finished) }
     }
 
@@ -265,15 +267,15 @@ class StripeCheckoutUiTest {
                 PurchaseSuccessScreen(
                     order = order,
                     kind = PurchaseCelebrationKind.ORDER_RECEIVED,
-                    onFinished = {},
-                    durationMillis = 0,
+                    onFollowOrder = {},
+                    onViewOrders = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("¡Pedido recibido!").assertIsDisplayed()
+        composeTestRule.onNodeWithText("¡Pedido\nrecibido!").assertIsDisplayed()
         composeTestRule.onNodeWithText("Paga en Caja para continuar con tu pedido.").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("¡Compra confirmada!").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("¡Compra\nconfirmada!").assertCountEquals(0)
     }
 
     @Test

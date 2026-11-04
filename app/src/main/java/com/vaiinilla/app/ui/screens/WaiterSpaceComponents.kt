@@ -557,6 +557,7 @@ internal fun WaiterSpaceSection(
                             loading = false,
                             colors = colors,
                             primary = !showCollect && !hasReadyOrders,
+                            outlined = showCollect,
                             modifier = Modifier.weight(1f),
                             onClick = onTakeOrder,
                         )
@@ -567,8 +568,8 @@ internal fun WaiterSpaceSection(
                             enabled = enabled,
                             loading = false,
                             colors = colors,
-                            // Un solo lima por hoja: con algo listo, lo primero es entregarlo.
-                            primary = !hasReadyOrders,
+                            // Un solo lima por hoja: el lima es para entregar; cobrar va en crema (Doop W02).
+                            inverted = true,
                             modifier = Modifier.weight(1f),
                         ) { onStartCollect() }
                     }
@@ -616,8 +617,8 @@ internal fun WaiterSpaceSection(
                 val turnEnd = session.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
                 val renewFrom = turnEnd?.takeIf { it.isAfter(Instant.now()) }
                 RentalDurationPicker(
-                    title = if (renewFrom != null) "Renovar" else "Rentar ahora",
-                    verb = if (renewFrom != null) "Renovar" else "Rentar",
+                    title = if (renewFrom != null) "Alargar turno" else "Rentar ahora",
+                    verb = if (renewFrom != null) "Alargar" else "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
                     durations = rentalDurations,
                     enabled = enabled,
