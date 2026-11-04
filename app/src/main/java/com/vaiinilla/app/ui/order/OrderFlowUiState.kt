@@ -13,7 +13,6 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
-import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.Product
@@ -112,15 +111,8 @@ internal fun purchaseCelebrationFor(order: OrderDetail): PurchaseCelebration? =
             )
         PaymentMethod.BALANCE ->
             order
-                .takeIf {
-                    it.summary.state in
-                        setOf(
-                            OrderState.PAID,
-                            OrderState.PREPARING,
-                            OrderState.READY,
-                            OrderState.DELIVERED,
-                        )
-                }?.let {
+                .takeIf { it.summary.state.isPaidOrLater }
+                ?.let {
                     PurchaseCelebration(
                         orderId = it.summary.id,
                         kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,

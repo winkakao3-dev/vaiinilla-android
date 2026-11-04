@@ -128,7 +128,10 @@ object HomeOrderBoard {
                 HomeOrderStep.SEND_OUT.takeIf { order.summary.destination == OrderDestination.HOME_DELIVERY }
             OrderState.ON_THE_WAY -> HomeOrderStep.DELIVER
             OrderState.DELIVERED -> HomeOrderStep.COLLECT.takeIf { order.homeDelivery?.hasAmountDue == true }
-            else -> null
+            // Aceptado con tarjeta: le toca pagar al cliente, el negocio espera.
+            OrderState.PENDING_PAYMENT -> null
+            // Sin `else`: un estado nuevo obliga a decidir aquí qué botón le toca al negocio.
+            OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED -> null
         }
 
     /** «Cobrado» en un pedido que se paga al recibir confundía: el servidor lo marca así al aceptarlo (EQUIPO-50). */

@@ -25,6 +25,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderTransitions
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.RefundOutcome
 import com.vaiinilla.app.domain.model.cashAmountDue
@@ -912,6 +913,22 @@ class OperationalViewModel
             }
         }
 
+        /**
+         * El pedido que se ve ya no está en un estado desde el que se pueda pedir [target] (otro dispositivo lo
+         * movió): se avisa y se pide la lista completa en vez de mandar una petición que el servidor rechazaría.
+         * Si el pedido no está en la lista no se sabe, y decide el servidor.
+         */
+        private fun staleForTransition(
+            orderId: String,
+            target: OrderState,
+        ): Boolean {
+            val current = _uiState.value.orders.firstOrNull { it.summary.id == orderId } ?: return false
+            if (OrderTransitions.canRequest(current.summary.state, target)) return false
+            showMutationError("Ese pedido ya cambió de estado. Actualizando la lista…")
+            requestFullSync()
+            return true
+        }
+
         private fun freshVersion(
             orderId: String,
             fallback: Int,
@@ -925,6 +942,7 @@ class OperationalViewModel
             orderId: String,
             expectedVersion: Int,
         ) {
+            if (staleForTransition(orderId, OrderState.PREPARING)) return
             val version = freshVersion(orderId, expectedVersion)
             performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
@@ -998,6 +1016,7 @@ class OperationalViewModel
             orderId: String,
             expectedVersion: Int,
         ) {
+            if (staleForTransition(orderId, OrderState.READY)) return
             val version = freshVersion(orderId, expectedVersion)
             performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
@@ -1036,6 +1055,7 @@ class OperationalViewModel
                     else -> Unit
                 }
             }
+            if (staleForTransition(orderId, OrderState.DELIVERED)) return
             val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
             val version = freshest?.summary?.version ?: expectedVersion
             val pickupToken =
