@@ -879,7 +879,10 @@ class DoopGaleriaAdminTest {
     @Test @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
     fun a63_dia_sin_servicio() {
         school()
-        scrollToAndTap("Vie")
+        val day = hasText("Vie") or hasContentDescription("Vie", substring = true)
+        press(rule.onAllNodes(day).onFirst())
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
         shot("a63_dia_sin_servicio")
     }
 }

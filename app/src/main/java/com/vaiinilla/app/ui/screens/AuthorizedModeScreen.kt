@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -543,10 +544,10 @@ private fun RoleButton(
         Text(
             mode.role.label,
             color = content,
-            fontSize = 14.sp,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            // «Administración» no cabe a 14 en un teléfono angosto: se encoge en vez de cortarse.
+            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 14.sp),
         )
     }
 }

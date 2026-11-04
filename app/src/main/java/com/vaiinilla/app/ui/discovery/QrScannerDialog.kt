@@ -162,6 +162,8 @@ fun QrScannerDialog(
      * barra del sistema para que su fondo llegue hasta el borde, como la hoja del código de mesa.
      */
     footer: (@Composable (bottomInsets: WindowInsets) -> Unit)? = null,
+    /** Lo que se está haciendo, chico y arriba; el título baja a una línea bajo el visor (Doop C08). */
+    topLabel: String? = null,
 ) {
     val context = LocalContext.current
     var permissionGranted by remember {
@@ -221,6 +223,7 @@ fun QrScannerDialog(
                         },
                         tableCode = tableCode,
                         footer = footer,
+                        topLabel = topLabel,
                     )
                 }
             } else if (permissionGranted && cameraError != null) {
@@ -451,6 +454,7 @@ internal fun QrScannerOverlay(
     tableCode: QrScannerTableCode?,
     modifier: Modifier = Modifier,
     footer: (@Composable (bottomInsets: WindowInsets) -> Unit)? = null,
+    topLabel: String? = null,
 ) {
     val reduced = reducedMotion()
     val appear = remember { Animatable(if (reduced) 1f else 0f) }
@@ -488,9 +492,16 @@ internal fun QrScannerOverlay(
                 ) {
                     Icon(Icons.Outlined.Close, contentDescription = null, tint = ScannerInk, modifier = Modifier.size(18.dp))
                 }
-                if (torchAvailable) TorchPill(on = torchOn, onClick = onToggleTorch)
+                if (topLabel != null) {
+                    Text(topLabel, color = ScannerInk, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                }
+                if (torchAvailable) {
+                    TorchPill(on = torchOn, onClick = onToggleTorch)
+                } else if (topLabel != null) {
+                    Spacer(Modifier.size(40.dp))
+                }
             }
-            Text(
+            if (topLabel == null) Text(
                 title,
                 color = ScannerInk,
                 fontSize = 26.sp,
@@ -527,7 +538,7 @@ internal fun QrScannerOverlay(
                 contentAlignment = Alignment.TopCenter,
             ) {
                 // Con el teclado arriba ya no cabe: el marco se encoge con la hoja y se desvanece antes de estorbar.
-                val side = minOf(250.dp, maxHeight - 46.dp, maxWidth - 40.dp)
+                val side = minOf(if (topLabel != null) 210.dp else 250.dp, maxHeight - if (topLabel != null) 80.dp else 46.dp, maxWidth - 40.dp)
                 if (side >= MinFrameSide) {
                     val room = ((side - MinFrameSide) / 60.dp).coerceIn(0f, 1f)
                     ScanFrame(
@@ -543,6 +554,16 @@ internal fun QrScannerOverlay(
                                     alpha = appear.value * room
                                 },
                     )
+                    if (topLabel != null) {
+                        Text(
+                            title,
+                            color = ScannerInk,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 26.dp + side + 12.dp, start = 20.dp, end = 20.dp).graphicsLayer { alpha = appear.value },
+                        )
+                    }
                 }
             }
         }

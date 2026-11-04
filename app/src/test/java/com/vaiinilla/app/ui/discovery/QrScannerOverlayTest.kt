@@ -74,7 +74,7 @@ class QrScannerOverlayTest {
         composeTestRule.setContent {
             ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
                 QrScannerOverlay(
-                    title = "Apunta al QR de recogida que muestra el alumno",
+                    title = "Apunta al QR del pedido del cliente",
                     subtitle = null,
                     systemBars = WindowInsets(top = 40, bottom = 24),
                     onClose = {},

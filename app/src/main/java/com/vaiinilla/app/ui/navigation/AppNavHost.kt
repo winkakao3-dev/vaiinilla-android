@@ -2666,7 +2666,7 @@ fun AppNavHost(
     if (walletUserQrOpen) {
         QrScannerDialog(
             onClose = { walletUserQrOpen = false },
-            title = "Apunta al QR de cuenta que muestra el alumno",
+            title = "Apunta al QR de cuenta que muestra el cliente",
             // El buscador por nombre vive en la hoja de recarga que abrió el escáner: cerrar regresa a él.
             alternative = QrScannerAlternative("Buscar cliente por nombre") { walletUserQrOpen = false },
             onPayload = { rawValue ->
@@ -2679,7 +2679,8 @@ fun AppNavHost(
     if (pendingPickupDelivery != null) {
         QrScannerDialog(
             onClose = { pendingPickupDelivery = null },
-            title = "Apunta al QR de recogida que muestra el alumno",
+            title = "Apunta al QR del pedido del cliente",
+            topLabel = "Entregar",
             footer =
                 operationalState.orders
                     .firstOrNull { it.summary.id == pendingPickupDelivery?.orderId }
