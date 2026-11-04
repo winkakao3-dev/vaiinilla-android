@@ -1120,6 +1120,8 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 cashSessionOpen = open,
                                 cashSessionCheckFailed = false,
+                                // Otra caja la cerró: la hoja de cierre ya no tiene qué cerrar.
+                                closeCash = _uiState.value.closeCash.takeIf { open },
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 expectedCash = cashSessionRepository.expectedCash,
                                 cashOpeningAmount = session?.initialAmount,

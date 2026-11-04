@@ -136,6 +136,7 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
 import com.vaiinilla.app.ui.operational.queuePresentation
@@ -627,7 +628,7 @@ fun CashierOperationalScreen(
             }
 
             // Sin leer el estado de la caja no hay "Abrir" ni "Cerrar": que no parezca que todo va bien.
-            if (state.cashSessionOpen == null && state.cashSessionCheckFailed) {
+            if (state.cashSession == CashSession.CheckFailed) {
                 item(key = "cash-session-unknown") {
                     OperationalErrorCard(
                         title = "No se pudo saber si la caja está abierta",

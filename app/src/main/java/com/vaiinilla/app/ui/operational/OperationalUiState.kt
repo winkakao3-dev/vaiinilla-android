@@ -55,6 +55,47 @@ data class OperationalUiState(
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
+
+    /** La caja en un solo valor; las banderas sueltas de arriba se leen siempre a través de esto. */
+    val cashSession: CashSession
+        get() =
+            when (cashSessionOpen) {
+                null -> if (cashSessionCheckFailed) CashSession.CheckFailed else CashSession.Unknown
+                false -> CashSession.Closed
+                true ->
+                    when {
+                        closeCash == null -> CashSession.Open
+                        closeCash.blockedByAccounts -> CashSession.CloseBlockedByAccounts
+                        closeCash.closing -> CashSession.Closing
+                        else -> CashSession.ConfirmingClose
+                    }
+            }
+}
+
+/**
+ * Los estados de la caja de un turno. Se derivan de `cashSessionOpen`, `cashSessionCheckFailed` y `closeCash` para
+ * que una combinación imposible (hoja de cierre con la caja cerrada, error de lectura con la caja abierta) no
+ * pueda leerse como un estado.
+ */
+enum class CashSession {
+    /** Todavía no se lee. */
+    Unknown,
+
+    /** Nunca se pudo leer (sin red al entrar): la pantalla ofrece reintentar. */
+    CheckFailed,
+    Closed,
+    Open,
+
+    /** La hoja de cierre está abierta, esperando el conteo. */
+    ConfirmingClose,
+    Closing,
+
+    /** El servidor rechazó el cierre: hay cuentas a pagar al final sin cobrar. */
+    CloseBlockedByAccounts,
+    ;
+
+    val isOpen: Boolean
+        get() = this == Open || this == ConfirmingClose || this == Closing || this == CloseBlockedByAccounts
 }
 
 /** Qué ocupa el lugar de la fila de pedidos de Cocina o Caja. */
