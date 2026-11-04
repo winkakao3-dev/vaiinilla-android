@@ -37,6 +37,8 @@ import com.vaiinilla.app.domain.admin.StaffMembership
 import com.vaiinilla.app.domain.admin.StoreConfig
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.HomeDeliveryOffer
@@ -58,13 +60,11 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.school.GuardianRequest
 import com.vaiinilla.app.domain.school.MenuCalendar
 import com.vaiinilla.app.domain.school.NoServiceDay
-import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.RosterStudent
 import com.vaiinilla.app.domain.school.SchoolAdminRepository
 import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import com.vaiinilla.app.ui.admin.AdminSpacesUiState
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffUiState

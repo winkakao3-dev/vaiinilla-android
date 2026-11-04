@@ -167,7 +167,6 @@ import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
 import com.vaiinilla.app.ui.wallet.WalletViewModel
-import com.vaiinilla.app.ui.wallet.rememberWalletUiState
 import com.vaiinilla.app.ui.wallet.visibleFor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
@@ -230,7 +229,6 @@ fun AppNavHost(
     val discoveryState by discoveryViewModel.state
     val walletRemoteState by walletViewModel.state.collectAsStateWithLifecycle()
     val accountDeletionState by accountDeletionViewModel.state
-    val walletState = rememberWalletUiState()
     val currentVenueId = orderState.guestVenue?.establishment?.id
     val walletForVenue = walletRemoteState.visibleFor(currentVenueId)
     // La cola de Caja sin conexión vive todo el turno de Caja, no solo con la hoja de Alumnos abierta.
@@ -1512,7 +1510,6 @@ fun AppNavHost(
                     ),
             ) { entry ->
                 WalletAddMoneyScreen(
-                    walletState = walletState,
                     initialMethod = entry.arguments?.getString("method") ?: "card",
                     onBack = { navController.popBackStack() },
                     onCreditBalance = {},
@@ -1521,7 +1518,6 @@ fun AppNavHost(
 
             composable(Routes.WALLET_METHODS) {
                 WalletPaymentMethodsScreen(
-                    walletState = walletState,
                     onBack = { navController.popBackStack() },
                     onAddCard = { navController.navigate(Routes.WALLET_ADD_CARD) },
                 )
@@ -1529,7 +1525,6 @@ fun AppNavHost(
 
             composable(Routes.WALLET_ADD_CARD) {
                 WalletAddCardScreen(
-                    walletState = walletState,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
                 )

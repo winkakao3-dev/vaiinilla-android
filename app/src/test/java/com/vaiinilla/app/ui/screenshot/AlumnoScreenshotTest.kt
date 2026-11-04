@@ -373,7 +373,6 @@ class AlumnoScreenshotTest {
         composeTestRule.setContent {
             ScreenshotTheme {
                 WalletAddMoneyScreen(
-                    walletState = ScreenshotFixtures.walletState(),
                     onBack = {},
                     onCreditBalance = {},
                 )

@@ -34,7 +34,6 @@ import com.vaiinilla.app.ui.screens.WalletAccountScreen
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
-import com.vaiinilla.app.ui.wallet.WalletUiState
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,8 +59,6 @@ class CompleteUiScreenshotTest {
             displayName = "Ana López",
             emailVerified = true,
         )
-
-    private val walletState = WalletUiState()
 
     private fun capture(
         name: String,
@@ -169,7 +166,6 @@ class CompleteUiScreenshotTest {
     fun `36_wallet_payment_methods`() {
         capture("36_wallet_payment_methods.png") {
             WalletPaymentMethodsScreen(
-                walletState = walletState,
                 onBack = {},
                 onAddCard = {},
             )
@@ -180,7 +176,6 @@ class CompleteUiScreenshotTest {
     fun `37_wallet_add_card`() {
         capture("37_wallet_add_card.png") {
             WalletAddCardScreen(
-                walletState = walletState,
                 onBack = {},
                 onSaved = {},
             )
@@ -434,7 +429,6 @@ class CompleteUiScreenshotTest {
     fun `50_wallet_add_money_spei`() {
         capture("50_wallet_add_money_spei.png") {
             WalletAddMoneyScreen(
-                walletState = walletState,
                 initialMethod = "spei",
                 onBack = {},
                 onCreditBalance = {},

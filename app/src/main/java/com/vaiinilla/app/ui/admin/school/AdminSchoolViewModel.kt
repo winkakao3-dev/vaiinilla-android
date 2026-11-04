@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.school.GuardianRequest
 import com.vaiinilla.app.domain.school.MenuCalendar
@@ -16,7 +17,6 @@ import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolSettingsRules
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import com.vaiinilla.app.ui.components.moneyLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers

@@ -1,5 +1,7 @@
 package com.vaiinilla.app.domain.school
 
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

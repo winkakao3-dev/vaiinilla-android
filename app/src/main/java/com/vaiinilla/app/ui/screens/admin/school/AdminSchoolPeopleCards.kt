@@ -15,12 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.school.GuardianRequest
-import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.screens.OperationalColors

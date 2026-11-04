@@ -9,14 +9,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.school.GuardianRequest
 import com.vaiinilla.app.domain.school.MenuCalendar
-import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.RosterStudent
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.admin.school.CASH_SESSION_REQUIRED_TEXT
 import com.vaiinilla.app.ui.admin.school.resolvedText
