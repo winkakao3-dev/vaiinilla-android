@@ -298,6 +298,7 @@ fun WaiterOperationalScreen(
                     }
                 },
     ) {
+        val unreadableOrders = rememberUnreadableOrders()
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier =
@@ -389,6 +390,12 @@ fun WaiterOperationalScreen(
             if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty()) {
                 item(key = "waiter-offline", span = fullWidth) {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem())
+                }
+            }
+
+            if (unreadableOrders > 0) {
+                item(key = "waiter-update-app", span = fullWidth) {
+                    StaffUpdateAppBanner(count = unreadableOrders, modifier = Modifier.animateItem())
                 }
             }
 

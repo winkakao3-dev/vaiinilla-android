@@ -45,8 +45,9 @@ enum class RestrictedMode(
         fun fromWireValue(value: String?): RestrictedMode? {
             val normalized = value?.trim()?.lowercase().orEmpty()
             if (normalized.isEmpty()) return null
-            return entries.firstOrNull { it.wireValue == normalized }
-                ?: throw IllegalArgumentException("El servidor devolvió un modo restringido no soportado: $value")
+            // Un modo que esta versión no conoce no debe tumbar el acceso del personal: se trata como el más
+            // estricto (solo lectura) y el servidor sigue siendo quien autoriza.
+            return entries.firstOrNull { it.wireValue == normalized } ?: READ_ONLY
         }
     }
 }

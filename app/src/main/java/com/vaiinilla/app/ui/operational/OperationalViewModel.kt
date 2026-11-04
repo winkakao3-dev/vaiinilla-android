@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.contract.UnreadableOrders
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
@@ -154,6 +155,8 @@ class OperationalViewModel
                 errorClearJob = null
                 mutationErrorVisible = false
                 resetStaffSync()
+                // Los pedidos que el rol anterior no pudo leer no son de este rol: la franja se recalcula.
+                UnreadableOrders.clear()
             }
             _uiState.value =
                 _uiState.value.copy(
@@ -211,6 +214,7 @@ class OperationalViewModel
             mutationErrorVisible = false
             errorClearJob?.cancel()
             errorClearJob = null
+            UnreadableOrders.clear()
             _uiState.value = OperationalUiState()
         }
 

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.sharedtable
 
+import com.vaiinilla.app.core.contract.mapOrdersTolerant
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SharedTableAmounts
@@ -148,8 +149,10 @@ private fun TableDto.toDomain() =
                 SharedTableGroup(
                     alias = group.alias,
                     isMe = group.soyYo,
+                    // Un pedido con un estado que esta versión no conoce se omite (y se cuenta) en vez de dejar
+                    // la mesa compartida sin cargar.
                     orders =
-                        group.pedidos.map {
+                        group.pedidos.mapOrdersTolerant(id = { it.id.orEmpty() }, failWhenNoneUnderstood = false) {
                             SharedTableOrder(
                                 id = it.id,
                                 folio = it.folio,

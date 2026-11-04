@@ -380,6 +380,7 @@ fun CashierOperationalScreen(
                     }
                 },
     ) {
+        val unreadableOrders = rememberUnreadableOrders()
         LazyColumn(
             modifier =
                 Modifier
@@ -460,6 +461,12 @@ fun CashierOperationalScreen(
 
             if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
+            }
+
+            if (unreadableOrders > 0) {
+                item(key = "cashier-update-app") {
+                    StaffUpdateAppBanner(count = unreadableOrders, modifier = Modifier.animateItem())
+                }
             }
 
             if (state.cashSessionOpen == false && !browsingClosed && restrictedMode != RestrictedMode.READ_ONLY) {

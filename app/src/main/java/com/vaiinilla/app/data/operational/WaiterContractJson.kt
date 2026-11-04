@@ -1,5 +1,7 @@
 package com.vaiinilla.app.data.operational
 
+import com.vaiinilla.app.core.contract.mapOrdersTolerant
+import com.vaiinilla.app.core.contract.mapSkippingUnknown
 import com.vaiinilla.app.data.contract.MetaDto
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.AbonoMode
@@ -446,8 +448,10 @@ fun BoardOrderDto.toDomain(): BoardOrder =
 fun BoardTableDto.toDomain(): BoardTable =
     BoardTable(
         space = espacio.toDomain(),
-        call = llamada?.toDomain(),
-        orders = pedidos.map { it.toDomain() },
+        // Una llamada o un pedido con un valor nuevo del servidor no tira el tablero entero: la mesa se sigue
+        // viendo sin eso, y el pedido se cuenta para pedir actualizar la app.
+        call = llamada?.let { runCatching { it.toDomain() }.getOrNull() },
+        orders = pedidos.mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
         recentRejections =
             rechazadosRecientes.map {
                 RejectedOrder(
@@ -474,7 +478,7 @@ class WaiterContractJson
         fun parseBoard(raw: String): List<BoardTable> {
             val envelope = json.decodeFromString<BoardEnvelopeDto>(raw)
             require(envelope.error == null) { "La API devolvió un error en el envelope." }
-            return envelope.data.map { it.toDomain() }
+            return envelope.data.mapSkippingUnknown { it.toDomain() }
         }
 
         fun parseSpaces(raw: String): List<TableSpace> {
@@ -486,7 +490,7 @@ class WaiterContractJson
         fun parseCalls(raw: String): List<TableCall> {
             val envelope = json.decodeFromString<CallsEnvelopeDto>(raw)
             require(envelope.error == null) { "La API devolvió un error en el envelope." }
-            return envelope.data.map { it.toDomain() }
+            return envelope.data.mapSkippingUnknown { it.toDomain() }
         }
 
         fun parseCall(raw: String): TableCall {
@@ -498,7 +502,7 @@ class WaiterContractJson
         fun parseAvailability(raw: String): List<SpaceAvailability> {
             val envelope = json.decodeFromString<AvailabilityEnvelopeDto>(raw)
             require(envelope.error == null) { "La API devolvió un error en el envelope." }
-            return envelope.data.map { it.toDomain() }
+            return envelope.data.mapSkippingUnknown { it.toDomain() }
         }
 
         fun parseSessionDetail(raw: String): SpaceSessionDetail {
