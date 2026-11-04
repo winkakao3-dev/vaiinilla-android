@@ -286,7 +286,7 @@ class OfflineStaffOrderQueueTest {
         }
 
     @Test
-    fun `un 500 del servidor no lo aparta: se vuelve a intentar con la misma llave`() =
+    fun `un 500 del servidor no lo aparta y se vuelve a intentar con la misma llave`() =
         runTest(dispatcher) {
             val repository = FakeRepository()
             val queue = queue(repository)
@@ -394,7 +394,7 @@ class OfflineStaffOrderQueueTest {
         }
 
     @Test
-    fun `un 503 sin sobre (servidor caido) no cuenta: nunca se aparta`() =
+    fun `un 503 sin sobre por servidor caido no cuenta y nunca se aparta`() =
         runTest(dispatcher) {
             val repository = FakeRepository()
             val queue = queue(repository)
