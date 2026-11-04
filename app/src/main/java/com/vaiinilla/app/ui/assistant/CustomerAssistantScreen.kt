@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.assistant.CustomerAssistantJson
+import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.assistant.AssistantOrderProposal
 import com.vaiinilla.app.domain.assistant.AssistantProductCard
 import com.vaiinilla.app.domain.assistant.AssistantWaiterOffer
@@ -80,10 +81,13 @@ import kotlinx.coroutines.launch
 
 /** Lo que el asistente de pedidos puede hacer fuera de la plática; lo conecta la navegación. */
 class CustomerAssistantActions(
-    /** Un producto suelto: lo agrega o, si pide opciones, abre su ficha en el menú. */
-    val addProduct: (AssistantProductCard) -> Unit,
-    /** El pedido propuesto al carrito. Regresa lo que no entró (agotado, pide opciones…). */
-    val addOrder: (AssistantOrderProposal) -> List<String>,
+    /** Un producto suelto: lo agrega o, si pide opciones, abre su ficha en el menú. true si quedó en el carrito. */
+    val addProduct: (AssistantProductCard) -> Boolean,
+    /**
+     * El pedido propuesto al carrito, quitando antes lo que puso el pedido anterior ([replacing]). Regresa lo que no
+     * entró (agotado, pide opciones…).
+     */
+    val addOrder: (order: AssistantOrderProposal, replacing: List<AssistantOrderLine>) -> List<String>,
     val openCart: () -> Unit,
     /** null: aquí no hay a quién llamar (sin mesa o sin llamadas). */
     val callWaiter: (suspend (AssistantWaiterOffer) -> Result<Unit>)?,
@@ -101,17 +105,20 @@ fun CustomerAssistantScreen(
     onRetry: () -> Unit,
     onRestart: () -> Unit,
     onTurnDone: (Int) -> Unit,
+    onOrderInCart: (Int, List<AssistantOrderLine>) -> Unit,
+    onSubmitName: (String) -> Unit,
     onBack: () -> Unit,
+    guestName: String = "",
 ) {
     val colors = LocalVaiinillaColors.current
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     // Por turno: lo que no entró al carrito o cómo salió la llamada al mesero.
-    val notes = remember { mutableStateMapOf<Int, String>() }
-    val added = remember { mutableStateMapOf<Int, Boolean>() }
+    val notes = remember(state.conversation) { mutableStateMapOf<Int, String>() }
+    val added = remember(state.conversation) { mutableStateMapOf<Int, Boolean>() }
     val scope = rememberCoroutineScope()
     val rows = state.turns.size + 2
-    LaunchedEffect(state.turns.size, state.thinking, state.error) {
+    LaunchedEffect(state.turns.size, state.thinking, state.error, state.needsName) {
         list.animateScrollToItem((rows - 1).coerceAtLeast(0))
     }
     val send = { text: String ->
@@ -146,10 +153,7 @@ fun CustomerAssistantScreen(
                             card = card,
                             added = added[card.productId] == true,
                             colors = colors,
-                            onAdd = {
-                                actions.addProduct(card)
-                                if (!card.needsOptions) added[card.productId] = true
-                            },
+                            onAdd = { if (actions.addProduct(card)) added[card.productId] = true },
                         )
                     }
                     turn.order?.let { order ->
@@ -157,12 +161,13 @@ fun CustomerAssistantScreen(
                             order = order,
                             place = place,
                             done = index in state.done,
+                            superseded = index != state.latestOrderTurn,
                             note = notes[index],
                             colors = colors,
                             onChange = { draft = "Quiero cambiar " },
                             onAdd = {
-                                val skipped = actions.addOrder(order)
-                                onTurnDone(index)
+                                val skipped = actions.addOrder(order, state.cartOrder)
+                                onOrderInCart(index, order.lines.filterNot { it.product.name in skipped })
                                 if (skipped.isEmpty()) {
                                     actions.openCart()
                                 } else {
@@ -200,6 +205,8 @@ fun CustomerAssistantScreen(
             }
             item(key = "estado") {
                 when {
+                    state.needsName ->
+                        NameCard(guestName, state.enteringName, state.nameError, colors, onSubmitName)
                     state.thinking -> Bubble("Escribiendo…", mine = false, colors = colors, muted = true)
                     state.error != null ->
                         Column(Modifier.padding(start = 36.dp)) {
@@ -220,7 +227,8 @@ fun CustomerAssistantScreen(
         }
         if (state.turns.isEmpty()) {
             Text(
-                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama al mesero.",
+                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama al mesero. " +
+                    "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud.",
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.muted,
@@ -374,6 +382,72 @@ private fun Bubble(
     }
 }
 
+/** Compra sin cuenta: el nombre con el que el mesero lo ubica, una sola vez, como al confirmar un pedido. */
+@Composable
+private fun NameCard(
+    initial: String,
+    entering: Boolean,
+    error: String?,
+    colors: VaiinillaColors,
+    onSubmit: (String) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(initial) }
+    Column(
+        Modifier
+            .padding(start = 36.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.paper2)
+            .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+            .padding(14.dp),
+    ) {
+        Text("¿Cómo te llamas?", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
+        Text(
+            "Con tu nombre te ubica el mesero. No se lo mandamos al asistente.",
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.muted,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        BasicTextField(
+            value = name,
+            onValueChange = { name = it.take(NAME_MAX) },
+            singleLine = true,
+            enabled = !entering,
+            textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.ink),
+            cursorBrush = SolidColor(colors.ink),
+            keyboardOptions =
+                KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSubmit(name) }),
+            modifier =
+                Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.paper)
+                    .border(1.dp, colors.line, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 12.dp, vertical = 11.dp)
+                    .semantics { contentDescription = "Tu nombre" },
+        )
+        error?.let {
+            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.coral)
+        }
+        Text(
+            "Al seguir aceptas los Términos y el Aviso de privacidad de Vaiinilla.",
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.muted,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        WideButton(
+            if (entering) "Un momento…" else "Seguir",
+            colors.accent,
+            colors.accentInk,
+            Modifier.padding(top = 10.dp).fillMaxWidth(),
+        ) { if (!entering) onSubmit(name) }
+    }
+}
+
 @Composable
 private fun ProductRow(
     card: AssistantProductCard,
@@ -429,6 +503,7 @@ private fun OrderCard(
     order: AssistantOrderProposal,
     place: String?,
     done: Boolean,
+    superseded: Boolean,
     note: String?,
     colors: VaiinillaColors,
     onChange: () -> Unit,
@@ -475,6 +550,15 @@ private fun OrderCard(
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
+        if (order.toChoose.isNotEmpty()) {
+            Text(
+                "Elige sus opciones arriba: ${order.toChoose.joinToString(", ")}",
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.muted,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
         if (order.lines.isNotEmpty()) {
             Box(Modifier.padding(vertical = 14.dp).fillMaxWidth().height(1.dp).background(colors.line))
             Row {
@@ -494,6 +578,13 @@ private fun OrderCard(
             Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (done) {
                     WideButton("Ver carrito", colors.ink, colors.onInk, Modifier.weight(1f), onOpenCart)
+                } else if (superseded) {
+                    Text(
+                        "Ya hay una versión más nueva de tu pedido abajo.",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.muted,
+                    )
                 } else {
                     WideButton("Cambiar algo", colors.line, colors.ink, Modifier.weight(1f), onChange)
                     WideButton("Agregar al carrito", colors.accent, colors.accentInk, Modifier.weight(1.4f), onAdd)
@@ -689,3 +780,5 @@ private fun RoundButton(
 
 private val STARTERS =
     listOf("¿Qué me recomiendas?", "Algo para compartir", "Sin alcohol", "¿Qué no tiene gluten?", "Lo más rápido")
+
+private const val NAME_MAX = 60

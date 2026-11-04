@@ -24,8 +24,12 @@ import kotlinx.serialization.json.putJsonArray
 class CustomerAssistantJson(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
-    fun encodeTurns(turns: List<CustomerAssistantTurn>): String =
+    fun encodeTurns(
+        turns: List<CustomerAssistantTurn>,
+        establishmentId: String? = null,
+    ): String =
         buildJsonObject {
+            establishmentId?.takeIf(String::isNotBlank)?.let { put("establecimiento_id", it) }
             putJsonArray("mensajes") {
                 turns.takeLast(MAX_MESSAGES).forEach { turn ->
                     addJsonObject {
@@ -78,8 +82,10 @@ class CustomerAssistantJson(
             }
         val unavailable =
             (obj["no_disponibles"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
-        if (lines.isEmpty() && unavailable.isEmpty()) return null
-        return AssistantOrderProposal(lines, obj.string("total") ?: "0", unavailable)
+        val toChoose =
+            (obj["por_elegir"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonObject)?.string("nombre") }
+        if (lines.isEmpty() && unavailable.isEmpty() && toChoose.isEmpty()) return null
+        return AssistantOrderProposal(lines, obj.string("total") ?: "0", unavailable, toChoose)
     }
 
     private fun waiter(obj: JsonObject): AssistantWaiterOffer? {
@@ -88,7 +94,6 @@ class CustomerAssistantJson(
     }
 
     private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
-
 
     companion object {
         /** Lo que acepta el servidor. */

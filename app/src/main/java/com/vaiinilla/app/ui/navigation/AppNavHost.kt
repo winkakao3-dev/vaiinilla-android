@@ -1348,7 +1348,8 @@ fun AppNavHost(
                         signedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout(),
                     )
                 LaunchedEffect(venue?.establishment?.id, assistantSpaceId) {
-                    assistantViewModel.onVisible("${venue?.establishment?.id}:$assistantSpaceId")
+                    val establishmentId = venue?.establishment?.id
+                    assistantViewModel.onVisible("$establishmentId:$assistantSpaceId", establishmentId)
                 }
                 val prepare: suspend () -> Unit = { orderFlowViewModel.ensureClientContext() }
                 CustomerAssistantScreen(
@@ -1368,11 +1369,17 @@ fun AppNavHost(
                                     // La ficha con sus opciones vive en el menú.
                                     navController.popBackStack()
                                     orderFlowViewModel.openProduct(card.productId)
+                                    false
                                 } else {
+                                    // Solo dice «Agregado» si de verdad entró (agotado o carrito lleno no cuentan).
+                                    val before = orderFlowViewModel.uiState.value.cartLines
                                     orderFlowViewModel.quickAddProduct(card.productId)
+                                    orderFlowViewModel.uiState.value.cartLines != before
                                 }
                             },
-                            addOrder = { order -> orderFlowViewModel.addAssistantLines(order.lines) },
+                            addOrder = { order, replacing ->
+                                orderFlowViewModel.addAssistantLines(order.lines, replacing)
+                            },
                             openCart = { navController.navigateStudent(Routes.CART) },
                             callWaiter =
                                 if (assistantSpaceId == null) {
@@ -1388,7 +1395,10 @@ fun AppNavHost(
                     onRetry = { assistantViewModel.retry(prepare) },
                     onRestart = assistantViewModel::restart,
                     onTurnDone = assistantViewModel::markDone,
+                    onOrderInCart = assistantViewModel::markOrderInCart,
+                    onSubmitName = { name -> assistantViewModel.submitName(name, prepare) },
                     onBack = { navController.popBackStack() },
+                    guestName = orderFlowViewModel.guestDisplayName(),
                 )
             }
 

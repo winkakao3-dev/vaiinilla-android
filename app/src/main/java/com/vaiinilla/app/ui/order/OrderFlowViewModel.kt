@@ -31,6 +31,7 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.ReservationAccess
@@ -736,14 +737,31 @@ class OrderFlowViewModel
         }
 
         /**
-         * El pedido que armó el asistente: sus líneas entran al carrito como si se agregaran a mano. Regresa los
-         * nombres que no entraron (ya no hay, piden elegir opciones en la ficha o el carrito está lleno).
+         * El pedido que armó el asistente: sus líneas entran al carrito como si se agregaran a mano. Cada pedido
+         * del asistente es el pedido completo, así que primero se quita lo que puso el anterior ([replacing]) y no
+         * se suma dos veces. Regresa los nombres que no entraron (ya no hay, piden elegir opciones en la ficha o el
+         * carrito está lleno).
          */
-        fun addAssistantLines(lines: List<AssistantOrderLine>): List<String> {
+        fun addAssistantLines(
+            lines: List<AssistantOrderLine>,
+            replacing: List<AssistantOrderLine> = emptyList(),
+        ): List<String> {
             val state = _uiState.value
             if (state.creatingOrder) return lines.map { it.product.name }
             val products = state.catalog?.products.orEmpty().associateBy { it.id }
             var cart = state.cartLines
+            for (old in replacing) {
+                val product = products[old.product.productId] ?: continue
+                val key = assistantCartLine(product, old).key
+                cart =
+                    cart.mapNotNull {
+                        when {
+                            it.key != key -> it
+                            it.quantity > old.quantity -> it.copy(quantity = it.quantity - old.quantity)
+                            else -> null
+                        }
+                    }
+            }
             val skipped = mutableListOf<String>()
             for (line in lines) {
                 val product = products[line.product.productId]
@@ -753,13 +771,7 @@ class OrderFlowViewModel
                     skipped += line.product.name
                     continue
                 }
-                val candidate =
-                    CartLine(
-                        product = product,
-                        quantity = line.quantity.coerceIn(1, MenuFeed.MAX_LINE_QUANTITY),
-                        selectedOptionIds = emptySet(),
-                        notes = line.note?.trim().orEmpty().take(CART_LINE_NOTE_MAX),
-                    )
+                val candidate = assistantCartLine(product, line)
                 val existing = cart.firstOrNull { it.key == candidate.key }
                 cart =
                     when {
@@ -774,17 +786,33 @@ class OrderFlowViewModel
                         }
                         else ->
                             cart.map {
-                                if (it.key == candidate.key) it.copy(quantity = it.quantity + candidate.quantity) else it
+                                val sum = it.quantity + candidate.quantity
+                                if (it.key == candidate.key) it.copy(quantity = sum) else it
                             }
                     }
             }
             if (cart != state.cartLines) {
                 pendingIdempotencyKey = null
-                _uiState.value = state.copy(cartLines = cart, createOrderError = null)
+                _uiState.value =
+                    state.copy(
+                        cartLines = cart,
+                        unavailableCartKeys = state.unavailableCartKeys.stillIn(cart),
+                        createOrderError = null,
+                    )
                 persistCurrentCartIfNeeded()
             }
             return skipped
         }
+
+        private fun assistantCartLine(
+            product: Product,
+            line: AssistantOrderLine,
+        ) = CartLine(
+            product = product,
+            quantity = line.quantity.coerceIn(1, MenuFeed.MAX_LINE_QUANTITY),
+            selectedOptionIds = emptySet(),
+            notes = line.note?.trim().orEmpty().take(CART_LINE_NOTE_MAX),
+        )
 
         /** El "−" del menú deslizable: uno menos del platillo. */
         fun quickRemoveProduct(productId: Int) {

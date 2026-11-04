@@ -66,4 +66,20 @@ class CustomerAssistantJsonTest {
         assertNull(reply.waiter)
         assertTrue(reply.products.isEmpty())
     }
+
+    @Test
+    fun `manda el lugar del menu y lee lo que pide elegir opciones`() {
+        val body = Json.parseToJsonElement(json.encodeTurns(emptyList(), "est-1")).jsonObject
+        assertEquals("est-1", body["establecimiento_id"]!!.jsonPrimitive.content)
+        val order =
+            json
+                .parseReply(
+                    """
+                    {"data":{"mensaje":"Va","pedido":{"lineas":[],"total":"0.00","no_disponibles":[],
+                    "por_elegir":[{"producto_id":12,"nombre":"Michelada","precio":"70.00","requiere_opciones":true}]}}}
+                    """.trimIndent(),
+                ).order!!
+        assertEquals(listOf("Michelada"), order.toChoose)
+        assertTrue(order.lines.isEmpty())
+    }
 }

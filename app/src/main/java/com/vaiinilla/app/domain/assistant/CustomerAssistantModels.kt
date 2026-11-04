@@ -28,11 +28,15 @@ data class AssistantOrderLine(
     val note: String?,
 )
 
-/** El pedido que propone: solo lo que sí se puede pedir; [unavailable] nombra lo que quitó por agotado. */
+/**
+ * El pedido que propone, siempre completo: cada propuesta reemplaza a la anterior. Solo trae lo que sí se puede
+ * pedir; [unavailable] nombra lo que quitó por agotado y [toChoose] lo que pide escoger opciones (no suma al total).
+ */
 data class AssistantOrderProposal(
     val lines: List<AssistantOrderLine>,
     val total: String,
     val unavailable: List<String>,
+    val toChoose: List<String> = emptyList(),
 )
 
 data class AssistantWaiterOffer(
@@ -50,6 +54,18 @@ data class CustomerAssistantReply(
 )
 
 interface CustomerAssistantRepository {
-    /** `POST /asistente-cliente` con la plática completa; el último mensaje es del cliente. */
-    fun reply(turns: List<CustomerAssistantTurn>): Result<CustomerAssistantReply>
+    /**
+     * `POST /asistente-cliente` con la plática completa; el último mensaje es del cliente. [establishmentId] es el
+     * lugar cuyo menú ve: con la sesión de otro lugar el servidor responde CONTEXT_MISMATCH.
+     */
+    fun reply(
+        turns: List<CustomerAssistantTurn>,
+        establishmentId: String? = null,
+    ): Result<CustomerAssistantReply>
+
+    /** Compra sin cuenta y aún sin darse de alta como invitado: antes de platicar hay que pedirle su nombre. */
+    fun needsGuestName(): Boolean = false
+
+    /** Da de alta al invitado con su nombre (acepta los términos vigentes), igual que al confirmar un pedido. */
+    fun enterAsGuest(name: String): Result<Unit> = Result.failure(IllegalStateException("Sin compra de invitado."))
 }
