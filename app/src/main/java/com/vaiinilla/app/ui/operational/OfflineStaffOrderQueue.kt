@@ -108,6 +108,8 @@ class OfflineStaffOrderQueue(
         roleInitial: Char,
         placeLabel: String,
         summary: String,
+        /** Caja ya cobró en efectivo: llega cobrado (`cobrar_ahora`) y no queda por cobrar. */
+        collectNow: Boolean = false,
     ): OfflineStaffOrder? {
         if (staffScope == null) return null
         snapshot = snapshot.startingDay(today())
@@ -121,7 +123,7 @@ class OfflineStaffOrderQueue(
                 // servidor responde IDEMPOTENCY_KEY_REUSED porque este cuerpo trae `sin_conexion`: ya está registrado.
                 idempotencyKey = idempotencyKey,
                 localFolio = folio,
-                body = repository.offlineOrderBody(request, id, capturedAt, folio),
+                body = repository.offlineOrderBody(request, id, capturedAt, folio, collectNow),
                 placeLabel = placeLabel,
                 summary = summary,
                 capturedAt = capturedAt,
@@ -131,6 +133,9 @@ class OfflineStaffOrderQueue(
         publish()
         return order
     }
+
+    /** Sin internet comprobado el pedido se guarda de una vez, sin esperar a que falle el intento con red. */
+    fun hasInternet(): Boolean = connectivity.hasInternet()
 
     fun launchFlush() {
         if (flushJob?.isActive == true) return
@@ -162,7 +167,7 @@ class OfflineStaffOrderQueue(
                         remove(order.id)
                         onAlreadyRegistered?.invoke(order.localFolio)
                     }
-                    OfflineStaffOrderRules.isConnectionProblem(error) -> return
+                    OfflineStaffOrderRules.shouldRetryLater(error) -> return
                     else -> mark(order.id, error.toUserFacingMessage("No se pudo registrar el pedido."))
                 }
             }
@@ -175,6 +180,70 @@ class OfflineStaffOrderQueue(
     /** El personal ya lo resolvió de otra forma (lo capturó a mano, se canceló): se quita de la lista. */
     @Synchronized
     fun dismiss(order: OfflineStaffOrder) = remove(order.id)
+
+    /**
+     * «Reintentar»: los apartados vuelven a la fila (el personal corrigió lo que faltaba: abrió la caja,
+     * reactivó el producto) y se manda todo. Los de más de 12 h no: el servidor ya no los acepta.
+     */
+    fun retryAll() {
+        synchronized(this) {
+            snapshot =
+                snapshot.copy(
+                    orders =
+                        snapshot.orders.map {
+                            val fixable = it.problem != null && !OfflineStaffOrderRules.isTooOld(it, now())
+                            if (fixable) it.copy(problem = null) else it
+                        },
+                )
+            save()
+            publish()
+        }
+        launchFlush()
+    }
+
+    /**
+     * Pedidos de otra membresía que se quedaron en este teléfono (mataron la app, cambiaron de modo, cerraron
+     * sesión y volvieron a entrar): se mandan con el token de esa membresía ([send]) sin tener que abrir su modo.
+     * La cola del modo abierto se manda con [flush]; esta no la toca.
+     */
+    suspend fun rescue(
+        rescued: OfflineStaffScope,
+        send: (body: String, idempotencyKey: String) -> Result<Unit>,
+    ) {
+        if (synchronized(this) { rescued == staffScope }) {
+            launchFlush()
+            return
+        }
+        if (!sending.tryLock()) return
+        try {
+            var stored = withContext(io) { store.load(rescued, today()) }
+            for (order in stored.pending) {
+                if (synchronized(this) { rescued == staffScope }) return
+                val problem =
+                    if (OfflineStaffOrderRules.isTooOld(order, now())) {
+                        OfflineStaffOrderRules.TOO_OLD_PROBLEM
+                    } else {
+                        val error = withContext(io) { send(order.body, order.idempotencyKey) }.exceptionOrNull()
+                        when {
+                            error == null || OfflineStaffOrderRules.alreadyRegistered(error) -> null
+                            OfflineStaffOrderRules.shouldRetryLater(error) -> return
+                            else -> error.toUserFacingMessage("No se pudo registrar el pedido.")
+                        }
+                    }
+                stored =
+                    if (problem == null) {
+                        stored.copy(orders = stored.orders.filterNot { it.id == order.id })
+                    } else {
+                        stored.copy(
+                            orders = stored.orders.map { if (it.id == order.id) it.copy(problem = problem) else it },
+                        )
+                    }
+                withContext(io) { store.save(rescued, stored) }
+            }
+        } finally {
+            sending.unlock()
+        }
+    }
 
     @Synchronized
     private fun remove(id: String) {

@@ -108,6 +108,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.StoreImageKind
@@ -1108,7 +1109,7 @@ private fun cashierRowTitle(order: OrderDetail): String =
         "Mostrador"
     } else {
         listOfNotNull(cashierPlaceLabel(order), staffCustomerName(order)).joinToString(" · ")
-    } + arrivalSuffix(order)
+    } + arrivalSuffix(order) + (order.offlineCaptureLabel()?.let { " · $it" } ?: "")
 
 /** «2 Concha, Café de olla»: lo que lleva el pedido, con la cantidad solo cuando es más de uno. */
 private fun cashierItemsLine(order: OrderDetail): String =

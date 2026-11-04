@@ -179,4 +179,10 @@ interface OfflineCounterStore {
 fun interface ConnectivityWatcher {
     /** Devuelve con qué dejar de escuchar. */
     fun onReconnect(callback: () -> Unit): AutoCloseable
+
+    /**
+     * El teléfono tiene una red con internet comprobado. `false` (Wi‑Fi del local sin salida, sin red) permite
+     * guardar el pedido de inmediato en vez de esperar 15-35 s a que se agote la conexión.
+     */
+    fun hasInternet(): Boolean = true
 }

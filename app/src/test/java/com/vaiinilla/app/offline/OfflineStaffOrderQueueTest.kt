@@ -90,8 +90,15 @@ class OfflineStaffOrderQueueTest {
             orderId: String,
             capturedAt: Instant,
             localFolio: String,
+            collectNow: Boolean,
         ): String =
-            OfflineOrderBody.withOfflineCapture("""{"metodo_pago":"efectivo"}""", orderId, capturedAt, localFolio)
+            OfflineOrderBody.withOfflineCapture(
+                """{"metodo_pago":"efectivo"}""",
+                orderId,
+                capturedAt,
+                localFolio,
+                collectNow,
+            )
 
         override fun sendOfflineOrder(
             body: String,
@@ -275,5 +282,87 @@ class OfflineStaffOrderQueueTest {
         runTest(dispatcher) {
             val queue = queue(FakeRepository())
             assertNull(queue.enqueue(request, "a", 'M', "Mesa 1", ""))
+        }
+
+    @Test
+    fun `un 500 del servidor no lo aparta: se vuelve a intentar con la misma llave`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'M', "Mesa 1", "")
+            repository.next = {
+                Result.failure(
+                    OrderRepositoryException(
+                        "INTERNAL_ERROR",
+                        "Error interno.",
+                        ApiClientException("INTERNAL_ERROR", "Error interno.", 500),
+                    ),
+                )
+            }
+            queue.flush()
+            assertEquals(1, queue.state.value.pending.size)
+            assertTrue(queue.state.value.problems.isEmpty())
+            repository.next = {
+                Result.failure(ApiClientException("UNAUTHORIZED", "Sesión vencida.", 401))
+            }
+            queue.flush()
+            assertEquals(1, queue.state.value.pending.size)
+            assertEquals(listOf("a", "a"), repository.keys)
+            queue.stop()
+        }
+
+    @Test
+    fun `reintentar regresa a la fila lo apartado por un rechazo`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'M', "Mesa 1", "")
+            repository.next = {
+                Result.failure(ApiClientException("NO_OPEN_CASH_SESSION", "Abre la caja.", 422))
+            }
+            queue.flush()
+            assertEquals(1, queue.state.value.problems.size)
+            repository.next = { Result.success(CreatedOrder(order = ScreenshotFixtures.sampleOrder())) }
+            queue.retryAll()
+            runCurrent()
+            assertTrue(queue.state.value.problems.isEmpty())
+            assertTrue(queue.state.value.pending.isEmpty())
+            queue.stop()
+        }
+
+    @Test
+    fun `lo que Caja ya cobro llega con cobrar_ahora`() =
+        runTest(dispatcher) {
+            val queue = queue(FakeRepository())
+            queue.start(mesero)
+            val cobrado = queue.enqueue(request, "a", 'C', "Mostrador", "", collectNow = true)!!
+            val suelto = queue.enqueue(request, "b", 'M', "Mesa 1", "")!!
+            assertEquals("true", Json.parseToJsonElement(cobrado.body).jsonObject.getValue("cobrar_ahora").toString())
+            assertNull(Json.parseToJsonElement(suelto.body).jsonObject["cobrar_ahora"])
+            queue.stop()
+        }
+
+    @Test
+    fun `lo guardado de otra membresia se manda con su propio envio sin abrir su modo`() =
+        runTest(dispatcher) {
+            val store = MemoryStore()
+            val caja = OfflineStaffScope(membershipId = "c-9")
+            val first = queue(FakeRepository(), store)
+            first.start(caja)
+            first.enqueue(request, "a", 'C', "Mostrador", "")
+            first.stop()
+
+            val queue = queue(FakeRepository(), store)
+            queue.start(mesero)
+            val sentKeys = mutableListOf<String>()
+            queue.rescue(caja) { _, key ->
+                sentKeys += key
+                Result.success(Unit)
+            }
+            assertEquals(listOf("a"), sentKeys)
+            assertTrue(store.saved.getValue(caja).orders.isEmpty())
+            queue.stop()
         }
 }

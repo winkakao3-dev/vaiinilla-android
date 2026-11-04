@@ -42,12 +42,14 @@ class RemoteOrderRepository(
         orderId: String,
         capturedAt: Instant,
         localFolio: String,
+        collectNow: Boolean,
     ): String =
         OfflineOrderBody.withOfflineCapture(
             body = contractJson.encodeCreateRequest(request),
             orderId = orderId,
             capturedAt = capturedAt,
             localFolio = localFolio,
+            collectNow = collectNow,
         )
 
     override fun sendOfflineOrder(

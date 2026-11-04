@@ -41,14 +41,21 @@ class PreferencesOfflineStaffOrderStore(
     }
 
     override fun deviceTag(): Int {
-        val stored = preferences.getInt(DEVICE_TAG, -1)
-        if (stored in 0..99) return stored
-        val tag = Random.nextInt(0, 100)
-        preferences.edit(commit = true) { putInt(DEVICE_TAG, tag) }
+        // Tres dígitos: con dos, dos meseros del mismo local compartían marca con frecuencia (1 en 100 por par).
+        val stored = preferences.getInt(DEVICE_TAG_3, -1)
+        if (stored in 0..999) return stored
+        val tag = Random.nextInt(0, 1000)
+        preferences.edit(commit = true) { putInt(DEVICE_TAG_3, tag) }
         return tag
     }
 
-    private fun key(scope: OfflineStaffScope): String = "offline-orders-${scope.membershipId.lowercase()}"
+    override fun scopesWithOrders(): List<OfflineStaffScope> =
+        preferences.all.keys
+            .filter { it.startsWith(KEY_PREFIX) }
+            .map { OfflineStaffScope(membershipId = it.removePrefix(KEY_PREFIX)) }
+            .filter { scope -> load(scope, "").orders.any { it.problem == null } }
+
+    private fun key(scope: OfflineStaffScope): String = "$KEY_PREFIX${scope.membershipId.lowercase()}"
 
     internal fun encode(snapshot: OfflineStaffOrdersSnapshot): String =
         json.encodeToString(SnapshotDto.serializer(), SnapshotDto.of(snapshot))
@@ -115,7 +122,8 @@ class PreferencesOfflineStaffOrderStore(
 
     private companion object {
         const val PREFERENCES_NAME = "vaiinilla_offline_staff_orders"
-        const val DEVICE_TAG = "device-tag"
+        const val DEVICE_TAG_3 = "device-tag-3"
+        const val KEY_PREFIX = "offline-orders-"
         val json =
             Json {
                 ignoreUnknownKeys = true

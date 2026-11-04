@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.localhub.LocalTicket
 import com.vaiinilla.app.domain.localhub.LocalTicketItem
+import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.Catalog
@@ -111,6 +112,7 @@ class WaiterViewModel
         private val createOrder: CreateRemoteOrderUseCase,
         private val offlineOrders: OfflineStaffOrderQueue,
         private val localHub: LocalHubCoordinator,
+        private val rescuer: OfflineStaffOrderRescuer,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
@@ -467,6 +469,10 @@ class WaiterViewModel
                     UUID.randomUUID().toString()
                 }
             counterOrderKey = key
+            if (!offlineOrders.hasInternet()) {
+                keepOffline(request, key.key, lines, space, cashier, toAccount)
+                return
+            }
             _uiState.value = _uiState.value.copy(counterOrderSending = true, counterOrderError = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { createOrder(request, key.key) }
@@ -487,7 +493,7 @@ class WaiterViewModel
                         }
                     },
                     onFailure = { error ->
-                        if (OfflineStaffOrderRules.isConnectionProblem(error)) {
+                        if (OfflineStaffOrderRules.shouldKeepOffline(error)) {
                             keepOffline(request, key.key, lines, space, cashier, toAccount)
                         } else {
                             _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
@@ -516,6 +522,8 @@ class WaiterViewModel
                     roleInitial = if (cashier != null) 'C' else 'M',
                     placeLabel = space?.name ?: "Mostrador",
                     summary = offlineSummary(lines),
+                    // Caja cobra el efectivo en el momento (el aviso se lo pide): el pedido llega cobrado.
+                    collectNow = cashier != null && !toAccount,
                 )
             if (saved == null) {
                 _uiState.value =
@@ -530,8 +538,11 @@ class WaiterViewModel
             showToast(offlineOrderToast(saved.localFolio, space?.name, toAccount, cashier))
         }
 
-        /** Manda ya lo guardado sin conexión (el personal tocó «Reintentar»). */
-        fun retryOfflineOrders() = offlineOrders.launchFlush()
+        /** Manda ya lo guardado sin conexión, también lo apartado por un rechazo (tocó «Reintentar»). */
+        fun retryOfflineOrders() = offlineOrders.retryAll()
+
+        /** Lo guardado de otras membresías de la cuenta (otro modo, app reiniciada) se manda con su propio token. */
+        fun rescueOfflineOrders(modes: List<AuthorizedMode>) = rescuer.rescue(modes)
 
         /** El personal ya resolvió a mano un pedido con problema: se quita de la lista. */
         fun dismissOfflineOrder(order: OfflineStaffOrder) = offlineOrders.dismiss(order)

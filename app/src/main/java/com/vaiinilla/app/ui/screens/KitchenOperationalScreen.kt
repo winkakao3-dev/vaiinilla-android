@@ -86,6 +86,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.skipsKitchen
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
@@ -856,6 +857,16 @@ private fun KitchenOrderCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 2.dp),
                     )
+                    // Llegó al volver la red: probablemente ya se preparó con su folio provisional.
+                    order.offlineCaptureLabel()?.let { label ->
+                        Text(
+                            "$label · revisa si ya se preparó",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = KitchenInk,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
                 KitchenAgeChip(createdAt = kitchenAgeStart(summary))
             }
