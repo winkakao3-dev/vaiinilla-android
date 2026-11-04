@@ -361,7 +361,10 @@ private fun MenuEditor(
                 else -> "Se cancelan $orders apartados y el saldo regresa a cada alumno."
             }
         CloseDayDialog(
-            title = "¿Cerrar el ${SchoolDates.longLabel(date, today).lowercase()}?",
+            title =
+                SchoolDates.longLabel(date, today).lowercase().let { day ->
+                    if (date == today || date == today.plusDays(1)) "¿Cerrar $day?" else "¿Cerrar el $day?"
+                },
             message = "$what Ese día ya no se podrá apartar. Los tutores ven el motivo.",
             reason = reason,
             colors = colors,
