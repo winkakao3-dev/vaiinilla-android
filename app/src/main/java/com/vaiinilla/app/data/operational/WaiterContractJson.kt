@@ -338,6 +338,8 @@ data class DeliveryPolicyDto(
     @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
     /** Si el mesero puede mandar el pedido de una mesa a su cuenta (se paga al final). */
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
+    /** Tipo de negocio: en un boliche las canchas se llaman pistas ([com.vaiinilla.app.domain.model.Venue]). */
+    @SerialName("tipo") val businessType: String? = null,
 )
 
 @Serializable

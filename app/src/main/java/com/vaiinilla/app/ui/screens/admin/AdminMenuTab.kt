@@ -905,7 +905,8 @@ private fun ProductSheet(
         }
     }
     val canSave = name.isNotBlank() && price.isNotBlank() && categoryId != null
-    val looksLikeRental = RentalWords.containsMatchIn(name)
+    // En un boliche «Renta de zapatos» o «Juego por persona» sí son productos: no se avisa.
+    val looksLikeRental = !Venue.isBowling && RentalWords.containsMatchIn(name)
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -1263,6 +1264,8 @@ private fun ProductSheet(
                                         "Esto parece una renta de ${Venue.court}. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
                                     looksLikeRental ->
                                         "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
+                                    Venue.isBowling ->
+                                        "La pista por hora se renta desde Mesas y espacios. Juegos por persona y renta de zapatos sí van aquí como producto."
                                     else -> "Este negocio renta ${Venue.courts} desde Mesas y espacios. No crees la renta como producto."
                                 },
                                 fontSize = 12.sp,

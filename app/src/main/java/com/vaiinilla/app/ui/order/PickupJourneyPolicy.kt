@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.needsPickupQr
@@ -96,8 +97,9 @@ internal fun pickupHint(
                     now.atZone(zone).toLocalDate(),
                 )
             }
-            CourtMoment.PLAYING -> "Te quedan $minutes min en ${order.rentalCourtName ?: "tu cancha"}."
-            CourtMoment.LAST_MINUTES -> "Quedan $minutes min: los reflectores ya bajaron."
+            CourtMoment.PLAYING -> "Te quedan $minutes min en ${order.rentalCourtName ?: "tu ${Venue.court}"}."
+            CourtMoment.LAST_MINUTES ->
+                if (Venue.isBowling) "Quedan $minutes min de pista." else "Quedan $minutes min: los reflectores ya bajaron."
             CourtMoment.DONE -> "Gracias por jugar."
         }
     }

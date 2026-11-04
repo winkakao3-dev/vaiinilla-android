@@ -60,6 +60,8 @@ data class CourtScheduleDto(
     @SerialName("precio_hora_cliente") val precioHoraCliente: CustomerPriceDto? = null,
     val rentable: Boolean = false,
     val ocupado: List<BusyIntervalDto> = emptyList(),
+    /** Las del establecimiento desde el mínimo de este espacio; un servidor anterior no las manda. */
+    @SerialName("duraciones_min") val duracionesMin: List<Int> = emptyList(),
 )
 
 @Serializable
@@ -77,6 +79,8 @@ data class CourtDayDto(
     val canchas: List<CourtScheduleDto> = emptyList(),
     // Un servidor anterior no lo manda: se sigue ofreciendo la renta sin cuenta.
     @SerialName("requiere_cuenta") val requiereCuenta: Boolean = false,
+    /** «boliche» nombra pistas; un servidor anterior no lo manda. */
+    @SerialName("tipo_establecimiento") val tipoEstablecimiento: String? = null,
 )
 
 @Serializable
@@ -220,8 +224,9 @@ class ReservationContractJson
 
 private fun CustomerPriceDto.toDomain() = CustomerPrice(card = tarjeta, cashOrBalance = efectivoSaldo)
 
-private fun CourtDayDto.toDomain() =
-    CourtDay(
+private fun CourtDayDto.toDomain(): CourtDay {
+    tipoEstablecimiento?.let(Venue::update)
+    return CourtDay(
         date = fecha,
         today = hoy,
         timeZone = zonaHoraria,
@@ -257,9 +262,11 @@ private fun CourtDayDto.toDomain() =
                                 reason = it.motivo,
                             )
                         },
+                    durations = court.duracionesMin.sorted(),
                 )
             },
     )
+}
 
 fun ReservationDto.toDomain() =
     Reservation(

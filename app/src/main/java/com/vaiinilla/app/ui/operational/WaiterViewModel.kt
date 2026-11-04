@@ -32,7 +32,6 @@ import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.ui.order.CounterOrderKey
 import com.vaiinilla.app.ui.order.counterOrderKeyFor
 import com.vaiinilla.app.ui.order.createOrderFingerprint
-import com.vaiinilla.app.ui.screens.DefaultRentalDurations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,8 +53,13 @@ data class WaiterUiState(
     val acting: Boolean = false,
     /** El aviso actual es un error: se pinta con otro ícono para no parecer un éxito. */
     val toastIsError: Boolean = false,
-    /** Duraciones de renta que acepta el backend (`reservas/disponibilidad`). */
-    val rentalDurations: List<Int> = DefaultRentalDurations,
+    /**
+     * Duraciones de renta que acepta el backend (`reservas/disponibilidad`). Vacía mientras no llegan: con otras
+     * el backend responde 400, así que no se ofrecen unas supuestas (un boliche renta 1, 2 o 3 h, no turnos de pádel).
+     */
+    val rentalDurations: List<Int> = emptyList(),
+    /** No se pudieron leer las duraciones: el picker ofrece reintentar. */
+    val rentalDurationsFailed: Boolean = false,
     val errorMessage: String? = null,
     val toastMessage: String? = null,
     val filterAttending: Boolean = false,
@@ -303,7 +307,15 @@ class WaiterViewModel
         /** Abre el detalle de un espacio: su sesión, su cuenta y su turno. */
         fun openSpace(spaceId: Int) {
             openSpaceId = spaceId
-            _uiState.value = _uiState.value.copy(spaceDetail = null, lastCollection = null, lastAbono = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    spaceDetail = null,
+                    lastCollection = null,
+                    lastAbono = null,
+                    // Cada espacio tiene su mínimo: no se muestran las del anterior mientras llegan las suyas.
+                    rentalDurations = emptyList(),
+                    rentalDurationsFailed = false,
+                )
             loadSpaceDetail(spaceId, silent = false)
             loadRentalDurations()
             loadStationsCatalog()
@@ -318,20 +330,29 @@ class WaiterViewModel
             }
         }
 
-        private var rentalDurationsLoaded = false
-
-        /** Una vez por sesión: el backend dice qué duraciones se pueden rentar (otras responden 400). */
-        private fun loadRentalDurations() {
-            if (rentalDurationsLoaded) return
-            rentalDurationsLoaded = true
+        /**
+         * Cada vez que se abre un espacio: el backend dice qué duraciones se pueden rentar (otras responden 400) y
+         * el dueño puede cambiarlas en cualquier momento. Mientras llegan se conservan las últimas conocidas.
+         */
+        fun loadRentalDurations() {
+            val spaceId = openSpaceId
             viewModelScope.launch {
                 val day = withContext(Dispatchers.IO) { reservationRepository.day(null, ReservationAccess.Account) }
                 day
-                    .onSuccess { court ->
-                        if (court.durations.isNotEmpty()) {
-                            _uiState.value = _uiState.value.copy(rentalDurations = court.durations)
-                        }
-                    }.onFailure { rentalDurationsLoaded = false }
+                    .onSuccess { day ->
+                        if (openSpaceId != spaceId) return@onSuccess
+                        // Las del espacio abierto respetan su mínimo; el backend rechaza las demás.
+                        val durations =
+                            day.courts.firstOrNull { it.id == spaceId }?.durations?.takeIf { it.isNotEmpty() }
+                                ?: day.durations.sorted()
+                        _uiState.value =
+                            _uiState.value.copy(
+                                rentalDurations = durations,
+                                rentalDurationsFailed = durations.isEmpty(),
+                            )
+                    }.onFailure {
+                        _uiState.value = _uiState.value.copy(rentalDurationsFailed = true)
+                    }
             }
         }
 

@@ -502,7 +502,7 @@ private fun CourtCard(
             Column(modifier = Modifier.arrive(0, key = start)) {
                 DurationRow(
                     available = ReservationSlots.availableDurations(day, court, start),
-                    all = day.durations,
+                    all = ReservationSlots.durationsFor(day, court),
                     selected = state.selectedDuration,
                     onSelect = onSelectDuration,
                     colors = colors,
@@ -1005,7 +1005,12 @@ internal fun ReservationPaymentContent(
     var requested by remember(reservation.id) { mutableStateOf<Int?>(null) }
     val court = day?.courts?.firstOrNull { it.id == reservation.courtId }
     val held = reservation.durationMinutes
-    val durations = day?.durations?.takeIf { court != null }?.let { (it + held).distinct().sorted() } ?: listOf(held)
+    val durations =
+        if (day != null && court != null) {
+            (ReservationSlots.durationsFor(day, court) + held).distinct().sorted()
+        } else {
+            listOf(held)
+        }
     val available =
         if (day != null && court != null) {
             val withoutThisHold = court.copy(busy = court.busy.filterNot { it.start == reservation.start && it.end == reservation.end })
@@ -1379,7 +1384,7 @@ private fun MyReservationCard(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "${reservation.courtName ?: "Cancha"} · ${startAt.format(HOUR)}–${reservation.end.atZone(zone).format(HOUR)}",
+                    "${reservation.courtName ?: Venue.courtTitle} · ${startAt.format(HOUR)}–${reservation.end.atZone(zone).format(HOUR)}",
                     color = colors.ink,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,

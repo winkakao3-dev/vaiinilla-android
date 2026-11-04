@@ -835,7 +835,7 @@ private fun EditSheet(
                     onValueChange = { sport = it.take(40) },
                     label = "Deporte",
                     colors = colors,
-                    placeholder = "Pádel",
+                    placeholder = if (Venue.isBowling) "Boliche" else "Pádel",
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -844,7 +844,7 @@ private fun EditSheet(
                     onValueChange = { surface = it.take(40) },
                     label = "Superficie",
                     colors = colors,
-                    placeholder = "Pasto sintético",
+                    placeholder = if (Venue.isBowling) "Madera sintética" else "Pasto sintético",
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )

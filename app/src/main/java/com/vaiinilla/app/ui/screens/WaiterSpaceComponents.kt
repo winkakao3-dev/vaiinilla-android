@@ -327,6 +327,8 @@ internal fun WaiterSpaceSection(
     ordersInCourse: Int = 0,
     /** Duraciones que acepta el backend para rentar; con otras responde 400. */
     rentalDurations: List<Int> = DefaultRentalDurations,
+    rentalDurationsFailed: Boolean = false,
+    onRetryDurations: (() -> Unit)? = null,
     /** Administración ve la cuenta pero no la cobra: el backend le niega /sesion/cobros y /abonos. */
     canCharge: Boolean = true,
     /** La hoja ya lista los pedidos de la cuenta arriba: aquí solo van el total y las acciones. */
@@ -440,6 +442,8 @@ internal fun WaiterSpaceSection(
                     verb = "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
                     durations = rentalDurations,
+                    durationsFailed = rentalDurationsFailed,
+                    onRetryDurations = onRetryDurations,
                     enabled = enabled,
                     colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
@@ -628,6 +632,8 @@ internal fun WaiterSpaceSection(
                     verb = if (renewFrom != null) "Alargar" else "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
                     durations = rentalDurations,
+                    durationsFailed = rentalDurationsFailed,
+                    onRetryDurations = onRetryDurations,
                     enabled = enabled,
                     colors = colors,
                     renewal = renewFrom != null,
@@ -1657,12 +1663,37 @@ internal fun RentalDurationPicker(
     renewal: Boolean = false,
     /** Con una cuenta por cobrar, Cobrar es la acción principal y esta queda como secundaria. */
     primary: Boolean = true,
+    durationsFailed: Boolean = false,
+    onRetryDurations: (() -> Unit)? = null,
     onConfirm: (minutes: Int, players: Int?) -> Unit,
 ) {
-    var chosen by remember { mutableStateOf<Int?>(null) }
+    var chosen by remember(durations) { mutableStateOf<Int?>(null) }
+    var players by remember { mutableIntStateOf(0) }
+    if (durations.isEmpty()) {
+        // Sin las duraciones del servidor no se ofrece ninguna: una inventada termina en 400.
+        Column(modifier = modifier.fillMaxWidth()) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = colors.textSecondary)
+            Text(
+                if (durationsFailed) "No pudimos leer los tiempos de renta." else "Cargando tiempos de renta…",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            if (durationsFailed && onRetryDurations != null) {
+                ChipButton(
+                    label = "Reintentar",
+                    enabled = enabled,
+                    colors = colors,
+                    modifier = Modifier.padding(top = 8.dp),
+                    onClick = onRetryDurations,
+                )
+            }
+        }
+        return
+    }
     // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos (0 = sin dato).
     val askPlayers = Venue.isBowling && !renewal
-    var players by remember { mutableIntStateOf(0) }
     Column(modifier = modifier.fillMaxWidth()) {
         if (askPlayers) {
             PlayersStepper(players = players, enabled = enabled, colors = colors) { players = it }
