@@ -63,7 +63,10 @@ class OfflineStaffOrderQueue(
     private var flushJob: Job? = null
     private val sending = Mutex()
 
-    /** Errores 5xx seguidos por pedido (en memoria): al tercero se aparta y la fila sigue. */
+    /**
+     * Errores 5xx seguidos por pedido: al tercero se aparta y la fila sigue. En memoria a propósito: si matan la app
+     * la cuenta empieza de nuevo, lo peor es esperar tres intentos más.
+     */
     private val serverFailures = mutableMapOf<String, Int>()
 
     /** Pedidos que se acaban de mandar bien, para que la pantalla avise con su folio real. */
@@ -163,17 +166,23 @@ class OfflineStaffOrderQueue(
                 val error = result.exceptionOrNull()
                 when {
                     error == null -> {
+                        forgetFailures(order.id)
                         remove(order.id)
                         result.getOrNull()?.let { onSent?.invoke(order.localFolio, it.summary.folio) }
                     }
-                    OfflineStaffOrderRules.alreadyRegistered(error) -> {
+                    OfflineStaffOrderRules.alreadyRegistered(error) ||
+                        OfflineStaffOrderRules.acceptedUnreadable(error) -> {
+                        forgetFailures(order.id)
                         remove(order.id)
                         onAlreadyRegistered?.invoke(order.localFolio)
                     }
                     OfflineStaffOrderRules.isServerError(error) && serverFailed(order.id) -> {
                         mark(order.id, OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM)
                     }
-                    OfflineStaffOrderRules.shouldRetryLater(error) -> return
+                    OfflineStaffOrderRules.shouldRetryLater(error) -> {
+                        if (!OfflineStaffOrderRules.isServerError(error)) forgetFailures(order.id)
+                        return
+                    }
                     else -> mark(order.id, error.toUserFacingMessage("No se pudo registrar el pedido."))
                 }
             }
@@ -181,6 +190,12 @@ class OfflineStaffOrderQueue(
             sending.unlock()
             _state.value = _state.value.copy(isSending = false)
         }
+    }
+
+    /** Solo cuentan los 5xx seguidos: un intento que entra o que falla por red reinicia la cuenta. */
+    @Synchronized
+    private fun forgetFailures(id: String) {
+        serverFailures.remove(id)
     }
 
     /** Cuenta un 5xx de [id]; `true` cuando ya van [OfflineStaffOrderRules.MAXIMUM_SERVER_FAILURES]. */
@@ -243,10 +258,16 @@ class OfflineStaffOrderQueue(
                     } else {
                         val error = withContext(io) { send(order.body, order.idempotencyKey) }.exceptionOrNull()
                         when {
-                            error == null || OfflineStaffOrderRules.alreadyRegistered(error) -> null
+                            error == null || OfflineStaffOrderRules.alreadyRegistered(error) -> {
+                                forgetFailures(order.id)
+                                null
+                            }
                             OfflineStaffOrderRules.isServerError(error) && serverFailed(order.id) ->
                                 OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM
-                            OfflineStaffOrderRules.shouldRetryLater(error) -> return
+                            OfflineStaffOrderRules.shouldRetryLater(error) -> {
+                                if (!OfflineStaffOrderRules.isServerError(error)) forgetFailures(order.id)
+                                return
+                            }
                             else -> error.toUserFacingMessage("No se pudo registrar el pedido.")
                         }
                     }

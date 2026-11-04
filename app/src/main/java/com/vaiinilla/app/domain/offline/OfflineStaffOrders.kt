@@ -83,8 +83,16 @@ object OfflineStaffOrderRules {
     /** Tras tantos errores del servidor seguidos con el mismo pedido, se aparta para no atorar a los de atrás. */
     const val MAXIMUM_SERVER_FAILURES = 3
 
-    /** El servidor contestó con un 5xx: está arriba pero algo falla con este pedido (o con todo). */
-    fun isServerError(error: Throwable): Boolean = (apiError(error)?.httpStatus ?: 0) >= 500
+    /**
+     * El servidor contestó un 5xx con su sobre: está arriba, pero algo falla con este pedido. Un 502/503/504 sin
+     * sobre (deploy, proxy) es «servidor caído» como falta de red: no cuenta, o un minuto caído apartaría todo.
+     */
+    fun isServerError(error: Throwable): Boolean =
+        (apiError(error)?.httpStatus ?: 0) >= 500 && !isConnectionProblem(error)
+
+    /** El servidor aceptó el pedido (2xx) pero su respuesta no se pudo leer: ya está registrado. */
+    fun acceptedUnreadable(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.take(8).any { it is OfflineOrderAcceptedException }
 
     const val SERVER_FAILURE_PROBLEM =
         "El servidor falló varias veces con este pedido. Toca Reintentar o regístralo a mano."
@@ -150,3 +158,8 @@ interface OfflineStaffOrderStore {
     /** Las membresías que tienen algo guardado en este teléfono, para mandarlo aunque ya no esté abierto su modo. */
     fun scopesWithOrders(): List<OfflineStaffScope> = emptyList()
 }
+
+/** `POST /pedidos` respondió 2xx pero el cuerpo no se entendió: el pedido sí quedó; no se vuelve a mandar. */
+class OfflineOrderAcceptedException(
+    cause: Throwable,
+) : IllegalStateException("El pedido se registró, pero la respuesta no se pudo leer.", cause)
