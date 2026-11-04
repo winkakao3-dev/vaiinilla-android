@@ -459,7 +459,10 @@ fun BoardTableDto.toDomain(): BoardTable =
         // viendo sin eso, y el pedido se cuenta para pedir actualizar la app.
         call = llamada?.let { runCatching { it.toDomain() }.getOrNull() },
         // «Pasa por él» listo es de Caja: no sale con «Entregar» en el tablero del mesero.
-        orders = pedidos.filterNot { it.waitsAtBar }.mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
+        orders =
+            pedidos
+                .filterNot { it.waitsAtBar }
+                .mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
         recentRejections =
             rechazadosRecientes.map {
                 RejectedOrder(
