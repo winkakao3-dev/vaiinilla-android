@@ -69,6 +69,9 @@ import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminViewModel
+import com.vaiinilla.app.ui.assistant.CustomerAssistantActions
+import com.vaiinilla.app.ui.assistant.CustomerAssistantScreen
+import com.vaiinilla.app.ui.assistant.CustomerAssistantViewModel
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
 import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.MenuWaiterLayer
@@ -208,6 +211,7 @@ fun AppNavHost(
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
     val sharedTableViewModel: SharedTableViewModel = viewModel()
+    val assistantViewModel: CustomerAssistantViewModel = viewModel()
     val studentAuthViewModel: StudentAuthViewModel = viewModel()
     val authorizedAccessViewModel: AuthorizedAccessViewModel = viewModel()
     val discoveryViewModel: GuestDiscoveryViewModel = viewModel()
@@ -1277,6 +1281,9 @@ fun AppNavHost(
                                         orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
                                             ?: sharedTableViewModel.uiState.value.table
                                                 ?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
+                                    onOpenAssistant = {
+                                        navController.navigate(Routes.ORDER_ASSISTANT) { launchSingleTop = true }
+                                    },
                                 )
                             }
                             layer
@@ -1328,6 +1335,60 @@ fun AppNavHost(
                     // Atrás desde el carrito regresa al platillo donde ibas.
                     onOpenCart = { navController.navigate(Routes.CART) { launchSingleTop = true } },
                     onConsumeCreateOrderError = orderFlowViewModel::clearCreateOrderError,
+                )
+            }
+
+            composable(Routes.ORDER_ASSISTANT) {
+                val venue = orderState.guestVenue
+                val table = sharedTableViewModel.uiState.value.table
+                val assistantSpaceId =
+                    menuWaiterSpaceId(
+                        guestSpaceId = venue?.space?.id,
+                        sharedTableSpaceId = table?.spaceId,
+                        signedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout(),
+                    )
+                LaunchedEffect(venue?.establishment?.id, assistantSpaceId) {
+                    assistantViewModel.onVisible("${venue?.establishment?.id}:$assistantSpaceId")
+                }
+                val prepare: suspend () -> Unit = { orderFlowViewModel.ensureClientContext() }
+                CustomerAssistantScreen(
+                    state = assistantViewModel.state.value,
+                    venueName = venue?.establishment?.name,
+                    place =
+                        venue?.space?.let { SpaceCopy.named(it.type, it.name) }
+                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
+                    customerName =
+                        (studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName())
+                            .takeIf { it.isNotBlank() }
+                            ?.let(::waiterCallAlias),
+                    actions =
+                        CustomerAssistantActions(
+                            addProduct = { card ->
+                                if (card.needsOptions) {
+                                    // La ficha con sus opciones vive en el menú.
+                                    navController.popBackStack()
+                                    orderFlowViewModel.openProduct(card.productId)
+                                } else {
+                                    orderFlowViewModel.quickAddProduct(card.productId)
+                                }
+                            },
+                            addOrder = { order -> orderFlowViewModel.addAssistantLines(order.lines) },
+                            openCart = { navController.navigateStudent(Routes.CART) },
+                            callWaiter =
+                                if (assistantSpaceId == null) {
+                                    null
+                                } else {
+                                    { offer ->
+                                        orderFlowViewModel.ensureClientContext()
+                                        operationalViewModel.callWaiter(assistantSpaceId, offer.reason, null).map { }
+                                    }
+                                },
+                        ),
+                    onSend = { text -> assistantViewModel.send(text, prepare) },
+                    onRetry = { assistantViewModel.retry(prepare) },
+                    onRestart = assistantViewModel::restart,
+                    onTurnDone = assistantViewModel::markDone,
+                    onBack = { navController.popBackStack() },
                 )
             }
 

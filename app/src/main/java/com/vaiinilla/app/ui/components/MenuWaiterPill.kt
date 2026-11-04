@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
@@ -69,6 +70,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.repository.CallReason
@@ -107,12 +109,21 @@ fun MenuWaiterLayer(
     modifier: Modifier = Modifier,
     /** «la Mesa 4», para la hoja antes de llamar. */
     place: String? = null,
+    /** El asistente de pedidos, junto a «Mesero»; null si no está disponible. */
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val state =
         remember(spaceId) {
             MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable)
         }
-    MenuWaiterLayer(state = state, visible = visible, cart = cart, place = place, modifier = modifier)
+    MenuWaiterLayer(
+        state = state,
+        visible = visible,
+        cart = cart,
+        place = place,
+        modifier = modifier,
+        onOpenAssistant = onOpenAssistant,
+    )
 }
 
 @Composable
@@ -122,6 +133,7 @@ internal fun MenuWaiterLayer(
     cart: MenuCartBar?,
     modifier: Modifier = Modifier,
     place: String? = null,
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val reduced = reducedMotion()
     WaiterCallHost(state = state, visible = visible, place = place)
@@ -133,7 +145,7 @@ internal fun MenuWaiterLayer(
                     .navigationBarsPadding()
                     .padding(
                         start = VaiinillaBottomNavSideMargin,
-                        end = if (cart != null) VaiinillaBottomNavSideMargin else 0.dp,
+                        end = if (cart != null || onOpenAssistant != null) VaiinillaBottomNavSideMargin else 0.dp,
                         bottom = VaiinillaBottomNavTop + 10.dp,
                     ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -146,29 +158,41 @@ internal fun MenuWaiterLayer(
                 // Se queda con el último carrito mientras sale, para que no se vacíe a media animación.
                 val shown = remember { mutableStateOf(cart) }
                 if (cart != null) shown.value = cart
-                shown.value?.let { CartWaiterBar(state = state, cart = it) }
+                shown.value?.let { CartWaiterBar(state = state, cart = it, onOpenAssistant = onOpenAssistant) }
             }
-            AnimatedVisibility(
-                visible = visible && cart == null && state.phase != MenuWaiterPhase.UNAVAILABLE,
-                enter =
-                    if (reduced) {
-                        fadeIn()
-                    } else {
-                        fadeIn(tween(200)) +
-                            scaleIn(
-                                initialScale = 0.8f,
-                                transformOrigin = TransformOrigin(0f, 1f),
-                                animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
-                            )
-                    },
-                exit =
-                    if (reduced) {
-                        fadeOut()
-                    } else {
-                        fadeOut(tween(160)) + scaleOut(targetScale = 0.8f, transformOrigin = TransformOrigin(0f, 1f))
-                    },
-            ) {
-                WaiterPill(state = state)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                AnimatedVisibility(
+                    visible = visible && cart == null && state.phase != MenuWaiterPhase.UNAVAILABLE,
+                    enter =
+                        if (reduced) {
+                            fadeIn()
+                        } else {
+                            fadeIn(tween(200)) +
+                                scaleIn(
+                                    initialScale = 0.8f,
+                                    transformOrigin = TransformOrigin(0f, 1f),
+                                    animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
+                                )
+                        },
+                    exit =
+                        if (reduced) {
+                            fadeOut()
+                        } else {
+                            fadeOut(tween(160)) + scaleOut(targetScale = 0.8f, transformOrigin = TransformOrigin(0f, 1f))
+                        },
+                ) {
+                    WaiterPill(state = state)
+                }
+                if (onOpenAssistant != null) {
+                    AnimatedVisibility(
+                        visible = visible && cart == null,
+                        enter = if (reduced) fadeIn() else fadeIn(tween(200)) + scaleIn(initialScale = 0.8f),
+                        exit = if (reduced) fadeOut() else fadeOut(tween(160)) + scaleOut(targetScale = 0.8f),
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
+                        AssistantPill(onOpenAssistant)
+                    }
+                }
             }
         }
     }
@@ -231,6 +255,7 @@ private fun WaiterPill(state: MenuWaiterCallState) {
 private fun CartWaiterBar(
     state: MenuWaiterCallState,
     cart: MenuCartBar,
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -271,9 +296,13 @@ private fun CartWaiterBar(
                 }.semantics(mergeDescendants = false) {
                     contentDescription = "Ver carrito: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
-                .padding(start = 20.dp, end = 7.dp),
+                .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (onOpenAssistant != null) {
+            AssistantDot(onOpenAssistant)
+            Spacer(Modifier.width(12.dp))
+        }
         Text("Ver carrito · ", color = colors.onInk, fontSize = 15.5.sp, fontWeight = FontWeight.Black, maxLines = 1)
         NumberTicker(value = cart.count, label = "cart-bar-count") { value ->
             Text("$value", color = colors.onInk, fontSize = 15.5.sp, fontWeight = FontWeight.Black)
@@ -352,6 +381,60 @@ private fun WaiterSegment(state: MenuWaiterCallState) {
     }
 }
 
+/** «Pregúntame qué pedir»: abre el asistente de pedidos, junto a «Mesero» (Doop CA1). */
+@Composable
+private fun AssistantPill(onOpen: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Row(
+        modifier =
+            Modifier
+                .heightIn(min = 52.dp)
+                .shadow(18.dp, RoundedCornerShape(percent = 50), clip = false)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(colors.accent)
+                .clickable(role = Role.Button) {
+                    haptics.click()
+                    onOpen()
+                }.testTag(MENU_ASSISTANT_PILL_TAG)
+                .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
+        Text(
+            "Pregúntame qué pedir",
+            color = colors.accentInk,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+/** El asistente dentro de la barra del carrito: un círculo lima a la izquierda (Doop CA1b). */
+@Composable
+private fun AssistantDot(onOpen: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        modifier =
+            Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(colors.accent)
+                .clickable(role = Role.Button) {
+                    haptics.click()
+                    onOpen()
+                }.semantics { contentDescription = "Pregúntale al asistente qué pedir" }
+                .testTag(MENU_ASSISTANT_PILL_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(20.dp))
+    }
+}
+
 /** La campana se mece mientras el mesero no ha visto la llamada. */
 @Composable
 private fun WaiterIcon(icon: MenuWaiterIcon) {
@@ -390,3 +473,4 @@ private fun WaiterIcon(icon: MenuWaiterIcon) {
 
 const val MENU_WAITER_PILL_TAG = "menu-waiter-pill"
 const val MENU_CART_BAR_TAG = "menu-cart-bar"
+const val MENU_ASSISTANT_PILL_TAG = "menu-assistant-pill"

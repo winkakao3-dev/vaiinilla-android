@@ -11,6 +11,9 @@ object Routes {
 
     /** El menú deslizable ("Desliza"), a pantalla completa y sin barra de abajo. */
     const val MENU_FEED = "menu-feed"
+
+    /** El asistente de pedidos del cliente, junto a «Mesero» (Doop CA1-CA6). */
+    const val ORDER_ASSISTANT = "order-assistant"
     const val CONFIRMATION = "order-confirmation"
     const val AUTH_LANDING = "auth/landing?returnRoute={returnRoute}"
     const val AUTH_REGISTER = "auth/register?returnRoute={returnRoute}"

@@ -11,6 +11,7 @@ import com.vaiinilla.app.data.admin.RemoteAdminRepository
 import com.vaiinilla.app.data.admin.RemoteAdminSpacesRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStaffRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStoreRepository
+import com.vaiinilla.app.data.assistant.RemoteCustomerAssistantRepository
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
@@ -37,6 +38,7 @@ import com.vaiinilla.app.data.sharedtable.RemoteSharedTableRepository
 import com.vaiinilla.app.data.sharedtable.SharedTableContractJson
 import com.vaiinilla.app.data.wallet.RemoteWalletRepository
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
+import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.repository.AdminRepository
@@ -109,6 +111,13 @@ object VaiinillaModule {
     @Singleton
     fun provideAdminStoreRepository(apiClient: VaiinillaApiClient): AdminStoreRepository =
         RemoteAdminStoreRepository(apiClient)
+
+    @Provides
+    @Singleton
+    fun provideCustomerAssistantRepository(
+        apiClient: VaiinillaApiClient,
+        guestClientAccess: GuestClientAccess,
+    ): CustomerAssistantRepository = RemoteCustomerAssistantRepository(apiClient, guestClientAccess)
 
     @Provides
     @Singleton

@@ -15,6 +15,7 @@ import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.guest.LastOrderedPlaceStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
@@ -732,6 +733,57 @@ class OrderFlowViewModel
                     persistCurrentCartIfNeeded()
                 }
             }
+        }
+
+        /**
+         * El pedido que armó el asistente: sus líneas entran al carrito como si se agregaran a mano. Regresa los
+         * nombres que no entraron (ya no hay, piden elegir opciones en la ficha o el carrito está lleno).
+         */
+        fun addAssistantLines(lines: List<AssistantOrderLine>): List<String> {
+            val state = _uiState.value
+            if (state.creatingOrder) return lines.map { it.product.name }
+            val products = state.catalog?.products.orEmpty().associateBy { it.id }
+            var cart = state.cartLines
+            val skipped = mutableListOf<String>()
+            for (line in lines) {
+                val product = products[line.product.productId]
+                if (product == null || !product.available || product.archived || product.blockReason != null ||
+                    MenuFeed.needsChoice(product)
+                ) {
+                    skipped += line.product.name
+                    continue
+                }
+                val candidate =
+                    CartLine(
+                        product = product,
+                        quantity = line.quantity.coerceIn(1, MenuFeed.MAX_LINE_QUANTITY),
+                        selectedOptionIds = emptySet(),
+                        notes = line.note?.trim().orEmpty().take(CART_LINE_NOTE_MAX),
+                    )
+                val existing = cart.firstOrNull { it.key == candidate.key }
+                cart =
+                    when {
+                        existing == null && cart.size >= MenuFeed.MAX_LINES -> {
+                            skipped += line.product.name
+                            cart
+                        }
+                        existing == null -> cart + candidate
+                        existing.quantity + candidate.quantity > MenuFeed.MAX_LINE_QUANTITY -> {
+                            skipped += line.product.name
+                            cart
+                        }
+                        else ->
+                            cart.map {
+                                if (it.key == candidate.key) it.copy(quantity = it.quantity + candidate.quantity) else it
+                            }
+                    }
+            }
+            if (cart != state.cartLines) {
+                pendingIdempotencyKey = null
+                _uiState.value = state.copy(cartLines = cart, createOrderError = null)
+                persistCurrentCartIfNeeded()
+            }
+            return skipped
         }
 
         /** El "−" del menú deslizable: uno menos del platillo. */
