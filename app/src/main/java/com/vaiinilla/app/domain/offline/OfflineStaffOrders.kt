@@ -80,6 +80,15 @@ object OfflineStaffOrderRules {
         return api.httpStatus !in 400..499 || api.httpStatus in RETRYABLE_4XX || api.code in RETRYABLE_CODES
     }
 
+    /** Tras tantos errores del servidor seguidos con el mismo pedido, se aparta para no atorar a los de atrás. */
+    const val MAXIMUM_SERVER_FAILURES = 3
+
+    /** El servidor contestó con un 5xx: está arriba pero algo falla con este pedido (o con todo). */
+    fun isServerError(error: Throwable): Boolean = (apiError(error)?.httpStatus ?: 0) >= 500
+
+    const val SERVER_FAILURE_PROBLEM =
+        "El servidor falló varias veces con este pedido. Toca Reintentar o regístralo a mano."
+
     private fun apiError(error: Throwable): ApiClientException? =
         generateSequence(error) { it.cause }.take(8).filterIsInstance<ApiClientException>().firstOrNull()
 
