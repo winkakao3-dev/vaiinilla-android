@@ -162,6 +162,7 @@ internal fun AdminInventorySection(
             colors = colors,
             readOnly = readOnly,
             onDismiss = viewModel::closeRecipe,
+            onRetry = { viewModel.openRecipe(product) },
             onSave = viewModel::saveRecipe,
         )
     }
@@ -657,12 +658,18 @@ private fun SupplyEditSheet(
             ) { active = it }
         }
         AdminHint("El mínimo marca el insumo en rojo para que se vuelva a comprar.", colors)
-        AdminSheetError(state.sheetError)
+        val badField =
+            listOf("mínimo" to minimum, "costo" to cost, "existencia" to initial)
+                .firstOrNull { (_, t) -> t.isNotBlank() && parseQuantity(t) == null }
+                ?.first
+        AdminSheetError(
+            state.sheetError ?: badField?.let { "Revisa el $it: escribe 1500 o 1.5 (sin comas de miles)." },
+        )
         AdminPrimaryButton(
             title = "Guardar",
             colors = colors,
             busy = state.saving,
-            enabled = name.isNotBlank(),
+            enabled = name.isNotBlank() && badField == null,
         ) {
             onSave(
                 InventorySupplyInput(
@@ -711,7 +718,12 @@ private fun MovementSheet(
             else -> "¿Cuánto hay? (${supply.unit.short})"
         }
     val value = parseQuantity(amount)
-    val valid = value != null && (type == InventoryMovementType.COUNT || value > 0)
+    val costValue = parseQuantity(cost)
+    val costInvalid = type == InventoryMovementType.ENTRY && cost.isNotBlank() && costValue == null
+    val valid =
+        value != null &&
+            (value >= MIN_QUANTITY || (type == InventoryMovementType.COUNT && value == 0.0)) &&
+            !costInvalid
     AdminSheet(title = title, colors = colors, busy = state.saving, onDismiss = onDismiss) {
         AdminHint("Ahora hay ${qty(supply.stock, supply.unit)} según el sistema.", colors)
         AdminTextField(label, amount, { amount = it }, colors, keyboardType = KeyboardType.Decimal)
@@ -748,9 +760,9 @@ private fun MovementSheet(
                 )
             }
         }
-        AdminSheetError(state.sheetError)
+        AdminSheetError(state.sheetError ?: quantityError(amount, value, costInvalid))
         AdminPrimaryButton(title = "Guardar", colors = colors, busy = state.saving, enabled = valid) {
-            onSave(value ?: 0.0, if (type == InventoryMovementType.ENTRY) parseQuantity(cost) else null, note)
+            onSave(value ?: 0.0, if (type == InventoryMovementType.ENTRY) costValue else null, note)
         }
     }
 }
@@ -774,6 +786,7 @@ private fun RecipeSheet(
     colors: OperationalColors,
     readOnly: Boolean,
     onDismiss: () -> Unit,
+    onRetry: () -> Unit,
     onSave: (List<RecipeLine>) -> Unit,
 ) {
     val loaded = state.recipe
@@ -802,7 +815,13 @@ private fun RecipeSheet(
 
     AdminSheet(title = "Receta de ${product.name}", colors = colors, busy = state.saving, onDismiss = onDismiss) {
         if (loaded == null) {
-            AdminHint("Cargando receta…", colors)
+            // Si no cargó, no se ofrece guardar: un PUT vacío borraría la receta real.
+            if (state.sheetError != null) {
+                AdminSheetError(state.sheetError)
+                AdminSecondaryButton(title = "Reintentar", colors = colors, onClick = onRetry)
+            } else {
+                AdminHint("Cargando receta…", colors)
+            }
             return@AdminSheet
         }
         AdminHint(
@@ -923,8 +942,10 @@ private fun RecipeSheet(
                 }
             }
             val parsed = draft.map { it to parseQuantity(it.quantity) }
-            val valid = parsed.all { (_, q) -> q != null && q > 0 }
-            AdminSheetError(state.sheetError ?: if (!valid) "Cada insumo necesita una cantidad mayor a 0." else null)
+            val valid = parsed.all { (_, q) -> q != null && q >= MIN_QUANTITY }
+            AdminSheetError(
+                state.sheetError ?: if (!valid) "Cada insumo necesita una cantidad de al menos 0.001." else null,
+            )
             AdminPrimaryButton(title = "Guardar receta", colors = colors, busy = state.saving, enabled = valid) {
                 onSave(
                     parsed.map { (l, q) ->
@@ -986,3 +1007,19 @@ private fun localTime(iso: String): String =
                     .ofPattern("d MMM HH:mm", java.util.Locale("es", "MX")),
             )
     }.getOrDefault(iso.take(16).replace('T', ' '))
+
+/** Lo mínimo que guarda el servidor (3 decimales); menos se redondea a cero. */
+private const val MIN_QUANTITY = 0.001
+
+private fun quantityError(
+    text: String,
+    value: Double?,
+    costInvalid: Boolean,
+): String? =
+    when {
+        costInvalid -> "Revisa el costo: escribe 1500 o 1.5 (sin comas de miles)."
+        text.isBlank() -> null
+        value == null -> "Escribe la cantidad como 1500 o 1.5 (sin comas de miles)."
+        value > 0 && value < MIN_QUANTITY -> "La cantidad mínima es 0.001."
+        else -> null
+    }

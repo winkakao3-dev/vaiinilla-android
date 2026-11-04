@@ -250,11 +250,14 @@ class AdminInventoryViewModel
                             update { copy(recipe = lines) }
                         }
                     }.onFailure {
-                        update {
-                            copy(
-                                recipe = emptyList(),
-                                sheetError = it.toUserFacingMessage("No se pudo cargar la receta."),
-                            )
+                        // recipe queda en null: sin la receta real no se puede guardar encima.
+                        if (_uiState.value.recipeProduct?.id == product.id) {
+                            update {
+                                copy(
+                                    recipe = null,
+                                    sheetError = it.toUserFacingMessage("No se pudo cargar la receta."),
+                                )
+                            }
                         }
                     }
             }
@@ -331,12 +334,13 @@ class AdminInventoryViewModel
         }
     }
 
-private val THOUSANDS_COMMA = Regex("^[1-9]\\d{0,2}(,\\d{3})+(\\.\\d+)?$")
+private val THOUSANDS_COMMA = Regex("^[1-9]\\d{0,2}(,\\d{3})+\\.\\d+$")
+private val AMBIGUOUS_COMMA = Regex("^[1-9]\\d{0,2}(,\\d{3})+$")
 
 /**
- * Texto capturado a número; vacío o inválido es null. En México la coma separa miles:
- * «1,500» y «1,500.5» son mil quinientos. Una coma con uno o dos decimales («12,5») o tras un
- * cero («0,500») se lee como punto decimal.
+ * Texto capturado a número; vacío o inválido es null. «1,500.5» lleva coma de miles. «12,5» y
+ * «0,500» llevan coma decimal. «1,500» puede ser mil quinientos o uno y medio según el teclado,
+ * así que se rechaza (null) para que la app pida escribirlo sin comas, en vez de adivinar.
  */
 fun parseQuantity(text: String): Double? {
     val clean = text.trim().replace(" ", "")
@@ -344,6 +348,7 @@ fun parseQuantity(text: String): Double? {
     val normalized =
         when {
             THOUSANDS_COMMA.matches(clean) -> clean.replace(",", "")
+            AMBIGUOUS_COMMA.matches(clean) -> return null
             ',' in clean && '.' in clean -> return null
             clean.count { it == ',' } > 1 -> return null
             else -> clean.replace(',', '.')
