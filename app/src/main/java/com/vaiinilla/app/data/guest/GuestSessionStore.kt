@@ -63,6 +63,7 @@ class GuestSessionStore
                         clientIdRequired = required,
                         photoUrl = prefs.getString(KEY_PHOTO_URL, null),
                         logoUrl = prefs.getString(KEY_LOGO_URL, null),
+                        allowsPayAtEnd = prefs.getBoolean(KEY_ALLOWS_PAY_AT_END, false),
                     ),
                 space = space,
             )
@@ -85,6 +86,7 @@ class GuestSessionStore
                 putBoolean(KEY_ID_REQUIRED, context.establishment.clientIdRequired)
                 putString(KEY_PHOTO_URL, context.establishment.photoUrl)
                 putString(KEY_LOGO_URL, context.establishment.logoUrl)
+                putBoolean(KEY_ALLOWS_PAY_AT_END, context.establishment.allowsPayAtEnd)
                 val space = context.space
                 if (space == null) {
                     remove(KEY_SPACE_ID)
@@ -114,6 +116,7 @@ class GuestSessionStore
                 remove(KEY_ID_LABEL)
                 remove(KEY_PHOTO_URL)
                 remove(KEY_LOGO_URL)
+                remove(KEY_ALLOWS_PAY_AT_END)
                 remove(KEY_ID_REQUIRED)
                 remove(KEY_SPACE_ID)
                 remove(KEY_SPACE_NAME)
@@ -272,6 +275,7 @@ class GuestSessionStore
             const val KEY_ID_REQUIRED = "id_required"
             const val KEY_PHOTO_URL = "photo_url"
             const val KEY_LOGO_URL = "logo_url"
+            const val KEY_ALLOWS_PAY_AT_END = "allows_pay_at_end"
             const val KEY_SPACE_ID = "space_id"
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"

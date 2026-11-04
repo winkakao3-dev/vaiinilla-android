@@ -17,6 +17,7 @@ data class PublicEstablishmentDto(
     @SerialName("imagen_url") val photoUrl: String? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("whatsapp_url") val whatsappUrl: String? = null,
+    @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
 )
 
 @Serializable
@@ -49,6 +50,7 @@ fun PublicEstablishmentDto.toDomain() =
         photoUrl = photoUrl.httpsOrNull(),
         logoUrl = logoUrl.httpsOrNull(),
         whatsappUrl = whatsappUrl.httpsOrNull(),
+        allowsPayAtEnd = allowsPayAtEnd,
     )
 
 // Las imágenes se descargan sin sesión: solo https.

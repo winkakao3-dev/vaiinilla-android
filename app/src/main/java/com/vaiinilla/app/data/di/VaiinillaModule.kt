@@ -18,7 +18,9 @@ import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
+import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestReservationSession
+import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
@@ -176,7 +178,17 @@ object VaiinillaModule {
     fun provideSharedTableRepository(
         apiClient: VaiinillaApiClient,
         sharedTableContractJson: SharedTableContractJson,
-    ): SharedTableRepository = RemoteSharedTableRepository(apiClient, sharedTableContractJson)
+        guestSessionStore: GuestSessionStore,
+        guestCheckoutPolicy: GuestCheckoutPolicy,
+        guestReservationSession: GuestReservationSession,
+    ): SharedTableRepository =
+        RemoteSharedTableRepository(
+            apiClient,
+            sharedTableContractJson,
+            guestSessionStore,
+            guestCheckoutPolicy,
+            guestReservationSession,
+        )
 
     @Provides
     @Singleton

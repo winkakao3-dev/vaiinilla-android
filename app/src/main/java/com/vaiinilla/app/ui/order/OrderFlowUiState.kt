@@ -317,9 +317,14 @@ val OrderFlowUiState.menuNotice: String?
 private const val STALE_MENU_NOTICE =
     "No pudimos actualizar el menú. Desliza hacia abajo para reintentar: los precios pueden haber cambiado."
 
-/** ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. */
+/**
+ * ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. El invitado que aún no da su
+ * nombre no puede leer el estado operativo: mientras tanto vale lo que dice la ficha pública del negocio.
+ */
 val OrderFlowUiState.canPayAtEnd: Boolean
-    get() = checkoutDestination == OrderDestination.IN_SPACE && operationalStatus?.allowsPayAtEnd == true
+    get() =
+        checkoutDestination == OrderDestination.IN_SPACE &&
+            (operationalStatus?.allowsPayAtEnd ?: guestVenue?.establishment?.allowsPayAtEnd) == true
 
 /** Después de pedir a la cuenta en una mesa, la siguiente ronda sigue a la cuenta. */
 val OrderFlowUiState.payAtEndForNextRound: Boolean

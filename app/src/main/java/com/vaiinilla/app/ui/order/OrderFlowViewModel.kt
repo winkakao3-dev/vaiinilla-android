@@ -1087,24 +1087,30 @@ class OrderFlowViewModel
                 val guestSlug = guestSlugFor(current.guestVenue)
                 val result =
                     withContext(Dispatchers.IO) {
-                        if (guestSlug != null) {
-                            guestOrders.create(guestSlug, request, idempotencyKey)
-                        } else {
-                            // Con el QR de la mesa y a la cuenta: si aún no está sentado ahí, se sienta y reintenta.
-                            val qrToken =
-                                current.guestVenue
-                                    ?.space
-                                    ?.takeIf { request.payAtEnd && it.id == current.checkoutSpaceId }
-                                    ?.qrToken
-                            createSeatingAtTableIfNeeded(
-                                create = { createRemoteOrder(request, idempotencyKey) },
-                                aliases =
-                                    payAtEndSeatAliases(
-                                        studentAuthRepository.peekSession()?.displayName.orEmpty(),
-                                    ),
-                                join = qrToken?.let { token -> { alias: String -> sharedTables.join(token, alias) } },
-                            )
-                        }
+                        // Con el QR de la mesa y a la cuenta: si aún no está sentado ahí, se sienta y reintenta. Con
+                        // cuenta o sin ella (el repositorio de la mesa usa la sesión del invitado cuando toca).
+                        val qrToken =
+                            current.guestVenue
+                                ?.space
+                                ?.takeIf { request.payAtEnd && it.id == current.checkoutSpaceId }
+                                ?.qrToken
+                        val name =
+                            if (guestSlug != null) {
+                                guestSession.storedName() ?: current.guestName
+                            } else {
+                                studentAuthRepository.peekSession()?.displayName.orEmpty()
+                            }
+                        createSeatingAtTableIfNeeded(
+                            create = {
+                                if (guestSlug != null) {
+                                    guestOrders.create(guestSlug, request, idempotencyKey)
+                                } else {
+                                    createRemoteOrder(request, idempotencyKey)
+                                }
+                            },
+                            aliases = payAtEndSeatAliases(name),
+                            join = qrToken?.let { token -> { alias: String -> sharedTables.join(token, alias) } },
+                        )
                     }
                 result.fold(
                     onSuccess = { created ->

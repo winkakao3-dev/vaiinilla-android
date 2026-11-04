@@ -12,6 +12,8 @@ data class PublicEstablishment(
     val logoUrl: String? = null,
     /** El enlace de WhatsApp que el negocio puso en sus redes, para quien pregunta antes de pedir (CASA-11). */
     val whatsappUrl: String? = null,
+    /** El negocio deja pagar al final en una mesa; el invitado aún sin sesión no tiene el estado operativo. */
+    val allowsPayAtEnd: Boolean = false,
 )
 
 /** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */
