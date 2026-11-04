@@ -276,7 +276,7 @@ private fun noticeIcon(notice: ReceivedNotice): ImageVector {
             when (alert) {
                 "por_cobrar" -> Icons.Outlined.PointOfSale
                 "nueva_comanda" -> Icons.Outlined.Restaurant
-                "listo_mesero" -> Icons.Outlined.RoomService
+                "listo_mesero", "listo_barra" -> Icons.Outlined.RoomService
                 "llamada_mesa" -> Icons.Outlined.NotificationsActive
                 "turno_por_terminar" -> Icons.Outlined.Schedule
                 "pedido_domicilio" -> Icons.Outlined.DeliveryDining

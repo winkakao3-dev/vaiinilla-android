@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,9 +112,11 @@ fun MenuWaiterLayer(
     onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
     val state =
-        remember(spaceId, onJoinAs != null) {
+        remember(spaceId) {
             MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable, onJoinAs)
         }
+    // Al dar su nombre el invitado deja de necesitarlo: se cambia sin recrear el estado ni cortar la llamada.
+    SideEffect { state.onJoinAs = onJoinAs }
     MenuWaiterLayer(state = state, visible = visible, cart = cart, place = place, modifier = modifier)
 }
 

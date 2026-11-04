@@ -85,8 +85,14 @@ class MenuWaiterCallState(
      * Sin cuenta y sin nombre: en lugar de sentarlo como «Cliente», la hoja le pide su nombre (con el aviso de
      * términos) y se une a la mesa con él. Dos invitados ya no chocan con el mismo nombre.
      */
-    private val onJoinAs: (suspend (String) -> Result<Unit>)? = null,
+    onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
+    /**
+     * Se actualiza desde la composición: al darse de alta el invitado ya tiene nombre y deja de hacer falta.
+     * Cambiarlo aquí no recrea el estado, así que la llamada que va en curso no se pierde.
+     */
+    var onJoinAs: (suspend (String) -> Result<Unit>)? = onJoinAs
+
     /** La hoja pide el nombre antes de llamar; [pendingReason] es lo que eligió. */
     var askingName by mutableStateOf(false)
         private set
@@ -177,16 +183,17 @@ class MenuWaiterCallState(
         busy = true
         error = null
         val joined = join(clean.take(SHARED_TABLE_ALIAS_MAX))
-        val result = joined.fold(onSuccess = { onCall(spaceId, reason, null) }, onFailure = { Result.failure(it) })
-        busy = false
-        if (result.isFailure && result.exceptionOrNull()?.errorCode() == NAME_TAKEN) {
-            error = NAME_TAKEN_MESSAGE
+        if (joined.isFailure) {
+            busy = false
+            val cause = joined.exceptionOrNull()
+            error = if (cause?.errorCode() == NAME_TAKEN) NAME_TAKEN_MESSAGE else cause?.toUserFacingMessage()
             return false
         }
-        if (result.isSuccess) {
-            askingName = false
-            pendingReason = null
-        }
+        // Ya está sentado: un reintento vuelve a los motivos y llama directo, sin unirse de nuevo.
+        askingName = false
+        pendingReason = null
+        val result = onCall(spaceId, reason, null)
+        busy = false
         return finish(result)
     }
 

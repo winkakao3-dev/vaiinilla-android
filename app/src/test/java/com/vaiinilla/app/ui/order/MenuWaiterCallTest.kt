@@ -253,6 +253,40 @@ class MenuWaiterCallTest {
             assertEquals(MenuWaiterPhase.OPEN, state.phase)
         }
 
+    @Test
+    fun `si la llamada falla ya sentado, el reintento no vuelve a unirse`() =
+        runTest {
+            var calls = 0
+            var joins = 0
+            val state =
+                MenuWaiterCallState(
+                    spaceId = 1,
+                    onCurrent = { Result.success(null) },
+                    onCall = { _, _, _ ->
+                        calls++
+                        when (calls) {
+                            1 -> Result.failure(notAtTable())
+                            2 -> Result.failure(IllegalStateException("Sin red"))
+                            else -> Result.success(call(CallStatus.PENDIENTE))
+                        }
+                    },
+                    onCancel = { Result.success(it) },
+                    onJoinTable = null,
+                    onJoinAs = {
+                        joins++
+                        Result.success(Unit)
+                    },
+                )
+            state.tap()
+            assertFalse(state.send(CallReason.CUENTA))
+            assertFalse(state.sendWithName("Ana"))
+            assertFalse(state.askingName)
+            // Ya tiene nombre: la pantalla quita onJoinAs y el reintento llama directo.
+            state.onJoinAs = null
+            assertTrue(state.send(CallReason.CUENTA))
+            assertEquals(1, joins)
+        }
+
     private fun notAtTable() =
         OrderRepositoryException(
             "NO_ACTIVE_ORDER_IN_SPACE",
