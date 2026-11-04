@@ -288,7 +288,8 @@ class PlatformRepository
                         "plataforma/establecimientos/resolver-maps",
                         encodeStoreFields(mapOf("url" to url.trim())),
                     ).map {
-                        val point = platformJson.decodeFromString<MapsPoint>(it)
+                        // El backend lo manda en el sobre `data`, como todo lo demás de plataforma.
+                        val point = platformJson.decodeFromString<Envelope<MapsPoint>>(it).data
                         point.latitud to point.longitud
                     }
             }
