@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.data.mode.LastStaffModeStore
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.mode.AuthorizedMode
@@ -30,6 +31,7 @@ class AuthorizedAccessViewModel
         private val authRepository: StudentAuthRepository,
         private val sessionStore: SecureSessionStore,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
+        private val lastStaffMode: LastStaffModeStore,
     ) : ViewModel() {
         private val _state = mutableStateOf(AuthorizedAccessUiState())
         val state: State<AuthorizedAccessUiState> = _state
@@ -209,7 +211,14 @@ class AuthorizedAccessViewModel
                             // El token del modo nuevo y su contexto se guardan juntos aunque cancelen la corrutina.
                             withContext(NonCancellable) {
                                 // Espera a que termine un refresh del modo anterior: fuera del hilo principal.
-                                withContext(Dispatchers.IO) { activateContext(mode, session, context) }
+                                withContext(Dispatchers.IO) {
+                                    activateContext(mode, session, context)
+                                    if (mode.role == OperationalRole.CLIENT) {
+                                        lastStaffMode.clear()
+                                    } else {
+                                        lastStaffMode.save(session.uid, mode)
+                                    }
+                                }
                                 _state.value =
                                     _state.value.copy(
                                         loading = false,
@@ -262,7 +271,10 @@ class AuthorizedAccessViewModel
                     withContext(Dispatchers.IO) { repository.activateMode(clientMode, session) }.fold(
                         onSuccess = { context ->
                             withContext(NonCancellable) {
-                                withContext(Dispatchers.IO) { activateContext(clientMode, session, context) }
+                                withContext(Dispatchers.IO) {
+                                    activateContext(clientMode, session, context)
+                                    lastStaffMode.clear()
+                                }
                                 _state.value =
                                     _state.value.copy(
                                         loading = false,
@@ -295,6 +307,7 @@ class AuthorizedAccessViewModel
                 return
             }
             viewModelScope.launch(Dispatchers.IO) {
+                lastStaffMode.clear()
                 refreshCoordinator.clearSession()
                 sessionStore.clear()
             }
@@ -316,7 +329,17 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(errorMessage = null, message = null)
         }
 
+        /**
+         * El modo de personal que esta cuenta tenía activo antes de que Android cerrara la app, si sigue autorizado.
+         * Llamar con los modos ya cargados.
+         */
+        fun rememberedStaffMode(): AuthorizedMode? {
+            val session = authRepository.peekSession() ?: return null
+            return lastStaffMode.find(session.uid, _state.value.modes)
+        }
+
         fun resetAfterSignOut() {
+            lastStaffMode.clear()
             invitationJob?.cancel()
             modesJob?.cancel()
             actionJob?.cancel()
