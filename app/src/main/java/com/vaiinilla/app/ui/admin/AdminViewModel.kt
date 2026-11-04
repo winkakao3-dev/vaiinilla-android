@@ -232,7 +232,9 @@ class AdminViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        spacesRepository.closeWithoutCharging(account.spaceId, note, UUID.randomUUID().toString())
+                        retryKeys.withKey("close-unpaid", account.spaceId, note) { key ->
+                            spacesRepository.closeWithoutCharging(account.spaceId, note, key)
+                        }
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(

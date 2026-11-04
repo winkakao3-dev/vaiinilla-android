@@ -10,6 +10,7 @@ import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
+import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
@@ -1224,10 +1225,13 @@ class OperationalViewModel
                 viewModelScope.launch {
                     while (isActive) {
                         // El alumno sigue su pedido al ritmo de siempre; el personal baja a un minuto minimizado.
-                        if (_uiState.value.role == OperationalRole.CLIENT) {
-                            delay(POLL_INTERVAL_MS)
-                        } else {
-                            awaitNextStaffPoll(POLL_INTERVAL_MS)
+                        // Un push de pedido adelanta la consulta.
+                        OrderPushes.awaitNextPoll {
+                            if (_uiState.value.role == OperationalRole.CLIENT) {
+                                delay(POLL_INTERVAL_MS)
+                            } else {
+                                awaitNextStaffPoll(POLL_INTERVAL_MS)
+                            }
                         }
                         refresh()
                         refreshCashSession()
