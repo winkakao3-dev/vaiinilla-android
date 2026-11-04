@@ -223,6 +223,13 @@ class SpacesScreenshotTest {
     }
 
     @Test
+    fun `spaces_section_court_busy_dark`() {
+        capture("spaces_section_court_busy_dark.png", mode = VaiinillaThemeMode.Dark) {
+            Section(detail(courts[0], withSession = true), courtSpace)
+        }
+    }
+
+    @Test
     fun `spaces_section_court_free`() {
         capture("spaces_section_court_free.png") {
             Section(detail(courts[1], withSession = false), TableSpace(2, "Cancha 2", "cancha"))

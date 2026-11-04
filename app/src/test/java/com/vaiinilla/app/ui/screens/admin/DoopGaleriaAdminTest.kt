@@ -671,10 +671,14 @@ class DoopGaleriaAdminTest {
         shot("a23_cerrar_sin_cobrar")
     }
 
-    @Test
-    @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
-    fun a22_estados_dias_cuentas() {
+    @Test fun a22_estados_dias_cuentas() {
         screen(home())
+        val target = hasText("Cerrar sin cobrar", substring = true)
+        val scrollers = rule.onAllNodes(hasScrollAction())
+        for (i in scrollers.fetchSemanticsNodes().indices) {
+            if (runCatching { scrollers[i].performScrollToNode(target) }.isSuccess) break
+        }
+        settle()
         shot("a22_estados_dias_cuentas")
     }
 
