@@ -191,6 +191,7 @@ fun AdminScreen(
 
     AdminDialogHost(colors) {
         if (assistantOpen) {
+            com.vaiinilla.app.ui.components.ResizeForKeyboard()
             StoreAssistantScreen(sections.store, colors, readOnly) { assistantOpen = false }
             return@AdminDialogHost
         }

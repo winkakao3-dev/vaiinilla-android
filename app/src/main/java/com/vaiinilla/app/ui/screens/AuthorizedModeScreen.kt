@@ -151,6 +151,9 @@ fun AuthorizedModeScreen(
     onSelectMode: (AuthorizedMode) -> Unit,
     onSignOut: () -> Unit = {},
     onRetry: () -> Unit = {},
+    isPlatformAuthority: Boolean = false,
+    onOpenPlatform: () -> Unit = {},
+    onContinueAsClient: () -> Unit = {},
 ) {
     var confirmingSignOut by remember { mutableStateOf(false) }
     if (confirmingSignOut) {
@@ -219,13 +222,36 @@ fun AuthorizedModeScreen(
                     )
                 }
 
+                if (isPlatformAuthority) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .padding(top = 20.dp)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(colors.accent)
+                                .clickable(role = Role.Button, onClick = onOpenPlatform)
+                                .padding(18.dp),
+                    ) {
+                        Text("Plataforma", color = colors.accentInk, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                        Text(
+                            "Crea tiendas y asígnales su administrador. No pertenece a ningún negocio.",
+                            color = colors.accentInk,
+                            fontSize = 13.5.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 5.dp),
+                        )
+                    }
+                }
+
                 if (state.loading && staffModes.isEmpty()) {
                     SkeletonBlock(
                         modifier = Modifier.padding(top = 22.dp).fillMaxWidth().height(120.dp),
                         corner = 22.dp,
                     )
                 }
-                if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
+                if (!state.loading && staffModes.isEmpty() && state.errorMessage == null && !isPlatformAuthority) {
                     EmptyState(
                         icon = Icons.Outlined.VpnKey,
                         title = "Sin modos de personal",
@@ -358,10 +384,8 @@ fun AuthorizedModeScreen(
                 }
 
                 // Sin acceso de cliente no hay a dónde volver: antes este botón cerraba la sesión sin avisar.
-                if (clientMode != null) {
-                    Box(Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp)) { SectionCaption("Cliente") }
-                    ClientModeCard(onClick = { onSelectMode(clientMode) })
-                }
+                Box(Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp)) { SectionCaption("Cliente") }
+                ClientModeCard(onClick = { clientMode?.let(onSelectMode) ?: onContinueAsClient() })
                 Box(
                     modifier =
                         Modifier

@@ -200,6 +200,44 @@ class HttpVaiinillaApiClient
                 allowSessionRefresh = false,
             )
 
+        fun patchWithBearer(
+            bearer: String,
+            path: String,
+            body: String,
+            headers: Map<String, String> = emptyMap(),
+        ): Result<String> =
+            execute(
+                method = "PATCH",
+                path = path,
+                body = body,
+                headers = headers,
+                accessToken = bearer,
+                allowSessionRefresh = false,
+            )
+
+        fun putMultipartWithBearer(
+            bearer: String,
+            path: String,
+            fieldName: String,
+            filename: String,
+            mimeType: String,
+            bytes: ByteArray,
+            headers: Map<String, String>,
+        ): Result<String> =
+            runCatching {
+                sendMultipartOnce(
+                    method = "PUT",
+                    path = path,
+                    fieldName = fieldName,
+                    filename = filename,
+                    mimeType = mimeType,
+                    bytes = bytes,
+                    headers = headers,
+                    allowSessionRefresh = false,
+                    bearer = bearer,
+                )
+            }
+
         override fun getWithBearer(
             bearer: String,
             path: String,
@@ -374,8 +412,9 @@ class HttpVaiinillaApiClient
             bytes: ByteArray,
             headers: Map<String, String>,
             allowSessionRefresh: Boolean,
+            bearer: String? = null,
         ): String {
-            val token = sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
+            val token = bearer ?: sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
             if (token.isNullOrBlank()) throw MissingAccessTokenException()
             val boundary = "----VaiinillaForm${System.nanoTime()}"
             val safeName = filename.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "producto.jpg" }
