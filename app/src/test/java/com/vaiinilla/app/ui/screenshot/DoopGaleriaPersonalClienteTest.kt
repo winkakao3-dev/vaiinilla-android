@@ -363,6 +363,17 @@ class DoopGaleriaPersonalClienteTest {
         shot("cDP1_al_abrir")
     }
 
+    @Test fun cDP5_cerca() {
+        draw {
+            Donde(
+                DiscoveryUiState(
+                    establishments = listOf(pasteleria),
+                    nearbyOrigin = com.vaiinilla.app.domain.model.GeoCoordinates(28.63, -106.07),
+                ),
+            )
+        }
+        shot("cDP5_cerca")
+    }
     @Test fun cDP4_pedir_ubicacion() {
         draw { Donde(DiscoveryUiState()) }
         scrollTap("Cerca de ti")
@@ -386,6 +397,7 @@ class DoopGaleriaPersonalClienteTest {
                     deposit = "41.00",
                     dueOnArrival = "41.00",
                     code = "4827",
+                    courierName = "Luis",
                 ),
         )
     }

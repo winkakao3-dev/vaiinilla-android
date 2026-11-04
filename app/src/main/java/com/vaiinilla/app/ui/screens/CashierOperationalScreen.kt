@@ -210,6 +210,8 @@ fun CashierOperationalScreen(
     notice: String? = null,
     /** Si el negocio exige el QR del cliente para entregar; sin él, Caja entrega con un toque. */
     deliveryRequiresQr: Boolean = true,
+    /** Sube cada vez que el visor pide abrir la búsqueda («¿No lee?» de C08). */
+    openSearchRequest: Int = 0,
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
@@ -270,6 +272,7 @@ fun CashierOperationalScreen(
     var assistantPulse by remember { mutableIntStateOf(0) }
     var walletSheetOpen by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(openSearchRequest) { if (openSearchRequest > 0) searchOpen = true }
     var choosingOrderPlace by remember { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.

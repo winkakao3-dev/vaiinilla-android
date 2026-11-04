@@ -158,6 +158,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     deposit = deposit?.flexibleText(),
                     dueOnArrival = dueOnArrival?.flexibleText(),
                     code = deliveryCode?.flexibleText(),
+                    courierName = courierName?.trim()?.takeIf { it.isNotEmpty() },
                 )
             },
         answerBy = answerBy?.let(::serverInstant),

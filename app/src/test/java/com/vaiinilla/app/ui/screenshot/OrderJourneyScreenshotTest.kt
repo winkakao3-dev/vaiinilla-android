@@ -400,6 +400,7 @@ class OrderJourneyScreenshotTest {
                 base.homeDelivery!!.copy(
                     address = DeliveryAddress(address = "Aldama 1408, Centro", phone = "6140000000"),
                     code = if (state == OrderState.ON_THE_WAY) "4827" else null,
+                    courierName = "Luis".takeIf { state == OrderState.ON_THE_WAY || state == OrderState.DELIVERED },
                     dueOnArrival = if (state == OrderState.DELIVERED) "0.00" else "535.14",
                 ),
         )

@@ -359,7 +359,10 @@ internal fun OrderJourneyPage(
                 MoneyBackCard(title, journeyMoneyBackNote(order), colors, Modifier.arrive(4, key))
             }
             journeyDeliveryCode(order)?.let {
-                DeliveryCodeCard(it, order.homeDelivery?.hasAmountDue == true, colors, Modifier.arrive(4, key))
+                DeliveryCodeCard(it, order.homeDelivery?.hasAmountDue == true, order.homeDelivery?.courierName, colors, Modifier.arrive(4, key))
+                order.homeDelivery?.courierName?.let { courier ->
+                    CourierRow(courier, venue.name, colors, Modifier.arrive(4, key))
+                }
             }
             AnimatedVisibility(
                 visible = showCode,
@@ -1084,6 +1087,7 @@ private fun MoneyBackCard(
 private fun DeliveryCodeCard(
     code: String,
     paysAtDoor: Boolean,
+    courierName: String?,
     colors: VaiinillaColors,
     modifier: Modifier = Modifier,
 ) {
@@ -1123,10 +1127,12 @@ private fun DeliveryCodeCard(
             }
         }
         Text(
-            if (paysAtDoor) {
-                "Primero pagas, luego le dices este código a quien te lo lleve. Así sabe que es para ti."
-            } else {
-                "Dile este código a quien te lo lleve. Así sabe que es para ti."
+            (courierName?.let { "a $it" } ?: "a quien te lo lleve").let { who ->
+                if (paysAtDoor) {
+                    "Primero pagas, luego le dices este código $who. Así sabe que es para ti."
+                } else {
+                    "Dile este código $who. Así sabe que es para ti."
+                }
             },
             color = colors.accentInk,
             fontSize = 13.5.sp,
@@ -1137,6 +1143,40 @@ private fun DeliveryCodeCard(
     }
 }
 
+/** Quien lleva el pedido (Doop D3). Al mesero no se le nombra, al repartidor sí: decisión de Kao del 3 nov. */
+@Composable
+private fun CourierRow(
+    name: String,
+    venueName: String?,
+    colors: VaiinillaColors,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.paper2)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(colors.accent),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(name.trim().take(1).uppercase(), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text("$name te lo lleva", color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            venueName?.let {
+                Text("De $it", color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
 /** «Ya llegué» del drive-thru (P3): lima, con un pulso que invita a tocarlo. */
 @Composable
 private fun ArrivedButton(
@@ -1306,7 +1346,7 @@ private fun DeliveredReceipt(
             modifier = Modifier.padding(top = 6.dp),
         )
         Text(
-            "Ya quedó entregado y pagado.",
+            order.homeDelivery?.courierName?.let { "$it lo entregó y ya quedó pagado." } ?: "Ya quedó entregado y pagado.",
             color = colors.ink2,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,

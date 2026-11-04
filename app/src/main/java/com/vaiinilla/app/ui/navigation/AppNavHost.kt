@@ -636,6 +636,7 @@ fun AppNavHost(
     var tableCodeRequest by remember { mutableIntStateOf(0) }
     var walletUserQrOpen by remember { mutableStateOf(false) }
     var pendingPickupDelivery by remember { mutableStateOf<PendingPickupDelivery?>(null) }
+    var cashierSearchRequests by remember { mutableIntStateOf(0) }
 
     fun openInvitation(token: String) {
         navController.navigate(Routes.staffInvitationRoute(token)) {
@@ -2236,6 +2237,7 @@ fun AppNavHost(
                     )
                     CashierOperationalScreen(
                         state = operationalState,
+                        openSearchRequest = cashierSearchRequests,
                         onBack = returnToModes(navController, operationalViewModel),
                         onOpenCashSession = operationalViewModel::openCashRegister,
                         onRequestCloseCash = operationalViewModel::requestCloseCash,
@@ -2692,7 +2694,14 @@ fun AppNavHost(
             footer =
                 operationalState.orders
                     .firstOrNull { it.summary.id == pendingPickupDelivery?.orderId }
-                    ?.let { order -> { insets -> PickupDeliveryFooter(order, insets) } },
+                    ?.let { order ->
+                        { insets ->
+                            PickupDeliveryFooter(order, insets) {
+                                pendingPickupDelivery = null
+                                cashierSearchRequests++
+                            }
+                        }
+                    },
             onPayload = { rawValue ->
                 val target = pendingPickupDelivery
                 pendingPickupDelivery = null

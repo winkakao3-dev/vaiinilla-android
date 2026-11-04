@@ -83,6 +83,8 @@ data class OrderHomeDelivery(
     val dueOnArrival: String? = null,
     /** Los 4 dígitos que el cliente dicta al recibir: solo le llegan a él y desde `en_camino`. */
     val code: String? = null,
+    /** Quien lo lleva. El servidor aún no lo manda: sin nombre se dice «quien te lo lleve». */
+    val courierName: String? = null,
 ) {
     val hasAmountDue: Boolean
         get() = (dueOnArrival?.toBigDecimalOrNull()?.signum() ?: 0) > 0

@@ -68,7 +68,7 @@ import java.math.BigDecimal
 
 /** Cómo se cobra una recarga de un hijo; lo dicen la hoja de recarga y la primera recarga al agregarlo. */
 internal const val CHILD_RELOAD_CARD_NOTE =
-    "Pagas con tarjeta en Stripe. El saldo llega cuando el banco lo aprueba. Es para comer en esta escuela; si se va, pides que te lo devuelvan."
+    "Pago seguro con Stripe · cuándo llega el saldo depende del banco. Es para comer en esta escuela; si se va, pides que te lo devuelvan."
 
 /**
  * Recargar el saldo de un hijo con tarjeta: monto → total con comisión → PaymentSheet → el backend confirma.

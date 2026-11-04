@@ -1,5 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.components.minTouchTarget
+import com.vaiinilla.app.ui.components.PhysicalPressScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +45,8 @@ import com.vaiinilla.app.domain.model.needsCashCollection
 internal fun PickupDeliveryFooter(
     order: OrderDetail,
     bottomInsets: WindowInsets = WindowInsets(0),
+    /** La cámara no lee el QR: cierra el visor y abre la búsqueda de Caja (Doop C08). */
+    onCantScan: (() -> Unit)? = null,
 ) {
     val colors = rememberOperationalColors()
     val summary = order.summary
@@ -116,6 +125,21 @@ internal fun PickupDeliveryFooter(
             if (order.activeItems.size > 5) {
                 Text("y ${order.activeItems.size - 5} más", fontSize = 13.sp, color = colors.textSecondary)
             }
+        }
+        if (onCantScan != null) {
+            Text(
+                "¿No lee? Búscalo por nombre, folio o teléfono",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .minTouchTarget()
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onCantScan)
+                        .semantics { role = Role.Button },
+            )
         }
     }
 }
