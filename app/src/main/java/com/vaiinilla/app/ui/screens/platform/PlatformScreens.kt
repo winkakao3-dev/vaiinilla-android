@@ -81,6 +81,7 @@ internal val STORE_TYPES =
         "restaurante" to "Restaurante",
         "bar" to "Bar",
         "padel" to "Pádel",
+        "boliche" to "Boliche",
         "food_truck" to "Food truck",
         "drive_thru" to "Drive-thru",
         "comedor" to "Comedor",
