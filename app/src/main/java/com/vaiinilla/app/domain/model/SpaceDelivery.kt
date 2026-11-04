@@ -5,7 +5,9 @@ package com.vaiinilla.app.domain.model
  * TABLE: «Te lo llevamos», el mesero lo lleva. BAR: «Pasa por él», el cliente recoge en la barra
  * y Caja lo entrega. BOTH: el cliente elige al pagar; en Caja lo marca el cajero.
  */
-enum class SpaceDelivery(val wire: String) {
+enum class SpaceDelivery(
+    val wire: String,
+) {
     TABLE("mesa"),
     BAR("barra"),
     BOTH("ambas"),

@@ -60,14 +60,20 @@ object AssistantLabels {
             else -> field
         }
 
-    fun yesNo(field: String, value: Boolean): String =
+    fun yesNo(
+        field: String,
+        value: Boolean,
+    ): String =
         when (field) {
             "permite_pago_al_final" -> if (value) "Al final, con cuenta abierta" else "Al pedir"
             "entrega_requiere_qr" -> if (value) "Escaneando su QR" else "Sin QR"
             else -> if (value) "Sí" else "No"
         }
 
-    fun choice(field: String, value: String): String =
+    fun choice(
+        field: String,
+        value: String,
+    ): String =
         when (field) {
             "tipo" -> BusinessType.fromWire(value)?.label ?: value
             "entrega_en_espacio" ->
@@ -80,7 +86,10 @@ object AssistantLabels {
             else -> value
         }
 
-    fun number(field: String, value: Long): String =
+    fun number(
+        field: String,
+        value: Long,
+    ): String =
         when (field) {
             "gracia_liberacion_min" -> "$value min"
             "dias_adelanto_pedido" -> if (value == 0L) "Solo para hoy" else "Hasta $value días antes"

@@ -195,7 +195,12 @@ fun AdminScreen(
             return@AdminDialogHost
         }
         // Bienvenida (marco AS1): la primera vez que entra a una tienda que todavía no está lista.
-        if (offerWelcome && !readOnly && !welcome.seen && sections.store.uiState.value.config != null && showsStoreSetup(setup)) {
+        if (offerWelcome &&
+            !readOnly &&
+            !welcome.seen &&
+            sections.store.uiState.value.config != null &&
+            showsStoreSetup(setup)
+        ) {
             StoreWelcome(
                 placeName = placeName,
                 colors = colors,

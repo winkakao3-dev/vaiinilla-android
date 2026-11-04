@@ -40,7 +40,6 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -206,7 +205,10 @@ internal fun StoreWelcome(
                 color = colors.textSecondary,
                 modifier = Modifier.padding(start = 2.dp, top = 24.dp, bottom = 8.dp),
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
                 listOf("Tipo de negocio", "Cuándo pagan", "Cómo se entrega", "Horarios", "Cocina y barra").forEach {
                     StaticChip(it, colors)
                 }
@@ -305,7 +307,12 @@ private fun AssistantChat(
             itemsIndexed(state.messages, key = { index, _ -> index }) { _, message -> Bubble(message, colors) }
             item(key = "estado") {
                 when {
-                    state.thinking -> Bubble(AssistantMessage(fromOwner = false, text = "Escribiendo…"), colors, muted = true)
+                    state.thinking ->
+                        Bubble(
+                            AssistantMessage(fromOwner = false, text = "Escribiendo…"),
+                            colors,
+                            muted = true,
+                        )
                     state.error != null ->
                         Column(Modifier.padding(start = 36.dp)) {
                             Text(
@@ -315,7 +322,12 @@ private fun AssistantChat(
                                 color = colors.textSecondary,
                             )
                             Box(Modifier.padding(top = 8.dp)) {
-                                AdminFilterChip("Reintentar", selected = false, colors = colors, onClick = viewModel::retryAssistant)
+                                AdminFilterChip(
+                                    "Reintentar",
+                                    selected = false,
+                                    colors = colors,
+                                    onClick = viewModel::retryAssistant,
+                                )
                             }
                         }
                     state.options.isNotEmpty() ->
@@ -389,7 +401,10 @@ private fun AssistantChat(
                         .border(1.dp, colors.cardBorder, RoundedCornerShape(25.dp))
                         .semantics { contentDescription = "Escribe tu respuesta" },
                 decorationBox = { field ->
-                    Box(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), contentAlignment = Alignment.CenterStart) {
+                    Box(
+                        Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
                         if (draft.isEmpty()) {
                             Text(
                                 "Escribe tu respuesta…",

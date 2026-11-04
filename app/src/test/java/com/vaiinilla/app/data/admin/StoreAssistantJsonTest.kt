@@ -15,11 +15,12 @@ class StoreAssistantJsonTest {
     @Test
     fun `manda la platica con los roles del servidor`() {
         val body =
-            Json.parseToJsonElement(
-                json.encodeMessages(
-                    listOf(AssistantMessage(false, "¿Qué negocio es?"), AssistantMessage(true, "Un boliche")),
-                ),
-            ).jsonObject
+            Json
+                .parseToJsonElement(
+                    json.encodeMessages(
+                        listOf(AssistantMessage(false, "¿Qué negocio es?"), AssistantMessage(true, "Un boliche")),
+                    ),
+                ).jsonObject
         val mensajes = body["mensajes"]!!.jsonArray
         assertEquals("asistente", mensajes[0].jsonObject["rol"]!!.jsonPrimitive.content)
         assertEquals("dueno", mensajes[1].jsonObject["rol"]!!.jsonPrimitive.content)

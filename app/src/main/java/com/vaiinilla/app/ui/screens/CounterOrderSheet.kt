@@ -142,7 +142,11 @@ internal fun counterOrderMatches(
 /** Las categorías que tienen algo en el menú, en el orden del catálogo, para los chips de C03. */
 internal fun counterOrderCategories(catalog: Catalog?): List<Category> {
     val used = catalog?.products.orEmpty().mapTo(mutableSetOf()) { it.categoryId }
-    return catalog?.categories.orEmpty().filter { it.id in used }.sortedBy { it.order }
+    return catalog
+        ?.categories
+        .orEmpty()
+        .filter { it.id in used }
+        .sortedBy { it.order }
 }
 
 private fun String.foldAccents(): String =
@@ -252,7 +256,12 @@ internal fun CounterOrderSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (state.counterOrderSpace == null) {
-                        Text("Para llevar", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Text(
+                            "Para llevar",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textSecondary,
+                        )
                     }
                 }
                 Spacer(Modifier.size(44.dp))
@@ -518,6 +527,7 @@ private fun CounterInlineField(
         },
     )
 }
+
 /** Un chip de categoría arriba de la cuadrícula; el elegido en tinta. Se ve de 34 con un toque de 44. */
 @Composable
 private fun CategoriaChip(

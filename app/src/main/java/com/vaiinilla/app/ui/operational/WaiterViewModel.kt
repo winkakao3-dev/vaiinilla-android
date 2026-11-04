@@ -317,8 +317,13 @@ class WaiterViewModel
         private fun loadStationsCatalog() {
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
-                val catalog = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
-                if (_uiState.value.counterCatalog == null) _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+                val catalog =
+                    withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
+                if (_uiState.value.counterCatalog ==
+                    null
+                ) {
+                    _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+                }
             }
         }
 

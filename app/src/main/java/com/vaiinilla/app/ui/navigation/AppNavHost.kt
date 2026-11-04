@@ -1041,7 +1041,8 @@ fun AppNavHost(
                         // Android cerró la app con Caja, Cocina o Mesero abiertos: se vuelve a ese modo sin pasar
                         // por la lista. Modos queda debajo, como cuando se elige a mano.
                         val remembered =
-                            authorizedAccessViewModel.rememberedStaffMode()
+                            authorizedAccessViewModel
+                                .rememberedStaffMode()
                                 ?.takeIf { destination == LaunchDestination.StaffModes && modesLoaded }
                         if (remembered != null) {
                             authorizedAccessViewModel.activateMode(remembered) {
