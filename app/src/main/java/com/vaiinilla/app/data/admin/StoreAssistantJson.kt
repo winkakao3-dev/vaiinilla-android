@@ -88,7 +88,8 @@ class StoreAssistantJson(
                 )
             value is JsonPrimitive && value.isString ->
                 when (field) {
-                    "fondo_sugerido", "reparto_costo", "reparto_minimo" -> AssistantLabels.money(value.content)
+                    "fondo_sugerido", "reparto_costo", "reparto_minimo", "recarga_minima", "recarga_maxima" ->
+                        AssistantLabels.money(value.content)
                     else -> AssistantLabels.choice(field, value.content)
                 }
             value is JsonPrimitive && value.booleanOrNull != null -> AssistantLabels.yesNo(field, value.booleanOrNull!!)

@@ -51,6 +51,12 @@ object AssistantLabels {
             "modo_escuela" -> "Es una escuela"
             "dias_adelanto_pedido" -> "Días para apartar"
             "hora_corte_pedido" -> "Hora límite para apartar"
+            "hora_corte_cancelacion" -> "Hora límite para cancelar"
+            "union_requiere_codigo" -> "Pedir código para unirse"
+            "tutores_requieren_aprobacion" -> "Aprobar a cada tutor"
+            "recarga_minima" -> "Recarga mínima"
+            "recarga_maxima" -> "Recarga máxima"
+            "encargos_minutos_aceptar" -> "Tiempo para aceptar encargos"
             "reparto_activo" -> "Entrega a domicilio"
             "reparto_costo" -> "Costo del envío"
             "reparto_minimo" -> "Compra mínima a domicilio"
@@ -94,6 +100,7 @@ object AssistantLabels {
             "gracia_liberacion_min" -> "$value min"
             "dias_adelanto_pedido" -> if (value == 0L) "Solo para hoy" else "Hasta $value días antes"
             "anticipo_porcentaje" -> "$value %"
+            "encargos_minutos_aceptar" -> "$value min"
             else -> "$value"
         }
 
