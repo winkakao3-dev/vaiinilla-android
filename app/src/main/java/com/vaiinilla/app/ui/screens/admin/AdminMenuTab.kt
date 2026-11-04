@@ -51,6 +51,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -94,6 +95,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
+import com.vaiinilla.app.ui.admin.AdminInventoryViewModel
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
@@ -135,6 +137,9 @@ internal fun AdminMenuTab(
     isSchool: Boolean = false,
     takesPreorders: Boolean = false,
     header: AdminHeader,
+    /** Negocio › Inventario: con él la hoja del producto lleva el botón «Receta»; null lo esconde. */
+    inventory: AdminInventoryViewModel? = null,
+    scope: String? = null,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
     val catalog = state.catalog
@@ -171,7 +176,25 @@ internal fun AdminMenuTab(
                 onDismiss = { sheet = null },
                 onSave = { input -> actions.onSaveCategory(current.category?.id, input) { sheet = null } },
             )
-        is MenuSheet.EditProduct ->
+        is MenuSheet.EditProduct -> {
+            val editing = current.product
+            val recipe =
+                if (editing != null && inventory != null && scope != null) {
+                    LaunchedEffect(scope, editing.id) { inventory.ensureLoaded(scope) }
+                    val inventoryState by inventory.uiState
+                    val known = inventoryState.products?.firstOrNull { it.id == editing.id }
+                    RecipeEntry(
+                        detail =
+                            when {
+                                known != null -> recipeSummary(known)
+                                inventoryState.products == null && inventoryState.error == null -> "Cargando…"
+                                else -> "Los insumos que gasta cada vez que se vende"
+                            },
+                        onOpen = { inventory.openRecipeFor(editing.id, editing.name) },
+                    )
+                } else {
+                    null
+                }
             ProductSheet(
                 product = current.product,
                 categories = catalog?.categories.orEmpty().sortedBy { it.order },
@@ -192,10 +215,20 @@ internal fun AdminMenuTab(
                     actions.onRemoveImage(product)
                     sheet = null
                 },
+                recipe = recipe,
             )
+            // La receta se abre encima de la hoja del producto; al guardarla o cerrarla se vuelve a él.
+            if (inventory != null) InventoryRecipeSheetHost(inventory, catalog?.products, colors, readOnly)
+        }
         null -> Unit
     }
 }
+
+/** El renglón «Receta» de la hoja del producto: cómo va su receta y qué hacer al tocarlo. */
+private class RecipeEntry(
+    val detail: String,
+    val onOpen: () -> Unit,
+)
 
 @Composable
 private fun MenuList(
@@ -817,6 +850,7 @@ private fun ProductSheet(
     isSchool: Boolean = false,
     onArchive: (Product) -> Unit = {},
     takesPreorders: Boolean = false,
+    recipe: RecipeEntry? = null,
 ) {
     val context = LocalContext.current
     // Un servidor que no conoce los días de preparación no los manda: sale solo en repostería o si ya los trae.
@@ -1340,6 +1374,24 @@ private fun ProductSheet(
                                     contentDescription = null,
                                     tint = colors.textMuted,
                                 )
+                            }
+                            recipe?.let { entry ->
+                                AdminRowDivider(colors)
+                                AdminRow(
+                                    title = "Receta",
+                                    colors = colors,
+                                    detail = entry.detail,
+                                    onClick = {
+                                        haptics.selection()
+                                        entry.onOpen()
+                                    },
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = colors.textMuted,
+                                    )
+                                }
                             }
                         }
                         error?.let { SheetError(it) }

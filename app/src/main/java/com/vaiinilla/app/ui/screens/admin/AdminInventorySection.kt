@@ -154,6 +154,21 @@ internal fun AdminInventorySection(
                 }
         }
     }
+    InventoryRecipeSheetHost(viewModel, catalog, colors, readOnly)
+    state.historyFor?.let { supply ->
+        HistorySheet(supply, state.history, colors, viewModel::closeHistory)
+    }
+}
+
+/** La hoja de la receta abierta, la misma desde Inventario › Recetas que desde el botón «Receta» del menú. */
+@Composable
+internal fun InventoryRecipeSheetHost(
+    viewModel: AdminInventoryViewModel,
+    catalog: List<Product>?,
+    colors: OperationalColors,
+    readOnly: Boolean,
+) {
+    val state by viewModel.uiState
     state.recipeProduct?.let { product ->
         RecipeSheet(
             product = product,
@@ -166,10 +181,19 @@ internal fun AdminInventorySection(
             onSave = viewModel::saveRecipe,
         )
     }
-    state.historyFor?.let { supply ->
-        HistorySheet(supply, state.history, colors, viewModel::closeHistory)
-    }
 }
+
+/** Cómo va la receta de un producto en una línea: si descuenta, para cuántos alcanza, su costo y su margen. */
+internal fun recipeSummary(product: InventoryProduct): String =
+    if (!product.hasRecipe) {
+        "Sin receta · no descuenta"
+    } else {
+        buildString {
+            product.enoughFor?.let { append("Alcanza para $it · ") }
+            append("costo ${moneyLabel(product.recipeCost)}")
+            product.margin?.let { append(" · margen ${formatQuantity(it)}%") }
+        }
+    }
 
 private fun qty(
     value: Double,
@@ -334,16 +358,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recipesTab(
                         AdminRow(
                             title = product.name,
                             colors = colors,
-                            detail =
-                                if (!product.hasRecipe) {
-                                    "Sin receta · no descuenta"
-                                } else {
-                                    buildString {
-                                        product.enoughFor?.let { append("Alcanza para $it · ") }
-                                        append("costo ${moneyLabel(product.recipeCost)}")
-                                        product.margin?.let { append(" · margen ${formatQuantity(it)}%") }
-                                    }
-                                },
+                            detail = recipeSummary(product),
                             onClick = { onOpen(product) },
                         ) {
                             when {

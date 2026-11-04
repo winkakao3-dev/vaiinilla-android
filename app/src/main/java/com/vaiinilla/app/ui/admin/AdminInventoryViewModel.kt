@@ -263,6 +263,37 @@ class AdminInventoryViewModel
             }
         }
 
+        /**
+         * Menú › hoja del producto: carga el inventario la primera vez que se abre una receta desde ahí, sin borrar
+         * lo que ya está cargado si es la misma tienda.
+         */
+        fun ensureLoaded(scope: String) {
+            val current = _uiState.value
+            if (scope != this.scope || (current.products == null && !current.loading)) onVisible(scope)
+        }
+
+        /** El botón «Receta» de la hoja del producto: abre la misma receta que Inventario › Recetas. */
+        fun openRecipeFor(
+            productId: Int,
+            name: String,
+        ) {
+            val known = _uiState.value.products?.firstOrNull { it.id == productId }
+            openRecipe(
+                known ?: InventoryProduct(
+                    id = productId,
+                    name = name,
+                    category = "",
+                    price = 0.0,
+                    available = true,
+                    soldOutByInventory = false,
+                    hasRecipe = false,
+                    enoughFor = null,
+                    recipeCost = 0.0,
+                    margin = null,
+                ),
+            )
+        }
+
         fun closeRecipe() = update { copy(recipeProduct = null, recipe = null, sheetError = null) }
 
         fun saveRecipe(lines: List<RecipeLine>) {
