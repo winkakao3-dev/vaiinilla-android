@@ -177,7 +177,25 @@ data class OrderDetail(
     val answerBy: Instant? = null,
     /** Encargo aceptado con tarjeta: hasta cuándo paga el cliente antes de que se cancele. */
     val payBy: Instant? = null,
+    /** Lo tomó el personal sin internet y llegó después (migración 161); `null` en un pedido normal. */
+    val offlineCapture: OfflineCapture? = null,
 )
+
+/** Cuándo y con qué folio provisional se tomó un pedido sin internet. */
+data class OfflineCapture(
+    val capturedAt: Instant?,
+    val localFolio: String?,
+)
+
+/**
+ * «Sin internet · M7-014 · 20:15»: Cocina y Caja lo reconocen como el que ya atendieron con el folio provisional y
+ * no lo preparan ni lo cobran otra vez.
+ */
+fun OrderDetail.offlineCaptureLabel(zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String? {
+    val capture = offlineCapture ?: return null
+    val time = capture.capturedAt?.atZone(zone)?.toLocalTime()?.let { "%02d:%02d".format(it.hour, it.minute) }
+    return listOfNotNull("Sin internet", capture.localFolio?.takeIf { it.isNotBlank() }, time).joinToString(" · ")
+}
 
 /** Cómo quedó el dinero de un pedido o artículo pagado que se canceló: lo que Caja debe hacer o ya no. */
 data class RefundOutcome(

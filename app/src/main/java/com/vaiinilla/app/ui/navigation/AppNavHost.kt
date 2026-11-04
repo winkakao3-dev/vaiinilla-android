@@ -243,6 +243,10 @@ fun AppNavHost(
     LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
     }
+    // Pedidos guardados sin internet de un modo que ya no está abierto (app reiniciada, otro modo): salen solos.
+    LaunchedEffect(authorizedAccessState.modes, authorizedAccessState.activeContext?.membershipId) {
+        waiterViewModel.rescueOfflineOrders(authorizedAccessState.modes)
+    }
     // «Avisos recibidos» explica cada aviso con la cuenta, el modo abierto y los modos que tenía el teléfono.
     val noticeContext = LocalContext.current
     LaunchedEffect(studentAuthState.session?.email, authorizedAccessState.modes, authorizedAccessState.activeContext) {

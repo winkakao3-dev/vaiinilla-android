@@ -1,6 +1,7 @@
 package com.vaiinilla.app.domain.offline
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.MissingAccessTokenException
 import com.vaiinilla.app.domain.counter.OfflineCounterRules
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import java.time.Duration
@@ -23,7 +24,7 @@ data class OfflineStaffOrder(
     val placeLabel: String,
     val summary: String,
     val capturedAt: Instant,
-    /** Por qué el servidor no lo aceptó. Con él ya no se reintenta: lo resuelve el personal. */
+    /** Por qué el servidor no lo aceptó. Ya no se reintenta solo: el personal toca Reintentar o lo resuelve. */
     val problem: String? = null,
 )
 
@@ -55,6 +56,41 @@ object OfflineStaffOrderRules {
     fun isConnectionProblem(error: Throwable): Boolean = OfflineCounterRules.isConnectionProblem(error)
 
     /**
+     * Al tomar el pedido: sin red o servidor caído sí se guarda; un 429 no (el servidor está arriba y solo pide
+     * esperar), así un pedido con internet no se salta las reglas del menú por ir marcado «sin conexión».
+     */
+    fun shouldKeepOffline(error: Throwable): Boolean =
+        isConnectionProblem(error) && apiError(error)?.httpStatus != HTTP_TOO_MANY_REQUESTS
+
+    /**
+     * Al mandar lo guardado: solo un rechazo con su motivo (4xx: producto, mesa, validación) lo aparta para que lo
+     * vea el personal. Todo lo demás (red, cualquier 5xx aunque traiga sobre, sesión vencida, 429, una respuesta
+     * que no se entendió) se vuelve a intentar con la misma llave; antes un 500 lo dejaba apartado para siempre.
+     */
+    fun shouldRetryLater(error: Throwable): Boolean {
+        if (isConnectionProblem(error)) return true
+        val causes = generateSequence(error) { it.cause }.take(8).toList()
+        if (causes.any { it is MissingAccessTokenException }) return true
+        val api = apiError(error)
+        if (api == null) {
+            // Un rechazo armado por el repositorio trae su código; cualquier otra cosa se reintenta.
+            val refused = causes.filterIsInstance<OrderRepositoryException>().firstOrNull() ?: return true
+            return refused.code in RETRYABLE_CODES
+        }
+        return api.httpStatus !in 400..499 || api.httpStatus in RETRYABLE_4XX || api.code in RETRYABLE_CODES
+    }
+
+    private fun apiError(error: Throwable): ApiClientException? =
+        generateSequence(error) { it.cause }.take(8).filterIsInstance<ApiClientException>().firstOrNull()
+
+    private const val HTTP_TOO_MANY_REQUESTS = 429
+
+    /** 401 sesión vencida, 408 se cortó, 429 saturado. */
+    private val RETRYABLE_4XX = setOf(401, 408, 429)
+
+    private val RETRYABLE_CODES = setOf("UNAUTHORIZED", "TOKEN_EXPIRED", "INTERNAL_ERROR", "SERVICE_UNAVAILABLE")
+
+    /**
      * El servidor ya tenía un pedido con esa llave y otro cuerpo: es el intento con red que sí había llegado.
      * («Sigue en proceso» también: ese intento está terminando de registrarse.)
      */
@@ -79,7 +115,7 @@ object OfflineStaffOrderRules {
         roleInitial: Char,
         deviceTag: Int,
         sequence: Int,
-    ): String = "${roleInitial.uppercaseChar()}${deviceTag.mod(100)}-${sequence.toString().padStart(3, '0')}"
+    ): String = "${roleInitial.uppercaseChar()}${deviceTag.mod(1000)}-${sequence.toString().padStart(3, '0')}"
 }
 
 /** De quién es la cola: una membresía del personal en un negocio. */
@@ -99,6 +135,9 @@ interface OfflineStaffOrderStore {
         snapshot: OfflineStaffOrdersSnapshot,
     )
 
-    /** Marca de dos dígitos de este teléfono para el folio local; la misma mientras no se reinstale la app. */
+    /** Marca de este teléfono (0 a 999) para el folio local; la misma mientras no se reinstale la app. */
     fun deviceTag(): Int
+
+    /** Las membresías que tienen algo guardado en este teléfono, para mandarlo aunque ya no esté abierto su modo. */
+    fun scopesWithOrders(): List<OfflineStaffScope> = emptyList()
 }

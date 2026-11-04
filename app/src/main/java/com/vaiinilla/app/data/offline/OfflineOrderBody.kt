@@ -17,6 +17,7 @@ object OfflineOrderBody {
         orderId: String,
         capturedAt: Instant,
         localFolio: String,
+        collectNow: Boolean = false,
     ): String {
         val original = Json.parseToJsonElement(body).jsonObject
         val capture =
@@ -25,6 +26,9 @@ object OfflineOrderBody {
                 put("capturado_en", JsonPrimitive(capturedAt.toString()))
                 put("folio_local", JsonPrimitive(localFolio))
             }
-        return JsonObject(original + ("sin_conexion" to capture)).toString()
+        val withCapture = original + ("sin_conexion" to capture)
+        // Caja ya recibió el efectivo: el pedido llega cobrado y entra al corte de su turno.
+        val collected = if (collectNow) withCapture + ("cobrar_ahora" to JsonPrimitive(true)) else withCapture
+        return JsonObject(collected).toString()
     }
 }

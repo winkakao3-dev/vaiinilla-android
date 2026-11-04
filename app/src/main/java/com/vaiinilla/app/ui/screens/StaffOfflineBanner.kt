@@ -149,7 +149,7 @@ internal fun OfflineOrdersCard(
                     )
                 }
             }
-            if (state.pending.isNotEmpty() && !state.isSending) {
+            if (!state.isSending) {
                 TextButton(onClick = onRetry) { Text("Reintentar", color = OfflineInk, fontWeight = FontWeight.Bold) }
             }
         }
