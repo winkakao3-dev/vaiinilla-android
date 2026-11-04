@@ -231,6 +231,14 @@ fun AppNavHost(
     val accountDeletionState by accountDeletionViewModel.state
     val currentVenueId = orderState.guestVenue?.establishment?.id
     val walletForVenue = walletRemoteState.visibleFor(currentVenueId)
+
+    // Quién usa la app en este momento; se lee al momento de usarlo porque «lista para pedir» vive en el repositorio.
+    fun currentIdentity(): AppIdentity =
+        appIdentity(
+            session = studentAuthState.session,
+            readyForCheckout = studentAuthViewModel::isReadyForCheckout,
+            activeContext = authorizedAccessState.activeContext,
+        )
     // La cola de Caja sin conexión vive todo el turno de Caja, no solo con la hoja de Alumnos abierta.
     val cashierShift =
         authorizedAccessState.activeContext
@@ -311,11 +319,7 @@ fun AppNavHost(
         studentAuthState.session?.emailVerified,
         orderState.guestVenue?.establishment?.id,
     ) {
-        if (
-            studentAuthState.session?.emailVerified == true &&
-            orderState.guestVenue != null &&
-            studentAuthViewModel.isReadyForCheckout()
-        ) {
+        if (currentIdentity().canUseClientAccount && orderState.guestVenue != null) {
             walletViewModel.refreshIfStale(currentVenueId)
         }
     }
@@ -330,11 +334,7 @@ fun AppNavHost(
         orderState.createdOrder?.summary?.id,
         resumeTick,
     ) {
-        val isClientInSchool =
-            orderState.operationalStatus?.isSchool == true &&
-                authorizedAccessState.activeContext == null &&
-                studentAuthState.session?.emailVerified == true &&
-                studentAuthViewModel.isReadyForCheckout()
+        val isClientInSchool = orderState.operationalStatus?.isSchool == true && currentIdentity().isClient
         guardianControlsViewModel.refresh(isClientInSchool)
     }
 
@@ -347,13 +347,7 @@ fun AppNavHost(
         authorizedAccessState.activeContext?.role,
         operationalState.role,
     ) {
-        if (
-            studentAuthState.session?.emailVerified == true &&
-            orderState.guestVenue != null &&
-            authorizedAccessState.activeContext == null &&
-            studentAuthViewModel.isReadyForCheckout() &&
-            operationalState.role == null
-        ) {
+        if (orderState.guestVenue != null && operationalState.role == null && currentIdentity().isClient) {
             operationalViewModel.setRole(OperationalRole.CLIENT)
         }
     }
@@ -925,10 +919,7 @@ fun AppNavHost(
                 }
 
                 StudentTab.WALLET -> {
-                    if (
-                        studentAuthState.session?.emailVerified == true &&
-                        studentAuthViewModel.isReadyForCheckout()
-                    ) {
+                    if (currentIdentity().canUseClientAccount) {
                         walletViewModel.refreshIfStale(currentVenueId)
                     }
                 }
