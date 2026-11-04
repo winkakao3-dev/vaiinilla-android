@@ -1,37 +1,21 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.screens.admin.AdminSegmented
-import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
-import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
-import com.vaiinilla.app.ui.screens.admin.AdminPanel
-import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
-import com.vaiinilla.app.domain.model.OrderDetail
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Undo
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,12 +34,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.repository.PendingRefund
 import com.vaiinilla.app.domain.repository.RefundMethod
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.operational.PendingRefundsUiState
+import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
+import com.vaiinilla.app.ui.screens.admin.AdminPanel
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 
 /** Por qué hay que devolver, como lo dice la web de Caja. */
 internal fun refundOriginLabel(origin: String): String =
@@ -177,15 +169,29 @@ internal fun CashierRefundsPage(
     ) {
         item(key = "pendientes") {
             AdminCapsLabel(
-                "Pendientes · ${state.refunds.size} · ${moneyLabel(com.vaiinilla.app.domain.model.Money.format(total))}",
+                "Pendientes · ${state.refunds.size} · ${moneyLabel(
+                    com.vaiinilla.app.domain.model.Money
+                        .format(total),
+                )}",
                 colors,
             )
         }
         items(state.refunds, key = { it.id }) { refund ->
-            RefundRow(refund, state, canConfirm, cashOpen, colors, orders.firstOrNull { it.summary.id == refund.orderId }, onConfirm)
+            RefundRow(
+                refund,
+                state,
+                canConfirm,
+                cashOpen,
+                colors,
+                orders.firstOrNull {
+                    it.summary.id == refund.orderId
+                },
+                onConfirm,
+            )
         }
     }
 }
+
 internal fun refundsEntryTitle(count: Int): String =
     if (count == 1) "1 devolución pendiente" else "$count devoluciones pendientes"
 
@@ -193,8 +199,12 @@ internal fun refundsEntryTitle(count: Int): String =
 internal fun refundsEntryDetail(refunds: List<PendingRefund>): String {
     refunds.singleOrNull()?.let { return "${moneyLabel(it.amount)} · ${refundOriginLabel(it.origin)}" }
     val total = refunds.sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
-    return "${moneyLabel(com.vaiinilla.app.domain.model.Money.format(total))} en total"
+    return "${moneyLabel(
+        com.vaiinilla.app.domain.model.Money
+            .format(total),
+    )} en total"
 }
+
 /**
  * Devoluciones pendientes (G08, H03): dinero que el negocio debe regresar a mano. Caja confirma cuándo y cómo
  * lo devolvió; en efectivo sale del cajón. Sin pendientes no ocupa lugar.
@@ -214,7 +224,10 @@ internal fun CashierRefundsSection(
             val total =
                 state.refunds.sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
             Text(
-                "DEVOLUCIONES · ${state.refunds.size} · ${moneyLabel(com.vaiinilla.app.domain.model.Money.format(total))}",
+                "DEVOLUCIONES · ${state.refunds.size} · ${moneyLabel(
+                    com.vaiinilla.app.domain.model.Money
+                        .format(total),
+                )}",
                 fontWeight = FontWeight.Black,
                 fontSize = 11.sp,
                 letterSpacing = 1.2.sp,
@@ -264,7 +277,11 @@ private fun RefundRow(
     val amount = moneyLabel(refund.amount)
     val title =
         when {
-            order != null -> listOfNotNull("Pedido #${order.summary.folio}", staffCustomerName(order)).joinToString(" · ")
+            order != null ->
+                listOfNotNull(
+                    "Pedido #${order.summary.folio}",
+                    staffCustomerName(order),
+                ).joinToString(" · ")
             refund.origin == "reserva_cancelada" -> "Reserva"
             else -> "Dinero por devolver"
         }
@@ -273,7 +290,10 @@ private fun RefundRow(
             Column(Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = colors.textPrimary)
                 Text(
-                    listOfNotNull(refundOriginLabel(refund.origin), receiptLocalTime(refund.createdAt)).joinToString(" · "),
+                    listOfNotNull(
+                        refundOriginLabel(refund.origin),
+                        receiptLocalTime(refund.createdAt),
+                    ).joinToString(" · "),
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textSecondary,
@@ -344,6 +364,7 @@ private fun RefundRow(
         }
     }
 }
+
 private const val REASON_MAX = 80
 
 private val RefundCoral = Color(0xFFE5645A)

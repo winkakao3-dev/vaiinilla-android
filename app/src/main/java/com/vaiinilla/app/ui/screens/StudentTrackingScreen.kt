@@ -128,9 +128,9 @@ import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.canAnnounceArrival
+import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.destinationDisplayLabel
 import com.vaiinilla.app.ui.components.isLiveRental
-import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.needsPickupQr
@@ -319,256 +319,264 @@ fun StudentTrackingScreen(
                         onCallWaiter = onCallWaiter,
                         onCancelWaiter = onCancelWaiter,
                     )
-                } else LazyColumn(
-                    state = if (inOverview) listState else detailListState,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding(),
-                    contentPadding =
-                        PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 8.dp,
-                            bottom = VaiinillaBottomNavClearance + 48.dp,
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    item {
-                        val deliveryFirst =
-                            animatedSelected == null && state.orders.firstOrNull { it.isActiveForCustomer }?.homeDelivery != null
-                        Column(modifier = Modifier.padding(start = 4.dp)) {
-                            if (deliveryFirst) OrdersSectionLabel("EN CURSO")
-                            Text(
-                                if (deliveryFirst) "Mis pedidos" else "Pedidos",
-                                color = colors.ink,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 30.sp,
-                                letterSpacing = (-1.2).sp,
-                            )
-                        }
-                    }
-                    // Con pedidos ya cargados, un error de red o de "Ya llegué" no se veía en ningún lado (PEDIDO-05).
-                    trackingNoticeFor(state)?.let { notice ->
-                        item(key = "tracking-notice") { TrackingNotice(notice) }
-                    }
-                    // Sin pedidos la mesa va arriba; con pedidos, debajo del que está en curso (Doop L10).
-                    if (animatedSelected == null && state.orders.isEmpty()) {
-                        item(key = "shared-table") { sharedTable() }
-                    }
-
-                    when {
-                        // Antes que el esqueleto: si la carga sigue fallando, el sondeo no lo hace parpadear.
-                        state.orders.isEmpty() && state.lastRefreshOk == false -> {
-                            item(key = "orders-error") {
-                                EmptyState(
-                                    icon = Icons.Outlined.ReceiptLong,
-                                    title = "No pudimos cargar tus pedidos",
-                                    message = "Revisa tu conexión e inténtalo otra vez.",
-                                    modifier =
-                                        Modifier.semantics(mergeDescendants = true) {
-                                            liveRegion = LiveRegionMode.Polite
-                                        },
-                                    actionLabel = "Reintentar",
-                                    onAction = onRefresh,
+                } else {
+                    LazyColumn(
+                        state = if (inOverview) listState else detailListState,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .statusBarsPadding(),
+                        contentPadding =
+                            PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 8.dp,
+                                bottom = VaiinillaBottomNavClearance + 48.dp,
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        item {
+                            val deliveryFirst =
+                                animatedSelected == null &&
+                                    state.orders.firstOrNull { it.isActiveForCustomer }?.homeDelivery != null
+                            Column(modifier = Modifier.padding(start = 4.dp)) {
+                                if (deliveryFirst) OrdersSectionLabel("EN CURSO")
+                                Text(
+                                    if (deliveryFirst) "Mis pedidos" else "Pedidos",
+                                    color = colors.ink,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 30.sp,
+                                    letterSpacing = (-1.2).sp,
                                 )
                             }
                         }
-                        state.orders.isEmpty() && state.loading -> {
-                            items(3) { OrderTrackingSkeleton() }
+                        // Con pedidos ya cargados, un error de red o de "Ya llegué" no se veía en ningún lado (PEDIDO-05).
+                        trackingNoticeFor(state)?.let { notice ->
+                            item(key = "tracking-notice") { TrackingNotice(notice) }
                         }
-                        state.orders.isEmpty() -> {
-                            item {
-                                EmptyState(
-                                    icon = Icons.Outlined.ReceiptLong,
-                                    title = "Sin pedidos activos",
-                                    message = "Cuando confirmes uno aparecerá aquí.",
-                                    actionLabel = "Pedir algo",
-                                    onAction = onOpenCatalog,
-                                )
-                            }
-                        }
-                        animatedSelected != null -> {
-                            item(key = "selected-${animatedSelected.summary.id}") {
-                                SwipeToDeleteOrder(
-                                    orderFolio = animatedSelected.summary.folio.toString(),
-                                    onDelete = { onDeleteOrder(animatedSelected.summary.id) },
-                                    enabled = !animatedSelected.isActiveForCustomer,
-                                ) {
-                                    OrderTrackingCard(
-                                        order = animatedSelected,
-                                        showEyebrow = true,
-                                        leadingImageUrl =
-                                            itemImageUrls(animatedSelected, orderState.catalog)
-                                                .firstOrNull { it != null },
-                                    )
-                                }
-                            }
-                            if (animatedSelected.canAnnounceArrival(
-                                    orderState.operationalStatus?.isDriveThru == true,
-                                )
-                            ) {
-                                item {
-                                    ArrivalNotice(
-                                        order = animatedSelected,
-                                        enabled = !state.acting,
-                                        onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
-                                    )
-                                }
-                            }
-                            item {
-                                TrackingSectionHead()
-                            }
-                            if (animatedSelected.summary.state.isTerminalWithoutDelivery) {
-                                // Cinco pasos pendientes de un pedido que ya no avanza confundían (PEDIDO-07).
-                                if (animatedSelected.summary.state != OrderState.CANCELED) {
-                                    item { ClosedOrderCard(animatedSelected) }
-                                }
-                            } else {
-                                item {
-                                    OrderTrackingTimeline(
-                                        current = animatedSelected.summary.state,
-                                        destination = animatedSelected.summary.destination,
-                                        paymentMethod = animatedSelected.summary.paymentMethod,
-                                        paymentStatus = animatedSelected.payment?.status,
-                                        spaceType = animatedSelected.summary.space?.type,
-                                        payAtEnd = animatedSelected.summary.payAtEnd,
-                                        skipsKitchen = animatedSelected.skipsKitchen,
-                                    )
-                                }
-                            }
-                            if (animatedSelected.summary.state == OrderState.CANCELED) {
-                                item { CancelReasonCard(animatedSelected) }
-                            }
-                            if (animatedSelected.homeDelivery != null) {
-                                item { HomeDeliveryOrderCard(animatedSelected) }
-                            }
-                            if (
-                                animatedSelected.summary.state == OrderState.READY &&
-                                animatedSelected.needsPickupQr(
-                                    orderState.operationalStatus?.deliveryRequiresQr != false,
-                                )
-                            ) {
-                                item { PickupCodeCard(animatedSelected) }
-                            }
-                            item {
-                                Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                            }
-                            item {
-                                OrderDetailSummary(order = animatedSelected)
-                            }
-                            item {
-                                Button(
-                                    onClick = onViewReceipt,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape =
-                                        androidx.compose.foundation.shape
-                                            .RoundedCornerShape(18.dp),
-                                    colors =
-                                        ButtonDefaults.buttonColors(
-                                            containerColor = colors.paper2,
-                                            contentColor = colors.ink,
-                                        ),
-                                ) {
-                                    Text("Ver recibo", fontWeight = FontWeight.Black)
-                                }
-                            }
-                        }
-                        else -> {
-                            val activeOrders = state.orders.filter { it.isActiveForCustomer }
-                            val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
-                            // Ya entregado, el pedido baja a ANTERIORES pero la mesa sigue: ahí se pide la cuenta.
-                            val tableCallOrder =
-                                if (activeOrders.any(canCallWaiter)) {
-                                    null
-                                } else {
-                                    pastOrders.firstOrNull { openTableCallSpaceId(it) != null }
-                                }
-                            val tableCallSpaceId = tableCallOrder?.let { openTableCallSpaceId(it) }
-                            if (tableCallOrder != null &&
-                                tableCallSpaceId != null &&
-                                onCurrentWaiterCall != null &&
-                                onCallWaiter != null &&
-                                onCancelWaiter != null
-                            ) {
-                                item(key = "table-call-${tableCallOrder.summary.id}") {
-                                    TableCallCard(
-                                        order = tableCallOrder,
-                                        spaceId = tableCallSpaceId,
-                                        onCurrent = onCurrentWaiterCall,
-                                        onCall = onCallWaiter,
-                                        onCancel = onCancelWaiter,
-                                    )
-                                }
-                            }
-                            if (activeOrders.isNotEmpty()) {
-                                items(activeOrders, key = { it.summary.id }) { order ->
-                                    SwipeToDeleteOrder(
-                                        orderFolio = order.summary.folio.toString(),
-                                        onDelete = { onDeleteOrder(order.summary.id) },
-                                        enabled = !order.isActiveForCustomer,
-                                    ) {
-                                        if (order.homeDelivery != null) {
-                                            DeliveryTrackingCard(order = order, onOpenFull = { onSelectOrder(order.summary.id) })
-                                        } else ActiveOrderCard(
-                                            order = order,
-                                            onOpenFull = { onSelectOrder(order.summary.id) },
-                                            showArrival =
-                                                order.canAnnounceArrival(
-                                                    orderState.operationalStatus?.isDriveThru == true,
-                                                ),
-                                            arrivalEnabled = !state.acting,
-                                            onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
-                                            deliveryRequiresQr =
-                                                orderState.operationalStatus?.deliveryRequiresQr != false,
-                                            canCallWaiter = canCallWaiter,
-                                            onCurrentWaiterCall = onCurrentWaiterCall,
-                                            onCallWaiter = onCallWaiter,
-                                            onCancelWaiter = onCancelWaiter,
-                                        )
-                                    }
-                                }
-                            }
+                        // Sin pedidos la mesa va arriba; con pedidos, debajo del que está en curso (Doop L10).
+                        if (animatedSelected == null && state.orders.isEmpty()) {
                             item(key = "shared-table") { sharedTable() }
-                            if (pastOrders.isNotEmpty()) {
-                                val pastEntries = groupOrdersBySession(pastOrders)
-                                val venueName = orderState.guestVenue?.establishment?.name
-                                val pastRow: @Composable (OrderDetail) -> Unit = { order ->
+                        }
+
+                        when {
+                            // Antes que el esqueleto: si la carga sigue fallando, el sondeo no lo hace parpadear.
+                            state.orders.isEmpty() && state.lastRefreshOk == false -> {
+                                item(key = "orders-error") {
+                                    EmptyState(
+                                        icon = Icons.Outlined.ReceiptLong,
+                                        title = "No pudimos cargar tus pedidos",
+                                        message = "Revisa tu conexión e inténtalo otra vez.",
+                                        modifier =
+                                            Modifier.semantics(mergeDescendants = true) {
+                                                liveRegion = LiveRegionMode.Polite
+                                            },
+                                        actionLabel = "Reintentar",
+                                        onAction = onRefresh,
+                                    )
+                                }
+                            }
+                            state.orders.isEmpty() && state.loading -> {
+                                items(3) { OrderTrackingSkeleton() }
+                            }
+                            state.orders.isEmpty() -> {
+                                item {
+                                    EmptyState(
+                                        icon = Icons.Outlined.ReceiptLong,
+                                        title = "Sin pedidos activos",
+                                        message = "Cuando confirmes uno aparecerá aquí.",
+                                        actionLabel = "Pedir algo",
+                                        onAction = onOpenCatalog,
+                                    )
+                                }
+                            }
+                            animatedSelected != null -> {
+                                item(key = "selected-${animatedSelected.summary.id}") {
                                     SwipeToDeleteOrder(
-                                        orderFolio = order.summary.folio.toString(),
-                                        onDelete = { onDeleteOrder(order.summary.id) },
+                                        orderFolio = animatedSelected.summary.folio.toString(),
+                                        onDelete = { onDeleteOrder(animatedSelected.summary.id) },
+                                        enabled = !animatedSelected.isActiveForCustomer,
                                     ) {
-                                        PastOrderRow(
-                                            order = order,
-                                            venueName = venueName,
-                                            onClick = { onSelectOrder(order.summary.id) },
+                                        OrderTrackingCard(
+                                            order = animatedSelected,
+                                            showEyebrow = true,
+                                            leadingImageUrl =
+                                                itemImageUrls(animatedSelected, orderState.catalog)
+                                                    .firstOrNull { it != null },
                                         )
                                     }
                                 }
-                                item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
-                                item(key = "section-past-group") {
-                                    PastOrdersGroup(
-                                        entries = if (showAllPast) pastEntries else pastEntries.take(3),
-                                        row = pastRow,
+                                if (animatedSelected.canAnnounceArrival(
+                                        orderState.operationalStatus?.isDriveThru == true,
                                     )
-                                }
-                                if (pastEntries.size > 3) {
-                                    item(key = "section-past-more") {
-                                        ShowMorePastOrdersButton(
-                                            hiddenCount = pastEntries.size - 3,
-                                            expanded = showAllPast,
-                                            onClick = {
-                                                haptics.impact()
-                                                showAllPast = !showAllPast
-                                            },
+                                ) {
+                                    item {
+                                        ArrivalNotice(
+                                            order = animatedSelected,
+                                            enabled = !state.acting,
+                                            onAnnounce = { onAnnounceArrival(animatedSelected.summary.id) },
                                         )
+                                    }
+                                }
+                                item {
+                                    TrackingSectionHead()
+                                }
+                                if (animatedSelected.summary.state.isTerminalWithoutDelivery) {
+                                    // Cinco pasos pendientes de un pedido que ya no avanza confundían (PEDIDO-07).
+                                    if (animatedSelected.summary.state != OrderState.CANCELED) {
+                                        item { ClosedOrderCard(animatedSelected) }
+                                    }
+                                } else {
+                                    item {
+                                        OrderTrackingTimeline(
+                                            current = animatedSelected.summary.state,
+                                            destination = animatedSelected.summary.destination,
+                                            paymentMethod = animatedSelected.summary.paymentMethod,
+                                            paymentStatus = animatedSelected.payment?.status,
+                                            spaceType = animatedSelected.summary.space?.type,
+                                            payAtEnd = animatedSelected.summary.payAtEnd,
+                                            skipsKitchen = animatedSelected.skipsKitchen,
+                                        )
+                                    }
+                                }
+                                if (animatedSelected.summary.state == OrderState.CANCELED) {
+                                    item { CancelReasonCard(animatedSelected) }
+                                }
+                                if (animatedSelected.homeDelivery != null) {
+                                    item { HomeDeliveryOrderCard(animatedSelected) }
+                                }
+                                if (
+                                    animatedSelected.summary.state == OrderState.READY &&
+                                    animatedSelected.needsPickupQr(
+                                        orderState.operationalStatus?.deliveryRequiresQr != false,
+                                    )
+                                ) {
+                                    item { PickupCodeCard(animatedSelected) }
+                                }
+                                item {
+                                    Text("Resumen", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                                }
+                                item {
+                                    OrderDetailSummary(order = animatedSelected)
+                                }
+                                item {
+                                    Button(
+                                        onClick = onViewReceipt,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape =
+                                            androidx.compose.foundation.shape
+                                                .RoundedCornerShape(18.dp),
+                                        colors =
+                                            ButtonDefaults.buttonColors(
+                                                containerColor = colors.paper2,
+                                                contentColor = colors.ink,
+                                            ),
+                                    ) {
+                                        Text("Ver recibo", fontWeight = FontWeight.Black)
                                     }
                                 }
                             }
-                            // El juego es para la espera de la comida: no aparece con un pago por
-                            // confirmar, una renta o un pedido que ya está listo para recoger.
-                            if (activeOrders.firstOrNull()?.isWaitingForFood == true) {
-                                item(key = "waiting-arcade") { WaitingArcadeCard() }
+                            else -> {
+                                val activeOrders = state.orders.filter { it.isActiveForCustomer }
+                                val pastOrders = state.orders.filterNot { it.isActiveForCustomer }
+                                // Ya entregado, el pedido baja a ANTERIORES pero la mesa sigue: ahí se pide la cuenta.
+                                val tableCallOrder =
+                                    if (activeOrders.any(canCallWaiter)) {
+                                        null
+                                    } else {
+                                        pastOrders.firstOrNull { openTableCallSpaceId(it) != null }
+                                    }
+                                val tableCallSpaceId = tableCallOrder?.let { openTableCallSpaceId(it) }
+                                if (tableCallOrder != null &&
+                                    tableCallSpaceId != null &&
+                                    onCurrentWaiterCall != null &&
+                                    onCallWaiter != null &&
+                                    onCancelWaiter != null
+                                ) {
+                                    item(key = "table-call-${tableCallOrder.summary.id}") {
+                                        TableCallCard(
+                                            order = tableCallOrder,
+                                            spaceId = tableCallSpaceId,
+                                            onCurrent = onCurrentWaiterCall,
+                                            onCall = onCallWaiter,
+                                            onCancel = onCancelWaiter,
+                                        )
+                                    }
+                                }
+                                if (activeOrders.isNotEmpty()) {
+                                    items(activeOrders, key = { it.summary.id }) { order ->
+                                        SwipeToDeleteOrder(
+                                            orderFolio = order.summary.folio.toString(),
+                                            onDelete = { onDeleteOrder(order.summary.id) },
+                                            enabled = !order.isActiveForCustomer,
+                                        ) {
+                                            if (order.homeDelivery != null) {
+                                                DeliveryTrackingCard(
+                                                    order = order,
+                                                    onOpenFull = { onSelectOrder(order.summary.id) },
+                                                )
+                                            } else {
+                                                ActiveOrderCard(
+                                                    order = order,
+                                                    onOpenFull = { onSelectOrder(order.summary.id) },
+                                                    showArrival =
+                                                        order.canAnnounceArrival(
+                                                            orderState.operationalStatus?.isDriveThru == true,
+                                                        ),
+                                                    arrivalEnabled = !state.acting,
+                                                    onAnnounceArrival = { onAnnounceArrival(order.summary.id) },
+                                                    deliveryRequiresQr =
+                                                        orderState.operationalStatus?.deliveryRequiresQr != false,
+                                                    canCallWaiter = canCallWaiter,
+                                                    onCurrentWaiterCall = onCurrentWaiterCall,
+                                                    onCallWaiter = onCallWaiter,
+                                                    onCancelWaiter = onCancelWaiter,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                item(key = "shared-table") { sharedTable() }
+                                if (pastOrders.isNotEmpty()) {
+                                    val pastEntries = groupOrdersBySession(pastOrders)
+                                    val venueName = orderState.guestVenue?.establishment?.name
+                                    val pastRow: @Composable (OrderDetail) -> Unit = { order ->
+                                        SwipeToDeleteOrder(
+                                            orderFolio = order.summary.folio.toString(),
+                                            onDelete = { onDeleteOrder(order.summary.id) },
+                                        ) {
+                                            PastOrderRow(
+                                                order = order,
+                                                venueName = venueName,
+                                                onClick = { onSelectOrder(order.summary.id) },
+                                            )
+                                        }
+                                    }
+                                    item(key = "section-past") { OrdersSectionLabel("ANTERIORES") }
+                                    item(key = "section-past-group") {
+                                        PastOrdersGroup(
+                                            entries = if (showAllPast) pastEntries else pastEntries.take(3),
+                                            row = pastRow,
+                                        )
+                                    }
+                                    if (pastEntries.size > 3) {
+                                        item(key = "section-past-more") {
+                                            ShowMorePastOrdersButton(
+                                                hiddenCount = pastEntries.size - 3,
+                                                expanded = showAllPast,
+                                                onClick = {
+                                                    haptics.impact()
+                                                    showAllPast = !showAllPast
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                                // El juego es para la espera de la comida: no aparece con un pago por
+                                // confirmar, una renta o un pedido que ya está listo para recoger.
+                                if (activeOrders.firstOrNull()?.isWaitingForFood == true) {
+                                    item(key = "waiting-arcade") { WaitingArcadeCard() }
+                                }
                             }
                         }
                     }
@@ -1049,6 +1057,7 @@ private fun SegmentedProgress(
         }
     }
 }
+
 internal val OrderTrackingCardBg = Color(0xFF292A27)
 internal val OrderTrackingCardText = Color(0xFFF5F2E8)
 
@@ -1129,7 +1138,13 @@ private fun ActiveOrderCard(
                 )
             }
             Text(
-                if (summary.state == OrderState.PREPARING && !order.isRental) "En cocina" else customerStateLabel(order),
+                if (summary.state == OrderState.PREPARING &&
+                    !order.isRental
+                ) {
+                    "En cocina"
+                } else {
+                    customerStateLabel(order)
+                },
                 color = OrderTrackingCardText,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
@@ -1630,7 +1645,10 @@ private fun TableSessionRows(
     val count = session.orders.size
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            "${session.orders.first().summary.space?.name ?: "Mesa"} · $count ${if (count == 1) "pedido" else "pedidos"}",
+            "${session.orders
+                .first()
+                .summary.space
+                ?.name ?: "Mesa"} · $count ${if (count == 1) "pedido" else "pedidos"}",
             color = LocalVaiinillaColors.current.muted,
             fontWeight = FontWeight.Black,
             fontSize = 12.sp,
@@ -1650,7 +1668,11 @@ internal fun pastOrderTitle(
 ): String {
     val summary = order.summary
     val lead = if (order.isRental) summary.space?.name ?: "Renta" else "#${summary.folio}"
-    val tail = venueName ?: order.items.firstOrNull()?.productName.takeUnless { order.isRental }
+    val tail =
+        venueName ?: order.items
+            .firstOrNull()
+            ?.productName
+            .takeUnless { order.isRental }
     return listOfNotNull(lead, tail).joinToString(" · ")
 }
 
@@ -1658,7 +1680,16 @@ internal fun pastOrderTitle(
 internal fun pastOrderSubtitle(order: OrderDetail): String {
     order.reservation?.takeIf { order.isRental }?.let { return rentalScheduleLabel(it) }
     val summary = order.summary
-    val where = destinationDisplayLabel(order).let { if (summary.space == null) it.replaceFirstChar { c -> c.lowercase() } else it }
+    val where =
+        destinationDisplayLabel(order).let {
+            if (summary.space ==
+                null
+            ) {
+                it.replaceFirstChar { c -> c.lowercase() }
+            } else {
+                it
+            }
+        }
     val count = order.items.sumOf { it.quantity }
     val what = if (count > 1) "$count artículos" else order.items.firstOrNull()?.productName
     return listOfNotNull(cremeMoment(summary.createdAt), where, what).joinToString(" · ")
@@ -1746,6 +1777,7 @@ private fun PastOrderRow(
         }
     }
 }
+
 internal fun itemImageUrls(
     order: OrderDetail,
     catalog: Catalog?,

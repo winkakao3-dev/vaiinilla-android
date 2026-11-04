@@ -1,12 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
-import com.vaiinilla.app.ui.screens.admin.coralText
-import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
-import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
-import com.vaiinilla.app.ui.screens.admin.AdminCoral
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.height
-import androidx.compose.ui.window.Dialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.snap
@@ -21,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -50,21 +45,25 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.school.NoServiceDay
 import com.vaiinilla.app.domain.school.SchoolDates
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
+import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
+import com.vaiinilla.app.ui.screens.admin.coralText
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
 import java.time.LocalDate
 
 /** El calendario de la escuela: qué se vende cada día, cuánto se apartó y los días sin servicio. */
@@ -273,7 +272,14 @@ private fun MenuEditor(
     if (products == null) {
         AdminHint("Cargando el menú…", colors)
     } else {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.cardInner).padding(horizontal = 12.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(20.dp),
+                ).background(colors.cardInner)
+                .padding(horizontal = 12.dp),
+        ) {
             products.filter { it.available }.forEachIndexed { index, product ->
                 if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
                 val isOn = product.id in current

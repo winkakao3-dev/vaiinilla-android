@@ -488,7 +488,12 @@ fun AuthBoxField(
                         .background(AuthStageColors.Accent),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Check, contentDescription = null, tint = AuthStageColors.AccentInk, modifier = Modifier.size(16.dp))
+                Icon(
+                    Icons.Outlined.Check,
+                    contentDescription = null,
+                    tint = AuthStageColors.AccentInk,
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
         if (password) {
@@ -630,7 +635,13 @@ fun AuthBanner(
                 .clip(RoundedCornerShape(16.dp))
                 .background(color.copy(alpha = 0.13f))
                 .then(
-                    if (title != null) Modifier.border(1.dp, color.copy(alpha = 0.32f), RoundedCornerShape(16.dp)) else Modifier,
+                    if (title !=
+                        null
+                    ) {
+                        Modifier.border(1.dp, color.copy(alpha = 0.32f), RoundedCornerShape(16.dp))
+                    } else {
+                        Modifier
+                    },
                 ).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -644,7 +655,13 @@ fun AuthBanner(
         Column {
             if (title != null) {
                 Text(title, color = color, fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.Black)
-                Text(message, color = AuthStageColors.Ink2, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    message,
+                    color = AuthStageColors.Ink2,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             } else {
                 Text(message, color = color, fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold)
             }
@@ -745,7 +762,13 @@ fun AuthNumberedSteps(
                     Text("${index + 1}", color = AuthStageColors.Ink, fontSize = 12.sp, fontWeight = FontWeight.Black)
                 }
                 Spacer(Modifier.width(12.dp))
-                Text(step, color = AuthStageColors.Ink2, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    step,
+                    color = AuthStageColors.Ink2,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
     }
@@ -796,7 +819,11 @@ fun AuthCheckCard(
                     .size(26.dp)
                     .clip(RoundedCornerShape(9.dp))
                     .background(boxFill)
-                    .border(2.dp, if (checked) AuthStageColors.Accent else AuthStageColors.Muted, RoundedCornerShape(9.dp)),
+                    .border(
+                        2.dp,
+                        if (checked) AuthStageColors.Accent else AuthStageColors.Muted,
+                        RoundedCornerShape(9.dp),
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

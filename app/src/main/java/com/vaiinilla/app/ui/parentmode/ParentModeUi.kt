@@ -1,11 +1,5 @@
 package com.vaiinilla.app.ui.parentmode
 
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -23,17 +17,21 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
@@ -64,6 +62,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.domain.guardianship.GuardianLinkCode
 import com.vaiinilla.app.domain.guardianship.PrivacyNotice
@@ -131,7 +131,12 @@ internal fun ParentPage(
                         .semantics { contentDescription = "Volver" },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+                Icon(
+                    Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                    contentDescription = null,
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(22.dp),
+                )
             }
             Column(
                 modifier =
@@ -144,9 +149,21 @@ internal fun ParentPage(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Column {
-                    Text(title, fontWeight = FontWeight.Black, fontSize = 28.sp, letterSpacing = (-1).sp, color = colors.textPrimary)
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 28.sp,
+                        letterSpacing = (-1).sp,
+                        color = colors.textPrimary,
+                    )
                     if (subtitle != null) {
-                        Text(subtitle, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
+                        Text(
+                            subtitle,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
                     }
                 }
                 content()
@@ -162,6 +179,7 @@ internal fun ParentPage(
         }
     }
 }
+
 /** Las hojas del Modo Padre: título, subtítulo, cerrar, el contenido con scroll y el botón fijo abajo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,7 +214,13 @@ internal fun ParentSheet(
                     Spacer(Modifier.width(12.dp))
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontWeight = FontWeight.Black, fontSize = 24.sp, letterSpacing = (-0.6).sp, color = colors.textPrimary)
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 24.sp,
+                        letterSpacing = (-0.6).sp,
+                        color = colors.textPrimary,
+                    )
                     if (subtitle != null) {
                         Text(
                             subtitle,

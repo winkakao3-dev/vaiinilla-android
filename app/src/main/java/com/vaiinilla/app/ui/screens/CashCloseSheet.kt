@@ -1,39 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
-import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
-import com.vaiinilla.app.ui.components.animateSelectionColor
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,14 +14,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -62,16 +45,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.CloseCashUi
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.math.BigDecimal
 
 /** Efectivo contado válido: número no negativo con hasta dos decimales, normalizado a "725.50". */
@@ -156,6 +155,7 @@ fun CashCloseContent(
     var coins by remember { mutableStateOf("") }
     val normalized = normalizeCountedCash(amount)
     val haptics = rememberVaiinillaHaptics()
+
     fun syncFromCounter() {
         billCountTotal(billCounts, coins)?.let { amount = it }
     }
@@ -340,7 +340,12 @@ private fun CashWarningCard(
                 .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = CashWarnInk, modifier = Modifier.size(22.dp))
+        Icon(
+            Icons.Outlined.WarningAmber,
+            contentDescription = null,
+            tint = CashWarnInk,
+            modifier = Modifier.size(22.dp),
+        )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = Color(0xFFFAF7F0))
             Text(body, fontSize = 13.sp, lineHeight = 18.sp, color = Color(0xFFD9D2BF))
@@ -539,7 +544,12 @@ fun CashOpenContent(
                     .background(colors.cardBackground),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Lock, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(30.dp))
+            Icon(
+                Icons.Outlined.Lock,
+                contentDescription = null,
+                tint = colors.textPrimary,
+                modifier = Modifier.size(30.dp),
+            )
         }
         Text(
             "Abrir caja",

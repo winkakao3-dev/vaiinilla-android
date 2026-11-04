@@ -1,10 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.domain.admin.SpaceDraft
-import com.vaiinilla.app.ui.components.physicalPress
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.foundation.layout.width
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -36,8 +32,6 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +50,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
+import com.vaiinilla.app.domain.admin.SpaceDraft
 import com.vaiinilla.app.domain.admin.SpaceRules
 import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.model.MoneyInput
@@ -72,6 +69,7 @@ import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.screens.ActionPill
 import com.vaiinilla.app.ui.screens.ChipButton
@@ -357,7 +355,8 @@ private fun boardStatus(table: com.vaiinilla.app.domain.repository.BoardTable): 
         table.call != null -> "Llamando" to AdminBadgeTone.DANGER
         table.orders.any { it.payAtEnd || it.paymentPending } -> "Cuenta abierta" to AdminBadgeTone.WARN
         table.orders.isNotEmpty() -> "Pidiendo" to AdminBadgeTone.OK
-        table.availability != null && table.availability.state != com.vaiinilla.app.domain.repository.SpaceAvailabilityState.LIBRE ->
+        table.availability != null &&
+            table.availability.state != com.vaiinilla.app.domain.repository.SpaceAvailabilityState.LIBRE ->
             "Rentada" to AdminBadgeTone.OK
         else -> "Libre" to AdminBadgeTone.NEUTRAL
     }
@@ -646,7 +645,10 @@ private fun CreateSheet(
             val first = from.toIntOrNull() ?: 0
             if (count in 1..SpaceRules.MAX_BATCH && prefix.isNotBlank()) {
                 Text("Se van a crear", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     (0 until minOf(count, 12)).forEach { index ->
                         Text(
                             "${prefix.trim()} ${first + index}",
@@ -761,9 +763,18 @@ private fun EditSheet(
         }
         if (!space.isCourt) {
             Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 SpaceType.entries.forEach { option ->
-                    ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option.wire == space.typeWire) {
+                    ChipButton(
+                        label = option.label,
+                        enabled = !saving,
+                        colors = colors,
+                        selected =
+                            option.wire == space.typeWire,
+                    ) {
                         viewModel.setType(space, option)
                     }
                 }
@@ -796,8 +807,14 @@ private fun EditSheet(
                     keyboardType = KeyboardType.Decimal,
                 )
                 Text("Mínimo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChipButton(label = "Sin mínimo", enabled = !saving, colors = colors, selected = minimum == null) { minimum = null }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ChipButton(label = "Sin mínimo", enabled = !saving, colors = colors, selected = minimum == null) {
+                        minimum =
+                            null
+                    }
                     SpaceRules.MINIMUM_RENTALS.forEach { minutes ->
                         ChipButton(
                             label = SpaceRules.minimumLabel(minutes),
@@ -830,19 +847,33 @@ private fun EditSheet(
                 )
             }
             Text("Características", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                (features + SpaceRules.FEATURE_SUGGESTIONS.filter { s -> features.none { it.equals(s, ignoreCase = true) } })
-                    .forEach { feature ->
-                        val on = features.any { it.equals(feature, ignoreCase = true) }
-                        ChipButton(
-                            label = feature,
-                            enabled = !saving && (on || features.size < SpaceRules.MAX_FEATURES),
-                            colors = colors,
-                            selected = on,
-                        ) {
-                            if (on) features.removeAll { it.equals(feature, ignoreCase = true) } else features.add(feature)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                (
+                    features +
+                        SpaceRules.FEATURE_SUGGESTIONS.filter { s -> features.none { it.equals(s, ignoreCase = true) } }
+                ).forEach { feature ->
+                    val on = features.any { it.equals(feature, ignoreCase = true) }
+                    ChipButton(
+                        label = feature,
+                        enabled = !saving && (on || features.size < SpaceRules.MAX_FEATURES),
+                        colors = colors,
+                        selected = on,
+                    ) {
+                        if (on) {
+                            features.removeAll {
+                                it.equals(
+                                    feature,
+                                    ignoreCase = true,
+                                )
+                            }
+                        } else {
+                            features.add(feature)
                         }
                     }
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OperationalField(
@@ -885,7 +916,11 @@ private fun EditSheet(
                     colors = colors,
                 ) { picker.launch("image/*") }
                 if (space.imageUrl != null) {
-                    ChipButton(label = "Quitar foto", enabled = !saving, colors = colors) { viewModel.removeImage(space) }
+                    ChipButton(
+                        label = "Quitar foto",
+                        enabled = !saving,
+                        colors = colors,
+                    ) { viewModel.removeImage(space) }
                 }
             }
         }
@@ -939,7 +974,13 @@ private fun ReservationsCard(
                 colors = colors,
                 detail =
                     (reservation.courtName?.let { "$it · " } ?: "") +
-                        if (pending) "Paga al llegar · ${moneyLabel(reservation.amount)}" else reservationLabel(reservation.state),
+                        if (pending) {
+                            "Paga al llegar · ${moneyLabel(
+                                reservation.amount,
+                            )}"
+                        } else {
+                            reservationLabel(reservation.state)
+                        },
                 leading = {
                     Column(Modifier.width(50.dp)) {
                         Text(
@@ -965,8 +1006,19 @@ private fun ReservationsCard(
             }
             if (pending) {
                 Row(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AdminSecondaryButton("Liberar", colors, Modifier.weight(1f), enabled = enabled) { onRelease(reservation) }
-                    AdminSecondaryButton("Cobrar", colors, Modifier.weight(1f), filled = true, enabled = enabled) { onCharge(reservation) }
+                    AdminSecondaryButton(
+                        "Liberar",
+                        colors,
+                        Modifier.weight(1f),
+                        enabled = enabled,
+                    ) { onRelease(reservation) }
+                    AdminSecondaryButton(
+                        "Cobrar",
+                        colors,
+                        Modifier.weight(1f),
+                        filled = true,
+                        enabled = enabled,
+                    ) { onCharge(reservation) }
                 }
             }
         }
@@ -979,7 +1031,12 @@ private fun ReservationsCard(
                 leading = {
                     Column(Modifier.width(50.dp)) {
                         Text(start, fontSize = 14.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-                        Text(hoursLabel(minutes), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textMuted)
+                        Text(
+                            hoursLabel(minutes),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textMuted,
+                        )
                     }
                 },
             ) { AdminBadge("Libre", colors) }
@@ -1005,7 +1062,11 @@ private fun freeGaps(
     if (closing <= opening) return emptyList()
     val last = reservations.maxOfOrNull { it.end.atZone(zone).toLocalTime() } ?: return emptyList()
     val from = maxOf(last, opening)
-    val minutes = java.time.Duration.between(from, closing).toMinutes().toInt()
+    val minutes =
+        java.time.Duration
+            .between(from, closing)
+            .toMinutes()
+            .toInt()
     return if (minutes >= schedule.blockMinutes) listOf(ReservationTimeFormat.format(from) to minutes) else emptyList()
 }
 
@@ -1036,8 +1097,19 @@ private fun ChargeSheet(
         )
         AdminHint("Se cobra en efectivo y necesita la caja abierta. Las rentas se cobran sin propina.", colors)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, modifier = Modifier.weight(1f))
-            Text(moneyLabelCents(reservation.amount), fontSize = 26.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+            Text(
+                "Total",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textSecondary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                moneyLabelCents(reservation.amount),
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+            )
         }
         AdminSheetError(error)
         AdminPrimaryButton(
@@ -1133,7 +1205,11 @@ private fun ScheduleCard(
         }
         val draft =
             ReservationSchedule(opening, closing, days.toIntOrNull() ?: -1, weekDays.sorted(), block)
-        AdminPrimaryButton(title = "Guardar horario", colors = colors, enabled = enabled && draft != saved) { onSave(draft) }
+        AdminPrimaryButton(
+            title = "Guardar horario",
+            colors = colors,
+            enabled = enabled && draft != saved,
+        ) { onSave(draft) }
     }
 }
 

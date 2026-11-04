@@ -490,7 +490,12 @@ internal fun QrScannerOverlay(
                             .semantics { contentDescription = "Cerrar" },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Outlined.Close, contentDescription = null, tint = ScannerInk, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = null,
+                        tint = ScannerInk,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
                 if (topLabel != null) {
                     Text(topLabel, color = ScannerInk, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
@@ -501,23 +506,25 @@ internal fun QrScannerOverlay(
                     Spacer(Modifier.size(40.dp))
                 }
             }
-            if (topLabel == null) Text(
-                title,
-                color = ScannerInk,
-                fontSize = 26.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = (-1).sp,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 30.dp, start = 20.dp, end = 20.dp)
-                        .graphicsLayer {
-                            alpha = appear.value
-                            translationY = (1f - appear.value) * 10.dp.toPx()
-                        },
-            )
+            if (topLabel == null) {
+                Text(
+                    title,
+                    color = ScannerInk,
+                    fontSize = 26.sp,
+                    lineHeight = 30.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 30.dp, start = 20.dp, end = 20.dp)
+                            .graphicsLayer {
+                                alpha = appear.value
+                                translationY = (1f - appear.value) * 10.dp.toPx()
+                            },
+                )
+            }
             subtitle?.let {
                 Text(
                     it,
@@ -538,7 +545,18 @@ internal fun QrScannerOverlay(
                 contentAlignment = Alignment.TopCenter,
             ) {
                 // Con el teclado arriba ya no cabe: el marco se encoge con la hoja y se desvanece antes de estorbar.
-                val side = minOf(if (topLabel != null) 210.dp else 250.dp, maxHeight - if (topLabel != null) 80.dp else 46.dp, maxWidth - 40.dp)
+                val side =
+                    minOf(
+                        if (topLabel !=
+                            null
+                        ) {
+                            210.dp
+                        } else {
+                            250.dp
+                        },
+                        maxHeight - if (topLabel != null) 80.dp else 46.dp,
+                        maxWidth - 40.dp,
+                    )
                 if (side >= MinFrameSide) {
                     val room = ((side - MinFrameSide) / 60.dp).coerceIn(0f, 1f)
                     ScanFrame(
@@ -561,7 +579,11 @@ internal fun QrScannerOverlay(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 26.dp + side + 12.dp, start = 20.dp, end = 20.dp).graphicsLayer { alpha = appear.value },
+                            modifier =
+                                Modifier.padding(top = 26.dp + side + 12.dp, start = 20.dp, end = 20.dp).graphicsLayer {
+                                    alpha =
+                                        appear.value
+                                },
                         )
                     }
                 }
@@ -753,7 +775,12 @@ private fun TableCodeSheet(
                 if (complete) submit(next)
             },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done, autoCorrectEnabled = false),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                    autoCorrectEnabled = false,
+                ),
             keyboardActions = KeyboardActions(onDone = { if (code.length == TABLE_CODE_LENGTH) submit(code) }),
             modifier =
                 Modifier
@@ -801,7 +828,12 @@ private fun TableCodeSheet(
                     .background(ScannerTile),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Place, contentDescription = null, tint = ScannerInk, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Outlined.Place,
+                    contentDescription = null,
+                    tint = ScannerInk,
+                    modifier = Modifier.size(20.dp),
+                )
             }
             Column(Modifier.weight(1f)) {
                 Text("Pedir sin mesa", color = ScannerInk, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
@@ -816,7 +848,12 @@ private fun TableCodeSheet(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = ScannerMuted, modifier = Modifier.size(18.dp))
+            Icon(
+                Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = ScannerMuted,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

@@ -15,29 +15,18 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
-import com.vaiinilla.app.domain.guardianship.compactMoney
-import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import java.math.BigDecimal
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,27 +38,37 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentControls
 import com.vaiinilla.app.domain.guardianship.TypedAmount
+import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.school.SchoolAllergen
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.math.BigDecimal
 
 /** Las reglas puras de la hoja de controles: qué se valida y qué se manda. */
 internal object ChildControlsRules {
@@ -205,7 +204,10 @@ internal fun ChildControlsSheet(
                     ControlTitle("Límite por día")
                     ControlNote(
                         limitProblem
-                            ?: ChildControlsRules.zeroNote(dailyLimit, "Con \$0 ${child.firstName} no puede comprar nada sin ti.")
+                            ?: ChildControlsRules.zeroNote(
+                                dailyLimit,
+                                "Con \$0 ${child.firstName} no puede comprar nada sin ti.",
+                            )
                             ?: "Lo más que puede gastar al día",
                         isError = limitProblem != null,
                     )
@@ -226,20 +228,36 @@ internal fun ChildControlsSheet(
             ControlNote("Se le muestran bloqueadas con el motivo")
             ChipFlow {
                 allergens.sortedBy { it.label }.forEach { allergen ->
-                    PillChip("${allergen.label} ×", PillStyle.Allergy, enabled = principal, description = "Quitar ${allergen.label}") {
+                    PillChip(
+                        "${allergen.label} ×",
+                        PillStyle.Allergy,
+                        enabled = principal,
+                        description = "Quitar ${allergen.label}",
+                    ) {
                         allergens = allergens - allergen
                         touched()
                     }
                 }
                 if (showAllAllergens) {
                     SchoolAllergen.entries.filterNot { it in allergens }.forEach { allergen ->
-                        PillChip("+ ${allergen.label}", PillStyle.Off, enabled = principal, description = "Agregar ${allergen.label}") {
+                        PillChip(
+                            "+ ${allergen.label}",
+                            PillStyle.Off,
+                            enabled = principal,
+                            description = "Agregar ${allergen.label}",
+                        ) {
                             allergens = allergens + allergen
                             touched()
                         }
                     }
                 } else if (principal && allergens.size < SchoolAllergen.entries.size) {
-                    PillChip("+ Otra", PillStyle.Off, enabled = true, description = "Agregar otra alergia", tag = "controls-more-allergens") {
+                    PillChip(
+                        "+ Otra",
+                        PillStyle.Off,
+                        enabled = true,
+                        description = "Agregar otra alergia",
+                        tag = "controls-more-allergens",
+                    ) {
                         showAllAllergens = true
                     }
                 }
@@ -252,8 +270,14 @@ internal fun ChildControlsSheet(
                 ChipFlow {
                     categories.forEach { category ->
                         val on = category.id in blockedCategories
-                        PillChip(category.name, if (on) PillStyle.On else PillStyle.Off, enabled = principal, selected = on) {
-                            blockedCategories = if (on) blockedCategories - category.id else blockedCategories + category.id
+                        PillChip(
+                            category.name,
+                            if (on) PillStyle.On else PillStyle.Off,
+                            enabled = principal,
+                            selected = on,
+                        ) {
+                            blockedCategories =
+                                if (on) blockedCategories - category.id else blockedCategories + category.id
                             touched()
                         }
                     }
@@ -264,10 +288,21 @@ internal fun ChildControlsSheet(
             val threshold = TypedAmount.parse(lowBalance)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-                    ControlTitle(if (threshold != null) "Avísame si baja de ${compactMoney(threshold)}" else "Avísame si su saldo baja")
+                    ControlTitle(
+                        if (threshold !=
+                            null
+                        ) {
+                            "Avísame si baja de ${compactMoney(threshold)}"
+                        } else {
+                            "Avísame si su saldo baja"
+                        },
+                    )
                     ControlNote(
                         lowProblem
-                            ?: ChildControlsRules.zeroNote(lowBalance, "Con \$0 no te avisamos nunca; apágalo si no quieres aviso.")
+                            ?: ChildControlsRules.zeroNote(
+                                lowBalance,
+                                "Con \$0 no te avisamos nunca; apágalo si no quieres aviso.",
+                            )
                             ?: "Te llega un aviso para recargarle",
                         isError = lowProblem != null,
                     )
@@ -293,11 +328,23 @@ internal fun ChildControlsSheet(
             }
             AnimatedVisibility(
                 visible = threshold != null,
-                enter = if (reduced) fadeIn(snap()) else fadeIn() + expandVertically(spring(dampingRatio = 0.86f, stiffness = 380f)),
+                enter =
+                    if (reduced) {
+                        fadeIn(snap())
+                    } else {
+                        fadeIn() +
+                            expandVertically(spring(dampingRatio = 0.86f, stiffness = 380f))
+                    },
                 exit = if (reduced) fadeOut(snap()) else fadeOut() + shrinkVertically(spring(stiffness = 500f)),
             ) {
                 Row(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
-                    MoneyStepper(value = threshold, emptyLabel = "—", enabled = true, tag = "controls-low", allowEmpty = false) {
+                    MoneyStepper(
+                        value = threshold,
+                        emptyLabel = "—",
+                        enabled = true,
+                        tag = "controls-low",
+                        allowEmpty = false,
+                    ) {
                         lowBalance = TypedAmount.editable(it)
                         touched()
                     }
@@ -313,7 +360,13 @@ internal fun ChildControlsSheet(
                 colors = colors,
                 placeholder = "Por ejemplo: que siempre se lleve una fruta",
                 supporting =
-                    if (notes.length > ChildControlsRules.NOTES_LIMIT) "Hasta ${ChildControlsRules.NOTES_LIMIT} letras." else null,
+                    if (notes.length >
+                        ChildControlsRules.NOTES_LIMIT
+                    ) {
+                        "Hasta ${ChildControlsRules.NOTES_LIMIT} letras."
+                    } else {
+                        null
+                    },
                 isError = notes.length > ChildControlsRules.NOTES_LIMIT,
                 singleLine = false,
                 minLines = 2,
@@ -382,7 +435,12 @@ private fun MoneyStepper(
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
     Row(
-        modifier = Modifier.height(40.dp).clip(RoundedCornerShape(percent = 50)).background(colors.line).testTag(tag),
+        modifier =
+            Modifier
+                .height(40.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(colors.line)
+                .testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StepButton("−", "Bajar", enabled && (value != null && (allowEmpty || value > STEP))) {
@@ -396,7 +454,10 @@ private fun MoneyStepper(
                 if (reduced) {
                     fadeIn(snap()) togetherWith fadeOut(snap())
                 } else {
-                    (fadeIn(spring(stiffness = 500f)) + slideInVertically(spring(dampingRatio = 0.7f, stiffness = 500f)) { it / 2 }) togetherWith
+                    (
+                        fadeIn(spring(stiffness = 500f)) +
+                            slideInVertically(spring(dampingRatio = 0.7f, stiffness = 500f)) { it / 2 }
+                    ) togetherWith
                         (fadeOut(spring(stiffness = 800f)) + slideOutVertically(spring(stiffness = 800f)) { -it / 2 })
                 }
             },

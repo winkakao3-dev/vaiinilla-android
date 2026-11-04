@@ -1,8 +1,5 @@
 package com.vaiinilla.app.ui.admin
 
-import java.time.Instant
-import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.domain.repository.CashLastClose
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -24,10 +21,12 @@ import com.vaiinilla.app.domain.model.HomeOrderBoard
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.AdminRepository
 import com.vaiinilla.app.domain.repository.AdminSpacesRepository
 import com.vaiinilla.app.domain.repository.AdminStoreRepository
+import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
@@ -40,6 +39,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
@@ -264,7 +264,14 @@ class AdminViewModel
                                 cashLoaded = true,
                                 cashCheckFailed = false,
                             )
-                        if (it != null) loadCashOrders(it.openedAt) else _uiState.value = _uiState.value.copy(cashOrders = emptyList())
+                        if (it !=
+                            null
+                        ) {
+                            loadCashOrders(it.openedAt)
+                        } else {
+                            _uiState.value =
+                                _uiState.value.copy(cashOrders = emptyList())
+                        }
                     }.onFailure {
                         if (!_uiState.value.cashLoaded) _uiState.value = _uiState.value.copy(cashCheckFailed = true)
                     }
@@ -284,7 +291,10 @@ class AdminViewModel
                                     (summary.chargedMethod == null && summary.paymentMethod == PaymentMethod.CASH)
                             val charged = summary.state !in NOT_CHARGED
                             val created = runCatching { Instant.parse(summary.createdAt) }.getOrNull()
-                            paidInCash && charged && !summary.paymentPending && (since == null || created == null || !created.isBefore(since))
+                            paidInCash &&
+                                charged &&
+                                !summary.paymentPending &&
+                                (since == null || created == null || !created.isBefore(since))
                         },
                 )
         }
@@ -538,7 +548,10 @@ class AdminViewModel
                 withContext(Dispatchers.IO) {
                     adminRepository.orders(AdminOrderFilter.DELIVERED.states, null)
                 }.getOrNull() ?: return
-            val today = java.time.LocalDate.now(BusinessTime.zone).toString()
+            val today =
+                java.time.LocalDate
+                    .now(BusinessTime.zone)
+                    .toString()
             _uiState.value =
                 _uiState.value.copy(deliveredToday = page.orders.filter { it.summary.operationalDate == today })
         }

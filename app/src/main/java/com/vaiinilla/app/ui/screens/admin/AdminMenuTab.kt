@@ -1,13 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.PaddingValues
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,21 +16,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.outlined.Add
@@ -48,11 +45,11 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -80,6 +77,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,7 +97,6 @@ import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
-import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -374,23 +371,25 @@ private fun MenuList(
                 }
             }
         }
-        if (!showingArchived) products.chunked(2).forEachIndexed { index, pair ->
-            item(key = "fila-${if (showingArchived) "a" else selected?.id}-${pair.first().id}") {
-                Row(
-                    Modifier
-                        .animateItem()
-                        .adminRise(2)
-                        .padding(start = 16.dp, end = 16.dp, top = if (index == 0) 16.dp else 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    pair.forEach { product ->
-                        Box(Modifier.weight(1f)) {
-                            AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
-                                onOpen(MenuSheet.EditProduct(product))
+        if (!showingArchived) {
+            products.chunked(2).forEachIndexed { index, pair ->
+                item(key = "fila-${if (showingArchived) "a" else selected?.id}-${pair.first().id}") {
+                    Row(
+                        Modifier
+                            .animateItem()
+                            .adminRise(2)
+                            .padding(start = 16.dp, end = 16.dp, top = if (index == 0) 16.dp else 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        pair.forEach { product ->
+                            Box(Modifier.weight(1f)) {
+                                AdminProductCard(product, colors, readOnly, saving, actions, isSchool) {
+                                    onOpen(MenuSheet.EditProduct(product))
+                                }
                             }
                         }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -727,9 +726,17 @@ private fun CategorySheet(
         )
         if (category == null) {
             AdminFieldLabel("Ideas", colors)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 listOf("Bebidas", "Postres", "Comida", "Galletas").forEach { idea ->
-                    ChipButton(label = idea, enabled = !saving, colors = colors, selected = name == idea) { name = idea }
+                    ChipButton(
+                        label = idea,
+                        enabled = !saving,
+                        colors = colors,
+                        selected = name == idea,
+                    ) { name = idea }
                 }
             }
         } else {
@@ -754,6 +761,7 @@ private fun CategorySheet(
         }
     }
 }
+
 /** Borrador editable de un grupo de opciones; los números se guardan como texto mientras se escriben. */
 private class GroupDraft(
     val id: Int?,
@@ -944,7 +952,10 @@ private fun ProductSheet(
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors) { optionsOpen = false }
+                        AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors) {
+                            optionsOpen =
+                                false
+                        }
                         Text(
                             name.ifBlank { "Nuevo producto" },
                             fontSize = 17.sp,
@@ -962,7 +973,12 @@ private fun ProductSheet(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Opciones y extras", fontSize = 18.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                            Text(
+                                "Opciones y extras",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                color = colors.textPrimary,
+                            )
                             Text(
                                 "Lo que el cliente elige al pedir este producto.",
                                 fontSize = 13.sp,
@@ -1089,7 +1105,12 @@ private fun ProductSheet(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textSecondary,
-                            modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, enabled = !saving, onClick = onDismiss),
+                            modifier =
+                                Modifier.physicalPress(
+                                    scale = PhysicalPressScale.Small,
+                                    enabled = !saving,
+                                    onClick = onDismiss,
+                                ),
                         )
                         Text(
                             "Nuevo producto",
@@ -1117,7 +1138,9 @@ private fun ProductSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Box(Modifier.size(84.dp)) { PhotoBox(null, image, colors, saving, compact = true) { picker.launch("image/*") } }
+                        Box(
+                            Modifier.size(84.dp),
+                        ) { PhotoBox(null, image, colors, saving, compact = true) { picker.launch("image/*") } }
                         Text(
                             "La foto es la que ve el cliente en el menú.",
                             fontSize = 12.5.sp,
@@ -1372,6 +1395,7 @@ private fun StationChips(
         }
     }
 }
+
 @Composable
 private fun PhotoBox(
     product: Product?,

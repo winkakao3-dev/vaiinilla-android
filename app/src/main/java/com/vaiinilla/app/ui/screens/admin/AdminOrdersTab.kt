@@ -1,7 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import java.time.LocalDate
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -26,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,6 +63,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import java.time.Instant
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -494,7 +494,8 @@ private fun emptyCopy(
             "Nada por aceptar" to
                 "Los encargos y pedidos a domicilio nuevos esperan aquí tu sí."
         filter == AdminOrderFilter.ACTIVE ->
-            "Sin pedidos por ahora" to "Cuando un cliente pida desde la app o tomes uno en Pedir, aparece aquí y te avisamos."
+            "Sin pedidos por ahora" to
+                "Cuando un cliente pida desde la app o tomes uno en Pedir, aparece aquí y te avisamos."
         filter == AdminOrderFilter.DELIVERED -> "Nada entregado todavía" to "Lo que entregues hoy sale en esta lista."
         filter == AdminOrderFilter.INCIDENTS ->
             "Sin incidencias" to
@@ -522,8 +523,11 @@ private fun OrderRowCard(
                 .physicalPress(onClick = onOpen)
                 .semantics(mergeDescendants = true) {
                     contentDescription =
-                        listOfNotNull("Pedido ${summary.folio}", whoLabel(order) ?: whereLabel(order), summary.state.label)
-                            .joinToString(", ")
+                        listOfNotNull(
+                            "Pedido ${summary.folio}",
+                            whoLabel(order) ?: whereLabel(order),
+                            summary.state.label,
+                        ).joinToString(", ")
                 }.clip(shape)
                 .background(colors.cardBackground)
                 .border(
@@ -537,7 +541,10 @@ private fun OrderRowCard(
         AdminThumb(photo, order.items.firstOrNull()?.productName ?: "Pedido", colors, size = 46.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                listOfNotNull("#${summary.folio}", summary.space?.name ?: whoLabel(order) ?: whereLabel(order)).joinToString(" · "),
+                listOfNotNull(
+                    "#${summary.folio}",
+                    summary.space?.name ?: whoLabel(order) ?: whereLabel(order),
+                ).joinToString(" · "),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = colors.textPrimary,

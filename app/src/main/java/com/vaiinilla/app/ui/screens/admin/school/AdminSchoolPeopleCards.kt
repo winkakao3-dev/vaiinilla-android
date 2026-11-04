@@ -1,10 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
-import com.vaiinilla.app.ui.theme.Yolk
-import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
-import com.vaiinilla.app.ui.screens.admin.AdminBadgeTone
-import com.vaiinilla.app.ui.screens.admin.AdminBadge
-import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,11 +25,15 @@ import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
+import com.vaiinilla.app.ui.screens.admin.AdminBadge
+import com.vaiinilla.app.ui.screens.admin.AdminBadgeTone
 import com.vaiinilla.app.ui.screens.admin.AdminCard
-import com.vaiinilla.app.ui.screens.admin.AdminChoice
 import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.theme.Yolk
 
 /** Los tutores que esperan a la escuela, con lo que hace falta para decidir. */
 @Composable
@@ -152,7 +151,14 @@ private fun GuardianRequestRow(
         } else {
             androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SchoolButton("Aprobar", colors, enabled, Modifier.weight(1f), primary = true, onClick = onApprove)
-                SchoolButton("Rechazar", colors, enabled, Modifier.weight(1f), destructive = true, onClick = onAskReject)
+                SchoolButton(
+                    "Rechazar",
+                    colors,
+                    enabled,
+                    Modifier.weight(1f),
+                    destructive = true,
+                    onClick = onAskReject,
+                )
             }
         }
     }

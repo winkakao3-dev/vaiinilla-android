@@ -1,7 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
-import com.vaiinilla.app.ui.theme.Yolk
-import com.vaiinilla.app.ui.screens.admin.AdminSheet
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,10 +25,11 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
-import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
+import com.vaiinilla.app.ui.screens.admin.AdminSheet
+import com.vaiinilla.app.ui.theme.Yolk
 
 /** El padrón de la escuela: con él, los tutores solo dan de alta a alumnos que de verdad son de aquí. */
 @Composable

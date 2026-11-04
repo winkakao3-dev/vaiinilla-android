@@ -1,7 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
-import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +14,8 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.OrderUser
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
+import com.vaiinilla.app.domain.model.awaitsPaymentAfterAcceptance
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall

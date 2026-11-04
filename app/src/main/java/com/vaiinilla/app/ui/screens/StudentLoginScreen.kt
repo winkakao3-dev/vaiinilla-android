@@ -1,20 +1,11 @@
 package com.vaiinilla.app.ui.screens
 
-import kotlinx.coroutines.delay
-import com.vaiinilla.app.ui.components.AuthGhostButton
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.outlined.VerifiedUser
-import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,13 +30,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +50,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -76,6 +73,7 @@ import com.vaiinilla.app.ui.components.AuthBanner
 import com.vaiinilla.app.ui.components.AuthBannerTone
 import com.vaiinilla.app.ui.components.AuthBoxField
 import com.vaiinilla.app.ui.components.AuthChip
+import com.vaiinilla.app.ui.components.AuthGhostButton
 import com.vaiinilla.app.ui.components.AuthHeading
 import com.vaiinilla.app.ui.components.AuthIconTile
 import com.vaiinilla.app.ui.components.AuthLegalLinks
@@ -87,6 +85,7 @@ import com.vaiinilla.app.ui.components.authArrive
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import kotlinx.coroutines.delay
 
 @Composable
 fun StudentLoginScreen(
@@ -238,15 +237,29 @@ private fun EmailLoginStage(
         )
         Spacer(Modifier.height(10.dp))
         if (error != null) {
-            AuthGhostButton(text = "Crear una contraseña nueva", onClick = onForgotPassword, modifier = Modifier.authArrive(6))
+            AuthGhostButton(
+                text = "Crear una contraseña nueva",
+                onClick = onForgotPassword,
+                modifier = Modifier.authArrive(6),
+            )
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth().authArrive(6),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("¿Primera vez aquí?", color = AuthStageColors.Muted, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
-                AuthTextLink("Crea tu cuenta", onClick = onRegister, color = AuthStageColors.Ink, modifier = Modifier.padding(start = 6.dp))
+                Text(
+                    "¿Primera vez aquí?",
+                    color = AuthStageColors.Muted,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                AuthTextLink(
+                    "Crea tu cuenta",
+                    onClick = onRegister,
+                    color = AuthStageColors.Ink,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
             }
         }
         Spacer(Modifier.height(28.dp))
@@ -297,7 +310,14 @@ private fun LinkVenueStage(
 ) {
     val label = state.clientIdLabel
     val needsId = state.clientIdRequired
-    val error = state.errorMessage?.takeUnless { needsId && state.contextualId.isBlank() && it.startsWith("Ingresa tu") }
+    val error =
+        state.errorMessage?.takeUnless {
+            needsId &&
+                state.contextualId.isBlank() &&
+                it.startsWith(
+                    "Ingresa tu",
+                )
+        }
     val canContinue = !state.loading && (!needsId || state.contextualId.isNotBlank())
     AuthStage(
         loading = state.loading,
@@ -371,7 +391,12 @@ private fun MfaChallengeStage(
             )
         },
     ) {
-        AuthIconTile(icon = Icons.Outlined.VerifiedUser, size = 58.dp, iconSize = 27.dp, modifier = Modifier.authArrive(0))
+        AuthIconTile(
+            icon = Icons.Outlined.VerifiedUser,
+            size = 58.dp,
+            iconSize = 27.dp,
+            modifier = Modifier.authArrive(0),
+        )
         Spacer(Modifier.height(18.dp))
         AuthHeading(
             cap = "Verificación en dos pasos",
@@ -447,7 +472,12 @@ private fun MfaFactorPicker(
                 modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(AuthStageColors.Paper3),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.PhoneAndroid, contentDescription = null, tint = AuthStageColors.Ink2, modifier = Modifier.size(19.dp))
+                Icon(
+                    Icons.Outlined.PhoneAndroid,
+                    contentDescription = null,
+                    tint = AuthStageColors.Ink2,
+                    modifier = Modifier.size(19.dp),
+                )
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -457,7 +487,12 @@ private fun MfaFactorPicker(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                 )
-                Text("La que activaste en tu cuenta", color = AuthStageColors.Muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "La que activaste en tu cuenta",
+                    color = AuthStageColors.Muted,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
             if (challenge.factors.size > 1) {
                 AuthTextLink("Cambiar", onClick = { choosing = true }, enabled = !state.loading)
@@ -498,6 +533,7 @@ private fun MfaFactorPicker(
         }
     }
 }
+
 @Composable
 private fun OneTimeCodeBoxes(
     code: String,

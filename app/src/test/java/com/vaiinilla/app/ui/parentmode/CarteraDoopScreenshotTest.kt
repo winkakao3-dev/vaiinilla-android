@@ -86,7 +86,11 @@ class CarteraDoopScreenshotTest {
     @Test
     @Config(qualifiers = "w411dp-h1800dp-normal-long-notround-any-xxxhdpi")
     fun e07_ficha_del_hijo() {
-        val state = ChildAccountState(sofia, ParentFixtures.services(FakeGuardianship(), FakeAccount(ParentFixtures.wallet, weekOrders())))
+        val state =
+            ChildAccountState(
+                sofia,
+                ParentFixtures.services(FakeGuardianship(), FakeAccount(ParentFixtures.wallet, weekOrders())),
+            )
         dark { ChildAccountContent(state = state, onChildChanged = {}, onUnlinked = {}, onBack = {}) }
         settle()
         captureScreenRoboImage("lugar/e07_ficha.png")
@@ -97,7 +101,13 @@ class CarteraDoopScreenshotTest {
     fun e11_seguridad_y_tutores() {
         val state = ChildAccountState(sofia, ParentFixtures.services(FakeGuardianship()))
         dark {
-            ChildAccountContent(state = state, onChildChanged = {}, onUnlinked = {}, onBack = {}, startOnSecurity = true)
+            ChildAccountContent(
+                state = state,
+                onChildChanged = {},
+                onUnlinked = {},
+                onBack = {},
+                startOnSecurity = true,
+            )
         }
         settle()
         captureScreenRoboImage("lugar/e11_seguridad.png")
@@ -184,7 +194,14 @@ class CarteraDoopScreenshotTest {
                 override fun menuCalendar() =
                     Result.success(
                         MenuCalendar(
-                            schedule = OrderSchedule("2026-11-03", 4, null, null, listOf("09:30-10:00", "10:30-11:00", "12:00-12:30", "13:30-14:00")),
+                            schedule =
+                                OrderSchedule(
+                                    "2026-11-03",
+                                    4,
+                                    null,
+                                    null,
+                                    listOf("09:30-10:00", "10:30-11:00", "12:00-12:30", "13:30-14:00"),
+                                ),
                             days = emptyList(),
                         ),
                     )

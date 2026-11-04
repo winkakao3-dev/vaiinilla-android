@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -30,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked

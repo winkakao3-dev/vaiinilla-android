@@ -1,8 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
@@ -30,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CreditCard
@@ -39,6 +37,7 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.heading
@@ -372,62 +372,75 @@ fun StripePaymentPendingScreen(
                     shape = RoundedCornerShape(20.dp),
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column {
-                            Text(
-                                when {
-                                    awaitingAcceptance -> "Pagarás al aceptarlo"
-                                    awaitingPayment -> "A pagar ahora"
-                                    waiting || timedOut || failed || canceled -> "Total a pagar"
-                                    else -> "Total del pedido"
-                                },
-                                color = StripeMuted,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            if (!waiting) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
                                 Text(
-                                    "Pedido #${order.summary.folio}",
-                                    color = StripeInk,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Black,
+                                    when {
+                                        awaitingAcceptance -> "Pagarás al aceptarlo"
+                                        awaitingPayment -> "A pagar ahora"
+                                        waiting || timedOut || failed || canceled -> "Total a pagar"
+                                        else -> "Total del pedido"
+                                    },
+                                    color = StripeMuted,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
                                 )
+                                if (!waiting) {
+                                    Text(
+                                        "Pedido #${order.summary.folio}",
+                                        color = StripeInk,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Black,
+                                    )
+                                }
                             }
+                            Text(
+                                moneyLabel(
+                                    when {
+                                        awaitingAcceptance || awaitingPayment -> amountDue
+                                        depositDue != null -> depositDue
+                                        else -> order.summary.total
+                                    },
+                                ),
+                                color = StripeInk,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                            )
                         }
-                        Text(
-                            moneyLabel(
-                                when {
-                                    awaitingAcceptance || awaitingPayment -> amountDue
-                                    depositDue != null -> depositDue
-                                    else -> order.summary.total
-                                },
-                            ),
-                            color = StripeInk,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Black,
-                        )
-                    }
-                    if (depositDue != null) {
-                        Text(
-                            "Anticipo · ${moneyLabel(order.homeDelivery!!.dueOnArrival.orEmpty().ifBlank { "0" })} al recibir",
-                            color = StripeMuted,
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.End,
-                            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
-                        )
-                    }
-                    if (waiting) {
-                        LinearProgressIndicator(
-                            color = StripeLime,
-                            trackColor = StripeLine,
-                            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 16.dp).height(3.dp).clip(CircleShape),
-                        )
-                    }
+                        if (depositDue != null) {
+                            Text(
+                                "Anticipo · ${moneyLabel(
+                                    order.homeDelivery!!
+                                        .dueOnArrival
+                                        .orEmpty()
+                                        .ifBlank { "0" },
+                                )} al recibir",
+                                color = StripeMuted,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+                            )
+                        }
+                        if (waiting) {
+                            LinearProgressIndicator(
+                                color = StripeLime,
+                                trackColor = StripeLine,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            start = 20.dp,
+                                            end = 20.dp,
+                                            bottom = 16.dp,
+                                        ).height(3.dp)
+                                        .clip(CircleShape),
+                            )
+                        }
                     }
                 }
                 if (waiting) {

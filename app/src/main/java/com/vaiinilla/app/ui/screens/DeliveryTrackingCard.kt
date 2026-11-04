@@ -133,7 +133,13 @@ internal fun DeliveryTrackingCard(
                 )
             }
             Spacer(Modifier.width(10.dp))
-            Text(moneyLabel(summary.total), color = colors.ink, fontSize = 22.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.6).sp)
+            Text(
+                moneyLabel(summary.total),
+                color = colors.ink,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-0.6).sp,
+            )
         }
         Spacer(Modifier.height(16.dp))
         DeliveryStepIcons(current)
@@ -150,8 +156,15 @@ internal fun DeliveryTrackingCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 if (deposit != null) {
                     // Con tarjeta no se cobra nada hasta que el negocio acepta: antes de eso no se puede decir «Pagaste».
-                    val paid = order.payment != null && summary.state != OrderState.AWAITING_ACCEPTANCE && summary.state != OrderState.PENDING_PAYMENT
-                    MoneyLine(if (paid) "Pagaste" else "Al aceptar", moneyLabel(deposit.toPlainString()), if (paid) colors.accent else colors.ink)
+                    val paid =
+                        order.payment != null &&
+                            summary.state != OrderState.AWAITING_ACCEPTANCE &&
+                            summary.state != OrderState.PENDING_PAYMENT
+                    MoneyLine(
+                        if (paid) "Pagaste" else "Al aceptar",
+                        moneyLabel(deposit.toPlainString()),
+                        if (paid) colors.accent else colors.ink,
+                    )
                 }
                 if (due != null) MoneyLine("Al recibir", moneyLabel(due.toPlainString()), colors.ink)
             }
@@ -170,7 +183,12 @@ internal fun DeliveryTrackingCard(
         ) {
             Text("Ver pedido completo", color = colors.paper, fontSize = 15.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.width(6.dp))
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = colors.paper, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = null,
+                tint = colors.paper,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.theme.Yolk
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -24,6 +23,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,15 +41,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.material.icons.outlined.LocalBar
-import androidx.compose.material.icons.outlined.Undo
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.semantics.contentDescription
-import com.vaiinilla.app.domain.model.Catalog
-import com.vaiinilla.app.domain.model.PreparationStation
-import androidx.compose.foundation.layout.FlowRow
-import com.vaiinilla.app.domain.repository.CallReason
-import com.vaiinilla.app.ui.components.arrive
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,15 +50,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.LocalBar
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Restaurant
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.RoomService
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.Button
@@ -87,6 +80,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,6 +99,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -118,14 +113,17 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CartLine
+import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.domain.repository.BoardTable
+import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.SpaceAccount
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
@@ -144,6 +142,7 @@ import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -157,6 +156,7 @@ import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
+import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -521,7 +521,17 @@ fun WaiterOperationalScreen(
                     }
                 }
                 if (state.filterAttending) {
-                    itemsIndexed(nextUp, key = { _, it -> "next-${it.kind}-${it.spaceId}-${it.title}" }, span = { _, _ -> fullWidth() }) { index, item ->
+                    itemsIndexed(nextUp, key = {
+                        _,
+                        it,
+                        ->
+                        "next-${it.kind}-${it.spaceId}-${it.title}"
+                    }, span = {
+                        _,
+                        _,
+                        ->
+                        fullWidth()
+                    }) { index, item ->
                         WaiterNextUpRow(
                             item = item,
                             colors = colors,
@@ -968,7 +978,8 @@ private fun WaiterFilterChip(
     colors: OperationalColors,
     onClick: () -> Unit,
 ) {
-    val background = animateSelectionColor(if (selected) colors.textPrimary else colors.cardBackground, "chip-background")
+    val background =
+        animateSelectionColor(if (selected) colors.textPrimary else colors.cardBackground, "chip-background")
     val ink = animateSelectionColor(if (selected) colors.background else colors.textPrimary, "chip-ink")
     Box(
         modifier =
@@ -999,8 +1010,9 @@ private fun WaiterBottomBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(0f to colors.background.copy(alpha = 0f), 0.35f to colors.background))
-                .navigationBarsPadding()
+                .background(
+                    Brush.verticalGradient(0f to colors.background.copy(alpha = 0f), 0.35f to colors.background),
+                ).navigationBarsPadding()
                 .padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -1110,6 +1122,7 @@ private fun WaiterScanChooserSheet(
         }
     }
 }
+
 /** Cómo se pinta el estado de un mosaico; el color solo marca qué tan urgente es. */
 internal enum class TileTone { Call, Ready, Kitchen, Turn, Collect, Open, Free }
 
@@ -1188,7 +1201,9 @@ internal fun waiterTileStatus(
 }
 
 private fun ordersCaption(table: BoardTable): String? =
-    table.orders.size.takeIf { it > 0 }?.let { "$it ${if (it == 1) "pedido" else "pedidos"}" }
+    table.orders.size
+        .takeIf { it > 0 }
+        ?.let { "$it ${if (it == 1) "pedido" else "pedidos"}" }
 
 private fun minutesSince(
     iso: String,
@@ -1257,10 +1272,30 @@ internal fun waiterNextUp(
                     // N10: el motivo va en grande para saber qué llevar antes de ir a la mesa.
                     if (call.status == CallStatus.EN_CAMINO) {
                         val detail = listOfNotNull(call.reason.staffLabel, since, call.clientName).joinToString(" · ")
-                        add(WaiterNextUp(NextUpKind.Call, id, "Va ${call.takenBy?.name ?: "alguien"} a $name", detail, "Ver", call.reason, call.createdAt))
+                        add(
+                            WaiterNextUp(
+                                NextUpKind.Call,
+                                id,
+                                "Va ${call.takenBy?.name ?: "alguien"} a $name",
+                                detail,
+                                "Ver",
+                                call.reason,
+                                call.createdAt,
+                            ),
+                        )
                     } else {
                         val detail = listOfNotNull(name, since, call.clientName).joinToString(" · ")
-                        add(WaiterNextUp(NextUpKind.Call, id, call.reason.staffLabel, detail, "Voy", call.reason, call.createdAt))
+                        add(
+                            WaiterNextUp(
+                                NextUpKind.Call,
+                                id,
+                                call.reason.staffLabel,
+                                detail,
+                                "Voy",
+                                call.reason,
+                                call.createdAt,
+                            ),
+                        )
                     }
                 }
                 table.orders.filter { it.state == OrderState.READY }.forEach { order ->
@@ -1281,14 +1316,33 @@ internal fun waiterNextUp(
                 }
                 val availability = table.availability
                 val left =
-                    availability?.endsAt
+                    availability
+                        ?.endsAt
                         ?.takeIf { availability.state == SpaceAvailabilityState.OCUPADA }
                         ?.let { runCatching { Duration.between(now, Instant.parse(it)).toMillis() }.getOrNull() }
                 if (left != null && left in 0..TURN_ENDING_MS) {
-                    add(WaiterNextUp(NextUpKind.TurnEnding, id, "A $name le quedan ${remainingText(left)}", "Pregúntales si alargan el turno", "Ver"))
+                    add(
+                        WaiterNextUp(
+                            NextUpKind.TurnEnding,
+                            id,
+                            "A $name le quedan ${remainingText(left)}",
+                            "Pregúntales si alargan el turno",
+                            "Ver",
+                        ),
+                    )
                 }
-                if (availability?.state == SpaceAvailabilityState.POR_COBRAR || availability?.state == SpaceAvailabilityState.EN_GRACIA) {
-                    add(WaiterNextUp(NextUpKind.Collect, id, "$name ya terminó", "Falta cobrar para liberarla", "Cobrar"))
+                if (availability?.state == SpaceAvailabilityState.POR_COBRAR ||
+                    availability?.state == SpaceAvailabilityState.EN_GRACIA
+                ) {
+                    add(
+                        WaiterNextUp(
+                            NextUpKind.Collect,
+                            id,
+                            "$name ya terminó",
+                            "Falta cobrar para liberarla",
+                            "Cobrar",
+                        ),
+                    )
                 }
             }
         }.sortedWith(compareBy<WaiterNextUp> { it.kind.ordinal }.thenBy { it.since.orEmpty() })
@@ -1333,7 +1387,12 @@ private fun WaiterCallsHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(callReasonIcon(reason), contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                    Icon(
+                        callReasonIcon(reason),
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(16.dp),
+                    )
                     Text(reason.label, color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -1518,6 +1577,7 @@ private fun WaiterTile(
         }
     }
 }
+
 private fun waiterSince(iso: String): String {
     val ms = elapsedSinceMs(iso) ?: return "ahora"
     return when {
@@ -1615,7 +1675,10 @@ private fun WaiterTableSheet(
                                     tint = colors.textPrimary,
                                 )
                             }
-                            Column(Modifier.weight(1f).padding(end = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                Modifier.weight(1f).padding(end = 40.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
                                 Text(
                                     "Cobrar cuenta",
                                     fontWeight = FontWeight.Black,
@@ -1659,7 +1722,8 @@ private fun WaiterTableSheet(
                     ) {
                         val readyHere = table.orders.count { it.state == OrderState.READY }
                         val openedAt =
-                            table.availability?.startedAt
+                            table.availability
+                                ?.startedAt
                                 ?.let { runCatching { Instant.parse(it) }.getOrNull() }
                                 ?.let { BusinessTime.format(it, RESERVATION_HOUR) }
                         Row(
@@ -1884,7 +1948,13 @@ internal fun splitByStation(
             val text = raw.trim()
             if (text.isEmpty()) return@mapNotNull null
             val match = Regex("""^(\d+)\s*[×x]\s*(.+)$""").find(text)
-            if (match != null) SummaryLine(match.groupValues[1].toInt(), match.groupValues[2].trim()) else SummaryLine(1, text)
+            if (match !=
+                null
+            ) {
+                SummaryLine(match.groupValues[1].toInt(), match.groupValues[2].trim())
+            } else {
+                SummaryLine(1, text)
+            }
         }
     val (counter, kitchen) = lines.partition { stations[it.name.lowercase()] == PreparationStation.CASHIER }
     return StationSplit(counter = counter, kitchen = kitchen)
@@ -1934,7 +2004,10 @@ private fun WaiterStationSplit(
                             .physicalPress {
                                 if (carried) haptics.selection() else haptics.success()
                                 carried = !carried
-                            }.semantics { contentDescription = if (carried) "Desmarcar lo de Caja" else "Ya llevé lo de Caja" },
+                            }.semantics {
+                                contentDescription =
+                                    if (carried) "Desmarcar lo de Caja" else "Ya llevé lo de Caja"
+                            },
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -2130,6 +2203,7 @@ private fun OrderStateChip(
                 .padding(horizontal = 11.dp, vertical = 6.dp),
     )
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WaiterDeliverSheet(
@@ -2278,7 +2352,9 @@ internal fun waiterSheetOrders(
             .map { WaiterSheetOrder(it, totals[it.id], live = true) }
     val boardIds = board.map { it.id }.toSet()
     val settledOnes =
-        account?.orders.orEmpty()
+        account
+            ?.orders
+            .orEmpty()
             .filter { it.id !in boardIds }
             .map { accountOrder ->
                 WaiterSheetOrder(

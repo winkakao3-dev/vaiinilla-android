@@ -492,11 +492,11 @@ data class ReservationSchedule(
 object SpaceRules {
     const val MAX_BATCH = 500
     const val MAX_FEATURES = 8
+
     /** Los mínimos de renta que acepta el servidor, en minutos. */
     val MINIMUM_RENTALS = listOf(90, 180, 270, 360)
 
-    fun minimumLabel(minutes: Int): String =
-        if (minutes % 60 == 0) "${minutes / 60} h" else "${minutes / 60}.5 h"
+    fun minimumLabel(minutes: Int): String = if (minutes % 60 == 0) "${minutes / 60} h" else "${minutes / 60}.5 h"
 
     val FEATURE_SUGGESTIONS = listOf("Techada", "Con luz", "Vidrio panorámico", "Pasto sintético", "Aire libre")
 

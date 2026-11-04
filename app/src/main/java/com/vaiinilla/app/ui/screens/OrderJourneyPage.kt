@@ -1,30 +1,15 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.order.journeySeat
-import com.vaiinilla.app.ui.order.JourneySeat
-import com.vaiinilla.app.domain.model.amountDueOnAcceptance
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material.icons.rounded.Verified
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Place
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -58,13 +43,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +81,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -100,6 +97,7 @@ import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.amountDueOnAcceptance
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
@@ -116,20 +114,22 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.CaptionTone
 import com.vaiinilla.app.ui.order.FactTone
 import com.vaiinilla.app.ui.order.JourneyFact
+import com.vaiinilla.app.ui.order.JourneySeat
 import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderJourney
 import com.vaiinilla.app.ui.order.cancellationMoneyNote
 import com.vaiinilla.app.ui.order.journeyCaption
+import com.vaiinilla.app.ui.order.journeyDeliveryCode
 import com.vaiinilla.app.ui.order.journeyFacts
 import com.vaiinilla.app.ui.order.journeyHeadline
 import com.vaiinilla.app.ui.order.journeyKindLabel
 import com.vaiinilla.app.ui.order.journeyLead
-import com.vaiinilla.app.ui.order.journeyDeliveryCode
 import com.vaiinilla.app.ui.order.journeyMoneyBack
 import com.vaiinilla.app.ui.order.journeyMoneyBackNote
 import com.vaiinilla.app.ui.order.journeyNote
 import com.vaiinilla.app.ui.order.journeyNoun
+import com.vaiinilla.app.ui.order.journeySeat
 import com.vaiinilla.app.ui.order.journeyStepIndex
 import com.vaiinilla.app.ui.order.journeySteps
 import com.vaiinilla.app.ui.order.orderCancellationNotice
@@ -252,7 +252,15 @@ internal fun OrderJourneyPage(
                     } else {
                         "Llamar al mesero"
                     }
-                add(JourneyAction(label, ButtonLook.INK, Icons.Outlined.NotificationsNone, JOURNEY_WAITER_TAG, waiter::tap))
+                add(
+                    JourneyAction(
+                        label,
+                        ButtonLook.INK,
+                        Icons.Outlined.NotificationsNone,
+                        JOURNEY_WAITER_TAG,
+                        waiter::tap,
+                    ),
+                )
             }
             venue.whatsappUrl?.let { url ->
                 val lone = state == OrderState.NOT_PICKED_UP
@@ -306,7 +314,8 @@ internal fun OrderJourneyPage(
                     runCatching {
                         context.startActivity(
                             android.content.Intent.createChooser(
-                                android.content.Intent(android.content.Intent.ACTION_SEND)
+                                android.content
+                                    .Intent(android.content.Intent.ACTION_SEND)
                                     .setType("text/plain")
                                     .putExtra(android.content.Intent.EXTRA_TEXT, text),
                                 "Mandar recibo",
@@ -334,7 +343,12 @@ internal fun OrderJourneyPage(
             }
             val steps = journeySteps(order, journey)
             if (steps.isNotEmpty()) {
-                JourneySteps(steps, journeyStepIndex(order, journey), colors, Modifier.padding(top = 16.dp).arrive(3, key))
+                JourneySteps(
+                    steps,
+                    journeyStepIndex(order, journey),
+                    colors,
+                    Modifier.padding(top = 16.dp).arrive(3, key),
+                )
             }
         }
         Column(
@@ -355,12 +369,24 @@ internal fun OrderJourneyPage(
                 FolioCodeCard(order, matrix, colors)
             }
             val neverAccepted = state == OrderState.CANCELED && journeyMoneyBack(order) == "No te cobramos nada"
-            if (!neverAccepted) OrderCard(order, journey, showCode || state == OrderState.NOT_PICKED_UP, colors, Modifier.arrive(4, key))
+            if (!neverAccepted) {
+                OrderCard(
+                    order,
+                    journey,
+                    showCode || state == OrderState.NOT_PICKED_UP,
+                    colors,
+                    Modifier.arrive(4, key),
+                )
+            }
             if (home && state == OrderState.ON_THE_WAY) {
                 order.homeDelivery?.dueOnArrival?.takeIf { order.homeDelivery.hasAmountDue }?.let { due ->
                     PayAtDoorCard(due, order.homeDelivery.deposit, colors, Modifier.arrive(5, key))
                     JourneyButton(
-                        JourneyAction("Prefiero pagar con tarjeta aquí", ButtonLook.OUTLINE, null) { payRestOpen = true },
+                        JourneyAction(
+                            "Prefiero pagar con tarjeta aquí",
+                            ButtonLook.OUTLINE,
+                            null,
+                        ) { payRestOpen = true },
                         colors,
                         Modifier.fillMaxWidth().arrive(5, key),
                     )
@@ -388,9 +414,18 @@ internal fun OrderJourneyPage(
                 )
             }
             JourneyActions(actions, colors, Modifier.arrive(6, key))
-            if (home && venue.whatsappUrl != null && state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)) {
+            if (home &&
+                venue.whatsappUrl != null &&
+                state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)
+            ) {
                 Text(
-                    if (state == OrderState.ON_THE_WAY) "No estaré en casa · Necesito ayuda" else "Algo cambió o necesito ayuda",
+                    if (state ==
+                        OrderState.ON_THE_WAY
+                    ) {
+                        "No estaré en casa · Necesito ayuda"
+                    } else {
+                        "Algo cambió o necesito ayuda"
+                    },
                     color = colors.ink,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -450,10 +485,31 @@ private fun JourneyTopRow(
         }
         Column(Modifier.weight(1f)) {
             if (venueName.isNullOrBlank()) {
-                Text(title, color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    title,
+                    color = colors.ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             } else {
-                Text(title, color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(venueName, color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    title,
+                    color = colors.muted,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    venueName,
+                    color = colors.ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -475,13 +531,28 @@ private fun JourneyHeader(
 ) {
     val key = order.summary.id
     val caption = journeyCaption(order, journey)
-    val captionColor by animateColorAsState(colors.tone(caption.tone), spring(stiffness = 200f), label = "journey_caption")
+    val captionColor by animateColorAsState(
+        colors.tone(caption.tone),
+        spring(stiffness = 200f),
+        label = "journey_caption",
+    )
     val swap = {
         (fadeIn(spring(stiffness = 220f)) + slideInVertically(spring(0.82f, 260f)) { it / 3 }) togetherWith
             (fadeOut(spring(stiffness = 400f)) + slideOutVertically(spring(stiffness = 400f)) { -it / 4 })
     }
-    AnimatedContent(caption.text, transitionSpec = { swap() }, label = "journey_cap", modifier = Modifier.arrive(1, key)) {
-        Text(it.uppercase(), color = captionColor, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.2.sp)
+    AnimatedContent(
+        caption.text,
+        transitionSpec = { swap() },
+        label = "journey_cap",
+        modifier = Modifier.arrive(1, key),
+    ) {
+        Text(
+            it.uppercase(),
+            color = captionColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 2.2.sp,
+        )
     }
     AnimatedContent(
         journeyHeadline(order, journey),
@@ -489,10 +560,19 @@ private fun JourneyHeader(
         label = "journey_title",
         modifier = Modifier.padding(top = 8.dp).arrive(2, key),
     ) {
-        Text(it, color = colors.ink, fontSize = 29.sp, lineHeight = 31.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp)
+        Text(
+            it,
+            color = colors.ink,
+            fontSize = 29.sp,
+            lineHeight = 31.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-1.2).sp,
+        )
     }
     journeyLead(order, journey)?.let { lead ->
-        AnimatedContent(lead, transitionSpec = { swap() }, label = "journey_lead", modifier = Modifier.padding(top = 10.dp).arrive(3, key)) {
+        AnimatedContent(lead, transitionSpec = {
+            swap()
+        }, label = "journey_lead", modifier = Modifier.padding(top = 10.dp).arrive(3, key)) {
             Text(it, color = colors.ink2, fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -512,12 +592,13 @@ private fun JourneySteps(
             1f
         } else {
             val transition = rememberInfiniteTransition(label = "journey_now")
-            transition.animateFloat(
-                initialValue = 1f,
-                targetValue = 0.4f,
-                animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Reverse),
-                label = "journey_now_alpha",
-            ).value
+            transition
+                .animateFloat(
+                    initialValue = 1f,
+                    targetValue = 0.4f,
+                    animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Reverse),
+                    label = "journey_now_alpha",
+                ).value
         }
     Column(modifier.fillMaxWidth()) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
@@ -588,7 +669,13 @@ private fun FolioCodeCard(
             }
         }
         Column {
-            Text("FOLIO", color = CodeMuted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.6.sp)
+            Text(
+                "FOLIO",
+                color = CodeMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.6.sp,
+            )
             Text(
                 "${order.summary.folio}",
                 color = CodeInk,
@@ -610,7 +697,7 @@ private fun FolioCodeCard(
     }
 }
 
-private fun OrderItem.line(): String = "${quantity} $productName"
+private fun OrderItem.line(): String = "$quantity $productName"
 
 /** La foto, lo que pediste y las filas de dónde y cuánto. Con un producto rechazado se ve producto por producto (P12). */
 @Composable
@@ -675,7 +762,13 @@ private fun OrderCard(
                 )
                 val details =
                     live.flatMap { item ->
-                        item.options.map { it.name } + listOfNotNull(item.notes.trim().takeIf { it.isNotEmpty() }?.let { "«$it»" })
+                        item.options.map { it.name } +
+                            listOfNotNull(
+                                item.notes
+                                    .trim()
+                                    .takeIf { it.isNotEmpty() }
+                                    ?.let { "«$it»" },
+                            )
                     }
                 if (details.isNotEmpty()) {
                     Text(
@@ -718,19 +811,27 @@ private fun CardPhoto(
         if (!reduceMotion) drift.animateTo(1.07f, tween(9_000, easing = LinearEasing))
     }
     val label =
-        order.summary.space?.name?.takeIf { it.isNotBlank() }
+        order.summary.space
+            ?.name
+            ?.takeIf { it.isNotBlank() }
             ?: when {
                 journey == OrderJourney.PREORDER_PICKUP || journey == OrderJourney.HOME_DELIVERY -> "Tu encargo"
                 live.sumOf { it.quantity } > 1 -> "${live.sumOf { it.quantity }} productos"
                 else -> "Tu pedido"
             }
     Box(Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))) {
-        val zoom = Modifier.fillMaxSize().graphicsLayer {
-            scaleX = drift.value
-            scaleY = drift.value
-        }
+        val zoom =
+            Modifier.fillMaxSize().graphicsLayer {
+                scaleX = drift.value
+                scaleY = drift.value
+            }
         if (imageUrl != null) {
-            ProductImage(imageUrl = imageUrl, contentDescription = "", modifier = zoom, contentScale = ContentScale.Crop)
+            ProductImage(
+                imageUrl = imageUrl,
+                contentDescription = "",
+                modifier = zoom,
+                contentScale = ContentScale.Crop,
+            )
         } else if (venuePhoto != null) {
             Image(bitmap = venuePhoto, contentDescription = null, contentScale = ContentScale.Crop, modifier = zoom)
         }
@@ -764,7 +865,11 @@ private fun ItemRow(
                 imageUrl = url,
                 contentDescription = "",
                 card = true,
-                modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).graphicsLayer { alpha = if (off) 0.5f else 1f },
+                modifier =
+                    Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).graphicsLayer {
+                        alpha =
+                            if (off) 0.5f else 1f
+                    },
             )
             Spacer(Modifier.width(12.dp))
         }
@@ -787,7 +892,12 @@ private fun ItemRow(
             )
         }
         Spacer(Modifier.width(8.dp))
-        Text(moneyLabel(item.subtotal), color = if (off) colors.muted else colors.ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+        Text(
+            moneyLabel(item.subtotal),
+            color = if (off) colors.muted else colors.ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+        )
     }
 }
 
@@ -874,7 +984,13 @@ private fun CancelQuote(
         Box(Modifier.width(3.dp).height(68.dp).background(colors.coral))
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text("«$reason»", color = colors.ink, fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
-            Text(who, color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+            Text(
+                who,
+                color = colors.muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
     }
 }
@@ -896,7 +1012,13 @@ private fun MoneyBackCard(
                 .border(1.dp, colors.accent.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
                 .padding(16.dp),
         ) {
-            Text("TU DINERO", color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+            Text(
+                "TU DINERO",
+                color = colors.accent,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.6.sp,
+            )
             Text(
                 title,
                 color = colors.ink,
@@ -928,11 +1050,31 @@ private fun MoneyBackCard(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.size(40.dp).clip(CircleShape).background(colors.accent), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.Undo, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Outlined.Undo,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(20.dp),
+            )
         }
         Column(Modifier.weight(1f)) {
-            Text(title, color = colors.ink, fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.6).sp)
-            detail?.let { Text(it, color = colors.ink2, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold) }
+            Text(
+                title,
+                color = colors.ink,
+                fontSize = 20.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-0.6).sp,
+            )
+            detail?.let {
+                Text(
+                    it,
+                    color = colors.ink2,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
@@ -1008,12 +1150,13 @@ private fun ArrivedButton(
         if (reduceMotion) {
             0f
         } else {
-            rememberInfiniteTransition(label = "arrived_ring").animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(2_200, easing = LinearEasing), RepeatMode.Restart),
-                label = "arrived_ring_t",
-            ).value
+            rememberInfiniteTransition(label = "arrived_ring")
+                .animateFloat(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(2_200, easing = LinearEasing), RepeatMode.Restart),
+                    label = "arrived_ring_t",
+                ).value
         }
     val accent = colors.accent
     Box(
@@ -1042,7 +1185,12 @@ private fun ArrivedButton(
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Outlined.DirectionsCar, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Outlined.DirectionsCar,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(20.dp),
+            )
             Text("Ya llegué", color = colors.accentInk, fontSize = 17.sp, fontWeight = FontWeight.Black)
         }
     }
@@ -1092,8 +1240,15 @@ private fun JourneyButton(
                     action.onClick()
                 }.clip(shape)
                 .background(background)
-                .then(if (action.look == ButtonLook.OUTLINE) Modifier.border(1.5.dp, colors.ink.copy(alpha = 0.12f), shape) else Modifier)
-                .semantics { role = Role.Button }
+                .then(
+                    if (action.look ==
+                        ButtonLook.OUTLINE
+                    ) {
+                        Modifier.border(1.5.dp, colors.ink.copy(alpha = 0.12f), shape)
+                    } else {
+                        Modifier
+                    },
+                ).semantics { role = Role.Button }
                 .then(action.tag?.let { Modifier.testTag(it) } ?: Modifier),
         contentAlignment = Alignment.Center,
     ) {
@@ -1115,7 +1270,11 @@ private fun DeliveredReceipt(
 ) {
     val summary = order.summary
     var stars by rememberSaveable(summary.id) { mutableStateOf(0) }
-    val deposit = order.homeDelivery?.deposit?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+    val deposit =
+        order.homeDelivery
+            ?.deposit
+            ?.toBigDecimalOrNull()
+            ?.takeIf { it.signum() > 0 }
     val total = summary.total.toBigDecimalOrNull()
     val rest = if (deposit != null && total != null) total - deposit else null
     Column(
@@ -1123,7 +1282,12 @@ private fun DeliveredReceipt(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(Modifier.size(64.dp).clip(CircleShape).background(colors.accent), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Verified, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(32.dp))
+            Icon(
+                Icons.Rounded.Verified,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(32.dp),
+            )
         }
         Text(
             "ENTREGADO",
@@ -1170,12 +1334,21 @@ private fun DeliveredReceipt(
         }
         Row(Modifier.padding(top = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             JourneyButton(
-                JourneyAction("Mandar recibo", ButtonLook.OUTLINE, Icons.Outlined.ChatBubbleOutline, onClick = onReceipt),
+                JourneyAction(
+                    "Mandar recibo",
+                    ButtonLook.OUTLINE,
+                    Icons.Outlined.ChatBubbleOutline,
+                    onClick = onReceipt,
+                ),
                 colors,
                 Modifier.weight(1f),
             )
             onInvoice?.let {
-                JourneyButton(JourneyAction("Pedir factura", ButtonLook.OUTLINE, null, onClick = it), colors, Modifier.weight(1f))
+                JourneyButton(
+                    JourneyAction("Pedir factura", ButtonLook.OUTLINE, null, onClick = it),
+                    colors,
+                    Modifier.weight(1f),
+                )
             }
         }
         Column(
@@ -1261,7 +1434,13 @@ private fun SeatTiles(
                     .background(colors.paper2)
                     .padding(horizontal = 14.dp, vertical = 10.dp),
             ) {
-                Text(label, color = colors.muted, fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.3.sp)
+                Text(
+                    label,
+                    color = colors.muted,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.3.sp,
+                )
                 Text(value, color = colors.ink, fontSize = 24.sp, fontWeight = FontWeight.Black)
             }
         }
@@ -1340,13 +1519,22 @@ private fun PayRestSheet(
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
             Text(
-                listOfNotNull(venueName?.let { "PAGAR A ${it.uppercase()}" }, "PEDIDO #${order.summary.folio}").joinToString(" · "),
+                listOfNotNull(
+                    venueName?.let { "PAGAR A ${it.uppercase()}" },
+                    "PEDIDO #${order.summary.folio}",
+                ).joinToString(" · "),
                 color = colors.muted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.4.sp,
             )
-            Text(moneyLabel(due), color = colors.ink, fontSize = 36.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                moneyLabel(due),
+                color = colors.ink,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(top = 4.dp),
+            )
             Text(
                 "Es lo que falta de tu pedido. Solo se cobra esta parte.",
                 color = colors.ink2,
@@ -1380,7 +1568,12 @@ private fun PayRestSheet(
                     .background(colors.accent),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Pagar ${moneyLabel(due)}", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                Text(
+                    "Pagar ${moneyLabel(due)}",
+                    color = colors.accentInk,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                )
             }
             if (onPay == null) {
                 Text(
@@ -1410,9 +1603,17 @@ private fun OrderHelpSheet(
     val cases =
         listOf(
             Triple(Icons.Outlined.Home, "No voy a estar en casa", "Le avisamos al negocio para cambiar la hora."),
-            Triple(Icons.Outlined.Schedule, "Cambiar la hora de entrega", "El negocio confirma la hora nueva antes de salir."),
+            Triple(
+                Icons.Outlined.Schedule,
+                "Cambiar la hora de entrega",
+                "El negocio confirma la hora nueva antes de salir.",
+            ),
             Triple(Icons.Outlined.Place, "Ya pasó la hora y no llega", "Le preguntamos al negocio por dónde va."),
-            Triple(Icons.Outlined.PhotoCamera, "Llegó dañado o no es lo que pedí", "Mándale una foto por WhatsApp. No pagues el resto hasta que te conteste."),
+            Triple(
+                Icons.Outlined.PhotoCamera,
+                "Llegó dañado o no es lo que pedí",
+                "Mándale una foto por WhatsApp. No pagues el resto hasta que te conteste.",
+            ),
         )
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1431,7 +1632,13 @@ private fun OrderHelpSheet(
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.4.sp,
             )
-            Text("¿Qué pasó?", color = colors.ink, fontSize = 28.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp)
+            Text(
+                "¿Qué pasó?",
+                color = colors.ink,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1).sp,
+            )
             Text(
                 "En cada caso te decimos qué pasa con tu dinero.",
                 color = colors.ink2,

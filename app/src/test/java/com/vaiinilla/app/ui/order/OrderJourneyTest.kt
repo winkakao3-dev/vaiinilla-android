@@ -100,14 +100,20 @@ class OrderJourneyTest {
     @Test
     fun captionTitleAndLeadTellWhereTheOrderIs() {
         val bar = order(OrderState.PREPARING, space = "barra")
-        assertEquals(JourneyCaption("Preparando · en la barra", CaptionTone.WAITING), journeyCaption(bar, OrderJourney.BAR))
+        assertEquals(
+            JourneyCaption("Preparando · en la barra", CaptionTone.WAITING),
+            journeyCaption(bar, OrderJourney.BAR),
+        )
         assertEquals("Te lo entregan en la barra.", journeyHeadline(bar, OrderJourney.BAR))
         assertEquals("Pedido", journeyNoun(OrderJourney.BAR))
         assertEquals("en la barra", journeyKindLabel(OrderJourney.BAR))
 
         val ready = order(OrderState.READY)
         assertEquals(CaptionTone.DONE, journeyCaption(ready, OrderJourney.COUNTER).tone)
-        assertEquals("Di tu folio o muestra este código. No tienes que formarte.", journeyLead(ready, OrderJourney.COUNTER))
+        assertEquals(
+            "Di tu folio o muestra este código. No tienes que formarte.",
+            journeyLead(ready, OrderJourney.COUNTER),
+        )
         // Sin el código en este teléfono no se promete un código: basta el folio.
         assertEquals("Di tu folio 42 en la barra.", journeyLead(ready.copy(pickupToken = null), OrderJourney.COUNTER))
 

@@ -1,57 +1,54 @@
 package com.vaiinilla.app.ui.counter
 
-import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
-import com.vaiinilla.app.ui.screens.admin.AdminRowDivider
-import com.vaiinilla.app.ui.screens.admin.AdminRow
-import com.vaiinilla.app.ui.screens.admin.AdminPanel
-import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Bedtime
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.counter.ReservedCalendar
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
-import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
+import com.vaiinilla.app.ui.screens.admin.AdminPanel
+import com.vaiinilla.app.ui.screens.admin.AdminRow
+import com.vaiinilla.app.ui.screens.admin.AdminRowDivider
+import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
 
 /** En Cocina de una escuela, arriba de la fila: abre lo que ya apartaron los tutores. */
 @Composable
@@ -96,7 +93,13 @@ fun ReservedOrdersSheet(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        Box(Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(colors.background)
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
             ReservedOrdersPage(state, colors, onSelect, onRetry, onDismiss)
         }
     }

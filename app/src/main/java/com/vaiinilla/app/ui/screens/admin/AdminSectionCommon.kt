@@ -1,10 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.ui.components.physicalPress
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,9 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Nfc
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material3.Icon
@@ -38,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -49,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaQrCode
-import com.vaiinilla.app.ui.screens.ActionPill
+import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 
@@ -96,27 +95,29 @@ internal fun AdminSectionPage(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // El título grande de la sección, como el de la navegación de iOS.
-                if (!inlineTitle) item(key = "section-title") {
-                    Column(Modifier.padding(horizontal = 4.dp)) {
-                        eyebrow?.let { AdminCapsLabel(it, colors) }
-                        val compact = eyebrow != null || title.length > SECTION_TITLE_FITS
-                        Text(
-                            title,
-                            fontWeight = FontWeight.Black,
-                            fontSize = if (compact) 28.sp else 34.sp,
-                            lineHeight = if (compact) 32.sp else 38.sp,
-                            letterSpacing = (-1).sp,
-                            color = colors.textPrimary,
-                            modifier = Modifier.semantics { heading() },
-                        )
-                        subtitle?.let {
+                if (!inlineTitle) {
+                    item(key = "section-title") {
+                        Column(Modifier.padding(horizontal = 4.dp)) {
+                            eyebrow?.let { AdminCapsLabel(it, colors) }
+                            val compact = eyebrow != null || title.length > SECTION_TITLE_FITS
                             Text(
-                                it,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textSecondary,
-                                modifier = Modifier.padding(top = 4.dp),
+                                title,
+                                fontWeight = FontWeight.Black,
+                                fontSize = if (compact) 28.sp else 34.sp,
+                                lineHeight = if (compact) 32.sp else 38.sp,
+                                letterSpacing = (-1).sp,
+                                color = colors.textPrimary,
+                                modifier = Modifier.semantics { heading() },
                             )
+                            subtitle?.let {
+                                Text(
+                                    it,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -279,7 +280,10 @@ internal fun AdminBigQr(
                 copyLink(context, name, url)
                 onNotice("Enlace copiado", false)
             }
-            QrAction("Grabar en NFC", Icons.Outlined.Nfc, colors, Modifier.weight(1f), highlighted = true) { writingNfc = true }
+            QrAction("Grabar en NFC", Icons.Outlined.Nfc, colors, Modifier.weight(1f), highlighted = true) {
+                writingNfc =
+                    true
+            }
         }
     }
     if (writingNfc) {
@@ -313,6 +317,7 @@ private fun QrAction(
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fg, maxLines = 1)
     }
 }
+
 /** El QR de un enlace con lo que se hace con él: compartirlo como imagen, copiar el enlace, abrirlo y grabarlo en NFC. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -41,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -891,7 +891,13 @@ internal fun AdminEmptyState(
         )
         if (action != null && onAction != null) {
             Spacer(Modifier.height(22.dp))
-            AdminPrimaryButton(title = action, colors = colors, icon = Icons.Outlined.Add, fullWidth = false, onClick = onAction)
+            AdminPrimaryButton(
+                title = action,
+                colors = colors,
+                icon = Icons.Outlined.Add,
+                fullWidth = false,
+                onClick = onAction,
+            )
         }
     }
 }

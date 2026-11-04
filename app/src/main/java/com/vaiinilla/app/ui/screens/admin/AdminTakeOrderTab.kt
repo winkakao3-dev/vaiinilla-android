@@ -1,16 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.domain.model.OptionGroup
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.semantics.Role
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -33,17 +22,23 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
@@ -63,16 +58,21 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.OptionGroup
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -629,6 +629,7 @@ private fun OrderBar(
 }
 
 /** Las opciones de un producto antes de sumarlo; cerrar la hoja no lo agrega. */
+
 /** Elegir las opciones de un producto a pantalla completa, como el marco 32: foto, grupos y abajo cuántos y agregar. */
 @Composable
 private fun OptionsSheet(
@@ -660,7 +661,12 @@ private fun OptionsSheet(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .background(Brush.verticalGradient(0.3f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))),
+                            .background(
+                                Brush.verticalGradient(
+                                    0.3f to Color.Transparent,
+                                    1f to Color.Black.copy(alpha = 0.75f),
+                                ),
+                            ),
                     )
                     Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
                         Text(line.product.name, fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
@@ -683,7 +689,12 @@ private fun OptionsSheet(
                         OptionGroupBlock(group, line.selectedOptionIds, colors) { optionId ->
                             onChange(
                                 line.copy(
-                                    selectedOptionIds = alternarOpcionMostrador(line.selectedOptionIds, group, optionId),
+                                    selectedOptionIds =
+                                        alternarOpcionMostrador(
+                                            line.selectedOptionIds,
+                                            group,
+                                            optionId,
+                                        ),
                                 ),
                             )
                         }
@@ -765,7 +776,8 @@ private fun OptionGroupBlock(
                     row.forEach { option ->
                         val on = option.id in selected
                         val bg = animateSelectionColor(if (on) colors.textPrimary else colors.cardBackground, "opcion")
-                        val ink = animateSelectionColor(if (on) colors.background else colors.textPrimary, "opcion-tinta")
+                        val ink =
+                            animateSelectionColor(if (on) colors.background else colors.textPrimary, "opcion-tinta")
                         val extra = option.extraPrice.toBigDecimalOrNull()?.takeIf { it.signum() == 1 }
                         Text(
                             option.name + (extra?.let { " +${moneyLabel(it.toPlainString())}" } ?: ""),
@@ -779,9 +791,15 @@ private fun OptionGroupBlock(
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(bg)
-                                    .border(1.dp, if (on) colors.textPrimary else colors.cardBorder, RoundedCornerShape(14.dp))
-                                    .selectable(selected = on, role = Role.RadioButton, onClick = { onOption(option.id) })
-                                    .padding(horizontal = 6.dp, vertical = 13.dp),
+                                    .border(
+                                        1.dp,
+                                        if (on) colors.textPrimary else colors.cardBorder,
+                                        RoundedCornerShape(14.dp),
+                                    ).selectable(
+                                        selected = on,
+                                        role = Role.RadioButton,
+                                        onClick = { onOption(option.id) },
+                                    ).padding(horizontal = 6.dp, vertical = 13.dp),
                         )
                     }
                     repeat(OPTION_TILES_PER_ROW - row.size) { Box(Modifier.weight(1f)) }
@@ -839,6 +857,7 @@ private fun OptionGroupBlock(
 }
 
 private const val OPTION_TILES_PER_ROW = 3
+
 @Composable
 private fun ReviewSheet(
     lines: List<CartLine>,

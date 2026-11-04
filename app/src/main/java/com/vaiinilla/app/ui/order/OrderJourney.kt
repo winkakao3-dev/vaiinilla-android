@@ -78,7 +78,13 @@ private fun OrderDetail.place(): String = summary.space?.name?.takeIf { it.isNot
 private fun OrderDetail.itemWord(journey: OrderJourney): String {
     val fallback = if (journey == OrderJourney.COUNTER) "pedido" else "encargo"
     val live = items.filter { it.rejection == null }
-    return live.singleOrNull()?.productName?.trim()?.substringBefore(' ')?.lowercase()?.ifBlank { fallback } ?: fallback
+    return live
+        .singleOrNull()
+        ?.productName
+        ?.trim()
+        ?.substringBefore(' ')
+        ?.lowercase()
+        ?.ifBlank { fallback } ?: fallback
 }
 
 /** Cómo se dice el lugar en una frase: «la Mesa 4», «tu asiento», «tu Cancha 2». */
@@ -93,7 +99,11 @@ private fun OrderDetail.placePhrase(journey: OrderJourney): String =
 /** «sáb 7 nov entre 11:00 y 13:00» para una frase; `null` si es para ahora. */
 private fun journeyWhen(order: OrderDetail): String? {
     val schedule = journeySchedule(order) ?: return null
-    val slot = order.summary.deliverySlot?.split("-")?.map { it.trim() }?.takeIf { it.size == 2 } ?: return schedule
+    val slot =
+        order.summary.deliverySlot
+            ?.split("-")
+            ?.map { it.trim() }
+            ?.takeIf { it.size == 2 } ?: return schedule
     return "${schedule.substringBefore(" · ")} entre ${slot[0]} y ${slot[1]}"
 }
 
@@ -106,8 +116,11 @@ internal data class JourneySeat(
 
 internal fun journeySeat(order: OrderDetail): JourneySeat? =
     Regex("""Sala\s*(\w+)\D*?([A-Za-z])\s*(\d+)""")
-        .find(order.summary.space?.name.orEmpty())
-        ?.destructured
+        .find(
+            order.summary.space
+                ?.name
+                .orEmpty(),
+        )?.destructured
         ?.let { (room, row, seat) -> JourneySeat(room, row.uppercase(), seat) }
 
 /** Los pasos de la barra de progreso; vacía cuando el tipo se cuenta de otra forma (la renta) o ya se cerró. */
@@ -324,7 +337,13 @@ internal fun journeyFacts(
                 state in setOf(OrderState.AWAITING_ACCEPTANCE, OrderState.PENDING_PAYMENT) -> {
                 add(
                     JourneyFact(
-                        if (state == OrderState.AWAITING_ACCEPTANCE) "Anticipo, al aceptarlo" else "Anticipo, a pagar ahora",
+                        if (state ==
+                            OrderState.AWAITING_ACCEPTANCE
+                        ) {
+                            "Anticipo, al aceptarlo"
+                        } else {
+                            "Anticipo, a pagar ahora"
+                        },
                         moneyLabel(delivery!!.deposit!!),
                         FactTone.GOOD,
                     ),
@@ -348,7 +367,17 @@ internal fun journeyFacts(
             state == OrderState.PENDING_PAYMENT -> add(JourneyFact("Total", moneyLabel(summary.total), FactTone.DUE))
             state == OrderState.CANCELED && order.neverCharged() -> add(JourneyFact("Total", moneyLabel(summary.total)))
             order.rejectedAmount().signum() > 0 && state != OrderState.CANCELED -> {
-                add(JourneyFact("Pagaste", moneyLabel(summary.total.toBigDecimalOrNull()?.add(order.rejectedAmount())?.toPlainString() ?: summary.total)))
+                add(
+                    JourneyFact(
+                        "Pagaste",
+                        moneyLabel(
+                            summary.total
+                                .toBigDecimalOrNull()
+                                ?.add(order.rejectedAmount())
+                                ?.toPlainString() ?: summary.total,
+                        ),
+                    ),
+                )
             }
             else -> {
                 val how =
@@ -416,12 +445,16 @@ internal fun journeyNote(
         order.cashDue() -> "Hasta que pagues no se prepara nada y no se te cobra nada."
         state == OrderState.AWAITING_ACCEPTANCE && order.homeDelivery?.deposit.positive() != null ->
             "Todavía no te cobramos nada. Cuando lo acepte tienes 24 horas para pagar tu anticipo de " +
-                "${moneyLabel(order.homeDelivery!!.deposit!!)}, y empiezan tu ${order.itemWord(journey)} cuando lo pagues."
+                "${moneyLabel(
+                    order.homeDelivery!!.deposit!!,
+                )}, y empiezan tu ${order.itemWord(journey)} cuando lo pagues."
         state == OrderState.AWAITING_ACCEPTANCE && order.answerBy != null ->
             "Si no contesta a tiempo, se cancela solo y no pagas nada."
         state == OrderState.PENDING_PAYMENT && order.payBy != null ->
             "Si no lo pagas antes de esa hora, el pedido se cancela solo y no te cobramos nada."
-        order.items.any { it.rejection != null } -> "Si ya no quieres lo demás, avísale al negocio antes de que lo terminen."
+        order.items.any {
+            it.rejection != null
+        } -> "Si ya no quieres lo demás, avísale al negocio antes de que lo terminen."
         journey == OrderJourney.DRIVE_THRU && state != OrderState.READY ->
             "Si llegas y aún no está listo, espera cerca de la ventanilla: te lo dan en cuanto salga."
         journey == OrderJourney.BAR -> "Si te mueves a una mesa, dile al mesero tu folio."
@@ -474,7 +507,8 @@ private fun OrderDetail.rejectedAmount(): BigDecimal =
     items.mapNotNull { it.rejection?.amount?.toBigDecimalOrNull() }.fold(BigDecimal.ZERO, BigDecimal::add)
 
 private fun OrderDetail.depositPaid(): Boolean =
-    homeDelivery?.deposit.positive() != null && homeDelivery?.hasAmountDue == true &&
+    homeDelivery?.deposit.positive() != null &&
+        homeDelivery?.hasAmountDue == true &&
         summary.state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)
 
 /** La etiqueta en mayúsculas sobre el título: en qué va y, si cabe, dónde. */
@@ -486,7 +520,11 @@ internal fun journeyCaption(
     val waiting = CaptionTone.WAITING
     val done = CaptionTone.DONE
     return when {
-        state == OrderState.CANCELED && order.neverCharged() -> JourneyCaption("No pudieron aceptarlo", CaptionTone.PROBLEM)
+        state == OrderState.CANCELED && order.neverCharged() ->
+            JourneyCaption(
+                "No pudieron aceptarlo",
+                CaptionTone.PROBLEM,
+            )
         state == OrderState.CANCELED ->
             JourneyCaption(
                 if (order.summary.canceledByRole in setOf("cocina", "cajero", "admin")) {
@@ -502,10 +540,25 @@ internal fun journeyCaption(
             JourneyCaption(journeySteps(order, journey).lastOrNull() ?: "Entregado", done)
         order.cashDue() -> JourneyCaption("Por pagar · en Caja", waiting)
         state == OrderState.AWAITING_ACCEPTANCE ->
-            JourneyCaption(if (journey == OrderJourney.HOME_DELIVERY) "Por aceptar" else "Por aceptar · no te cobramos nada", waiting)
+            JourneyCaption(
+                if (journey ==
+                    OrderJourney.HOME_DELIVERY
+                ) {
+                    "Por aceptar"
+                } else {
+                    "Por aceptar · no te cobramos nada"
+                },
+                waiting,
+            )
         state == OrderState.PENDING_PAYMENT && order.payBy != null ->
             JourneyCaption(
-                if (order.homeDelivery?.deposit.positive() != null) "Aceptado · falta tu anticipo" else "Aceptado · falta tu pago",
+                if (order.homeDelivery?.deposit.positive() !=
+                    null
+                ) {
+                    "Aceptado · falta tu anticipo"
+                } else {
+                    "Aceptado · falta tu pago"
+                },
                 waiting,
             )
         state == OrderState.PENDING_PAYMENT -> JourneyCaption("Confirmando tu pago", waiting)
@@ -563,7 +616,13 @@ internal fun journeyHeadline(
         state == OrderState.CANCELED && order.neverCharged() -> "El negocio no pudo aceptar tu $word."
         state == OrderState.CANCELED ->
             if (order.summary.canceledByRole in setOf("cocina", "cajero", "admin")) {
-                if (journeyMoneyBack(order) != null) "Cancelaron tu pedido. Te regresan todo." else "Cancelaron tu pedido."
+                if (journeyMoneyBack(order) !=
+                    null
+                ) {
+                    "Cancelaron tu pedido. Te regresan todo."
+                } else {
+                    "Cancelaron tu pedido."
+                }
             } else {
                 "Tu pedido se canceló."
             }
@@ -592,7 +651,11 @@ internal fun journeyHeadline(
             if (rejected.size == 1) {
                 val live = order.items.filter { it.rejection == null }
                 val first = rejected.first()
-                val what = first.rejection?.reason?.takeIf { it.length <= REASON_IN_TITLE }?.lowercase() ?: "no se pudo"
+                val what =
+                    first.rejection
+                        ?.reason
+                        ?.takeIf { it.length <= REASON_IN_TITLE }
+                        ?.lowercase() ?: "no se pudo"
                 val rest = if (live.size == 1) "${live.first().productName} sigue." else "Lo demás sigue."
                 "${first.productName} $what. $rest"
             } else {
@@ -618,7 +681,9 @@ internal fun journeyHeadline(
                 OrderJourney.BAR -> "Te lo entregan en la barra."
                 OrderJourney.SCHOOL -> journeyWhen(order)?.let { "Se recoge el $it." } ?: "Ya está apartado."
                 OrderJourney.PREORDER_PICKUP -> journeyWhen(order)?.let { "Pasa por él el $it." } ?: "Se está haciendo."
-                OrderJourney.HOME_DELIVERY -> journeyWhen(order)?.let { "Tu $word llega el $it." } ?: "Se está haciendo."
+                OrderJourney.HOME_DELIVERY ->
+                    journeyWhen(order)?.let { "Tu $word llega el $it." }
+                        ?: "Se está haciendo."
                 else -> "Tu $word se está preparando."
             }
     }
@@ -646,7 +711,11 @@ internal fun journeyLead(
             }
         state == OrderState.AWAITING_ACCEPTANCE && journey == OrderJourney.HOME_DELIVERY ->
             order.answerBy?.let {
-                "Te contesta ${deadlineLabel(it, zone, today)}. Si no contesta a tiempo, se cancela solo y no pagas nada."
+                "Te contesta ${deadlineLabel(
+                    it,
+                    zone,
+                    today,
+                )}. Si no contesta a tiempo, se cancela solo y no pagas nada."
             } ?: "Antes de que lo acepte no se te cobra nada."
         state == OrderState.AWAITING_ACCEPTANCE && order.homeDelivery?.deposit.positive() != null ->
             "Si lo acepta, tienes 24 horas para pagar el anticipo. Si no contesta a tiempo, se cancela solo."
@@ -657,7 +726,11 @@ internal fun journeyLead(
                 "Si lo acepta, te avisamos aquí. Antes no se te cobra nada."
             }
         state == OrderState.PENDING_PAYMENT && order.payBy != null ->
-            "Tienes hasta ${deadlineLabel(order.payBy, zone, today)}. Empiezan tu ${order.itemWord(journey)} en cuanto entre tu pago."
+            "Tienes hasta ${deadlineLabel(
+                order.payBy,
+                zone,
+                today,
+            )}. Empiezan tu ${order.itemWord(journey)} en cuanto entre tu pago."
         state == OrderState.PENDING_PAYMENT -> null
         order.rejectedItems().isNotEmpty() && state != OrderState.READY -> {
             val back = order.rejectedAmount()
@@ -721,7 +794,10 @@ internal fun journeyMoneyBack(order: OrderDetail): String? {
     return when {
         order.summary.payAtEnd -> "No se te cobra nada"
         order.summary.paymentMethod == PaymentMethod.BALANCE -> "$total a tu saldo Vaiinilla"
-        order.summary.paymentMethod == PaymentMethod.STRIPE && cancellationMoneyNote(order) != null -> "$total a tu tarjeta"
+        order.summary.paymentMethod == PaymentMethod.STRIPE &&
+            cancellationMoneyNote(
+                order,
+            ) != null -> "$total a tu tarjeta"
         order.neverCharged() -> "No te cobramos nada"
         else -> null
     }

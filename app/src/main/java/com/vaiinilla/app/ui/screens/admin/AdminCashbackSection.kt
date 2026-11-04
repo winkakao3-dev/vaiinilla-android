@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -51,6 +50,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -289,7 +289,12 @@ private fun RuleEditor(
         }
     }
     if (editingDetails) {
-        AdminSheet(title = "Horario y vigencia", colors = colors, busy = false, onDismiss = { editingDetails = false }) {
+        AdminSheet(
+            title = "Horario y vigencia",
+            colors = colors,
+            busy = false,
+            onDismiss = { editingDetails = false },
+        ) {
             Question("Horario", colors)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AdminTextField(
@@ -377,6 +382,7 @@ private fun RuleTile(
         )
     }
 }
+
 @Composable
 private fun Question(
     text: String,
@@ -461,7 +467,10 @@ private fun Wallet(
         AdminPanel(colors, padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
             AdminRow(title = "Recargas", colors = colors) { AdminRowValue(moneyLabel(wallet.reloads), colors) }
             AdminRowDivider(colors)
-            AdminRow(title = "Compras con saldo", colors = colors) { AdminRowValue(moneyLabel(wallet.purchases), colors) }
+            AdminRow(
+                title = "Compras con saldo",
+                colors = colors,
+            ) { AdminRowValue(moneyLabel(wallet.purchases), colors) }
             AdminRowDivider(colors)
             AdminRow(
                 title = "Cancelaciones devueltas",

@@ -1,8 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.screens.admin.AdminSegmented
-import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -60,9 +57,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -92,6 +89,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -102,6 +100,8 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.turnFraction
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -520,7 +520,12 @@ internal fun WaiterSpaceSection(
                     // El total solo aporta si ya se cobró o abonó una parte; si no, repite lo que falta.
                     if (account.total.moneyOrZero().compareTo(remaining) != 0) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Total", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Total",
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                             Text(
                                 moneyLabel(account.total),
                                 color = colors.textSecondary,
@@ -1105,22 +1110,24 @@ internal fun CollectAccountContent(
                     .padding(bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (showsHeader) Column(modifier = Modifier.arrive(0)) {
-                Text(
-                    title ?: when {
-                        !byOrders -> "Abonar a la cuenta"
-                        splitting && !allSelected -> "Cobrar parte de la cuenta"
-                        else -> "Cobrar cuenta"
-                    },
-                    fontSize = 13.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                RollingText(
-                    text = moneyLabel(totalLabel),
-                    style = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.6).sp),
-                    color = colors.textPrimary,
-                )
+            if (showsHeader) {
+                Column(modifier = Modifier.arrive(0)) {
+                    Text(
+                        title ?: when {
+                            !byOrders -> "Abonar a la cuenta"
+                            splitting && !allSelected -> "Cobrar parte de la cuenta"
+                            else -> "Cobrar cuenta"
+                        },
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    RollingText(
+                        text = moneyLabel(totalLabel),
+                        style = TextStyle(fontSize = 48.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.6).sp),
+                        color = colors.textPrimary,
+                    )
+                }
             }
             if (onAbono != null) {
                 if (paidInAmount.signum() > 0) {
@@ -1526,7 +1533,11 @@ private fun SplitOrdersPicker(
             orders.forEachIndexed { index, order ->
                 val checked = order.id in selected
                 val ink = animateSelectionColor(if (checked) colors.textPrimary else colors.textMuted, "split-ink")
-                if (index > 0) HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                if (index >
+                    0
+                ) {
+                    HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                }
                 Row(
                     modifier =
                         Modifier
@@ -1607,6 +1618,7 @@ internal fun pendingAfterPartial(
     val who = if (names.isEmpty()) "" else " de ${names.joinToString(" y ")}"
     return "faltan ${moneyLabel(Money.format(amount))}$who"
 }
+
 private fun rentalLabel(minutes: Int): String =
     when {
         minutes % 60 == 0 -> "${minutes / 60} h"

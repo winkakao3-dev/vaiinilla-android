@@ -1,9 +1,9 @@
 package com.vaiinilla.app.data.operational
 
-import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
+import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.domain.repository.CashSessionInfo
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException

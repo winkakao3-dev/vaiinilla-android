@@ -148,7 +148,13 @@ fun PurchaseSuccessScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(fact.label, color = colors.ink2, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(
+                            fact.label,
+                            color = colors.ink2,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
                         Spacer(Modifier.width(10.dp))
                         Text(
                             fact.value,

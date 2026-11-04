@@ -1,34 +1,28 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.domain.repository.CashLastClose
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
-import com.vaiinilla.app.domain.model.HomeDeliveryOffer
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.vaiinilla.app.domain.admin.AdminCount
 import com.vaiinilla.app.domain.admin.AdminDailySales
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminPeriod
-import com.vaiinilla.app.domain.repository.AdminSpacesRepository
-import com.vaiinilla.app.domain.repository.AdminStaffRepository
-import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
@@ -43,23 +37,27 @@ import com.vaiinilla.app.domain.admin.StaffMembership
 import com.vaiinilla.app.domain.admin.StoreConfig
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
-import com.vaiinilla.app.domain.model.Catalog
-import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.mode.RestrictedMode
-import com.vaiinilla.app.domain.repository.CatalogRepository
-import com.vaiinilla.app.domain.repository.ReservationRepository
-import com.vaiinilla.app.domain.repository.TableSpace
-import com.vaiinilla.app.domain.school.MenuCalendar
-import com.vaiinilla.app.domain.school.NoServiceDay
-import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.DeliveryAddress
+import com.vaiinilla.app.domain.model.HomeDeliveryOffer
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderHomeDelivery
+import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.repository.AdminSpacesRepository
+import com.vaiinilla.app.domain.repository.AdminStaffRepository
+import com.vaiinilla.app.domain.repository.AdminStoreRepository
+import com.vaiinilla.app.domain.repository.CashLastClose
+import com.vaiinilla.app.domain.repository.CatalogRepository
+import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.school.GuardianRequest
+import com.vaiinilla.app.domain.school.MenuCalendar
+import com.vaiinilla.app.domain.school.NoServiceDay
 import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.RosterStudent
 import com.vaiinilla.app.domain.school.SchoolAdminRepository
@@ -67,10 +65,6 @@ import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
 import com.vaiinilla.app.domain.school.StudentRequestKind
-import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
-import com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel
-import com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSection
-import java.time.Instant
 import com.vaiinilla.app.ui.admin.AdminSpacesUiState
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffUiState
@@ -78,8 +72,11 @@ import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreUiState
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
+import com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSection
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
@@ -91,6 +88,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.lang.reflect.Proxy
+import java.time.Instant
 import java.time.LocalDate
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
@@ -113,7 +111,10 @@ class DoopGaleriaAdminTest {
                 method.name == "hashCode" -> 0
                 method.name == "equals" -> false
                 args?.lastOrNull() is Continuation<*> -> COROUTINE_SUSPENDED
-                else -> java.util.concurrent.CountDownLatch(1).await()
+                else ->
+                    java.util.concurrent
+                        .CountDownLatch(1)
+                        .await()
             }
         } as R
 
@@ -242,7 +243,11 @@ class DoopGaleriaAdminTest {
     private fun home(cashOpen: Boolean = true): AdminUiState {
         val catalog = ScreenshotFixtures.catalog()
         val a = ScreenshotFixtures.sampleOrder(state = OrderState.PREPARING)
-        val b = ScreenshotFixtures.sampleOrder(state = OrderState.READY).let { it.copy(summary = it.summary.copy(id = "b")) }
+        val b =
+            ScreenshotFixtures
+                .sampleOrder(
+                    state = OrderState.READY,
+                ).let { it.copy(summary = it.summary.copy(id = "b")) }
         return AdminUiState(
             live = AdminLiveCounts(1, cashOpen, 2, false),
             cashSessionId = if (cashOpen) "c1" else null,
@@ -255,8 +260,18 @@ class DoopGaleriaAdminTest {
             cashOrders =
                 if (cashOpen) {
                     listOf(
-                        ScreenshotFixtures.sampleOrder(OrderState.PREPARING, PaymentMethod.CASH, OrderDestination.IN_SPACE, 3),
-                        ScreenshotFixtures.sampleOrder(OrderState.DELIVERED, PaymentMethod.CASH, OrderDestination.IN_SPACE, 1),
+                        ScreenshotFixtures.sampleOrder(
+                            OrderState.PREPARING,
+                            PaymentMethod.CASH,
+                            OrderDestination.IN_SPACE,
+                            3,
+                        ),
+                        ScreenshotFixtures.sampleOrder(
+                            OrderState.DELIVERED,
+                            PaymentMethod.CASH,
+                            OrderDestination.IN_SPACE,
+                            1,
+                        ),
                     )
                 } else {
                     emptyList()
@@ -353,7 +368,10 @@ class DoopGaleriaAdminTest {
         rule.waitForIdle()
     }
 
-    private fun matching(text: String) = rule.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true))
+    private fun matching(text: String) =
+        rule.onAllNodes(
+            hasText(text, substring = true) or hasContentDescription(text, substring = true),
+        )
 
     private fun press(node: SemanticsNodeInteraction) {
         try {
@@ -392,7 +410,6 @@ class DoopGaleriaAdminTest {
         shot("a21_periodo")
     }
 
-
     @Test fun a03_menu() {
         screen(home())
         tapLast("Menú")
@@ -400,11 +417,12 @@ class DoopGaleriaAdminTest {
     }
 
     @Test fun a25_menu_vacio() {
-        screen(home().copy(catalog = ScreenshotFixtures.catalog().copy(products = emptyList(), categories = emptyList())))
+        screen(
+            home().copy(catalog = ScreenshotFixtures.catalog().copy(products = emptyList(), categories = emptyList())),
+        )
         tapLast("Menú")
         shot("a25_menu_vacio")
     }
-
 
     @Test fun a27_nuevo_producto() {
         screen(home())
@@ -417,7 +435,12 @@ class DoopGaleriaAdminTest {
         val state = home()
         screen(state)
         tapLast("Menú")
-        tap(state.catalog!!.products.first().name)
+        tap(
+            state.catalog!!
+                .products
+                .first()
+                .name,
+        )
         shot("a04_editar_producto")
     }
 
@@ -515,14 +538,14 @@ class DoopGaleriaAdminTest {
         shot("a42_pagos")
     }
 
-    @Test @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
+    @Test
+    @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
     fun a43_como_funciona() {
         val vm = storeVm()
         section { AdminStoreSection(vm, it, false, {}) }
         tap("Cómo funciona tu tienda")
         shot("a43_como_funciona")
     }
-
 
     @Test fun a02b_domicilio() {
         val vm = storeVm()
@@ -543,8 +566,8 @@ class DoopGaleriaAdminTest {
         shot("a46_mesas_vacio")
     }
 
-
-    @Test @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
+    @Test
+    @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
     fun a48_cancha() {
         val vm = spacesVm(listOf(mesa(3, "Cancha 1", "cancha", "350.00")))
         section { AdminSpacesSection(vm, it, false, {}) }
@@ -592,8 +615,8 @@ class DoopGaleriaAdminTest {
         shot("a53_cambiar_rol")
     }
 
-
-    @Test @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
+    @Test
+    @Config(qualifiers = "w390dp-h2400dp-normal-long-notround-any-xxhdpi")
     fun a55_cashback() {
         val vm = storeVm()
         section { AdminCashbackSection(vm, it, false, {}) }
@@ -601,7 +624,12 @@ class DoopGaleriaAdminTest {
     }
 
     private fun homeOrder(state: OrderState): OrderDetail {
-        val base = ScreenshotFixtures.sampleOrder(state = state, paymentMethod = PaymentMethod.CASH, destination = OrderDestination.HOME_DELIVERY)
+        val base =
+            ScreenshotFixtures.sampleOrder(
+                state = state,
+                paymentMethod = PaymentMethod.CASH,
+                destination = OrderDestination.HOME_DELIVERY,
+            )
         return base.copy(
             summary = base.summary.copy(destination = OrderDestination.HOME_DELIVERY, folio = 1, total = "535.14"),
             homeDelivery =
@@ -615,7 +643,9 @@ class DoopGaleriaAdminTest {
     }
 
     private fun orderSheet(state: OrderState) {
-        screen(home().copy(orders = listOf(homeOrder(state)), operationalStatus = ScreenshotFixtures.operationalStatus()))
+        screen(
+            home().copy(orders = listOf(homeOrder(state)), operationalStatus = ScreenshotFixtures.operationalStatus()),
+        )
         tapLast("Pedidos")
         tap("#1")
     }
@@ -641,14 +671,17 @@ class DoopGaleriaAdminTest {
         shot("a23_cerrar_sin_cobrar")
     }
 
-    @Test @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
+    @Test
+    @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
     fun a22_estados_dias_cuentas() {
         screen(home())
         shot("a22_estados_dias_cuentas")
     }
 
     @Test fun a26_nueva_categoria() {
-        screen(home().copy(catalog = ScreenshotFixtures.catalog().copy(products = emptyList(), categories = emptyList())))
+        screen(
+            home().copy(catalog = ScreenshotFixtures.catalog().copy(products = emptyList(), categories = emptyList())),
+        )
         tapLast("Menú")
         tapLast("Crear categoría")
         shot("a26_nueva_categoria")
@@ -658,7 +691,12 @@ class DoopGaleriaAdminTest {
         val state = home()
         screen(state)
         tapLast("Menú")
-        tap(state.catalog!!.products.first().name)
+        tap(
+            state.catalog!!
+                .products
+                .first()
+                .name,
+        )
         scrollToAndTap("Opciones y extras")
         shot("a28_opciones_alergenos")
     }
@@ -667,7 +705,12 @@ class DoopGaleriaAdminTest {
         val state = home()
         screen(state)
         tapLast("Menú")
-        tap(state.catalog!!.products.first().name)
+        tap(
+            state.catalog!!
+                .products
+                .first()
+                .name,
+        )
         scrollToAndTap("Opciones y extras")
         scrollToAndTap("Archivar")
         shot("a29_archivar")
@@ -804,11 +847,38 @@ class DoopGaleriaAdminTest {
                             ),
                             listOf(NoServiceDay(today.plusDays(3), "Junta de maestros")),
                         ),
-                    roster = listOf(RosterStudent("A-001", "Ana López", "3°B"), RosterStudent("A-002", "Sofía Ruiz", "2°A")),
+                    roster =
+                        listOf(
+                            RosterStudent("A-001", "Ana López", "3°B"),
+                            RosterStudent("A-002", "Sofía Ruiz", "2°A"),
+                        ),
                     requests =
-                        listOf(GuardianRequest("g1", "Mariana Ruiz", "m@correo.mx", "Sofía Ruiz", "A-002", "2°A", true, true, 0)),
+                        listOf(
+                            GuardianRequest(
+                                "g1",
+                                "Mariana Ruiz",
+                                "m@correo.mx",
+                                "Sofía Ruiz",
+                                "A-002",
+                                "2°A",
+                                true,
+                                true,
+                                0,
+                            ),
+                        ),
                     guardianships =
-                        listOf(SchoolGuardianship("s1", "Mariana Ruiz", "m@correo.mx", true, "u1", "Sofía Ruiz", "A-002", "2°A")),
+                        listOf(
+                            SchoolGuardianship(
+                                "s1",
+                                "Mariana Ruiz",
+                                "m@correo.mx",
+                                true,
+                                "u1",
+                                "Sofía Ruiz",
+                                "A-002",
+                                "2°A",
+                            ),
+                        ),
                     studentRequests =
                         listOf(
                             SchoolStudentRequest(
@@ -849,7 +919,8 @@ class DoopGaleriaAdminTest {
         section { AdminSchoolSection(vm, products, it, false, {}) }
     }
 
-    @Test @Config(qualifiers = "w390dp-h4600dp-normal-long-notround-any-xxhdpi")
+    @Test
+    @Config(qualifiers = "w390dp-h4600dp-normal-long-notround-any-xxhdpi")
     fun a57_escuela_completa() {
         school()
         shot("a57_escuela_completa")
@@ -876,7 +947,8 @@ class DoopGaleriaAdminTest {
         shot("a60_pegar_lista")
     }
 
-    @Test @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
+    @Test
+    @Config(qualifiers = "w390dp-h1900dp-normal-long-notround-any-xxhdpi")
     fun a63_dia_sin_servicio() {
         school()
         val day = hasText("Vie") or hasContentDescription("Vie", substring = true)

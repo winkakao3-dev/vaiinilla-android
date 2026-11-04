@@ -1,25 +1,14 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.material.icons.outlined.SoupKitchen
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -41,10 +30,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.SoupKitchen
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -54,11 +46,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,14 +64,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,6 +141,7 @@ internal fun kitchenReadyOrders(orders: List<OrderDetail>): List<OrderDetail> =
         .sortedBy { it.summary.createdAt }
 
 /** Sin elegir pestaña, Cocina abre en la primera que tiene trabajo; si no hay nada, en Nuevas. */
+
 /** Un producto sumado de todas las comandas por hacer: «4 · Crepa de cajeta · #14 ×2 · #16 · #18». */
 internal data class KitchenProductTotal(
     val name: String,
@@ -452,26 +453,33 @@ fun KitchenOperationalScreen(
                             modifier = Modifier.animateItem(),
                         )
                     } else {
-                        KitchenProductList(totals = totals, ordersCount = todo.size, colors = colors, modifier = Modifier.animateItem())
+                        KitchenProductList(
+                            totals = totals,
+                            ordersCount = todo.size,
+                            colors = colors,
+                            modifier = Modifier.animateItem(),
+                        )
                     }
                 }
             }
 
-            if (!byProduct) item(key = "kitchen-tabs") {
-                val counts = listOf(newOrders.size, preparingOrders.size, readyOrders.size)
-                SlidingSegments(
-                    labels = KitchenTab.entries.mapIndexed { i, t -> "${t.label} ${counts[i]}" },
-                    selectedIndex = tab.ordinal,
-                    onSelect = { index ->
-                        haptics.selection()
-                        chosenTab = KitchenTab.entries[index]
-                    },
-                    trackColor = colors.cardBackground,
-                    indicatorColor = colors.textPrimary,
-                    selectedContentColor = colors.background,
-                    idleContentColor = colors.textSecondary,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            if (!byProduct) {
+                item(key = "kitchen-tabs") {
+                    val counts = listOf(newOrders.size, preparingOrders.size, readyOrders.size)
+                    SlidingSegments(
+                        labels = KitchenTab.entries.mapIndexed { i, t -> "${t.label} ${counts[i]}" },
+                        selectedIndex = tab.ordinal,
+                        onSelect = { index ->
+                            haptics.selection()
+                            chosenTab = KitchenTab.entries[index]
+                        },
+                        trackColor = colors.cardBackground,
+                        indicatorColor = colors.textPrimary,
+                        selectedContentColor = colors.background,
+                        idleContentColor = colors.textSecondary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
             // Sin comandas cargadas, la tarjeta de la fila ya muestra el error.
@@ -703,8 +711,12 @@ private fun KitchenEmptyCard(
     val (title, body) =
         when {
             loading -> "Cargando comandas…" to null
-            tab == KitchenTab.READY -> "Nada listo por ahora" to "Lo que marques lista aparece aquí hasta que lo entreguen."
-            otherWork && tab == KitchenTab.NEW -> "Sin comandas nuevas" to "Lo que está en la estufa sigue en Preparando."
+            tab == KitchenTab.READY ->
+                "Nada listo por ahora" to
+                    "Lo que marques lista aparece aquí hasta que lo entreguen."
+            otherWork && tab == KitchenTab.NEW ->
+                "Sin comandas nuevas" to
+                    "Lo que está en la estufa sigue en Preparando."
             otherWork -> "Nada en preparación" to "Empieza una de las Nuevas."
             else -> {
                 KitchenAllClear(colors, modifier)
@@ -896,7 +908,8 @@ private fun KitchenOrderCard(
             }
             if (cashierItems.isNotEmpty()) {
                 Text(
-                    (if (summary.space != null) "Las lleva el mesero: " else "Lo de Caja va aparte: ") + cashierItems.joinToString(", ") { "${it.quantity}× ${it.productName}" },
+                    (if (summary.space != null) "Las lleva el mesero: " else "Lo de Caja va aparte: ") +
+                        cashierItems.joinToString(", ") { "${it.quantity}× ${it.productName}" },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = KitchenMuted,
@@ -927,14 +940,14 @@ private fun KitchenOrderCard(
                             modifier = Modifier.padding(top = 12.dp),
                         )
                     } else {
-                    KitchenPrimaryButton(
-                        label = if (tab == KitchenTab.PREPARING) "Marcar lista" else "Empezar a preparar",
-                        lime = tab == KitchenTab.PREPARING,
-                        enabled = canAct && !acting,
-                        loading = acting,
-                        modifier = Modifier.padding(top = 12.dp).assistantAnchor(registry, primaryAnchor),
-                        onClick = onPrimary,
-                    )
+                        KitchenPrimaryButton(
+                            label = if (tab == KitchenTab.PREPARING) "Marcar lista" else "Empezar a preparar",
+                            lime = tab == KitchenTab.PREPARING,
+                            enabled = canAct && !acting,
+                            loading = acting,
+                            modifier = Modifier.padding(top = 12.dp).assistantAnchor(registry, primaryAnchor),
+                            onClick = onPrimary,
+                        )
                     }
             }
             if (onMore != null) {
@@ -1086,7 +1099,12 @@ private fun KitchenItemLine(
                 contentAlignment = Alignment.Center,
             ) {
                 if (done) {
-                    Icon(Icons.Rounded.Check, contentDescription = null, tint = KitchenPaper, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = KitchenPaper,
+                        modifier = Modifier.size(16.dp),
+                    )
                 }
             }
         }
@@ -1181,7 +1199,13 @@ private fun KitchenMoreSheet(
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).navigationBarsPadding().padding(bottom = 20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 22.dp,
+                    ).navigationBarsPadding()
+                    .padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Comanda #$folio", fontSize = 22.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
@@ -1234,7 +1258,11 @@ private fun KitchenProductList(
         Surface(shape = RoundedCornerShape(22.dp), color = KitchenPaper, modifier = Modifier.fillMaxWidth()) {
             Column {
                 totals.forEachIndexed { index, total ->
-                    if (index > 0) HorizontalDivider(color = KitchenLine, modifier = Modifier.padding(horizontal = 16.dp))
+                    if (index >
+                        0
+                    ) {
+                        HorizontalDivider(color = KitchenLine, modifier = Modifier.padding(horizontal = 16.dp))
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,

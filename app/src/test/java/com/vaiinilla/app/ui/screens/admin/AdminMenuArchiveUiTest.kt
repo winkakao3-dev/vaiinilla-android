@@ -1,17 +1,14 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performSemanticsAction
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.PreparationStation
@@ -99,7 +96,11 @@ class AdminMenuArchiveUiTest {
         }
         composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Agua"))
         composeTestRule.onAllNodesWithText("Agua").onFirst().performClick()
-        composeTestRule.onAllNodes(hasScrollAction()).onLast().performScrollToNode(hasText("Opciones y extras", substring = true))
+        composeTestRule
+            .onAllNodes(
+                hasScrollAction(),
+            ).onLast()
+            .performScrollToNode(hasText("Opciones y extras", substring = true))
         composeTestRule.onNodeWithText("Opciones y extras", substring = true).performClick()
         composeTestRule.onAllNodes(hasScrollAction()).onLast().performScrollToNode(hasText("Archivar"))
         composeTestRule.onNodeWithText("Archivar").performClick()

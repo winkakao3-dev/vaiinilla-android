@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
-import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -30,7 +29,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -51,13 +49,13 @@ import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
-import com.vaiinilla.app.ui.screens.admin.AdminChoice
 import com.vaiinilla.app.ui.screens.admin.AdminCoral
 import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminLoadError
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionPage
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
+import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import com.vaiinilla.app.ui.screens.admin.AdminSheetError
 import java.time.LocalDate
 

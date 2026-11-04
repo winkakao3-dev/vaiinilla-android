@@ -287,8 +287,20 @@ class AdminBusinessJson {
             if (patch.setsCapacity) put("capacidad", patch.capacity?.let(::JsonPrimitive) ?: JsonNull)
             if (patch.setsMinimum) put("reserva_minima_min", patch.minimumMinutes?.let(::JsonPrimitive) ?: JsonNull)
             if (patch.setsSportAndSurface) {
-                put("deporte", patch.sport?.trim()?.ifEmpty { null }.orNull())
-                put("superficie", patch.surface?.trim()?.ifEmpty { null }.orNull())
+                put(
+                    "deporte",
+                    patch.sport
+                        ?.trim()
+                        ?.ifEmpty { null }
+                        .orNull(),
+                )
+                put(
+                    "superficie",
+                    patch.surface
+                        ?.trim()
+                        ?.ifEmpty { null }
+                        .orNull(),
+                )
             }
         }.toString()
 

@@ -231,7 +231,14 @@ private fun TableFaces(people: List<SharedTableParticipant>) {
     Row(horizontalArrangement = Arrangement.spacedBy((-9).dp)) {
         shown.forEachIndexed { index, person ->
             val (bg, fg) = FaceColors[index]
-            TableFace(person.alias.trim().take(1).uppercase(), bg, fg)
+            TableFace(
+                person.alias
+                    .trim()
+                    .take(1)
+                    .uppercase(),
+                bg,
+                fg,
+            )
         }
         if (extra > 0) TableFace("+$extra", Color(0xFF33342F), OrderTrackingCardText.copy(alpha = 0.86f))
     }
@@ -255,6 +262,7 @@ private fun TableFace(
         Text(text, color = content, fontSize = 12.sp, fontWeight = FontWeight.Black)
     }
 }
+
 /** Sin unirse todavía: el renglón invita y la hoja de L03 pide el nombre. */
 @Composable
 private fun JoinTableRow(
@@ -285,7 +293,12 @@ private fun JoinTableRow(
             if (extra > 0) TableFace("+$extra", Color(0xFF33342F), OrderTrackingCardText.copy(alpha = 0.86f))
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text("¿Compartes ${words.thePlace}?", color = OrderTrackingCardText, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            Text(
+                "¿Compartes ${words.thePlace}?",
+                color = OrderTrackingCardText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+            )
             Text(
                 "Únete con un nombre y paga solo tu parte",
                 color = OrderTrackingCardText.copy(alpha = 0.62f),
@@ -316,6 +329,7 @@ private fun JoinTableRow(
         )
     }
 }
+
 /** «Luis y Mariana ya están en la mesa.», con «y N más» después de dos nombres; null si no hay nadie. */
 internal fun othersAtTableLine(
     names: List<String>,

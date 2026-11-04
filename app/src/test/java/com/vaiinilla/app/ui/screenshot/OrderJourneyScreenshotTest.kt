@@ -1,15 +1,14 @@
 package com.vaiinilla.app.ui.screenshot
 
-import androidx.compose.ui.test.performScrollTo
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.assertIsDisplayed
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -121,8 +120,32 @@ class OrderJourneyScreenshotTest {
                         venue = venue,
                         onAnnounceArrival = {},
                         onCurrentWaiterCall = if (waiter) ({ Result.success(null) }) else null,
-                        onCallWaiter = if (waiter) ({ _, _, _ -> Result.failure(IllegalStateException("sin red")) }) else null,
-                        onCancelWaiter = if (waiter) ({ Result.failure(IllegalStateException("sin red")) }) else null,
+                        onCallWaiter =
+                            if (waiter) {
+                                (
+                                    {
+                                        _,
+                                        _,
+                                        _,
+                                        ->
+                                        Result.failure(IllegalStateException("sin red"))
+                                    }
+                                )
+                            } else {
+                                null
+                            },
+                        onCancelWaiter =
+                            if (waiter) {
+                                (
+                                    {
+                                        Result.failure(
+                                            IllegalStateException("sin red"),
+                                        )
+                                    }
+                                )
+                            } else {
+                                null
+                            },
                         onOpenMenu = {},
                         onPay = if (pay) ({}) else null,
                     )
@@ -155,9 +178,16 @@ class OrderJourneyScreenshotTest {
                 OrderState.PREPARING,
                 112,
                 "289.00",
-                listOf(Line(2, "Combo Patio", "218.00", listOf("Sin cebolla")), Line(1, "Malteada de vainilla", "71.00")),
+                listOf(
+                    Line(2, "Combo Patio", "218.00", listOf("Sin cebolla")),
+                    Line(1, "Malteada de vainilla", "71.00"),
+                ),
             ),
-            JourneyVenue(driveThru = true, name = "Burger Patio · Periférico", whatsappUrl = "https://wa.me/5216140000000"),
+            JourneyVenue(
+                driveThru = true,
+                name = "Burger Patio · Periférico",
+                whatsappUrl = "https://wa.me/5216140000000",
+            ),
         )
 
     @Test
@@ -275,7 +305,14 @@ class OrderJourneyScreenshotTest {
                 state,
                 2,
                 "1070.29",
-                listOf(Line(1, "Pastel de conejita · grande", "1070.29", listOf("Vainilla", "Dice «Feliz cumpleaños, Sofi»"))),
+                listOf(
+                    Line(
+                        1,
+                        "Pastel de conejita · grande",
+                        "1070.29",
+                        listOf("Vainilla", "Dice «Feliz cumpleaños, Sofi»"),
+                    ),
+                ),
             )
         return base.copy(
             summary = base.summary.copy(deliveryDate = "2026-11-07", deliverySlot = "11:00-13:00"),
@@ -309,7 +346,13 @@ class OrderJourneyScreenshotTest {
     fun p10_efectivo() =
         capture(
             "p10_efectivo",
-            order(OrderState.PENDING_PAYMENT, 51, "128.00", latte, payment = PaymentMethod.CASH).copy(pickupToken = "VN-51"),
+            order(
+                OrderState.PENDING_PAYMENT,
+                51,
+                "128.00",
+                latte,
+                payment = PaymentMethod.CASH,
+            ).copy(pickupToken = "VN-51"),
             qrPayload = "vaiinilla://pedido/51",
         )
 
@@ -320,7 +363,10 @@ class OrderJourneyScreenshotTest {
             "p11_cancelado",
             base.copy(
                 summary =
-                    base.summary.copy(cancelReason = "Se nos acabó la leche de avena, perdón.", canceledByRole = "cajero"),
+                    base.summary.copy(
+                        cancelReason = "Se nos acabó la leche de avena, perdón.",
+                        canceledByRole = "cajero",
+                    ),
             ),
         )
     }
@@ -362,7 +408,8 @@ class OrderJourneyScreenshotTest {
     private val pasteleria = JourneyVenue(name = "Pastelería Vaini", whatsappUrl = "https://wa.me/5216140000000")
 
     @Test
-    fun d01_domicilio_por_aceptar() = capture("d01_domicilio_por_aceptar", homeOrder(OrderState.AWAITING_ACCEPTANCE), pasteleria)
+    fun d01_domicilio_por_aceptar() =
+        capture("d01_domicilio_por_aceptar", homeOrder(OrderState.AWAITING_ACCEPTANCE), pasteleria)
 
     @Test
     fun d02_domicilio_haciendose() = capture("d02_domicilio_haciendose", homeOrder(OrderState.PREPARING), pasteleria)

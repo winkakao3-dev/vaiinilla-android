@@ -1,15 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +14,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +22,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +31,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +46,7 @@ import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,7 +62,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -76,6 +75,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -416,6 +416,7 @@ private fun StoreQuestion(
 }
 
 /** Cómo está la cuenta de Stripe, en una franja de color: conectada (lima), pendiente (yema) o sin conectar. */
+
 /** La misma información en un renglón, para la tarjeta del marco 02a. */
 @Composable
 private fun StripeCompactLine(
@@ -452,6 +453,7 @@ private fun StripeStatusLine(
     action: (@Composable () -> Unit)? = null,
 ) {
     val lime = if (colors.isDark) colors.accentLime else colors.accentInk
+
     data class Look(
         val icon: ImageVector,
         val title: String,
@@ -460,7 +462,13 @@ private fun StripeStatusLine(
     )
     val look =
         when (step) {
-            StripeStep.READY -> Look(Icons.Outlined.Verified, "Cuenta de Stripe conectada", "Ya puedes cobrar con tarjeta.", lime)
+            StripeStep.READY ->
+                Look(
+                    Icons.Outlined.Verified,
+                    "Cuenta de Stripe conectada",
+                    "Ya puedes cobrar con tarjeta.",
+                    lime,
+                )
             StripeStep.FINISH ->
                 Look(
                     Icons.Outlined.HourglassTop,
@@ -483,7 +491,13 @@ private fun StripeStatusLine(
             .clip(shape)
             .background(if (step == StripeStep.CONNECT) colors.cardBackground else look.tint.copy(alpha = 0.12f))
             .then(
-                if (step == StripeStep.CONNECT) Modifier else Modifier.border(1.dp, look.tint.copy(alpha = 0.4f), shape),
+                if (step ==
+                    StripeStep.CONNECT
+                ) {
+                    Modifier
+                } else {
+                    Modifier.border(1.dp, look.tint.copy(alpha = 0.4f), shape)
+                },
             ).padding(14.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -505,6 +519,7 @@ private fun StripeStatusLine(
         }
     }
 }
+
 @Composable
 private fun StripeQuick(
     viewModel: AdminStoreViewModel,
@@ -595,7 +610,14 @@ private fun StorePaymentsPage(
                         } else {
                             {
                                 AdminPrimaryButton(
-                                    title = if (step == StripeStep.CONNECT) "Conectar con Stripe" else "Completar en Stripe",
+                                    title =
+                                        if (step ==
+                                            StripeStep.CONNECT
+                                        ) {
+                                            "Conectar con Stripe"
+                                        } else {
+                                            "Completar en Stripe"
+                                        },
                                     colors = colors,
                                     busy = state.saving,
                                     enabled = enabled,
@@ -804,7 +826,12 @@ private fun PresenceHero(
             )
         }
         val logoShape = RoundedCornerShape(14.dp)
-        val logo = Modifier.align(Alignment.BottomStart).padding(10.dp).size(52.dp).clip(logoShape)
+        val logo =
+            Modifier
+                .align(Alignment.BottomStart)
+                .padding(10.dp)
+                .size(52.dp)
+                .clip(logoShape)
         val logoUrl = images.logoUrl
         if (logoUrl != null) {
             ProductImage(
@@ -833,7 +860,12 @@ private fun PresenceHero(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+            Icon(
+                Icons.Outlined.PhotoCamera,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(13.dp),
+            )
             Text("Cambiar", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
         }
     }
@@ -865,10 +897,20 @@ private fun VideoStrip(
                     ProductImage(imageUrl = thumb, contentDescription = "", modifier = Modifier.fillMaxSize())
                 }
                 Box(
-                    Modifier.align(Alignment.Center).size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.5f)),
+                    Modifier
+                        .align(
+                            Alignment.Center,
+                        ).size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
                 Text(
                     video.title,
@@ -897,7 +939,12 @@ private fun VideoStrip(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Outlined.Add,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
                 Text(
                     "Agregar video",
                     fontSize = 12.sp,
@@ -928,6 +975,7 @@ private fun Modifier.dashedBorder(
             style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))),
         )
     }
+
 /** Entrega a domicilio y encargos: la zona, el envío y cómo se aceptan. */
 @Composable
 private fun StoreDeliveryPage(
@@ -1008,6 +1056,7 @@ private fun StoreDeliveryPage(
         }
     }
 }
+
 @Composable
 private fun VideosCard(
     saved: List<StoreVideo>,
@@ -1103,7 +1152,15 @@ private fun FlowForm(
             StoreTemplate.offered(availableTypes).forEach { option ->
                 AdminFilterChip(
                     label = option.label,
-                    selected = option == (template ?: StoreTemplate.offered(availableTypes).firstOrNull { it.type.wire == flow.typeWire }),
+                    selected =
+                        option ==
+                            (
+                                template
+                                    ?: StoreTemplate
+                                        .offered(
+                                            availableTypes,
+                                        ).firstOrNull { it.type.wire == flow.typeWire }
+                            ),
                     colors = colors,
                     onClick = {
                         if (enabled) {

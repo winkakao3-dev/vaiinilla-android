@@ -59,6 +59,7 @@ import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
@@ -96,7 +97,6 @@ import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
-import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
@@ -113,10 +113,10 @@ import com.vaiinilla.app.ui.parentmode.ParentModeWalletHost
 import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.reservations.ReservationsScreen
 import com.vaiinilla.app.ui.reservations.ReservationsViewModel
+import com.vaiinilla.app.ui.screens.AccountDeletionWarnings
 import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
-import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CashierRefundsEntry
 import com.vaiinilla.app.ui.screens.CatalogScreen
@@ -131,6 +131,7 @@ import com.vaiinilla.app.ui.screens.LocalVenueArt
 import com.vaiinilla.app.ui.screens.MenuFeedScreen
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
+import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
 import com.vaiinilla.app.ui.screens.SharedTableCard
 import com.vaiinilla.app.ui.screens.SharedTableInviteSheet
 import com.vaiinilla.app.ui.screens.SharedTablePage
@@ -145,14 +146,13 @@ import com.vaiinilla.app.ui.screens.StudentTrackingScreen
 import com.vaiinilla.app.ui.screens.StudentVerifyEmailScreen
 import com.vaiinilla.app.ui.screens.VenueSwitchDialog
 import com.vaiinilla.app.ui.screens.WaiterOperationalScreen
-import com.vaiinilla.app.ui.screens.AccountDeletionWarnings
 import com.vaiinilla.app.ui.screens.WalletAccountScreen
-import com.vaiinilla.app.ui.screens.accountDeletionBalance
 import com.vaiinilla.app.ui.screens.WalletAddCardScreen
 import com.vaiinilla.app.ui.screens.WalletAddMoneyScreen
 import com.vaiinilla.app.ui.screens.WalletPaymentMethodsScreen
 import com.vaiinilla.app.ui.screens.WalletScreen
 import com.vaiinilla.app.ui.screens.WelcomeBootStage
+import com.vaiinilla.app.ui.screens.accountDeletionBalance
 import com.vaiinilla.app.ui.screens.admin.AdminActions
 import com.vaiinilla.app.ui.screens.admin.AdminCashActions
 import com.vaiinilla.app.ui.screens.admin.AdminOrdersTables
@@ -1294,7 +1294,11 @@ fun AppNavHost(
                 )
                 SharedTableInviteHost(
                     viewModel = sharedTableViewModel,
-                    qrToken = orderState.guestVenue?.space?.qrToken.takeIf { studentAuthState.session != null },
+                    qrToken =
+                        orderState.guestVenue
+                            ?.space
+                            ?.qrToken
+                            .takeIf { studentAuthState.session != null },
                     spaceName = orderState.guestVenue?.space?.name,
                     spaceType = orderState.guestVenue?.space?.type,
                     displayName = studentAuthState.session?.displayName.orEmpty(),
@@ -1541,7 +1545,11 @@ fun AppNavHost(
                 LaunchedEffect(Unit) { walletViewModel.refresh() }
                 // Antes de borrar la cuenta hay que decir qué hijos dependen de ella; sin abrir Padres e hijos no se han traído.
                 LaunchedEffect(studentAuthState.session?.uid) {
-                    if (studentAuthState.session != null && !childrenViewModel.state.hasLoaded) childrenViewModel.state.load()
+                    if (studentAuthState.session != null &&
+                        !childrenViewModel.state.hasLoaded
+                    ) {
+                        childrenViewModel.state.load()
+                    }
                 }
                 val hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT }
                 WalletAccountScreen(

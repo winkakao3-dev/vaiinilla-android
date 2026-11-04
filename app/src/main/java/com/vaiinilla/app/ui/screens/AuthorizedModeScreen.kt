@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -49,7 +50,6 @@ import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -118,7 +118,18 @@ internal fun groupModesByBusiness(
                     name = modes.first().establishmentName,
                     isSchool = modes.any { it.isSchool },
                     active = modes.all { it.establishmentActive },
-                    modes = modes.sortedBy { ROLE_ORDER.indexOf(it.role).let { i -> if (i < 0) ROLE_ORDER.size else i } },
+                    modes =
+                        modes.sortedBy {
+                            ROLE_ORDER.indexOf(it.role).let { i ->
+                                if (i <
+                                    0
+                                ) {
+                                    ROLE_ORDER.size
+                                } else {
+                                    i
+                                }
+                            }
+                        },
                 )
             }
     val activeId = activeContext?.establishmentId ?: return businesses
@@ -183,7 +194,13 @@ fun AuthorizedModeScreen(
             }
             Column(modifier = Modifier.padding(horizontal = 20.dp).padding(top = 18.dp)) {
                 Column(Modifier.modeArrive(0)) {
-                    Text("MODOS", color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.2.sp)
+                    Text(
+                        "MODOS",
+                        color = colors.muted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.2.sp,
+                    )
                     Text(
                         "¿Dónde trabajas hoy?",
                         color = colors.ink,
@@ -203,7 +220,10 @@ fun AuthorizedModeScreen(
                 }
 
                 if (state.loading && staffModes.isEmpty()) {
-                    SkeletonBlock(modifier = Modifier.padding(top = 22.dp).fillMaxWidth().height(120.dp), corner = 22.dp)
+                    SkeletonBlock(
+                        modifier = Modifier.padding(top = 22.dp).fillMaxWidth().height(120.dp),
+                        corner = 22.dp,
+                    )
                 }
                 if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
                     EmptyState(
@@ -233,11 +253,22 @@ fun AuthorizedModeScreen(
 
                 if (businesses.isNotEmpty()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 22.dp, bottom = 10.dp),
+                        modifier =
+                            Modifier.fillMaxWidth().padding(
+                                start = 4.dp,
+                                end = 4.dp,
+                                top = 22.dp,
+                                bottom = 10.dp,
+                            ),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         SectionCaption("Tus negocios")
-                        Text("${businesses.size}", color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${businesses.size}",
+                            color = colors.muted,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
                 Column(
@@ -275,7 +306,15 @@ fun AuthorizedModeScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     ) {
                         Text(
-                            if (expanded) "Ver menos" else if (hidden == 1) "Ver el otro negocio" else "Ver los otros $hidden negocios",
+                            if (expanded) {
+                                "Ver menos"
+                            } else if (hidden ==
+                                1
+                            ) {
+                                "Ver el otro negocio"
+                            } else {
+                                "Ver los otros $hidden negocios"
+                            },
                             color = colors.ink2,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
@@ -284,7 +323,13 @@ fun AuthorizedModeScreen(
                 }
 
                 adminCoverNote(staffModes)?.let { note ->
-                    Text(note, color = colors.muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 14.dp))
+                    Text(
+                        note,
+                        color = colors.muted,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(top = 14.dp),
+                    )
                 }
                 state.errorMessage?.let { error ->
                     Surface(
@@ -292,14 +337,24 @@ fun AuthorizedModeScreen(
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.padding(top = 18.dp),
                     ) {
-                        Text(error, color = colors.ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(14.dp))
+                        Text(
+                            error,
+                            color = colors.ink,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(14.dp),
+                        )
                     }
                     TextButton(onClick = onRetry, enabled = !state.loading, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text("Reintentar", color = colors.ink, fontWeight = FontWeight.Black)
                     }
                 }
                 state.message?.let { message ->
-                    Text(message, color = colors.muted, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp))
+                    Text(
+                        message,
+                        color = colors.muted,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 14.dp),
+                    )
                 }
 
                 // Sin acceso de cliente no hay a dónde volver: antes este botón cerraba la sesión sin avisar.
@@ -358,11 +413,30 @@ private fun CurrentModeCard(
             modifier = Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(colors.accent),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(modeRoleIcon(mode.role), contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(24.dp))
+            Icon(
+                modeRoleIcon(mode.role),
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(24.dp),
+            )
         }
         Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-            Text("AHORA ESTÁS EN", color = if (colors.isDark) colors.accent else colors.ink2, fontSize = 11.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.3.sp)
-            Text(mode.role.label, color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black, softWrap = false, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+            Text(
+                "AHORA ESTÁS EN",
+                color = if (colors.isDark) colors.accent else colors.ink2,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.3.sp,
+            )
+            Text(
+                mode.role.label,
+                color = colors.ink,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black,
+                softWrap = false,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 2.dp),
+            )
             Text(
                 mode.establishmentName,
                 color = colors.muted,
@@ -384,7 +458,12 @@ private fun CurrentModeCard(
         ) {
             Text("Seguir", color = colors.accentInk, fontSize = 14.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.width(6.dp))
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }
@@ -416,10 +495,20 @@ private fun BusinessSearchField(
                         .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.muted, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Outlined.Search,
+                    contentDescription = null,
+                    tint = colors.muted,
+                    modifier = Modifier.size(20.dp),
+                )
                 Box(Modifier.weight(1f).padding(start = 10.dp)) {
                     if (query.isEmpty()) {
-                        Text("Buscar negocio", color = colors.muted.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Buscar negocio",
+                            color = colors.muted.copy(alpha = 0.7f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                     field()
                 }
@@ -454,11 +543,16 @@ private fun BusinessModesCard(
                     Modifier
                         .size(40.dp)
                         .clip(RoundedCornerShape(13.dp))
-                        .background(AVATAR_TINTS[business.establishmentId.hashCode().absoluteValue % AVATAR_TINTS.size]),
+                        .background(
+                            AVATAR_TINTS[business.establishmentId.hashCode().absoluteValue % AVATAR_TINTS.size],
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    business.name.trim().firstOrNull()?.uppercase() ?: "·",
+                    business.name
+                        .trim()
+                        .firstOrNull()
+                        ?.uppercase() ?: "·",
                     color = Color(0xFF1D1E1C),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
@@ -474,7 +568,13 @@ private fun BusinessModesCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 businessNote(business)?.let { note ->
-                    Text(note, color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 2.dp))
+                    Text(
+                        note,
+                        color = colors.muted,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
                 }
             }
         }
@@ -648,8 +748,16 @@ private fun AuthorizedModeScreenPreview() {
             state =
                 AuthorizedAccessUiState(
                     modes =
-                        listOf(OperationalRole.CASHIER, OperationalRole.KITCHEN, OperationalRole.WAITER).mapIndexed { i, role ->
-                            AuthorizedMode(role, establishmentId = "e1", establishmentName = "Cafetería central", membershipId = "m$i")
+                        listOf(OperationalRole.CASHIER, OperationalRole.KITCHEN, OperationalRole.WAITER).mapIndexed {
+                            i,
+                            role,
+                            ->
+                            AuthorizedMode(
+                                role,
+                                establishmentId = "e1",
+                                establishmentName = "Cafetería central",
+                                membershipId = "m$i",
+                            )
                         },
                 ),
             onBack = {},

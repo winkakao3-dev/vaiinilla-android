@@ -1,6 +1,5 @@
 package com.vaiinilla.app.data.order
 
-import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -12,6 +11,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.RefundOutcome
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.repository.CashLastClose
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

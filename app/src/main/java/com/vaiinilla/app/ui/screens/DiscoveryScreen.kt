@@ -1,13 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.core.location.HomeAddressLocator
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.outlined.NearMe
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.rememberLauncherForActivityResult
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -15,6 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -68,15 +62,20 @@ import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -125,6 +124,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.location.HomeAddressLocator
 import com.vaiinilla.app.domain.guardianship.SchoolJoinCodeRules
 import com.vaiinilla.app.domain.mode.MySchool
 import com.vaiinilla.app.domain.mode.MySchools
@@ -1004,7 +1004,12 @@ private fun NearbyAskSheet(
                         Modifier.size(62.dp).clip(CircleShape).background(colors.ink),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.NearMe, contentDescription = null, tint = colors.onInk, modifier = Modifier.size(26.dp))
+                        Icon(
+                            Icons.Outlined.NearMe,
+                            contentDescription = null,
+                            tint = colors.onInk,
+                            modifier = Modifier.size(26.dp),
+                        )
                     }
                 }
             }
@@ -1033,7 +1038,12 @@ private fun NearbyAskSheet(
                     "Si dices que no, igual puedes buscar por nombre.",
                 ).forEach { line ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Rounded.Check, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = colors.accent,
+                            modifier = Modifier.size(18.dp),
+                        )
                         Text(line, color = colors.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -1081,9 +1091,15 @@ private fun LazyListScope.nearbyResults(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(Icons.Outlined.NearMe, contentDescription = null, tint = colors.accent, modifier = Modifier.size(14.dp))
+            Icon(
+                Icons.Outlined.NearMe,
+                contentDescription = null,
+                tint = colors.accent,
+                modifier = Modifier.size(14.dp),
+            )
             Text(
-                state.locationMessage ?: if (state.locating) "Buscando dónde estás…" else "Del más cercano al más lejano",
+                state.locationMessage
+                    ?: if (state.locating) "Buscando dónde estás…" else "Del más cercano al más lejano",
                 color = colors.muted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1117,6 +1133,7 @@ private fun LazyListScope.nearbyResults(
         }
     }
 }
+
 private fun LazyListScope.searchResults(
     state: DiscoveryUiState,
     activeId: String?,

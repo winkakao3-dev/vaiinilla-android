@@ -1,22 +1,20 @@
 package com.vaiinilla.app.ui.parentmode
 
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -85,7 +84,6 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.animateSelectionColor
-import com.vaiinilla.app.ui.components.minTouchTarget
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -345,6 +343,7 @@ internal fun WeekPlannerSheet(
                     },
                 )
         }
+
     // Con algo elegido no se sale de un jalón: se perdería la semana armada.
     fun leave() {
         when {
@@ -360,7 +359,13 @@ internal fun WeekPlannerSheet(
 
     ParentPage(
         title = "Apartar para ${child.firstName}",
-        subtitle = listOfNotNull(weekRangeLabel(model.dates), "se paga con su saldo").joinToString(" · ").replaceFirstChar { it.uppercase() },
+        subtitle =
+            listOfNotNull(
+                weekRangeLabel(model.dates),
+                "se paga con su saldo",
+            ).joinToString(" · ").replaceFirstChar {
+                it.uppercase()
+            },
         colors = colors,
         onBack = ::leave,
         footer =
@@ -373,7 +378,10 @@ internal fun WeekPlannerSheet(
                         )
                     }
                     if (days > 0) {
-                        Row(modifier = Modifier.fillMaxWidth().testTag("week-summary"), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().testTag("week-summary"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
                                 if (days == 1) "1 día apartado" else "$days días apartados",
                                 color = colors.textSecondary,
@@ -381,10 +389,18 @@ internal fun WeekPlannerSheet(
                                 fontSize = 14.sp,
                                 modifier = Modifier.weight(1f),
                             )
-                            Text(compactMoney(total), color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                            Text(
+                                compactMoney(total),
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 15.sp,
+                            )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         if (onReload != null) {
                             ClientPillButton(
                                 text = "Recargar",
@@ -439,12 +455,20 @@ internal fun WeekPlannerSheet(
                 model.selectedDate?.let { DayContent(model, it, colors) { product -> infoProduct = product } }
                 AnimatedVisibility(
                     visible = missing != null,
-                    enter = if (reduced) fadeIn(snap()) else fadeIn() + expandVertically(spring(dampingRatio = 0.86f, stiffness = 400f)),
+                    enter =
+                        if (reduced) {
+                            fadeIn(snap())
+                        } else {
+                            fadeIn() +
+                                expandVertically(spring(dampingRatio = 0.86f, stiffness = 400f))
+                        },
                     exit = if (reduced) fadeOut(snap()) else fadeOut() + shrinkVertically(spring(stiffness = 500f)),
                 ) {
                     val vColors = LocalVaiinillaColors.current
                     Text(
-                        "${if (days == 1) "El día suma" else "Los $days días suman"} ${compactMoney(total)} y ${child.firstName} " +
+                        "${if (days == 1) "El día suma" else "Los $days días suman"} ${compactMoney(
+                            total,
+                        )} y ${child.firstName} " +
                             "tiene ${compactMoney(balance)}. " +
                             if (onReload != null) "Recárgale sin salir de aquí." else "Recárgale primero.",
                         color = vColors.yolk,
@@ -528,7 +552,10 @@ private fun DayStrip(
                                 }
                         },
             ) {
-                Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Text(
                         if (date == model.today) "HOY" else SchoolCalendar.weekdayShort(date).uppercase(),
                         color = ink.copy(alpha = 0.75f),
@@ -562,14 +589,19 @@ private fun DayStrip(
 
 /** «Semana del 3 al 7 de nov» con los días que se pueden apartar; un solo día no es una semana. */
 internal fun weekRangeLabel(dates: List<String>): String? {
-    val first = dates.firstOrNull()?.let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() } ?: return null
+    val first =
+        dates.firstOrNull()?.let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() } ?: return null
     val last = dates.last().let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() } ?: return null
     if (first == last) return null
-    val month = java.time.format.DateTimeFormatter.ofPattern("MMM", java.util.Locale.forLanguageTag("es-MX"))
+    val month =
+        java.time.format.DateTimeFormatter
+            .ofPattern("MMM", java.util.Locale.forLanguageTag("es-MX"))
     return if (first.month == last.month) {
         "Semana del ${first.dayOfMonth} al ${last.dayOfMonth} de ${last.format(month).trimEnd('.')}"
     } else {
-        "Del ${first.dayOfMonth} de ${first.format(month).trimEnd('.')} al ${last.dayOfMonth} de ${last.format(month).trimEnd('.')}"
+        "Del ${first.dayOfMonth} de ${first.format(
+            month,
+        ).trimEnd('.')} al ${last.dayOfMonth} de ${last.format(month).trimEnd('.')}"
     }
 }
 
@@ -600,7 +632,13 @@ private fun DayContent(
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
-                if (closure != null) SchoolCalendar.longLabel(date, model.today).uppercase() else dayMenuCap(date, model.today),
+                if (closure !=
+                    null
+                ) {
+                    SchoolCalendar.longLabel(date, model.today).uppercase()
+                } else {
+                    dayMenuCap(date, model.today)
+                },
                 color = colors.textSecondary,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 11.sp,
@@ -662,7 +700,13 @@ private fun DayContent(
             products.forEach { product -> PlannerProductRow(model, product, date, colors, onInfo) }
         }
         if (model.slots.isNotEmpty()) {
-            Text("LO RECOGE A LAS", color = colors.textSecondary, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 2.2.sp)
+            Text(
+                "LO RECOGE A LAS",
+                color = colors.textSecondary,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                letterSpacing = 2.2.sp,
+            )
             ChipFlow {
                 model.slots.forEach { slot ->
                     ToggleChip(
@@ -754,7 +798,10 @@ private fun PlannerProductRow(
             )
             Text(
                 restriction?.label
-                    ?: listOfNotNull(moneyLabel(product.digitalPrice), model.choiceSummary(product, date)).joinToString(" · "),
+                    ?: listOfNotNull(
+                        moneyLabel(product.digitalPrice),
+                        model.choiceSummary(product, date),
+                    ).joinToString(" · "),
                 color = if (restriction != null) vColors.errorText else colors.textSecondary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
@@ -765,7 +812,13 @@ private fun PlannerProductRow(
             )
             AnimatedVisibility(
                 visible = picked,
-                enter = if (reduced) fadeIn(snap()) else fadeIn() + expandVertically(spring(dampingRatio = 0.86f, stiffness = 450f)),
+                enter =
+                    if (reduced) {
+                        fadeIn(snap())
+                    } else {
+                        fadeIn() +
+                            expandVertically(spring(dampingRatio = 0.86f, stiffness = 450f))
+                    },
                 exit = if (reduced) fadeOut(snap()) else fadeOut() + shrinkVertically(spring(stiffness = 600f)),
             ) {
                 MiniStepper(
@@ -796,13 +849,25 @@ private fun MiniStepper(
     val vColors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     Row(
-        modifier = Modifier.padding(top = 6.dp).height(32.dp).clip(RoundedCornerShape(percent = 50)).background(vColors.line),
+        modifier =
+            Modifier
+                .padding(
+                    top = 6.dp,
+                ).height(32.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(vColors.line),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         listOf(Triple(Icons.Outlined.Remove, "Uno menos", onMinus), Triple(Icons.Outlined.Add, "Uno más", onPlus))
             .forEachIndexed { index, (icon, label, action) ->
                 if (index == 1) {
-                    Text("$quantity", color = vColors.ink, fontWeight = FontWeight.Black, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                    Text(
+                        "$quantity",
+                        color = vColors.ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
                 }
                 Box(
                     modifier =
@@ -819,6 +884,7 @@ private fun MiniStepper(
             }
     }
 }
+
 /** En gris y a medias, como la tarjeta de iOS: se ve qué es, pero no invita a tocarlo. */
 private fun Modifier.dimmed(): Modifier =
     drawWithCache {

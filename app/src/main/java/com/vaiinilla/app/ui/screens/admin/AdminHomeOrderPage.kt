@@ -119,8 +119,10 @@ private fun OrderDetail.customerLabel(): String =
 private fun OrderDetail.firstNameLabel(): String = customerLabel().substringBefore(' ')
 
 private fun OrderDetail.noteLabel(): String? =
-    (kitchenNotes.takeIf { it.isNotBlank() } ?: items.firstNotNullOfOrNull { item -> item.notes.takeIf { it.isNotBlank() } })
-        ?.let { "Nota: «$it»" }
+    (
+        kitchenNotes.takeIf { it.isNotBlank() }
+            ?: items.firstNotNullOfOrNull { item -> item.notes.takeIf { it.isNotBlank() } }
+    )?.let { "Nota: «$it»" }
 
 /**
  * Un pedido a domicilio o encargo a pantalla completa, como los marcos 18 y 19 del lienzo: la etapa en grande, a dónde
@@ -177,7 +179,9 @@ private fun OrderInProgress(
     val due = home?.dueOnArrival.positive()
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding =
+            androidx.compose.foundation.layout
+                .PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "barra") {
@@ -221,7 +225,11 @@ private fun OrderInProgress(
                     AdminRow(
                         title = order.customerLabel(),
                         colors = colors,
-                        detail = listOf(home.address.address, home.address.reference).filter { it.isNotBlank() }.joinToString("\n"),
+                        detail =
+                            listOf(
+                                home.address.address,
+                                home.address.reference,
+                            ).filter { it.isNotBlank() }.joinToString("\n"),
                         onClick = {
                             haptics.click()
                             runCatching { uri.openUri(mapsUrl(home.address)) }
@@ -233,7 +241,10 @@ private fun OrderInProgress(
         }
         item(key = "productos") {
             AdminPanel(colors) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     ThumbStack(order, photos, colors)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
@@ -252,7 +263,12 @@ private fun OrderInProgress(
         if (step == HomeOrderStep.DELIVER) {
             item(key = "codigo") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Código de entrega", fontSize = 20.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                    Text(
+                        "Código de entrega",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = colors.textPrimary,
+                    )
                     Text(
                         "Pídeselo a ${order.firstNameLabel()} al entregar. Lo ve en su app.",
                         fontSize = 13.sp,
@@ -274,11 +290,19 @@ private fun OrderInProgress(
                             color = colors.textSecondary,
                             modifier = Modifier.weight(1f),
                         )
-                        Text(moneyLabelCents(due), fontSize = 22.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                        Text(
+                            moneyLabelCents(due),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.textPrimary,
+                        )
                     }
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AdminFilterChip("Efectivo", method == "efectivo", colors, onClick = { method = "efectivo" })
-                        AdminFilterChip("Transferencia", method == "transferencia", colors, onClick = { method = "transferencia" })
+                        AdminFilterChip("Transferencia", method == "transferencia", colors, onClick = {
+                            method =
+                                "transferencia"
+                        })
                     }
                 }
             }
@@ -302,7 +326,14 @@ private fun OrderInProgress(
                 when (step) {
                     HomeOrderStep.DECIDE ->
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            AdminSecondaryButton("Rechazar", colors, Modifier.weight(1f), outlined = true, enabled = !busy, onClick = reject)
+                            AdminSecondaryButton(
+                                "Rechazar",
+                                colors,
+                                Modifier.weight(1f),
+                                outlined = true,
+                                enabled = !busy,
+                                onClick = reject,
+                            )
                             AdminPrimaryButton(
                                 "Aceptar",
                                 colors,
@@ -312,7 +343,11 @@ private fun OrderInProgress(
                             ) { onAction(HomeOrderAction.Accept) }
                         }
                     HomeOrderStep.SEND_OUT ->
-                        AdminPrimaryButton("Salió a entregar", colors, busy = busy) { onAction(HomeOrderAction.SendOut) }
+                        AdminPrimaryButton(
+                            "Salió a entregar",
+                            colors,
+                            busy = busy,
+                        ) { onAction(HomeOrderAction.SendOut) }
                     HomeOrderStep.DELIVER ->
                         AdminPrimaryButton(
                             title = if (due != null) "Entregar y cobrar ${moneyLabelCents(due)}" else "Entregar",
@@ -461,7 +496,9 @@ private fun DeliveredAndPaid(
     val method = order.summary.chargedMethod?.lowercase()
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding =
+            androidx.compose.foundation.layout
+                .PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -498,7 +535,14 @@ private fun DeliveredAndPaid(
         }
         item(key = "recibo") {
             AdminPanel(colors) {
-                deposit?.let { ReceiptRow(Icons.Outlined.CreditCard, "Anticipo con tarjeta", moneyLabelCents(it), colors) }
+                deposit?.let {
+                    ReceiptRow(
+                        Icons.Outlined.CreditCard,
+                        "Anticipo con tarjeta",
+                        moneyLabelCents(it),
+                        colors,
+                    )
+                }
                 atDoor?.let {
                     AdminRowDivider(colors)
                     ReceiptRow(
@@ -659,7 +703,14 @@ internal fun AwaitingOrderCard(
                         },
                     )
                 }
-                AdminPrimaryButton("Aceptar", colors, Modifier.weight(1f), icon = Icons.Outlined.Check, busy = busy, onClick = onAccept)
+                AdminPrimaryButton(
+                    "Aceptar",
+                    colors,
+                    Modifier.weight(1f),
+                    icon = Icons.Outlined.Check,
+                    busy = busy,
+                    onClick = onAccept,
+                )
             }
         }
         if (home?.deposit.positive() != null) {
@@ -719,7 +770,12 @@ internal fun WeekStrip(
     modifier: Modifier = Modifier,
 ) {
     val today = LocalDate.now(BusinessTime.zone)
-    val dates = orders.mapNotNull { it.summary.deliveryDate }.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }.toSet()
+    val dates =
+        orders
+            .mapNotNull {
+                it.summary.deliveryDate
+            }.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+            .toSet()
     val focus = dates.minOrNull() ?: today
     val monday = focus.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -765,7 +821,10 @@ private val WeekLetters = listOf("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DO
 
 private fun sinceLabel(iso: String): String? =
     runCatching {
-        val minutes = java.time.Duration.between(Instant.parse(iso), Instant.now()).toMinutes()
+        val minutes =
+            java.time.Duration
+                .between(Instant.parse(iso), Instant.now())
+                .toMinutes()
         when {
             minutes < 1 -> "ahora"
             minutes < 60 -> "hace $minutes min"

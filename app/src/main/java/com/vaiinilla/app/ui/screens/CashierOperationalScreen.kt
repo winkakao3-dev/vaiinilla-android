@@ -1,31 +1,19 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.material.icons.rounded.Lock
-import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
-import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
-import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.runtime.key
-import androidx.compose.material3.HorizontalDivider
-import com.vaiinilla.app.domain.model.OrderSummary
-import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.components.animateSelectionColor
 import android.net.Uri
 import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,7 +21,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +37,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -59,9 +47,11 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -71,10 +61,12 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,6 +82,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
@@ -110,6 +103,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
@@ -131,6 +125,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
+import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.assistantAnchor
 import com.vaiinilla.app.ui.components.assistantProductSwitchAnchor
@@ -144,6 +139,10 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
 import com.vaiinilla.app.ui.operational.queuePresentation
+import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
+import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
+import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
+import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import kotlinx.coroutines.delay
@@ -1481,7 +1480,10 @@ private fun CashWelcome(
     onOtherAmount: () -> Unit,
     onSkip: () -> Unit,
 ) {
-    val hour = java.time.LocalTime.now(BusinessTime.zone).hour
+    val hour =
+        java.time.LocalTime
+            .now(BusinessTime.zone)
+            .hour
     val hello =
         when {
             hour < 12 -> "Buenos días"
@@ -1497,7 +1499,12 @@ private fun CashWelcome(
             Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(colors.cardBackground),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.Lock, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(26.dp))
+            Icon(
+                Icons.Rounded.Lock,
+                contentDescription = null,
+                tint = colors.textPrimary,
+                modifier = Modifier.size(26.dp),
+            )
         }
         Text(
             if (first != null) "$hello,\n$first" else hello,
@@ -1535,7 +1542,12 @@ private fun CashWelcome(
                     .padding(vertical = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(moneyLabelCents(suggested), fontSize = 36.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                Text(
+                    moneyLabelCents(suggested),
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.textPrimary,
+                )
             }
             Text(
                 "Es el fondo de siempre. Si cuadra, solo confirma.",
@@ -1583,6 +1595,7 @@ private fun CashWelcome(
         )
     }
 }
+
 /**
  * «COBRADO HOY | Efectivo en el cajón» bajo la fila. El servidor todavía no manda lo cobrado del día, así que
  * se ve «—» hasta que llegue; el efectivo abre el detalle del cajón.
@@ -2223,6 +2236,7 @@ internal fun KitchenRejectContent(
 }
 
 private const val REJECT_OTHER = "Otro"
+
 /** Etiqueta de una comanda en la fila de cocina, igual al sello de la comanda abierta. */
 internal fun kitchenQueueLabel(order: OrderDetail): String =
     when (order.summary.state) {

@@ -1,19 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -24,13 +10,25 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -307,7 +307,11 @@ internal fun AdminDeliveryForm(
                                     if (!enabled) return@AdminFilterChip
                                     preorders =
                                         currentPreorders.copy(
-                                            depositPercent = (deposit ?: DEFAULT_DEPOSIT).takeIf { option == Upfront.DEPOSIT },
+                                            depositPercent =
+                                                (deposit ?: DEFAULT_DEPOSIT).takeIf {
+                                                    option ==
+                                                        Upfront.DEPOSIT
+                                                },
                                         )
                                     delivery =
                                         currentDelivery?.copy(
@@ -366,8 +370,10 @@ internal fun AdminDeliveryForm(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ANSWER_TIME_OPTIONS
-                            .filter { (minutes, _) -> minutes != UNCOMMON_ANSWER || current.answerMinutes == UNCOMMON_ANSWER }
-                            .forEach { (minutes, label) ->
+                            .filter { (minutes, _) ->
+                                minutes != UNCOMMON_ANSWER ||
+                                    current.answerMinutes == UNCOMMON_ANSWER
+                            }.forEach { (minutes, label) ->
                                 AdminFilterChip(
                                     label = label,
                                     selected = (current.answerMinutes ?: 0) == minutes,
@@ -412,14 +418,24 @@ internal fun AdminDeliveryForm(
                         preorders = current.copy(daysAhead = (current.daysAhead - 1).coerceAtLeast(0))
                     }
                     Box(Modifier.size(8.dp))
-                    StepButton("+", "Un día más", enabled && current.daysAhead < HomeBusinessRules.MAX_DAYS_AHEAD, colors) {
+                    StepButton(
+                        "+",
+                        "Un día más",
+                        enabled && current.daysAhead < HomeBusinessRules.MAX_DAYS_AHEAD,
+                        colors,
+                    ) {
                         preorders =
-                            current.copy(daysAhead = (current.daysAhead + 1).coerceAtMost(HomeBusinessRules.MAX_DAYS_AHEAD))
+                            current.copy(
+                                daysAhead = (current.daysAhead + 1).coerceAtMost(HomeBusinessRules.MAX_DAYS_AHEAD),
+                            )
                     }
                 }
                 OperationalField(
                     value = current.cutoff,
-                    onValueChange = { raw -> preorders = current.copy(cutoff = raw.filter { it.isDigit() || it == ':' }.take(5)) },
+                    onValueChange = { raw ->
+                        preorders =
+                            current.copy(cutoff = raw.filter { it.isDigit() || it == ':' }.take(5))
+                    },
                     label = "Pedir hasta",
                     colors = colors,
                     placeholder = "Todo el día",
@@ -492,7 +508,10 @@ private fun DeliveryMap(
             .clip(RoundedCornerShape(18.dp))
             .background(colors.cardInner)
             .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = "Zona de entrega. Toca para cambiar la ubicación." },
+            .semantics(mergeDescendants = true) {
+                contentDescription =
+                    "Zona de entrega. Toca para cambiar la ubicación."
+            },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val step = size.width / 5f
@@ -508,10 +527,19 @@ private fun DeliveryMap(
             drawCircle(lime.copy(alpha = 0.8f), radius, style = Stroke(1.5.dp.toPx()))
         }
         Box(
-            Modifier.align(Alignment.Center).size(26.dp).clip(RoundedCornerShape(9.dp)).background(lime),
+            Modifier
+                .align(Alignment.Center)
+                .size(26.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(lime),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Storefront, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(15.dp))
+            Icon(
+                Icons.Outlined.Storefront,
+                contentDescription = null,
+                tint = colors.accentInk,
+                modifier = Modifier.size(15.dp),
+            )
         }
         if (radiusKm.isNotBlank()) {
             Text(

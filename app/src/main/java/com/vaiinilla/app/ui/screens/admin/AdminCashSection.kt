@@ -1,11 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.domain.repository.CashLastClose
-import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.domain.model.OrderDetail
-import androidx.compose.material.icons.outlined.PointOfSale
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -19,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,9 +22,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.Verified
@@ -51,6 +48,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.MoneyInput
+import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -285,7 +285,11 @@ private fun OpenSession(
     val opening = state.cashOpeningAmount?.toBigDecimalOrNull()
     val expected = state.cashExpected?.toBigDecimalOrNull()
     val cashIn = if (opening != null && expected != null) (expected - opening).toPlainString() else null
-    val card = state.summary?.paymentMethods?.firstOrNull { it.label == PaymentMethod.STRIPE.label }?.amount
+    val card =
+        state.summary
+            ?.paymentMethods
+            ?.firstOrNull { it.label == PaymentMethod.STRIPE.label }
+            ?.amount
     Column {
         AdminCapsLabel(
             state.cashOpenedAt?.let { "Sesión de caja · desde ${receiptLocalTime(it)}" } ?: "Sesión de caja",
@@ -411,6 +415,7 @@ private fun CashChargeRow(
         )
     }
 }
+
 /**
  * Pide un monto con el teclado del lienzo; se cierra solo si el servidor lo aceptó. Al cerrar caja muestra lo esperado
  * y dice si lo contado cuadra, sobra o falta.

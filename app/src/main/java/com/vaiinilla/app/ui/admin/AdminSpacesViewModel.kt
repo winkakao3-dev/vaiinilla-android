@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.admin
 
-import com.vaiinilla.app.domain.admin.SpaceDraft
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -8,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
+import com.vaiinilla.app.domain.admin.SpaceDraft
 import com.vaiinilla.app.domain.admin.SpacePatch
 import com.vaiinilla.app.domain.admin.SpaceRules
 import com.vaiinilla.app.domain.admin.SpaceType

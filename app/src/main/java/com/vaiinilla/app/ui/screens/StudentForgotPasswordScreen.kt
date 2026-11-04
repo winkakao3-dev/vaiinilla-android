@@ -1,25 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.theme.Yolk
-import com.vaiinilla.app.ui.theme.Lime
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.PathOperation
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.material3.Text
-import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,10 +24,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.AuthBanner
 import com.vaiinilla.app.ui.components.AuthBannerTone
@@ -54,8 +52,10 @@ import com.vaiinilla.app.ui.components.AuthStage
 import com.vaiinilla.app.ui.components.AuthStageColors
 import com.vaiinilla.app.ui.components.AuthTextLink
 import com.vaiinilla.app.ui.components.authArrive
+import com.vaiinilla.app.ui.theme.Lime
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
 
 @Composable
@@ -68,7 +68,8 @@ fun StudentForgotPasswordScreen(
     AnimatedContent(
         targetState = state.passwordResetSent,
         transitionSpec = {
-            (fadeIn() + scaleIn(spring(dampingRatio = 0.8f, stiffness = 300f), initialScale = 0.96f)) togetherWith fadeOut()
+            (fadeIn() + scaleIn(spring(dampingRatio = 0.8f, stiffness = 300f), initialScale = 0.96f)) togetherWith
+                fadeOut()
         },
         label = "forgotPasswordStage",
     ) { sent ->
@@ -204,7 +205,12 @@ private fun SentEnvelopeArt(modifier: Modifier = Modifier) {
         val h = size.height
         val top = h * 0.32f
         val radius = CornerRadius(w * 0.1f)
-        drawRoundRect(Yolk.copy(alpha = 0.72f), topLeft = Offset(0f, top), size = Size(w, h - top), cornerRadius = radius)
+        drawRoundRect(
+            Yolk.copy(alpha = 0.72f),
+            topLeft = Offset(0f, top),
+            size = Size(w, h - top),
+            cornerRadius = radius,
+        )
         val letterX = w * 0.135f
         val letterW = w * 0.73f
         drawRoundRect(
@@ -237,6 +243,7 @@ private fun SentEnvelopeArt(modifier: Modifier = Modifier) {
 
 private val AuthPaperCream = Color(0xFFF3EFE3)
 private val AuthLetterLine = Color(0xFFD8D3C4)
+
 /** Segundos que faltan para [untilMs], contados en vivo. */
 @Composable
 internal fun rememberSecondsUntil(untilMs: Long): Long {
