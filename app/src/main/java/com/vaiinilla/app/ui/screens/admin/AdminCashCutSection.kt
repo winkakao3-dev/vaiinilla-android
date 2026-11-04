@@ -143,14 +143,15 @@ private fun shiftTitle(shift: CutShift): String =
 
 private fun shiftHours(shift: CutShift): String {
     val from = shift.openedAt?.let(::receiptLocalTime) ?: "—"
-    val to = shift.closedAt?.let(::receiptLocalTime) ?: "sigue abierto"
+    val to = shift.closedAt?.let(::receiptLocalTime)
     val who =
         listOfNotNull(
             shift.openedBy?.let { "abrió $it" },
             shift.closedBy?.let { "cerró $it" },
             "cierre automático".takeIf { shift.automatic },
         ).joinToString(" · ")
-    return "De $from a $to" + if (who.isNotEmpty()) " · $who" else ""
+    val hours = if (to != null) "De $from a $to" else "Desde las $from · sigue abierto"
+    return hours + if (who.isNotEmpty()) " · $who" else ""
 }
 
 private fun LazyListScope.dayCutItems(
