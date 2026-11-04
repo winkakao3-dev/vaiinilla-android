@@ -379,6 +379,9 @@ class OrderFlowViewModel
         /** Como [requiresStudentAuth], salvo la compra sin cuenta: ese invitado no necesita cuenta. */
         fun requiresAccountAuth(): Boolean = requiresStudentAuth() && !isGuestCheckout()
 
+        /** El nombre del invitado (el que dio al entrar o el que va escribiendo); vacío si aún no hay. */
+        fun guestDisplayName(): String = guestSession.storedName() ?: _uiState.value.guestName
+
         fun updateGuestName(name: String) {
             _uiState.value = _uiState.value.copy(guestName = name, createOrderError = null)
         }

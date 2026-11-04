@@ -1246,10 +1246,14 @@ fun AppNavHost(
                             sharedTableSpaceId =
                                 sharedTableViewModel.uiState.value.table
                                     ?.spaceId,
-                            signedIn = studentAuthState.session != null,
+                            // Sin cuenta también se llama al mesero, con la sesión del invitado.
+                            signedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout(),
                         )?.let { spaceId ->
                             val qrToken = orderState.guestVenue?.space?.qrToken
-                            val alias = waiterCallAlias(studentAuthState.session?.displayName.orEmpty())
+                            val alias =
+                                waiterCallAlias(
+                                    studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName(),
+                                )
                             val layer: @Composable (MenuCartBar?, Boolean) -> Unit = { cart, visible ->
                                 MenuWaiterLayer(
                                     spaceId = spaceId,

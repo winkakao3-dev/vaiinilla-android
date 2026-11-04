@@ -18,9 +18,8 @@ import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
-import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
+import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.guest.GuestReservationSession
-import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
@@ -158,7 +157,8 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         waiterContractJson: WaiterContractJson,
         orderContractJson: OrderContractJson,
-    ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson)
+        guestClientAccess: GuestClientAccess,
+    ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson, guestClientAccess)
 
     @Provides
     @Singleton
@@ -178,17 +178,8 @@ object VaiinillaModule {
     fun provideSharedTableRepository(
         apiClient: VaiinillaApiClient,
         sharedTableContractJson: SharedTableContractJson,
-        guestSessionStore: GuestSessionStore,
-        guestCheckoutPolicy: GuestCheckoutPolicy,
-        guestReservationSession: GuestReservationSession,
-    ): SharedTableRepository =
-        RemoteSharedTableRepository(
-            apiClient,
-            sharedTableContractJson,
-            guestSessionStore,
-            guestCheckoutPolicy,
-            guestReservationSession,
-        )
+        guestClientAccess: GuestClientAccess,
+    ): SharedTableRepository = RemoteSharedTableRepository(apiClient, sharedTableContractJson, guestClientAccess)
 
     @Provides
     @Singleton
