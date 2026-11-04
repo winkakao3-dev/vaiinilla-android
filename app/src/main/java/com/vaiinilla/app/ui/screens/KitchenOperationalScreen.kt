@@ -199,6 +199,8 @@ fun KitchenOperationalScreen(
     assistantUserKey: String = "kitchen",
     /** Cocina de una escuela: "Para mañana" (padres e hijos); null fuera de una escuela. */
     reservedEntry: (@Composable () -> Unit)? = null,
+    /** Comandas que llegaron por la Caja del local mientras no hay internet. */
+    localTicketsEntry: (@Composable () -> Unit)? = null,
     onActionNoticed: () -> Unit = {},
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
@@ -491,6 +493,12 @@ fun KitchenOperationalScreen(
                         onDismiss = onDismissError,
                         modifier = Modifier.animateItem(),
                     )
+                }
+            }
+
+            if (localTicketsEntry != null) {
+                item(key = "kitchen-local-tickets") {
+                    Box(modifier = Modifier.animateItem()) { localTicketsEntry() }
                 }
             }
 
