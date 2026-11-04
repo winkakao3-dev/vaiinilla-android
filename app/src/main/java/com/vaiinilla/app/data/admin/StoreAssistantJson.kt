@@ -117,6 +117,7 @@ class StoreAssistantJson(
                     type = group.text("tipo") ?: return@mapNotNull null,
                     prefix = group.text("prefijo") ?: return@mapNotNull null,
                     count = (group["cantidad"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    hourlyPrice = group.text("precio_hora"),
                 )
             }
         val menu =

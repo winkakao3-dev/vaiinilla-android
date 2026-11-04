@@ -649,7 +649,8 @@ private fun AssistantReview(
                             if (index > 0) AdminRowDivider(colors)
                             ItemRow(
                                 AssistantLabels.spaceType(group.type),
-                                "${group.prefix} 1 a ${group.prefix} ${group.count} · cada uno con su QR",
+                                "${group.prefix} 1 a ${group.prefix} ${group.count} · cada uno con su QR" +
+                                    group.hourlyPrice?.let { " · $$it la hora" }.orEmpty(),
                                 colors,
                             )
                         }

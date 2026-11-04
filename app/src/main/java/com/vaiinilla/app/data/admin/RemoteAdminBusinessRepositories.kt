@@ -184,8 +184,11 @@ class RemoteAdminStoreRepository(
                         "espacios/lote",
                         json.encodeBatch(step.group.type, step.group.prefix, 1, step.group.count),
                         key(idempotencyKey),
-                    ).map { }
-                    .mapApiErrors()
+                    ).mapApiErrors()
+                    .mapCatching {
+                        val price = step.group.hourlyPrice
+                        if (price != null) setHourlyPrice(step, price, idempotencyKey)
+                    }
             is AssistantStep.Menu -> applyAssistantMenu(step, photos, idempotencyKey)
             is AssistantStep.StorePhoto -> {
                 val photo = photos[step.photoId]
@@ -214,6 +217,38 @@ class RemoteAdminStoreRepository(
                     ).map { }
                     .mapApiErrors()
         }
+
+    /** Pone el precio por hora a las canchas del grupo que aún no tienen (las nuevas y las que ya estaban). */
+    private fun setHourlyPrice(
+        step: AssistantStep.Spaces,
+        price: String,
+        idempotencyKey: String,
+    ) {
+        val names = (1..step.group.count).map { "${step.group.prefix} $it" }.toSet()
+        val spaces =
+            apiClient
+                .get("espacios/administracion")
+                .mapCatching(json::parseSpaces)
+                .mapApiErrors()
+                .getOrThrow()
+        val failed = mutableListOf<String>()
+        var cause: Throwable? = null
+        spaces
+            .filter { it.name in names && it.typeWire == step.group.type && it.active && it.hourlyPrice == null }
+            .forEach { space ->
+                apiClient
+                    .patch(
+                        "espacios/${space.id}",
+                        json.encodeSpacePatch(SpacePatch(hourlyPrice = price, setsHourlyPrice = true)),
+                        key(MutationIdempotency.assistant(idempotencyKey, "precio", "${space.id}")),
+                    ).mapApiErrors()
+                    .onFailure {
+                        failed += "precio de ${space.name}"
+                        cause = cause ?: it
+                    }
+            }
+        if (failed.isNotEmpty()) throw AssistantPartialFailure(failed, cause)
+    }
 
     /**
      * Todos los ajustes en un PATCH. Si el servidor rechaza uno (por ejemplo una regla que cruza dos

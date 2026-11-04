@@ -21,6 +21,8 @@ data class AssistantSpaceGroup(
     val type: String,
     val prefix: String,
     val count: Int,
+    /** Solo canchas y pistas: lo que se cobra por hora de renta ("350.00"). */
+    val hourlyPrice: String? = null,
 )
 
 /** Un producto del menú propuesto. [photoId] es la foto del chat que lleva ("foto2"), si tiene. */

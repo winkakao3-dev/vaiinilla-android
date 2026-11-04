@@ -86,7 +86,8 @@ class StoreAssistantJsonTest {
                     """
                     {"data":{"mensaje":"Así quedaría.","opciones":[],"quedan_mensajes":20,
                     "propuesta":{"cambios":{},"motivos":{"espacios":"Tus pistas."},
-                    "espacios":[{"tipo":"cancha","prefijo":"Pista","cantidad":12}],
+                    "espacios":[{"tipo":"cancha","prefijo":"Pista","cantidad":12,"precio_hora":"350.00"},
+                      {"tipo":"mesa","prefijo":"Mesa","cantidad":4,"precio_hora":null}],
                     "menu":[{"categoria":"Bebidas","categoria_id":7,"productos":[
                       {"nombre":"Cerveza","precio":"45.00","descripcion":null,"prepara":"ninguna","foto":"foto2"}]}],
                     "personal":[{"email":"ana@correo.com","rol":"cajero"}],
@@ -95,6 +96,7 @@ class StoreAssistantJsonTest {
                 ).proposal!!
         assertNull(proposal.patchBody)
         assertEquals("Tus pistas.", proposal.sectionReasons["espacios"])
+        assertEquals(listOf("350.00", null), proposal.spaces.map { it.hourlyPrice })
         assertEquals(7, proposal.menu.single().existingId)
         assertEquals(
             "foto2",
@@ -106,9 +108,10 @@ class StoreAssistantJsonTest {
         )
         val steps = proposal.steps()
         assertTrue(steps[0] is AssistantStep.Spaces)
-        assertTrue(steps[1] is AssistantStep.Menu)
-        assertEquals(AssistantStep.StorePhoto("logo", "foto1"), steps[2])
-        assertEquals("Invitar a ana@correo.com", steps[3].label)
+        assertTrue(steps[1] is AssistantStep.Spaces)
+        assertTrue(steps[2] is AssistantStep.Menu)
+        assertEquals(AssistantStep.StorePhoto("logo", "foto1"), steps[3])
+        assertEquals("Invitar a ana@correo.com", steps[4].label)
     }
 
     @Test
