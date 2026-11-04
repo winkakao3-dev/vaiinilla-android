@@ -311,23 +311,30 @@ private fun adminSetupSteps(
                 add(
                     AdminSetupStep(
                         "Entrega a domicilio",
-                        delivery.radiusKm.takeIf { delivery.enabled && it.isNotBlank() }?.let { "$it km" },
+                        if (delivery.enabled) {
+                            delivery.radiusKm.takeIf { it.isNotBlank() }?.let { "$it km" }
+                        } else {
+                            "Opcional"
+                        },
                         done = delivery.enabled,
                         section = AdminSection.STORE,
+                        optional = true,
                     ),
                 )
             }
         }
         if (store.stripeLoaded) {
+            val stripeReady =
+                com.vaiinilla.app.domain.admin
+                    .stripeStep(store.stripe) ==
+                    com.vaiinilla.app.domain.admin.StripeStep.READY
             add(
                 AdminSetupStep(
                     "Pagos con tarjeta",
-                    "Stripe",
-                    done =
-                        com.vaiinilla.app.domain.admin
-                            .stripeStep(store.stripe) ==
-                            com.vaiinilla.app.domain.admin.StripeStep.READY,
+                    if (stripeReady) "Stripe" else "Opcional",
+                    done = stripeReady,
                     section = AdminSection.STORE,
+                    optional = true,
                 ),
             )
         }

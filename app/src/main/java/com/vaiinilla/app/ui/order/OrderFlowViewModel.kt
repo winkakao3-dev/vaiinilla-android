@@ -42,6 +42,7 @@ import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
@@ -88,6 +89,7 @@ class OrderFlowViewModel
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
         private val orderRepository: OrderRepository,
         private val lastOrderedPlaces: LastOrderedPlaceStore,
+        private val sharedTables: SharedTableRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -1088,7 +1090,20 @@ class OrderFlowViewModel
                         if (guestSlug != null) {
                             guestOrders.create(guestSlug, request, idempotencyKey)
                         } else {
-                            createRemoteOrder(request, idempotencyKey)
+                            // Con el QR de la mesa y a la cuenta: si aún no está sentado ahí, se sienta y reintenta.
+                            val qrToken =
+                                current.guestVenue
+                                    ?.space
+                                    ?.takeIf { request.payAtEnd && it.id == current.checkoutSpaceId }
+                                    ?.qrToken
+                            createSeatingAtTableIfNeeded(
+                                create = { createRemoteOrder(request, idempotencyKey) },
+                                aliases =
+                                    payAtEndSeatAliases(
+                                        studentAuthRepository.peekSession()?.displayName.orEmpty(),
+                                    ),
+                                join = qrToken?.let { token -> { alias: String -> sharedTables.join(token, alias) } },
+                            )
                         }
                     }
                 result.fold(
