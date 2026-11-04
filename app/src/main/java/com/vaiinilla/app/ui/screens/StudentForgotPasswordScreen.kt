@@ -1,5 +1,19 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.theme.Lime
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.material3.Text
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -14,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -155,19 +168,26 @@ private fun ResetLinkSentStage(
         },
     ) {
         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            AuthIconTile(icon = Icons.Outlined.MarkEmailUnread, size = 150.dp, iconSize = 72.dp)
-            Spacer(Modifier.height(28.dp))
+            SentEnvelopeArt()
+            Spacer(Modifier.height(24.dp))
             AuthHeading(
-                cap = "Enlace enviado",
+                cap = "",
                 title = "Revisa tu correo.",
-                subtitle = "Si hay una cuenta con este correo, te llega un enlace para crear tu contraseña.",
+                subtitle = "Si hay una cuenta con este correo, ya te llegó el enlace para crear tu contraseña nueva.",
                 centered = true,
                 modifier = Modifier.authArrive(1),
             )
             if (state.email.isNotBlank()) {
                 Spacer(Modifier.height(16.dp))
-                AuthChip(icon = Icons.Outlined.Email, text = state.email.trim(), modifier = Modifier.authArrive(2))
+                AuthChip(icon = null, text = state.email.trim(), modifier = Modifier.authArrive(2))
             }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "¿No lo ves? Busca en Spam o Promociones.",
+                color = AuthStageColors.Faint,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
             state.errorMessage?.let { error ->
                 Spacer(Modifier.height(14.dp))
                 AuthBanner(error, AuthBannerTone.Error)
@@ -176,6 +196,47 @@ private fun ResetLinkSentStage(
     }
 }
 
+/** El sobre con la carta asomando: se dibuja aquí porque el lienzo lo pide sin marco ni foto. */
+@Composable
+private fun SentEnvelopeArt(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(width = 196.dp, height = 156.dp)) {
+        val w = size.width
+        val h = size.height
+        val top = h * 0.32f
+        val radius = CornerRadius(w * 0.1f)
+        drawRoundRect(Yolk.copy(alpha = 0.72f), topLeft = Offset(0f, top), size = Size(w, h - top), cornerRadius = radius)
+        val letterX = w * 0.135f
+        val letterW = w * 0.73f
+        drawRoundRect(
+            AuthPaperCream,
+            topLeft = Offset(letterX, 0f),
+            size = Size(letterW, h * 0.76f),
+            cornerRadius = CornerRadius(w * 0.055f),
+        )
+        val lineX = letterX + w * 0.075f
+        drawRoundRect(Lime, Offset(lineX, h * 0.1f), Size(letterW * 0.5f, h * 0.05f), CornerRadius(h))
+        drawRoundRect(AuthLetterLine, Offset(lineX, h * 0.2f), Size(letterW * 0.8f, h * 0.04f), CornerRadius(h))
+        drawRoundRect(AuthLetterLine, Offset(lineX, h * 0.29f), Size(letterW * 0.62f, h * 0.04f), CornerRadius(h))
+        val front =
+            Path().apply {
+                addRoundRect(RoundRect(Rect(0f, top, w, h), radius))
+                val notch =
+                    Path().apply {
+                        moveTo(-1f, top - 1f)
+                        lineTo(w + 1f, top - 1f)
+                        lineTo(w + 1f, top + 1f)
+                        lineTo(w / 2f, h * 0.62f)
+                        lineTo(-1f, top + 1f)
+                        close()
+                    }
+                op(this, notch, PathOperation.Difference)
+            }
+        drawPath(front, Yolk)
+    }
+}
+
+private val AuthPaperCream = Color(0xFFF3EFE3)
+private val AuthLetterLine = Color(0xFFD8D3C4)
 /** Segundos que faltan para [untilMs], contados en vivo. */
 @Composable
 internal fun rememberSecondsUntil(untilMs: Long): Long {

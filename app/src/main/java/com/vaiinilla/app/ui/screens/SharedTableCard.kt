@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -23,12 +21,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -41,16 +41,12 @@ import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SharedTableParticipant
 import com.vaiinilla.app.domain.model.SpaceCopy
-import com.vaiinilla.app.ui.components.EditorialAccentButton
-import com.vaiinilla.app.ui.components.EditorialTextField
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.SeaGlassButton
-import com.vaiinilla.app.ui.theme.SeaGlassTone
 import java.math.BigDecimal
 
 /**
@@ -151,15 +147,11 @@ fun SharedTableCard(
                     .animateContentSize(
                         spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
                     ).padding(
-                        if (table != null) {
-                            PaddingValues(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
-                        } else {
-                            PaddingValues(16.dp)
-                        },
+                        PaddingValues(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
                     ),
         ) {
             if (table == null) {
-                JoinTable(state, SharedSpaceWords.of(spaceType), onAliasChange, onJoin, onOrderAlone)
+                JoinTableRow(state, spaceType, onAliasChange, onJoin, onOrderAlone)
             } else {
                 TableSummaryRow(table, onOpen = onOpen)
             }
@@ -263,67 +255,67 @@ private fun TableFace(
         Text(text, color = content, fontSize = 12.sp, fontWeight = FontWeight.Black)
     }
 }
+/** Sin unirse todavía: el renglón invita y la hoja de L03 pide el nombre. */
 @Composable
-private fun JoinTable(
+private fun JoinTableRow(
     state: SharedTableUiState,
-    words: SharedSpaceWords,
+    spaceType: String?,
     onAliasChange: (String) -> Unit,
     onJoin: () -> Unit,
     onOrderAlone: () -> Unit,
 ) {
-    Text(
-        words.title,
-        color = OrderTrackingCardText.copy(alpha = 0.55f),
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Black,
-    )
-    if (state.othersAtTable.isNotEmpty()) PeopleAtTable(state.othersAtTable)
-    Text(
-        "¿Compartes ${words.thePlace}?",
-        color = OrderTrackingCardText,
-        fontSize = 24.sp,
-        lineHeight = 28.sp,
-        fontWeight = FontWeight.Black,
-        modifier = Modifier.padding(top = 10.dp),
-    )
-    Text(
-        listOfNotNull(
-            othersAtTableLine(state.othersAtTable, words.thePlace),
-            "Únete con un nombre para ver los pedidos de todos y pagar solo tu parte. Los demás solo ven ese nombre.",
-        ).joinToString(" "),
-        color = OrderTrackingCardText.copy(alpha = 0.62f),
-        fontSize = 13.sp,
-        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-    )
-    // La tarjeta es oscura en cualquier tema: el campo toma el texto de la tarjeta, como en iOS.
-    CompositionLocalProvider(
-        LocalVaiinillaColors provides
-            LocalVaiinillaColors.current.copy(
-                ink = OrderTrackingCardText,
-                muted = OrderTrackingCardText.copy(alpha = 0.55f),
-                line = Color.White.copy(alpha = 0.18f),
-            ),
+    val words = SharedSpaceWords.of(spaceType)
+    var inviting by rememberSaveable { mutableStateOf(false) }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { role = Role.Button }
+                .physicalPress(scale = PhysicalPressScale.Small) { inviting = true },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EditorialTextField(
-            value = state.aliasInput,
-            onValueChange = onAliasChange,
-            label = "Tu nombre en ${words.thePlace}",
-            placeholder = "Ana",
+        Row(horizontalArrangement = Arrangement.spacedBy((-9).dp)) {
+            val shown = state.othersAtTable.take(2)
+            shown.forEachIndexed { index, name ->
+                val (bg, fg) = FaceColors[index]
+                TableFace(name.trim().take(1).uppercase(), bg, fg)
+            }
+            val extra = state.othersAtTable.size - shown.size
+            if (extra > 0) TableFace("+$extra", Color(0xFF33342F), OrderTrackingCardText.copy(alpha = 0.86f))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text("¿Compartes ${words.thePlace}?", color = OrderTrackingCardText, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            Text(
+                "Únete con un nombre y paga solo tu parte",
+                color = OrderTrackingCardText.copy(alpha = 0.62f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = OrderTrackingCardText.copy(alpha = 0.55f),
+            modifier = Modifier.size(20.dp),
         )
     }
-    Spacer(Modifier.height(12.dp))
-    EditorialAccentButton(text = "Unirme a ${words.thePlace}", onClick = onJoin, enabled = state.canJoin)
-    Spacer(Modifier.height(8.dp))
-    SeaGlassButton(
-        tone = SeaGlassTone.vainilla,
-        onClick = onOrderAlone,
-        enabled = !state.busy,
-        modifier = Modifier.fillMaxWidth().height(50.dp).testTag("shared-table-order-alone"),
-    ) {
-        Text("Pedir solo yo", fontSize = 14.sp, fontWeight = FontWeight.Black)
+    if (inviting) {
+        SharedTableInviteSheet(
+            state = state,
+            spaceName = null,
+            spaceType = spaceType,
+            onAliasChange = onAliasChange,
+            onJoin = {
+                onJoin()
+                inviting = false
+            },
+            onOrderAlone = onOrderAlone,
+            onDismiss = { inviting = false },
+        )
     }
 }
-
 /** «Luis y Mariana ya están en la mesa.», con «y N más» después de dos nombres; null si no hay nadie. */
 internal fun othersAtTableLine(
     names: List<String>,
@@ -340,38 +332,4 @@ internal fun othersAtTableLine(
         }
     val verb = if (names.size == 1) "ya está" else "ya están"
     return "$who $verb en $thePlace."
-}
-
-/** Las iniciales de quienes ya están, encimadas; más de tres se resumen en «+N». */
-@Composable
-private fun PeopleAtTable(names: List<String>) {
-    val tints = listOf(Color(0xFFB8DCF5), Color(0xFFFFD15B), Color(0xFFC7E59A))
-    Row(
-        modifier = Modifier.padding(top = 10.dp).semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy((-8).dp),
-    ) {
-        names.take(3).forEachIndexed { index, name ->
-            PersonBubble(name.trim().take(1).uppercase(), tints[index % tints.size], Color(0xFF1A1A1A))
-        }
-        if (names.size > 3) PersonBubble("+${names.size - 3}", Color.White.copy(alpha = 0.16f), OrderTrackingCardText)
-    }
-}
-
-@Composable
-private fun PersonBubble(
-    text: String,
-    fill: Color,
-    ink: Color,
-) {
-    Box(
-        modifier =
-            Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .border(2.dp, OrderTrackingCardBg, CircleShape)
-                .background(fill),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
-    }
 }

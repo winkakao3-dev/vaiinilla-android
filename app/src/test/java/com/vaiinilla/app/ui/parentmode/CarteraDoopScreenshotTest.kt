@@ -2,6 +2,8 @@ package com.vaiinilla.app.ui.parentmode
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.vaiinilla.app.domain.guardianship.DependentAccountRepository
 import com.vaiinilla.app.domain.guardianship.MenuCalendar
@@ -182,7 +184,7 @@ class CarteraDoopScreenshotTest {
                 override fun menuCalendar() =
                     Result.success(
                         MenuCalendar(
-                            schedule = OrderSchedule("2026-11-03", 2, null, null, emptyList()),
+                            schedule = OrderSchedule("2026-11-03", 4, null, null, listOf("09:30-10:00", "10:30-11:00", "12:00-12:30", "13:30-14:00")),
                             days = emptyList(),
                         ),
                     )
@@ -195,8 +197,11 @@ class CarteraDoopScreenshotTest {
                 balance = BigDecimal("42.00"),
                 onReserved = {},
                 onDismiss = {},
+                onReload = {},
             )
         }
+        settle()
+        composeTestRule.onNodeWithTag("week-product-10").performClick()
         settle()
         captureScreenRoboImage("lugar/e10_apartar.png")
     }

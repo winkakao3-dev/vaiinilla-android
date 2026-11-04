@@ -135,7 +135,7 @@ class DoopGaleriaPersonalClienteTest {
         )
 
     @Test fun ca02_login_error() {
-        draw { Login(StudentAuthUiState(email = "dani@correo.com", password = "abc", errorMessage = "Correo o contraseña incorrectos.")) }
+        draw { Login(StudentAuthUiState(email = "dani@correo.com", password = "abcdefghij", errorMessage = "Correo o contraseña incorrectos.")) }
         shot("cA02_login_error")
     }
 
@@ -159,7 +159,7 @@ class DoopGaleriaPersonalClienteTest {
     @Test fun ca07_enlace() {
         draw {
             StudentForgotPasswordScreen(
-                state = StudentAuthUiState(email = "dani@correo.com", passwordResetSent = true),
+                state = StudentAuthUiState(email = "dani@correo.com", passwordResetSent = true, resetLockedUntilMs = System.currentTimeMillis() + 42_000),
                 onBack = {},
                 onEmailChange = {},
                 onSendReset = {},
@@ -338,6 +338,161 @@ class DoopGaleriaPersonalClienteTest {
             venue = com.vaiinilla.app.ui.order.JourneyVenue(name = "Pastelería Vaini", whatsappUrl = "https://wa.me/5216140000000"),
         )
 
+    private fun pastOrder(folio: Int, state: OrderState, dest: OrderDestination, ago: Long): com.vaiinilla.app.domain.model.OrderDetail {
+        val base = com.vaiinilla.app.ui.screenshot.ScreenshotFixtures.sampleOrder(state = state, destination = dest)
+        return base.copy(summary = base.summary.copy(id = "p$folio", folio = folio, createdAt = Instant.now().minusSeconds(ago).toString()))
+    }
+
+    @Test fun cL10_pedidos() {
+        val base = com.vaiinilla.app.ui.screenshot.ScreenshotFixtures.sampleOrder(state = OrderState.PREPARING, destination = OrderDestination.IN_SPACE)
+        val now = base.copy(summary = base.summary.copy(id = "now", folio = 221, space = com.vaiinilla.app.domain.model.OrderSpace(4, "Mesa 4", "mesa")))
+        val orders = listOf(
+            now,
+            pastOrder(214, OrderState.DELIVERED, OrderDestination.TAKE_AWAY, 3_600),
+            pastOrder(198, OrderState.CANCELED, OrderDestination.TAKE_AWAY, 90_000),
+            pastOrder(187, OrderState.DELIVERED, OrderDestination.TAKE_AWAY, 300_000),
+        )
+        draw {
+            com.vaiinilla.app.ui.screens.StudentTrackingScreen(
+                state = OperationalUiState(role = OperationalRole.CLIENT, orders = orders),
+                orderState = com.vaiinilla.app.ui.order.OrderFlowUiState(loading = false, catalog = null),
+                onMenu = {},
+                onAssistant = {},
+                onWallet = {},
+                onCart = {},
+                onOpenCatalog = {},
+                onSelectOrder = {},
+            )
+        }
+        shot("cL10_pedidos")
+    }
+
+    @Test fun c16_seguimiento() {
+        val base = com.vaiinilla.app.ui.screenshot.ScreenshotFixtures.sampleOrder(state = OrderState.AWAITING_ACCEPTANCE, destination = OrderDestination.HOME_DELIVERY)
+        val order =
+            base.copy(
+                summary = base.summary.copy(id = "d1", folio = 1, total = "1070.29", deliveryDate = "2026-11-07"),
+                homeDelivery =
+                    com.vaiinilla.app.domain.model.OrderHomeDelivery(
+                        address = com.vaiinilla.app.domain.model.DeliveryAddress(address = "Aldama 1408, Centro", phone = "6140000000"),
+                        deposit = "535.15",
+                        dueOnArrival = "535.14",
+                        code = null,
+                    ),
+            )
+        draw {
+            com.vaiinilla.app.ui.screens.StudentTrackingScreen(
+                state = OperationalUiState(role = OperationalRole.CLIENT, orders = listOf(order)),
+                orderState = com.vaiinilla.app.ui.order.OrderFlowUiState(loading = false, catalog = null),
+                onMenu = {},
+                onAssistant = {},
+                onWallet = {},
+                onCart = {},
+                onOpenCatalog = {},
+                onSelectOrder = {},
+            )
+        }
+        shot("c16_seguimiento")
+    }
+    @Test fun cL03_compartes() {
+        draw {
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
+                com.vaiinilla.app.ui.screens.SharedTableInvite(
+                    state = com.vaiinilla.app.ui.sharedtable.SharedTableUiState(loaded = true, aliasInput = "Kao", othersAtTable = listOf("Luis", "Mariana", "Andrés")),
+                    spaceName = "Mesa 4",
+                    spaceType = "mesa",
+                    onAliasChange = {},
+                    onJoin = {},
+                    onOrderAlone = {},
+                )
+            }
+        }
+        shot("cL03_compartes")
+    }
+
+    @Test fun cL03b_tarjeta_pedidos() {
+        draw {
+            com.vaiinilla.app.ui.screens.StudentTrackingScreen(
+                state = OperationalUiState(role = OperationalRole.CLIENT, orders = emptyList()),
+                orderState = com.vaiinilla.app.ui.order.OrderFlowUiState(loading = false, catalog = null),
+                onMenu = {},
+                onAssistant = {},
+                onWallet = {},
+                onCart = {},
+                onOpenCatalog = {},
+                onSelectOrder = {},
+                sharedTable = {
+                    com.vaiinilla.app.ui.screens.SharedTableCard(
+                        state = com.vaiinilla.app.ui.sharedtable.SharedTableUiState(loaded = true, aliasInput = "Kao", othersAtTable = listOf("Luis", "Mariana", "Andrés")),
+                        qrToken = "qr",
+                        onAliasChange = {},
+                        onJoin = {},
+                        onOrderAlone = {},
+                        onOpen = {},
+                    )
+                },
+            )
+        }
+        shot("cL03b_tarjeta_pedidos")
+    }
+
+    @Test fun cL07_rentar() {
+        val zone = java.time.ZoneId.of("America/Chihuahua")
+        val today = java.time.LocalDate.now(zone)
+        fun at(hour: Int) = today.atTime(hour, 0).atZone(zone).toInstant()
+        val day =
+            com.vaiinilla.app.domain.model.CourtDay(
+                date = today.toString(),
+                today = today.toString(),
+                timeZone = zone.id,
+                opensAt = at(8),
+                closesAt = at(22),
+                blockMinutes = 60,
+                durations = listOf(60, 90, 120),
+                daysAhead = 14,
+                holdMinutes = 10,
+                now = at(16),
+                courts =
+                    listOf(
+                        com.vaiinilla.app.domain.model.CourtSchedule(
+                            id = 7,
+                            name = "Cancha 1",
+                            pricePerHour = "350.00",
+                            customerPricePerHour = com.vaiinilla.app.domain.model.CustomerPrice(card = "350.00", cashOrBalance = "350.00"),
+                            rentable = true,
+                            busy = emptyList(),
+                            profile = com.vaiinilla.app.domain.model.CourtProfile(description = "", imageUrl = "fruta", features = listOf("Techada")),
+                        ),
+                        com.vaiinilla.app.domain.model.CourtSchedule(
+                            id = 8,
+                            name = "Cancha 2",
+                            pricePerHour = "300.00",
+                            customerPricePerHour = com.vaiinilla.app.domain.model.CustomerPrice(card = "300.00", cashOrBalance = "300.00"),
+                            rentable = true,
+                            busy = emptyList(),
+                        ),
+                    ),
+            )
+        draw {
+            com.vaiinilla.app.ui.reservations.ReservationsScreen(
+                state = com.vaiinilla.app.ui.reservations.ReservationsUiState(loading = false, day = day),
+                venueName = "Club Pádel Norte",
+                onBack = {},
+                onSelectDate = {},
+                onSelectCourt = {},
+                onRentNow = {},
+                onSelectStart = {},
+                onSelectDuration = {},
+                onReserve = {},
+                onPay = {},
+                onDismissPayment = {},
+                onResumePayment = {},
+                onCancel = {},
+                onDismissMessage = {},
+            )
+        }
+        shot("cL07_rentar")
+    }
     @Test fun cD4_pagar_resto() {
         draw { Journey() }
         scrollTap("Prefiero pagar con tarjeta")

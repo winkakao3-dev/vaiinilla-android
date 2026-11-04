@@ -1,5 +1,11 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -91,6 +97,71 @@ internal fun keyAfterFailure(
 
 private const val REQUEST_TIMEOUT = 408
 
+/** Como [ParentSheet], pero a pantalla completa y con flecha para volver: lo que se arma con calma (Doop E10). */
+@Composable
+internal fun ParentPage(
+    title: String,
+    colors: OperationalColors,
+    onBack: () -> Unit,
+    subtitle: String? = null,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onBack,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(colors.background)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding(),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .padding(start = 16.dp, top = 8.dp)
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(colors.cardInner)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack)
+                        .semantics { contentDescription = "Volver" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+            }
+            Column(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 14.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Column {
+                    Text(title, fontWeight = FontWeight.Black, fontSize = 28.sp, letterSpacing = (-1).sp, color = colors.textPrimary)
+                    if (subtitle != null) {
+                        Text(subtitle, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
+                    }
+                }
+                content()
+            }
+            if (footer != null) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.cardBorder))
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    content = footer,
+                )
+            }
+        }
+    }
+}
 /** Las hojas del Modo Padre: título, subtítulo, cerrar, el contenido con scroll y el botón fijo abajo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,7 +196,7 @@ internal fun ParentSheet(
                     Spacer(Modifier.width(12.dp))
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontWeight = FontWeight.Black, fontSize = 22.sp, color = colors.textPrimary)
+                    Text(title, fontWeight = FontWeight.Black, fontSize = 24.sp, letterSpacing = (-0.6).sp, color = colors.textPrimary)
                     if (subtitle != null) {
                         Text(
                             subtitle,
@@ -211,6 +282,8 @@ internal fun MorphingButton(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     testTag: String? = null,
+    /** Crema en lugar de lima: un guardado o un apartado, no un cobro (Doop E08, E10). */
+    cream: Boolean = false,
     onClick: () -> Unit,
 ) {
     val active = enabled && state is MorphState.Idle
@@ -219,7 +292,7 @@ internal fun MorphingButton(
             if (active ||
                 state !is MorphState.Idle
             ) {
-                colors.accentLime
+                if (cream && state is MorphState.Idle) colors.textPrimary else colors.accentLime
             } else {
                 colors.pillBackground
             },
@@ -230,7 +303,7 @@ internal fun MorphingButton(
             if (active ||
                 state !is MorphState.Idle
             ) {
-                colors.accentInk
+                if (cream && state is MorphState.Idle) colors.background else colors.accentInk
             } else {
                 colors.textSecondary
             },

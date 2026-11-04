@@ -321,15 +321,17 @@ fun AuthHeading(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
     ) {
-        Text(
-            cap.uppercase(),
-            color = AuthStageColors.Muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.2.sp,
-            textAlign = align,
-        )
-        Spacer(Modifier.height(8.dp))
+        if (cap.isNotEmpty()) {
+            Text(
+                cap.uppercase(),
+                color = AuthStageColors.Muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.2.sp,
+                textAlign = align,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
         Text(
             title,
             color = AuthStageColors.Ink,
@@ -613,6 +615,7 @@ fun AuthBanner(
     message: String,
     tone: AuthBannerTone,
     modifier: Modifier = Modifier,
+    title: String? = null,
 ) {
     val color =
         when (tone) {
@@ -626,7 +629,9 @@ fun AuthBanner(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(color.copy(alpha = 0.13f))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .then(
+                    if (title != null) Modifier.border(1.dp, color.copy(alpha = 0.32f), RoundedCornerShape(16.dp)) else Modifier,
+                ).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
@@ -636,7 +641,14 @@ fun AuthBanner(
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(10.dp))
-        Text(message, color = color, fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold)
+        Column {
+            if (title != null) {
+                Text(title, color = color, fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.Black)
+                Text(message, color = AuthStageColors.Ink2, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
+            } else {
+                Text(message, color = color, fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
@@ -688,7 +700,7 @@ fun AuthIconTile(
 
 @Composable
 fun AuthChip(
-    icon: ImageVector,
+    icon: ImageVector?,
     text: String,
     modifier: Modifier = Modifier,
 ) {
@@ -700,8 +712,10 @@ fun AuthChip(
                 .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = AuthStageColors.Accent, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(8.dp))
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = AuthStageColors.Accent, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+        }
         Text(text, color = AuthStageColors.Ink, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
     }
 }

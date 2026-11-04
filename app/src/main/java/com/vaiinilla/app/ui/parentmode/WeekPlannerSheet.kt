@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.parentmode
 
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -7,7 +8,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -315,6 +315,7 @@ internal fun WeekPlannerSheet(
     val scope = rememberCoroutineScope()
     val model = remember { WeekPlannerModel(account, catalog) }
     var infoProduct by remember { mutableStateOf<Product?>(null) }
+    var confirmsLeaving by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { model.load() }
 
     val days = model.plan.plannedDates.size
@@ -344,18 +345,24 @@ internal fun WeekPlannerSheet(
                     },
                 )
         }
+    // Con algo elegido no se sale de un jalón: se perdería la semana armada.
+    fun leave() {
+        when {
+            model.phase == WeekPlannerModel.Phase.Sending -> Unit
+            days > 0 && model.phase !is WeekPlannerModel.Phase.Done -> confirmsLeaving = true
+            else -> onDismiss()
+        }
+    }
     val footerNote =
         (model.phase as? WeekPlannerModel.Phase.Failed)?.message
             ?: if (days == 0) "Elige un día y lo que va a comer." else null
     val ready = model.loadError == null && model.calendar != null && model.dates.isNotEmpty()
 
-    ParentSheet(
+    ParentPage(
         title = "Apartar para ${child.firstName}",
-        subtitle = "Se paga con su saldo",
+        subtitle = listOfNotNull(weekRangeLabel(model.dates), "se paga con su saldo").joinToString(" · ").replaceFirstChar { it.uppercase() },
         colors = colors,
-        // Con algo elegido no se cierra de un jalón: se perdería la semana armada.
-        busy = model.phase == WeekPlannerModel.Phase.Sending || days > 0 && model.phase !is WeekPlannerModel.Phase.Done,
-        onDismiss = onDismiss,
+        onBack = ::leave,
         footer =
             if (ready) {
                 {
@@ -368,7 +375,7 @@ internal fun WeekPlannerSheet(
                     if (days > 0) {
                         Row(modifier = Modifier.fillMaxWidth().testTag("week-summary"), verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                if (days == 1) "1 día elegido" else "$days días elegidos",
+                                if (days == 1) "1 día apartado" else "$days días apartados",
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
@@ -391,6 +398,7 @@ internal fun WeekPlannerSheet(
                             enabled = days > 0 && missing == null,
                             colors = colors,
                             testTag = "week-reserve",
+                            cream = true,
                             modifier = Modifier.weight(1.4f),
                         ) {
                             scope.launch {
@@ -400,21 +408,6 @@ internal fun WeekPlannerSheet(
                                 onDismiss()
                             }
                         }
-                    }
-                    if (days > 0 && buttonState is MorphState.Idle) {
-                        Text(
-                            "Cerrar sin apartar",
-                            color = colors.textSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier =
-                                Modifier
-                                    .align(
-                                        Alignment.CenterHorizontally,
-                                    ).physicalPress(scale = PhysicalPressScale.Small, onClick = onDismiss)
-                                    .padding(6.dp)
-                                    .minTouchTarget(),
-                        )
                     }
                 }
             } else {
@@ -472,6 +465,20 @@ internal fun WeekPlannerSheet(
         }
     }
 
+    if (confirmsLeaving) {
+        ParentConfirmDialog(
+            title = "¿Salir sin apartar?",
+            message = "Se pierde lo que elegiste para ${child.firstName}.",
+            confirmLabel = "Salir",
+            destructive = true,
+            onConfirm = {
+                confirmsLeaving = false
+                onDismiss()
+            },
+            onDismiss = { confirmsLeaving = false },
+        )
+    }
+
     infoProduct?.let { product ->
         PlannerProductSheet(model = model, product = product, onDismiss = { infoProduct = null })
     }
@@ -499,20 +506,17 @@ private fun DayStrip(
             val closed = model.closure(date) != null
             val background = animateSelectionColor(if (selected) colors.textPrimary else colors.cardInner, "day-bg")
             val ink = animateSelectionColor(if (selected) colors.background else colors.textPrimary, "day-ink")
-            Column(
+            Box(
                 modifier =
                     Modifier
-                        .width(56.dp)
+                        .width(72.dp)
+                        .height(66.dp)
                         .physicalPress(scale = PhysicalPressScale.Small) {
                             haptics.selection()
                             model.selectedDate = date
                         }.clip(RoundedCornerShape(18.dp))
                         .background(background)
-                        .border(
-                            1.dp,
-                            if (selected) colors.textPrimary else colors.cardBorder,
-                            RoundedCornerShape(18.dp),
-                        ).semantics {
+                        .semantics {
                             role = Role.Tab
                             this.selected = selected
                             contentDescription =
@@ -522,43 +526,63 @@ private fun DayStrip(
                                     count > 0 -> ", $count apartados"
                                     else -> ""
                                 }
-                        }.padding(vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                        },
             ) {
-                Text(
-                    if (date ==
-                        model.today
-                    ) {
-                        "Hoy"
-                    } else {
-                        SchoolCalendar.weekdayShort(date)
-                    },
-                    color = ink.copy(alpha = 0.75f),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                )
-                Text(
-                    SchoolCalendar.dayNumber(date),
-                    color = ink,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 19.sp,
-                    textDecoration = if (closed) TextDecoration.LineThrough else null,
-                )
-                Box(
-                    modifier =
-                        Modifier.padding(top = 3.dp).size(5.dp).clip(CircleShape).background(
-                            if (count >
-                                0
-                            ) {
-                                LocalVaiinillaColors.current.accent
-                            } else {
-                                background
-                            },
-                        ),
-                )
+                Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        if (date == model.today) "HOY" else SchoolCalendar.weekdayShort(date).uppercase(),
+                        color = ink.copy(alpha = 0.75f),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 10.5.sp,
+                        letterSpacing = 1.sp,
+                    )
+                    Text(
+                        SchoolCalendar.dayNumber(date),
+                        color = ink,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 21.sp,
+                        textDecoration = if (closed) TextDecoration.LineThrough else null,
+                    )
+                }
+                if (count > 0) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 9.dp, end = 9.dp)
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(LocalVaiinillaColors.current.accent),
+                    )
+                }
             }
         }
     }
+}
+
+/** «Semana del 3 al 7 de nov» con los días que se pueden apartar; un solo día no es una semana. */
+internal fun weekRangeLabel(dates: List<String>): String? {
+    val first = dates.firstOrNull()?.let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() } ?: return null
+    val last = dates.last().let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() } ?: return null
+    if (first == last) return null
+    val month = java.time.format.DateTimeFormatter.ofPattern("MMM", java.util.Locale.forLanguageTag("es-MX"))
+    return if (first.month == last.month) {
+        "Semana del ${first.dayOfMonth} al ${last.dayOfMonth} de ${last.format(month).trimEnd('.')}"
+    } else {
+        "Del ${first.dayOfMonth} de ${first.format(month).trimEnd('.')} al ${last.dayOfMonth} de ${last.format(month).trimEnd('.')}"
+    }
+}
+
+/** «MENÚ DEL MIÉRCOLES», «MENÚ DE HOY»; los días con menú propio se leen igual. */
+private fun dayMenuCap(
+    date: String,
+    today: String,
+): String {
+    val label = SchoolCalendar.longLabel(date, today)
+    return when (label) {
+        "Hoy", "Mañana" -> "Menú de ${label.lowercase()}"
+        else -> "Menú del ${label.substringBefore(' ').lowercase()}"
+    }.uppercase()
 }
 
 @Composable
@@ -576,23 +600,16 @@ private fun DayContent(
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
-                SchoolCalendar.longLabel(date, model.today).uppercase(),
+                if (closure != null) SchoolCalendar.longLabel(date, model.today).uppercase() else dayMenuCap(date, model.today),
                 color = colors.textSecondary,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 11.sp,
                 letterSpacing = 2.2.sp,
                 modifier = Modifier.weight(1f),
             )
-            Text(
-                when {
-                    closure != null -> "Sin servicio"
-                    model.hasMenu(date) -> "Menú del día"
-                    else -> "Todo el menú"
-                },
-                color = colors.textSecondary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-            )
+            if (closure != null) {
+                Text("Sin servicio", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
         }
         if (closure != null) {
             Row(
@@ -629,18 +646,6 @@ private fun DayContent(
             }
             return@Column
         }
-        if (model.slots.isNotEmpty()) {
-            Text("LO RECOGE A LAS", color = colors.textSecondary, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 2.2.sp)
-            ChipFlow {
-                model.slots.forEach { slot ->
-                    ToggleChip(
-                        slot.replace("-", "–"),
-                        model.plan.slots[date] == slot,
-                        colors,
-                    ) { model.toggleSlot(date, slot) }
-                }
-            }
-        }
         val products = model.products(date)
         if (products.isEmpty()) {
             Text(
@@ -656,11 +661,23 @@ private fun DayContent(
         ) {
             products.forEach { product -> PlannerProductRow(model, product, date, colors, onInfo) }
         }
+        if (model.slots.isNotEmpty()) {
+            Text("LO RECOGE A LAS", color = colors.textSecondary, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 2.2.sp)
+            ChipFlow {
+                model.slots.forEach { slot ->
+                    ToggleChip(
+                        slot.substringBefore("-").trim().removePrefix("0"),
+                        model.plan.slots[date] == slot,
+                        colors,
+                    ) { model.toggleSlot(date, slot) }
+                }
+            }
+        }
     }
 }
 
 /**
- * Un renglón del menú como el dibujo de Doop: foto, nombre, precio y un círculo que se llena al elegirlo. Tocar
+ * Un renglón del menú como el dibujo de Doop: foto, nombre y precio, con el borde lima al elegirlo. Tocar
  * la foto abre su ficha; lo que no se le puede apartar se apaga y el motivo ocupa el lugar del precio.
  */
 @Composable
@@ -683,11 +700,6 @@ private fun PlannerProductRow(
         if (picked) vColors.accent else vColors.accent.copy(alpha = 0f),
         if (reduced) snap() else spring(stiffness = 600f),
         label = "week-border",
-    )
-    val radio by animateDpAsState(
-        if (picked) 7.dp else 2.dp,
-        if (reduced) snap() else spring(dampingRatio = 0.55f, stiffness = 600f),
-        label = "week-radio",
     )
     Row(
         modifier =
@@ -763,14 +775,12 @@ private fun PlannerProductRow(
                 )
             }
         }
-        if (restriction == null) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .border(radio, if (picked) vColors.accent else vColors.line, CircleShape)
-                        .then(if (picked) Modifier.testTag("week-picked-${product.id}") else Modifier),
+        if (picked) {
+            Icon(
+                Icons.Outlined.CheckCircle,
+                contentDescription = null,
+                tint = vColors.accent,
+                modifier = Modifier.size(22.dp).testTag("week-picked-${product.id}"),
             )
         }
     }

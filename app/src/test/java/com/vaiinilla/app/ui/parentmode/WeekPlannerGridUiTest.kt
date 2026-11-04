@@ -161,6 +161,5 @@ class WeekPlannerGridUiTest {
 
         composeTestRule.onNodeWithText("Apartar para Ana").assertIsDisplayed()
         composeTestRule.onNodeWithTag("week-reserve").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Cerrar sin apartar").assertIsDisplayed()
     }
 }

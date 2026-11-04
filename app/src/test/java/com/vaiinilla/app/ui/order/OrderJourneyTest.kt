@@ -116,12 +116,12 @@ class OrderJourneyTest {
         assertEquals("Paga en Caja y empiezan tu pedido.", journeyHeadline(cash, OrderJourney.COUNTER))
 
         val court = order(OrderState.READY, space = "cancha")
-        assertEquals("Ya va a Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))
+        assertEquals("Ya va a tu Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))
 
         val canceled = order(OrderState.CANCELED)
         val byCashier = canceled.copy(summary = canceled.summary.copy(canceledByRole = "cajero"))
         assertEquals(CaptionTone.PROBLEM, journeyCaption(byCashier, OrderJourney.COUNTER).tone)
-        assertEquals("Cancelaron tu pedido.", journeyHeadline(byCashier, OrderJourney.COUNTER))
+        assertEquals("Cancelaron tu pedido. Te regresan todo.", journeyHeadline(byCashier, OrderJourney.COUNTER))
         assertEquals("${moneyLabel("10.00")} a tu saldo Vaiinilla", journeyMoneyBack(byCashier))
         assertNull(journeyLead(byCashier, OrderJourney.COUNTER))
     }

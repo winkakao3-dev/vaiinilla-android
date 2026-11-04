@@ -335,14 +335,18 @@ fun StudentTrackingScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     item {
-                        Text(
-                            "Pedidos",
-                            color = colors.ink,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 30.sp,
-                            letterSpacing = (-1.2).sp,
-                            modifier = Modifier.padding(start = 4.dp),
-                        )
+                        val deliveryFirst =
+                            animatedSelected == null && state.orders.firstOrNull { it.isActiveForCustomer }?.homeDelivery != null
+                        Column(modifier = Modifier.padding(start = 4.dp)) {
+                            if (deliveryFirst) OrdersSectionLabel("EN CURSO")
+                            Text(
+                                if (deliveryFirst) "Mis pedidos" else "Pedidos",
+                                color = colors.ink,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 30.sp,
+                                letterSpacing = (-1.2).sp,
+                            )
+                        }
                     }
                     // Con pedidos ya cargados, un error de red o de "Ya llegué" no se veía en ningún lado (PEDIDO-05).
                     trackingNoticeFor(state)?.let { notice ->
@@ -504,7 +508,9 @@ fun StudentTrackingScreen(
                                         onDelete = { onDeleteOrder(order.summary.id) },
                                         enabled = !order.isActiveForCustomer,
                                     ) {
-                                        ActiveOrderCard(
+                                        if (order.homeDelivery != null) {
+                                            DeliveryTrackingCard(order = order, onOpenFull = { onSelectOrder(order.summary.id) })
+                                        } else ActiveOrderCard(
                                             order = order,
                                             onOpenFull = { onSelectOrder(order.summary.id) },
                                             showArrival =
@@ -524,11 +530,6 @@ fun StudentTrackingScreen(
                                 }
                             }
                             item(key = "shared-table") { sharedTable() }
-                            // El juego es para la espera de la comida: no aparece con un pago por
-                            // confirmar, una renta o un pedido que ya está listo para recoger.
-                            if (activeOrders.firstOrNull()?.isWaitingForFood == true) {
-                                item(key = "waiting-arcade") { WaitingArcadeCard() }
-                            }
                             if (pastOrders.isNotEmpty()) {
                                 val pastEntries = groupOrdersBySession(pastOrders)
                                 val venueName = orderState.guestVenue?.establishment?.name
@@ -563,6 +564,11 @@ fun StudentTrackingScreen(
                                         )
                                     }
                                 }
+                            }
+                            // El juego es para la espera de la comida: no aparece con un pago por
+                            // confirmar, una renta o un pedido que ya está listo para recoger.
+                            if (activeOrders.firstOrNull()?.isWaitingForFood == true) {
+                                item(key = "waiting-arcade") { WaitingArcadeCard() }
                             }
                         }
                     }
@@ -963,6 +969,10 @@ private fun activeOrderLine(order: OrderDetail): String {
     val step =
         if (order.reservation != null) {
             order.reservation?.let { rentalScheduleLabel(it) }
+        } else if (summary.space?.type == "mesa" && !summary.state.isTerminalWithoutDelivery) {
+            "te lo llevan a la mesa"
+        } else if (summary.space?.type == "cancha" && !summary.state.isTerminalWithoutDelivery) {
+            "te lo llevan a la cancha"
         } else {
             trackingStepDescription(
                 summary.state,
@@ -1119,7 +1129,7 @@ private fun ActiveOrderCard(
                 )
             }
             Text(
-                customerStateLabel(order),
+                if (summary.state == OrderState.PREPARING && !order.isRental) "En cocina" else customerStateLabel(order),
                 color = OrderTrackingCardText,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
@@ -1148,8 +1158,8 @@ private fun ActiveOrderCard(
             val rental = order.reservation
             val rentalNow = rentalStep(order)
             SegmentedProgress(
-                currentIndex = if (rental != null) rentalProgressIndex(rentalNow) else summary.state.trackingIndex,
-                labels = if (rental != null) RentalProgressSteps else FoodProgressSteps,
+                currentIndex = if (rental != null) rentalProgressIndex(rentalNow) else foodProgressIndex(summary.state),
+                labels = if (rental != null) RentalProgressSteps else foodProgressSteps(order),
                 modifier = Modifier.padding(top = 12.dp),
             )
             if (summary.state == OrderState.READY && order.needsPickupQr(deliveryRequiresQr)) {
@@ -1526,8 +1536,27 @@ private fun InlinePickupQr(order: OrderDetail) {
     }
 }
 
-private val FoodProgressSteps: List<String>
-    get() = OrderState.trackingFlow.map { it.label }
+/** «Pagado, Recibido, Preparando, En tu mesa» (Doop L10): el último paso dice dónde termina. */
+private fun foodProgressSteps(order: OrderDetail): List<String> {
+    val summary = order.summary
+    val first = if (summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd) "Por pagar" else "Pagado"
+    val last =
+        when (summary.space?.type) {
+            "mesa" -> "En tu mesa"
+            "cancha" -> "En tu cancha"
+            else -> "Listo"
+        }
+    return listOf(first, "Recibido", "Preparando", last)
+}
+
+private fun foodProgressIndex(state: OrderState): Int =
+    when (state) {
+        OrderState.PENDING_PAYMENT, OrderState.AWAITING_ACCEPTANCE -> 0
+        OrderState.PREPARING -> 2
+        OrderState.READY, OrderState.ON_THE_WAY -> 3
+        OrderState.DELIVERED -> 4
+        else -> 1
+    }
 
 private val RentalProgressSteps = listOf("Por pagar", "Reservada", "En juego", "Terminada")
 

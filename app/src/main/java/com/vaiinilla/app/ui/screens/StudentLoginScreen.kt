@@ -1,5 +1,15 @@
 package com.vaiinilla.app.ui.screens
 
+import kotlinx.coroutines.delay
+import com.vaiinilla.app.ui.components.AuthGhostButton
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -143,12 +153,13 @@ private fun EmailLoginStage(
     var shakes by remember { mutableIntStateOf(0) }
     LaunchedEffect(error) { if (error != null) shakes++ }
     val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val wrongCredentials = error == "Correo o contraseña incorrectos."
     val canLogin = state.email.isNotBlank() && state.password.isNotBlank() && !state.loading
 
     AuthStage(loading = state.loading, contentTopPadding = 0.dp) {
         Box(modifier = Modifier.fillMaxWidth()) {
             androidx.compose.animation.AnimatedVisibility(
-                visible = !keyboardOpen,
+                visible = !keyboardOpen && error == null,
                 enter = fadeIn() + expandVertically(spring(dampingRatio = 0.85f, stiffness = 300f)),
                 exit = fadeOut() + shrinkVertically(spring(dampingRatio = 0.9f, stiffness = 400f)),
             ) {
@@ -160,7 +171,7 @@ private fun EmailLoginStage(
                 }
             }
         }
-        Spacer(Modifier.height(if (keyboardOpen) 64.dp else 4.dp))
+        Spacer(Modifier.height(if (keyboardOpen || error != null) 64.dp else 4.dp))
         AuthHeading(
             cap = "Tu cuenta Vaiinilla",
             title = "Qué bueno\nverte de nuevo.",
@@ -173,9 +184,17 @@ private fun EmailLoginStage(
         }
         if (error != null) {
             Spacer(Modifier.height(16.dp))
-            AuthBanner(error, AuthBannerTone.Error)
+            if (wrongCredentials) {
+                AuthBanner(
+                    message = "Revisa que el correo esté bien escrito. Si no recuerdas tu contraseña, puedes crear una nueva.",
+                    tone = AuthBannerTone.Error,
+                    title = "El correo o la contraseña no coinciden",
+                )
+            } else {
+                AuthBanner(error, AuthBannerTone.Error)
+            }
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(if (error != null) 12.dp else 22.dp))
         AuthBoxField(
             value = state.email,
             onValueChange = onEmailChange,
@@ -201,31 +220,34 @@ private fun EmailLoginStage(
             shakeKey = shakes,
             modifier = Modifier.authArrive(3),
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().authArrive(4),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            AuthTextLink(
-                text = if (error != null) "Crear una contraseña nueva" else "¿Olvidaste tu contraseña?",
-                onClick = onForgotPassword,
-            )
+        if (error == null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().authArrive(4),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                AuthTextLink(text = "¿Olvidaste tu contraseña?", onClick = onForgotPassword)
+            }
         }
         Spacer(Modifier.height(12.dp))
         AuthLimeButton(
             text = if (error != null) "Intentar de nuevo" else "Entrar",
             onClick = onLogin,
             enabled = canLogin,
-            showArrow = true,
+            showArrow = error == null,
             modifier = Modifier.authArrive(5),
         )
         Spacer(Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().authArrive(6),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("¿Primera vez aquí?", color = AuthStageColors.Muted, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
-            AuthTextLink("Crea tu cuenta", onClick = onRegister, color = AuthStageColors.Ink, modifier = Modifier.padding(start = 6.dp))
+        if (error != null) {
+            AuthGhostButton(text = "Crear una contraseña nueva", onClick = onForgotPassword, modifier = Modifier.authArrive(6))
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().authArrive(6),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("¿Primera vez aquí?", color = AuthStageColors.Muted, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold)
+                AuthTextLink("Crea tu cuenta", onClick = onRegister, color = AuthStageColors.Ink, modifier = Modifier.padding(start = 6.dp))
+            }
         }
         Spacer(Modifier.height(28.dp))
         AuthLegalLinks(privacyUrl = state.privacyUrl, termsUrl = state.termsUrl)
@@ -349,12 +371,12 @@ private fun MfaChallengeStage(
             )
         },
     ) {
-        AuthIconTile(icon = Icons.Outlined.Shield, modifier = Modifier.authArrive(0))
-        Spacer(Modifier.height(22.dp))
+        AuthIconTile(icon = Icons.Outlined.VerifiedUser, size = 58.dp, iconSize = 27.dp, modifier = Modifier.authArrive(0))
+        Spacer(Modifier.height(18.dp))
         AuthHeading(
             cap = "Verificación en dos pasos",
             title = "Confirma que\neres tú.",
-            subtitle = "Abre tu aplicación autenticadora y escribe el código de 6 dígitos.",
+            subtitle = "Abre tu app autenticadora y escribe el código de 6 dígitos de Vaiinilla.",
             modifier = Modifier.authArrive(1),
         )
         Spacer(Modifier.height(24.dp))
@@ -365,54 +387,117 @@ private fun MfaChallengeStage(
             isError = state.errorMessage != null,
             modifier = Modifier.authArrive(2),
         )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "El código cambia cada 30 segundos.",
-            color = AuthStageColors.Muted,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.authArrive(3),
-        )
+        Spacer(Modifier.height(14.dp))
+        CodeExpiryLine(modifier = Modifier.authArrive(3))
         state.errorMessage?.let { error ->
             Spacer(Modifier.height(12.dp))
             AuthBanner(error, AuthBannerTone.Error)
         }
-        if (challenge.factors.size > 1) {
-            Spacer(Modifier.height(20.dp))
-            Text("Elige tu aplicación", color = AuthStageColors.Ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-            challenge.factors.forEach { factor ->
-                val selected = factor.uid == state.mfaFactorUid
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(AuthStageColors.Paper2)
-                            .border(
-                                1.5.dp,
-                                if (selected) AuthStageColors.Accent else AuthStageColors.Line,
-                                RoundedCornerShape(18.dp),
-                            ).physicalPress(enabled = !state.loading) { onFactorSelected(factor.uid) }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        factor.displayName?.takeIf { it.isNotBlank() } ?: "Aplicación autenticadora",
-                        color = AuthStageColors.Ink,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (selected) {
-                        Text("En uso", color = AuthStageColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-                }
+        Spacer(Modifier.height(16.dp))
+        MfaFactorPicker(state = state, challenge = challenge, onFactorSelected = onFactorSelected)
+    }
+}
+
+@Composable
+private fun CodeExpiryLine(modifier: Modifier = Modifier) {
+    val fraction by produceState(initialValue = totpFractionLeft()) {
+        while (true) {
+            delay(1_000)
+            value = totpFractionLeft()
+        }
+    }
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(16.dp)) {
+            val stroke = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+            drawCircle(AuthStageColors.Line, style = Stroke(width = 2.2.dp.toPx()))
+            drawArc(AuthStageColors.Accent, -90f, 360f * fraction, useCenter = false, style = stroke)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "El código cambia cada 30 segundos",
+            color = AuthStageColors.Muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+private fun totpFractionLeft(): Float = 1f - (System.currentTimeMillis() % 30_000L) / 30_000f
+
+/** La app autenticadora en uso; con más de una, «Cambiar» abre la lista para elegir. */
+@Composable
+private fun MfaFactorPicker(
+    state: StudentAuthUiState,
+    challenge: StudentAuthMfaChallenge,
+    onFactorSelected: (String) -> Unit,
+) {
+    var choosing by remember { mutableStateOf(false) }
+    val current = challenge.factors.firstOrNull { it.uid == state.mfaFactorUid } ?: challenge.factors.firstOrNull()
+    if (!choosing && current != null) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AuthStageColors.Paper2)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(AuthStageColors.Paper3),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Outlined.PhoneAndroid, contentDescription = null, tint = AuthStageColors.Ink2, modifier = Modifier.size(19.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    current.displayName?.takeIf { it.isNotBlank() } ?: "Aplicación autenticadora",
+                    color = AuthStageColors.Ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+                Text("La que activaste en tu cuenta", color = AuthStageColors.Muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+            }
+            if (challenge.factors.size > 1) {
+                AuthTextLink("Cambiar", onClick = { choosing = true }, enabled = !state.loading)
+            }
+        }
+        return
+    }
+    Text("Elige tu aplicación", color = AuthStageColors.Ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
+    challenge.factors.forEach { factor ->
+        val selected = factor.uid == state.mfaFactorUid
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AuthStageColors.Paper2)
+                    .border(
+                        1.5.dp,
+                        if (selected) AuthStageColors.Accent else AuthStageColors.Line,
+                        RoundedCornerShape(18.dp),
+                    ).physicalPress(enabled = !state.loading) {
+                        onFactorSelected(factor.uid)
+                        choosing = false
+                    }.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                factor.displayName?.takeIf { it.isNotBlank() } ?: "Aplicación autenticadora",
+                color = AuthStageColors.Ink,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            if (selected) {
+                Text("En uso", color = AuthStageColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
             }
         }
     }
 }
-
 @Composable
 private fun OneTimeCodeBoxes(
     code: String,
@@ -437,6 +522,7 @@ private fun OneTimeCodeBoxes(
         decorationBox = { _ ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 repeat(6) { index ->
+                    if (index == 3) Spacer(Modifier.width(8.dp))
                     val digit = code.getOrNull(index)
                     val current = index == code.length
                     val shape = RoundedCornerShape(16.dp)

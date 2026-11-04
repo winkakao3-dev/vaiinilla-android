@@ -185,6 +185,7 @@ internal fun ChildControlsSheet(
                 enabled = canSave,
                 colors = colors,
                 testTag = "controls-save",
+                cream = true,
                 onClick = ::save,
             )
         },
@@ -222,7 +223,7 @@ internal fun ChildControlsSheet(
         }
         ControlCard(Modifier.alpha(if (principal) 1f else 0.6f)) {
             ControlTitle("Alergias")
-            ControlNote("Se le muestran bloqueadas con el motivo. No se le vende ni se le aparta nada que las tenga.")
+            ControlNote("Se le muestran bloqueadas con el motivo")
             ChipFlow {
                 allergens.sortedBy { it.label }.forEach { allergen ->
                     PillChip("${allergen.label} ×", PillStyle.Allergy, enabled = principal, description = "Quitar ${allergen.label}") {
