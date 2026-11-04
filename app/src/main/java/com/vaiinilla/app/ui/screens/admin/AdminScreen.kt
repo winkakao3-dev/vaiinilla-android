@@ -106,6 +106,11 @@ enum class AdminSection(
     STAFF("Personal", "Invitaciones y accesos del equipo", Icons.Outlined.Group),
     CASHBACK("Cashback y wallet", "La regla de cashback y la cartera de clientes", Icons.Outlined.Savings),
     CASH("Caja", "Abrir y cerrar la caja", Icons.Outlined.PointOfSale),
+    CUTS(
+        "Cortes y reportes",
+        "Corte de caja por turno y del día, y el reporte para el contador",
+        Icons.Outlined.ReceiptLong,
+    ),
 }
 
 /** Lo que las secciones de "Negocio" necesitan: sus ViewModels y lo de Caja que vive en el resto de la app. */
@@ -120,6 +125,8 @@ class AdminSectionsHost(
     val school: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel? = null,
     /** La pestaña Pedir; null si no hay con qué tomar pedidos. */
     val orderTaker: (@Composable (AdminHeader) -> Unit)? = null,
+    /** Negocio › Cortes y reportes; null la esconde. */
+    val cashCut: com.vaiinilla.app.ui.admin.AdminCashCutViewModel? = null,
 )
 
 /** Lo que comparten las cabeceras de las pestañas: el negocio, sus imágenes y el botón de la cuenta. */
@@ -269,7 +276,8 @@ fun AdminScreen(
                                 header = header,
                                 sections =
                                     AdminSection.entries.filter {
-                                        it != AdminSection.SCHOOL || (isSchool && sections.school != null)
+                                        (it != AdminSection.SCHOOL || (isSchool && sections.school != null)) &&
+                                            (it != AdminSection.CUTS || sections.cashCut != null)
                                     },
                                 host = sections,
                                 readOnly = readOnly,
@@ -484,6 +492,11 @@ private fun AdminSectionContent(
             LaunchedEffect(scope) { sections.spaces.onVisible(scope) }
             AdminSpacesSection(sections.spaces, colors, readOnly, onBack, sections.tablesBoard?.tables.orEmpty())
         }
+        AdminSection.CUTS ->
+            sections.cashCut?.let { cashCut ->
+                LaunchedEffect(scope) { cashCut.onVisible(scope) }
+                AdminCashCutSection(cashCut, colors, onBack)
+            }
         AdminSection.CASH ->
             AdminCashSection(
                 state = state,
@@ -513,7 +526,7 @@ private fun AdminBusinessTab(
     val spaces by host.spaces.uiState
     val detail: (AdminSection) -> String = { businessDetail(it, state, store, spaces, readOnly) }
     val tiles = BusinessTiles.filter { it in sections }
-    val wide = listOf(AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
+    val wide = listOf(AdminSection.CUTS, AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
     if (readOnly) {
         ReadOnlyBusiness(sections, colors, header, detail, onOpen)
         return
@@ -575,6 +588,7 @@ private fun ReadOnlyBusiness(
                 val order =
                     listOf(
                         AdminSection.CASH,
+                        AdminSection.CUTS,
                         AdminSection.STORE,
                         AdminSection.SPACES,
                         AdminSection.STAFF,
@@ -619,6 +633,7 @@ private fun businessDetail(
                 false -> "Cerrada"
                 null -> "Abrir y cerrar"
             }
+        section == AdminSection.CUTS -> "Corte del turno y del día, y reporte para el contador"
         readOnly -> "Solo lectura"
         section == AdminSection.STORE -> "Pagos, logo, entrega y cómo se pide"
         section == AdminSection.SPACES -> {

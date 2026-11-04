@@ -111,6 +111,11 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
+    fun provideCashCutRepository(apiClient: VaiinillaApiClient): com.vaiinilla.app.data.cashcut.CashCutRepository =
+        com.vaiinilla.app.data.cashcut.RemoteCashCutRepository(apiClient)
+
+    @Provides
+    @Singleton
     fun provideAdminSpacesRepository(apiClient: VaiinillaApiClient): AdminSpacesRepository =
         RemoteAdminSpacesRepository(apiClient)
 

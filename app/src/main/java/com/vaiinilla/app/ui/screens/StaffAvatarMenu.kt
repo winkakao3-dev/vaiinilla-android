@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
@@ -83,6 +84,8 @@ internal fun StaffAvatarMenu(
     placeName: String = "",
     /** N11: Caja con la caja abierta ve los movimientos del cajón. */
     onOpenCashDrawer: (() -> Unit)? = null,
+    /** Doop CR5: el corte de caja del turno y del día. */
+    onOpenCashCut: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var shiftOpen by remember { mutableStateOf(false) }
@@ -120,6 +123,13 @@ internal fun StaffAvatarMenu(
             },
             onOpenCashDrawer =
                 onOpenCashDrawer?.let { open ->
+                    {
+                        expanded = false
+                        open()
+                    }
+                },
+            onOpenCashCut =
+                onOpenCashCut?.let { open ->
                     {
                         expanded = false
                         open()
@@ -170,6 +180,7 @@ private fun StaffAccountCard(
     onCloseCash: (() -> Unit)?,
     onOpenShift: () -> Unit,
     onOpenCashDrawer: (() -> Unit)?,
+    onOpenCashCut: (() -> Unit)? = null,
 ) {
     val reduceMotion = rememberReducedMotion()
     val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
@@ -263,6 +274,9 @@ private fun StaffAccountCard(
                 }
                 if (onOpenCashDrawer != null) {
                     AccountRow(Icons.Outlined.PointOfSale, "Movimientos del cajón", colors = colors, onClick = onOpenCashDrawer)
+                }
+                if (onOpenCashCut != null) {
+                    AccountRow(Icons.Outlined.ReceiptLong, "Corte de caja", colors = colors, onClick = onOpenCashCut)
                 }
                 if (onCloseCash != null) {
                     AccountRow(Icons.Outlined.Lock, "Cerrar caja", tint = coral, colors = colors, onClick = onCloseCash)
