@@ -281,7 +281,7 @@ private fun StoreCover(
                         assistantModeHint(assistantMode),
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = colors.muted,
+                        color = colors.textMuted,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
