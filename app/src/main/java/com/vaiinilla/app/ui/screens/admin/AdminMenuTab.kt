@@ -184,6 +184,9 @@ internal fun AdminMenuTab(
                     val inventoryState by inventory.uiState
                     val known = inventoryState.products?.firstOrNull { it.id == editing.id }
                     RecipeEntry(
+                        soldOutByInventory = known?.soldOutByInventory == true,
+                        notice = inventoryState.notice,
+                        noticeIsError = inventoryState.noticeIsError,
                         detail =
                             when {
                                 known != null -> recipeSummary(known)
@@ -228,6 +231,11 @@ internal fun AdminMenuTab(
 private class RecipeEntry(
     val detail: String,
     val onOpen: () -> Unit,
+    /** La receta lo dejó agotado: guardar el producto no debe volver a ponerlo disponible. */
+    val soldOutByInventory: Boolean = false,
+    /** El aviso de Inventario («Receta guardada», «quedó agotado»), que aquí no tiene su página. */
+    val notice: String? = null,
+    val noticeIsError: Boolean = false,
 )
 
 @Composable
@@ -872,6 +880,12 @@ private fun ProductSheet(
     var allergensTouched by remember { mutableStateOf(false) }
     var markUnreviewed by remember { mutableStateOf(false) }
     var available by remember { mutableStateOf(product?.available ?: true) }
+    // Solo lo que el admin tocó: si la receta recién guardada lo agotó, «Guardar cambios» no lo vuelve a vender.
+    var availableTouched by remember { mutableStateOf(false) }
+    val soldOutByRecipe = recipe?.soldOutByInventory == true
+    LaunchedEffect(soldOutByRecipe) {
+        if (soldOutByRecipe && !availableTouched) available = false
+    }
     var image by remember { mutableStateOf<AdminImage?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
     val groups =
@@ -1100,7 +1114,10 @@ private fun ProductSheet(
                                     Modifier.weight(1f),
                                     outlined = true,
                                     enabled = !saving,
-                                ) { available = !available }
+                                ) {
+                                    availableTouched = true
+                                    available = !available
+                                }
                                 AdminSecondaryButton(
                                     "Archivar",
                                     colors,
@@ -1355,7 +1372,10 @@ private fun ProductSheet(
                             checked = available,
                             colors = colors,
                             enabled = !saving,
-                            onChange = { available = it },
+                            onChange = {
+                                availableTouched = true
+                                available = it
+                            },
                         )
                         AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
                             AdminRow(
@@ -1393,6 +1413,9 @@ private fun ProductSheet(
                                     )
                                 }
                             }
+                        }
+                        recipe?.notice?.let { notice ->
+                            if (recipe?.noticeIsError == true) SheetError(notice) else AdminHint(notice, colors)
                         }
                         error?.let { SheetError(it) }
                         AdminPrimaryButton(
