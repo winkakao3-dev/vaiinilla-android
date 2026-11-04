@@ -315,6 +315,7 @@ class AdminBusinessJson {
             daysAhead = data.diasAdelanto,
             weekDays = data.diasSemana ?: listOf(1, 2, 3, 4, 5, 6, 7),
             blockMinutes = data.bloqueMin ?: 30,
+            durations = data.duracionesMin,
         )
     }
 
@@ -325,6 +326,7 @@ class AdminBusinessJson {
             put("dias_adelanto", schedule.daysAhead)
             put("dias_semana", JsonArray(schedule.weekDays.map(::JsonPrimitive)))
             put("bloque_min", schedule.blockMinutes)
+            schedule.durations?.let { put("duraciones_min", JsonArray(it.sorted().map(::JsonPrimitive))) }
         }.toString()
 
     fun encodeForcedClose(note: String?): String =
@@ -629,4 +631,5 @@ private data class ScheduleDto(
     @SerialName("dias_adelanto") val diasAdelanto: Int,
     @SerialName("dias_semana") val diasSemana: List<Int>? = null,
     @SerialName("bloque_min") val bloqueMin: Int? = null,
+    @SerialName("duraciones_min") val duracionesMin: List<Int>? = null,
 )

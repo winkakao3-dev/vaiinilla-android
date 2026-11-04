@@ -102,6 +102,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.groupOrdersBySession
 import com.vaiinilla.app.domain.model.rejectedItemsHint
@@ -983,7 +984,7 @@ private fun activeOrderLine(order: OrderDetail): String {
         } else if (summary.space?.type == "mesa" && !summary.state.isTerminalWithoutDelivery) {
             "te lo llevan a la mesa"
         } else if (summary.space?.type == "cancha" && !summary.state.isTerminalWithoutDelivery) {
-            "te lo llevan a la cancha"
+            "te lo llevan a la ${Venue.court}"
         } else {
             trackingStepDescription(
                 summary.state,
@@ -1565,7 +1566,7 @@ private fun foodProgressSteps(order: OrderDetail): List<String> {
         when {
             summary.pickUpAtBar -> "En la barra"
             summary.space?.type == "mesa" -> "En tu mesa"
-            summary.space?.type == "cancha" -> "En tu cancha"
+            summary.space?.type == "cancha" -> "En tu ${Venue.court}"
             else -> "Listo"
         }
     return listOf(first, "Recibido", "Preparando", last)

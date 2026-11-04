@@ -36,6 +36,8 @@ interface ReservationRepository {
         durationMinutes: Int,
         customerName: String?,
         idempotencyKey: String,
+        /** Boliche: cuántos juegan; null sin dato (el servidor no lo exige). */
+        players: Int? = null,
     ): Result<Reservation>
 
     /** Cobra la renta. El personal manda `cashReceived` para cobrarla en la misma llamada. */

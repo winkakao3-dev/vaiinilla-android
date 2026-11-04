@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.mode.RestrictedMode
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
@@ -97,7 +98,7 @@ enum class AdminTab(
 /** Las secciones de "Negocio", en el orden del panel web. */
 enum class AdminSection(
     val label: String,
-    val description: String,
+    private val baseDescription: String,
     val icon: ImageVector,
 ) {
     STORE("Flujo de mi tienda", "Pagos con tarjeta, directorio, logo, videos y cómo se pide", Icons.Outlined.Tune),
@@ -110,6 +111,11 @@ enum class AdminSection(
     STAFF("Personal", "Invitaciones y accesos del equipo", Icons.Outlined.Group),
     CASHBACK("Cashback y wallet", "La regla de cashback y la cartera de clientes", Icons.Outlined.Savings),
     CASH("Caja", "Abrir y cerrar la caja", Icons.Outlined.PointOfSale),
+    ;
+
+    /** En un boliche dice «pistas» ([Venue]). */
+    val description: String
+        get() = if (this == SPACES) "QR y código de cada mesa, ${Venue.courts} y reservas" else baseDescription
 }
 
 /** Lo que las secciones de "Negocio" necesitan: sus ViewModels y lo de Caja que vive en el resto de la app. */
@@ -681,7 +687,7 @@ private fun businessDetail(
             if (count ==
                 0
             ) {
-                "QR, canchas y reservas"
+                "QR, ${Venue.courts} y reservas"
             } else {
                 (if (count == 1) "1 espacio" else "$count espacios") +
                     " · QR y reservas"

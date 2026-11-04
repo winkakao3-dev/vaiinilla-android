@@ -16,6 +16,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.AdminSpacesRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationException
@@ -303,7 +304,7 @@ class AdminSpacesViewModel
         }
 
         fun cancelReservation(reservation: Reservation) =
-            mutate("Cancha liberada") {
+            mutate("${Venue.courtTitle} liberada") {
                 reservations.cancel(ReservationAccess.Account, reservation.id, UUID.randomUUID().toString()).map { }
             }
 

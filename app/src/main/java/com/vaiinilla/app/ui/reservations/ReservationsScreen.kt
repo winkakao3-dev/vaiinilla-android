@@ -9,6 +9,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,6 +80,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ClientCap
 import com.vaiinilla.app.ui.components.ClientPageHeader
@@ -129,6 +131,8 @@ fun ReservationsScreen(
     onSelectDuration: (Int) -> Unit,
     onReserve: () -> Unit,
     onPay: (ReservationPaymentMethod) -> Unit,
+    /** Boliche: cuántos juegan. */
+    onSelectPlayers: (Int) -> Unit = {},
     onDismissPayment: () -> Unit,
     onResumePayment: (Reservation) -> Unit,
     onCancel: (Reservation) -> Unit,
@@ -163,7 +167,7 @@ fun ReservationsScreen(
         ) {
             item(key = "head") {
                 ClientPageHeader(
-                    title = "Renta tu cancha",
+                    title = "Renta tu ${Venue.court}",
                     subtitle = listOfNotNull(venueName, day?.let(::dayHeadline)).joinToString(" · "),
                     onBack = onBack,
                     modifier = Modifier.arrive(0),
@@ -195,7 +199,7 @@ fun ReservationsScreen(
             } else if (day == null) {
                 item(key = "loading") {
                     Text(
-                        if (state.loading) "Cargando canchas…" else "Este lugar todavía no renta canchas.",
+                        if (state.loading) "Cargando ${Venue.courts}…" else "Este lugar todavía no renta ${Venue.courts}.",
                         color = colors.muted,
                         fontSize = 15.sp,
                         modifier = Modifier.padding(top = 24.dp).arrive(1),
@@ -204,7 +208,7 @@ fun ReservationsScreen(
             } else if (day.courts.none { it.rentable }) {
                 item(key = "none") {
                     Text(
-                        "Por ahora las canchas de este lugar no se rentan desde la app. Pregunta en caja.",
+                        "Por ahora las ${Venue.courts} de este lugar no se rentan desde la app. Pregunta en caja.",
                         color = colors.muted,
                         fontSize = 15.sp,
                         lineHeight = 21.sp,
@@ -232,6 +236,7 @@ fun ReservationsScreen(
                         onSelectStart = onSelectStart,
                         onSelectDuration = onSelectDuration,
                         onReserve = onReserve,
+                        onSelectPlayers = onSelectPlayers,
                         colors = colors,
                     )
                 }
@@ -264,7 +269,7 @@ fun ReservationsScreen(
                         if (reservation.state == ReservationState.PENDING_PAYMENT) {
                             "Se libera el horario y no se te cobra nada."
                         } else {
-                            "Se libera la cancha, pero lo que pagaste no se devuelve."
+                            "Se libera la ${Venue.court}, pero lo que pagaste no se devuelve."
                         },
                     confirmLabel = "Sí, cancelar",
                     dismissLabel = "No, mantenerla",
@@ -377,6 +382,7 @@ private fun CourtCard(
     onSelectDuration: (Int) -> Unit,
     onReserve: () -> Unit,
     colors: VaiinillaColors,
+    onSelectPlayers: (Int) -> Unit = {},
 ) {
     val selected = court.id == state.selectedCourtId
     val isToday = day.date == day.today
@@ -508,6 +514,7 @@ private fun CourtCard(
                     start = start,
                     zone = zone,
                     onReserve = onReserve,
+                    onSelectPlayers = onSelectPlayers,
                     colors = colors,
                 )
             }
@@ -751,7 +758,7 @@ private fun AccountRequiredCard(
             letterSpacing = (-0.6).sp,
         )
         Text(
-            "Aquí las canchas se rentan con cuenta. Crea una o inicia sesión para apartar.",
+            "Aquí las ${Venue.courts} se rentan con cuenta. Crea una o inicia sesión para apartar.",
             color = colors.muted,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -795,7 +802,7 @@ private fun GuestEntryCard(
             letterSpacing = (-0.6).sp,
         )
         Text(
-            "Para ver horarios y apartar una cancha solo necesitamos tu nombre. " +
+            "Para ver horarios y apartar una ${Venue.court} solo necesitamos tu nombre. " +
                 "Al entrar aceptas los términos y el aviso de privacidad vigentes.",
             color = colors.muted,
             fontSize = 14.sp,
@@ -843,6 +850,7 @@ private fun Summary(
     zone: ZoneId,
     onReserve: () -> Unit,
     colors: VaiinillaColors,
+    onSelectPlayers: (Int) -> Unit = {},
 ) {
     val minutes = state.selectedDuration
     val end = minutes?.let { start.plusSeconds(it * 60L) }
@@ -904,9 +912,12 @@ private fun Summary(
             lineHeight = 17.sp,
             modifier = Modifier.padding(top = 10.dp),
         )
+        if (Venue.isBowling) {
+            PlayersRow(players = state.players, enabled = !state.working, onChange = onSelectPlayers, colors = colors)
+        }
         Spacer(Modifier.height(16.dp))
         EditorialAccentButton(
-            text = if (state.working) "Apartando…" else "Apartar cancha",
+            text = if (state.working) "Apartando…" else "Apartar ${Venue.court}",
             onClick = onReserve,
             enabled = state.canReserve,
         )
@@ -914,6 +925,45 @@ private fun Summary(
 }
 
 const val RESERVATION_PAY_TAG = "reservation-pay"
+
+/** Boliche: cuántos juegan en la pista, para tenerla lista con sus zapatos. */
+@Composable
+private fun PlayersRow(
+    players: Int,
+    enabled: Boolean,
+    onChange: (Int) -> Unit,
+    colors: VaiinillaColors,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("¿Cuántos juegan?", color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (players == 0) "Sin anotar" else "$players ${if (players == 1) "jugador" else "jugadores"}",
+                color = colors.ink,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+            )
+        }
+        listOf("−" to players - 1, "+" to players + 1).forEach { (label, next) ->
+            val active = enabled && next in 0..30
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(if (active) colors.ink else colors.line)
+                        .clickable(enabled = active) { onChange(next) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, color = colors.paper, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
 
 /**
  * Pago de una cancha apartada como el dibujo de Doop (L08): cuánto tiempo, cómo pagas y un solo botón.
@@ -983,7 +1033,7 @@ internal fun ReservationPaymentContent(
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
-                    listOfNotNull(reservation.courtName ?: "Cancha", court?.profile?.sport).joinToString(" · "),
+                    listOfNotNull(reservation.courtName ?: Venue.courtTitle, court?.profile?.sport).joinToString(" · "),
                     color = colors.ink,
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Black,
@@ -1056,7 +1106,7 @@ internal fun ReservationPaymentContent(
             if (expired) {
                 "Venció el apartado: vuelve a elegir el horario."
             } else {
-                "Lo que pidas del menú te llega a la cancha. Si cancelas, lo pagado no se devuelve."
+                "Lo que pidas del menú te llega a la ${Venue.court}. Si cancelas, lo pagado no se devuelve."
             },
             color = if (expired) coralInk(colors) else colors.muted,
             fontSize = 13.sp,

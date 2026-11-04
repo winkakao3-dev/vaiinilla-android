@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.CustomerPrice
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -92,6 +93,7 @@ data class ReservationDto(
     @SerialName("pedido_id") val pedidoId: String? = null,
     val canal: String = "cliente",
     @SerialName("nombre_cliente") val nombreCliente: String? = null,
+    val jugadores: Int? = null,
     val version: Int = 1,
 )
 
@@ -196,12 +198,14 @@ class ReservationContractJson
             start: Instant?,
             durationMinutes: Int,
             customerName: String?,
+            players: Int? = null,
         ): String =
             buildJsonObject {
                 put("espacio_id", courtId)
                 start?.let { put("inicio", it.toString()) }
                 put("duracion_min", durationMinutes)
                 customerName?.takeIf { it.isNotBlank() }?.let { put("nombre_cliente", it.trim()) }
+                players?.let { put("jugadores", it) }
             }.toString()
 
         fun encodePay(
@@ -233,7 +237,7 @@ private fun CourtDayDto.toDomain() =
             canchas.map { court ->
                 CourtSchedule(
                     id = court.espacio.id,
-                    name = court.espacio.nombre ?: "Cancha ${court.espacio.id}",
+                    name = court.espacio.nombre ?: "${Venue.courtTitle} ${court.espacio.id}",
                     pricePerHour = court.precioHora,
                     customerPricePerHour = court.precioHoraCliente?.toDomain(),
                     rentable = court.rentable,
@@ -272,5 +276,6 @@ fun ReservationDto.toDomain() =
         orderId = pedidoId,
         channel = canal,
         customerName = nombreCliente,
+        players = jugadores,
         version = version,
     )

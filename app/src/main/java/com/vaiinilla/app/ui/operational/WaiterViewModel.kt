@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -498,6 +499,7 @@ class WaiterViewModel
             spaceId: Int,
             minutes: Int,
             start: Instant?,
+            players: Int? = null,
         ) {
             if (!beginAction()) return
             viewModelScope.launch {
@@ -510,6 +512,7 @@ class WaiterViewModel
                             durationMinutes = minutes,
                             customerName = null,
                             idempotencyKey = keyFor("rent", spaceId, start, minutes),
+                            players = players,
                         )
                     }
                 result.onSuccess { forgetKey("rent", spaceId, start, minutes) }
@@ -544,7 +547,7 @@ class WaiterViewModel
                                 ?.takeIf { it != "0.00" }
                                 ?.let { " · cambio $$it" }
                                 .orEmpty()
-                        showToast("Cancha rentada$change")
+                        showToast("${Venue.courtTitle} rentada$change")
                     },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )

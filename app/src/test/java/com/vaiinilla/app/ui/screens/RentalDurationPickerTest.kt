@@ -33,7 +33,7 @@ class RentalDurationPickerTest {
                     durations = listOf(60, 90, 120),
                     enabled = true,
                     colors = rememberOperationalColors(),
-                    onConfirm = { confirmed += it },
+                    onConfirm = { minutes, _ -> confirmed += minutes },
                 )
             }
         }

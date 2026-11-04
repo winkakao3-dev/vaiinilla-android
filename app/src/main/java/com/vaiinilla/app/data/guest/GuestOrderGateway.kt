@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -39,6 +40,7 @@ class GuestOrderGateway
                 .withBearer(establishmentSlug) { bearer -> apiClient.getWithBearer(bearer, "estado-operativo") }
                 .mapCatching(parser::parseOperationalStatus)
                 .mapApiErrors()
+                .onSuccess { Venue.update(it.businessType) }
 
         fun create(
             establishmentSlug: String,
