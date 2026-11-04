@@ -1,6 +1,10 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -46,12 +51,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -63,10 +73,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.AssistantChange
+import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantPhoto
+import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantUpload
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.StoreAssistantState
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.PreparedProductImage
+import com.vaiinilla.app.ui.screens.prepareProductImage
+import com.vaiinilla.app.ui.screens.prepareStoreLogo
 
 /**
  * Bienvenida del admin nuevo (marco AS1): la tienda todavía no está lista y se ofrece armarla platicando con el
@@ -250,7 +267,7 @@ internal fun StoreAssistantScreen(
         if (state.reviewing && proposal != null) {
             BackHandler { viewModel.reviewProposal(false) }
             AssistantReview(
-                changes = proposal.changes,
+                proposal = proposal,
                 state = state,
                 colors = colors,
                 readOnly = readOnly,
@@ -304,7 +321,9 @@ private fun AssistantChat(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            itemsIndexed(state.messages, key = { index, _ -> index }) { _, message -> Bubble(message, colors) }
+            itemsIndexed(state.messages, key = { index, _ -> index }) { _, message ->
+                Bubble(message, colors, photos = state.photos)
+            }
             item(key = "estado") {
                 when {
                     state.thinking ->
@@ -349,7 +368,7 @@ private fun AssistantChat(
                 val proposal = state.proposal
                 if (proposal != null && !state.thinking) {
                     AdminPrimaryButton(
-                        title = "Revisar la propuesta (${proposal.changes.size})",
+                        title = "Revisar la propuesta (${proposal.itemCount})",
                         colors = colors,
                         icon = Icons.Rounded.Check,
                         fill = colors.accentLime,
@@ -362,8 +381,21 @@ private fun AssistantChat(
                 }
             }
         }
+        val context = LocalContext.current
+        val picker =
+            rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri == null) return@rememberLauncherForActivityResult
+                val image = runCatching { prepareProductImage(context, uri) }.getOrNull()
+                val logo = runCatching { prepareStoreLogo(context, uri) }.getOrNull()
+                if (image == null || logo == null) {
+                    viewModel.photoPreparationFailed()
+                } else {
+                    viewModel.addAssistantPhoto(image.toUpload(), logo.toUpload())
+                }
+            }
+        val hasPhoto = state.pendingPhotoId != null
         val send = {
-            if (state.canSend && draft.isNotBlank()) {
+            if (state.canSend && (draft.isNotBlank() || hasPhoto)) {
                 viewModel.sendToAssistant(draft)
                 draft = ""
             }
@@ -377,14 +409,49 @@ private fun AssistantChat(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
         }
+        state.pendingPhotoId?.let { id ->
+            Row(
+                Modifier.padding(start = 16.dp, top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PhotoThumb(state.photos[id], colors, size = 52)
+                Text(
+                    "Se manda con tu mensaje. Dile qué es: tu logo, tu local o qué producto.",
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                )
+                AdminRoundButton(Icons.Rounded.Close, "Quitar la foto", colors, viewModel::removeAssistantPhoto)
+                Spacer(Modifier.size(12.dp))
+            }
+        }
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Box(
+                Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(colors.cardBackground)
+                    .border(1.dp, colors.cardBorder, CircleShape)
+                    .clickable(enabled = state.canAddPhoto) { picker.launch("image/*") }
+                    .semantics { contentDescription = "Mandar una foto" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.AddPhotoAlternate,
+                    null,
+                    tint = if (state.canAddPhoto) colors.textPrimary else colors.textMuted,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
             BasicTextField(
                 value = draft,
-                onValueChange = { draft = it.take(800) },
+                onValueChange = { draft = it.take(2000) },
                 enabled = state.canSend,
                 textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                 cursorBrush = SolidColor(colors.textPrimary),
@@ -417,7 +484,7 @@ private fun AssistantChat(
                     }
                 },
             )
-            val canSend = state.canSend && draft.isNotBlank()
+            val canSend = state.canSend && (draft.isNotBlank() || hasPhoto)
             Box(
                 Modifier
                     .size(50.dp)
@@ -443,8 +510,11 @@ private fun Bubble(
     message: AssistantMessage,
     colors: OperationalColors,
     muted: Boolean = false,
+    photos: Map<String, AssistantPhoto> = emptyMap(),
 ) {
     val mine = message.fromOwner
+    val photoIds = PHOTO_TOKEN.findAll(message.text).map { it.groupValues[1] }.toList()
+    val text = message.text.replace(PHOTO_TOKEN, "").replace(Regex(" {2,}"), " ").trim()
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
@@ -462,42 +532,61 @@ private fun Bubble(
                 Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accentInk, modifier = Modifier.size(16.dp))
             }
         }
-        Text(
-            message.text,
-            fontSize = 14.5.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            color =
-                when {
-                    mine -> colors.background
-                    muted -> colors.textMuted
-                    else -> colors.textPrimary
-                },
-            modifier =
-                Modifier
-                    .widthIn(max = 290.dp)
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = 20.dp,
-                            topEnd = 20.dp,
-                            bottomStart = if (mine) 20.dp else 6.dp,
-                            bottomEnd = if (mine) 6.dp else 20.dp,
-                        ),
-                    ).background(if (mine) colors.textPrimary else colors.cardBackground)
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-        )
+        Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+            photoIds.forEach { id ->
+                PhotoThumb(photos[id], colors, size = 150, modifier = Modifier.padding(bottom = 4.dp))
+            }
+            if (text.isNotEmpty()) {
+                BubbleText(text, mine, muted, colors)
+            }
+        }
     }
 }
 
 @Composable
+private fun BubbleText(
+    text: String,
+    mine: Boolean,
+    muted: Boolean,
+    colors: OperationalColors,
+) {
+    Text(
+        text,
+        fontSize = 14.5.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.SemiBold,
+        color =
+            when {
+                mine -> colors.background
+                muted -> colors.textMuted
+                else -> colors.textPrimary
+            },
+        modifier =
+            Modifier
+                .widthIn(max = 290.dp)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 20.dp,
+                        topEnd = 20.dp,
+                        bottomStart = if (mine) 20.dp else 6.dp,
+                        bottomEnd = if (mine) 6.dp else 20.dp,
+                    ),
+                ).background(if (mine) colors.textPrimary else colors.cardBackground)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+    )
+}
+
+@Composable
 private fun AssistantReview(
-    changes: List<AssistantChange>,
+    proposal: AssistantProposal,
     state: StoreAssistantState,
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
     onAccept: () -> Unit,
 ) {
+    val changes = proposal.changes
+    val reasons = proposal.sectionReasons
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -529,31 +618,129 @@ private fun AssistantReview(
                     modifier = Modifier.padding(horizontal = 2.dp),
                 )
             }
-            item {
-                AdminPanel(
-                    colors,
-                    modifier = Modifier.padding(top = 14.dp),
-                    padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                ) {
-                    changes.forEachIndexed { index, change ->
-                        if (index > 0) AdminRowDivider(colors)
-                        ChangeRow(change, colors)
+            if (state.failures.isNotEmpty()) {
+                item {
+                    ReviewSection("No se pudo guardar todo", colors) {
+                        state.failures.forEachIndexed { index, (label, reason) ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(label, reason, colors, mark = false)
+                        }
+                    }
+                }
+            }
+            if (changes.isNotEmpty()) {
+                item {
+                    ReviewSection("Ajustes", colors) {
+                        changes.forEachIndexed { index, change ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ChangeRow(change, colors)
+                        }
+                    }
+                }
+            }
+            if (proposal.spaces.isNotEmpty()) {
+                item {
+                    ReviewSection("Mesas y lugares", colors, reasons["espacios"]) {
+                        proposal.spaces.forEachIndexed { index, group ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(
+                                AssistantLabels.spaceType(group.type),
+                                "${group.prefix} 1 a ${group.prefix} ${group.count} · cada uno con su QR",
+                                colors,
+                            )
+                        }
+                    }
+                }
+            }
+            proposal.menu.forEachIndexed { index, category ->
+                item(key = "menu-$index") {
+                    ReviewSection(
+                        if (index == 0) "Menú" else null,
+                        colors,
+                        if (index == 0) reasons["menu"] else null,
+                    ) {
+                        Text(
+                            if (category.existingId != null) "${category.name} · ya la tienes" else category.name,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                        )
+                        category.products.forEach { product ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                product.photoId?.let { PhotoThumb(state.photos[it], colors, size = 40) }
+                                Column(Modifier.weight(1f).padding(start = if (product.photoId != null) 10.dp else 0.dp)) {
+                                    Text(
+                                        product.name,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary,
+                                    )
+                                    Text(
+                                        listOfNotNull(product.description, AssistantLabels.station(product.station))
+                                            .joinToString(" · "),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.textMuted,
+                                    )
+                                }
+                                Text(
+                                    AssistantLabels.money(product.price),
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (colors.isDark) colors.accentLime else colors.textPrimary,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            }
+            if (proposal.storePhotos.isNotEmpty()) {
+                item {
+                    ReviewSection("Fotos de tu tienda", colors, reasons["fotos"]) {
+                        proposal.storePhotos.forEach { (kind, id) ->
+                            Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                PhotoThumb(state.photos[id], colors, size = 52)
+                                Text(
+                                    if (kind == "logo") "Logo" else "Foto del local",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.padding(start = 12.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            if (proposal.invites.isNotEmpty()) {
+                item {
+                    ReviewSection("Tu equipo", colors, reasons["personal"] ?: "A cada uno le llega una invitación por correo.") {
+                        proposal.invites.forEachIndexed { index, invite ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(invite.email, AssistantLabels.role(invite.role), colors)
+                        }
                     }
                 }
             }
             item {
                 Text(
-                    "${changes.size} ${if (changes.size == 1) "cambio" else "cambios"} · Lo demás se queda como está",
+                    "${proposal.itemCount} ${if (proposal.itemCount == 1) "cosa" else "cosas"} por guardar · " +
+                        "Lo demás se queda como está",
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textMuted,
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     textAlign = TextAlign.Center,
                 )
             }
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            state.error?.let {
+            (state.progress ?: state.error)?.let {
                 Text(
                     it,
                     fontSize = 13.sp,
@@ -572,7 +759,7 @@ private fun AssistantReview(
                 )
             }
             AdminPrimaryButton(
-                title = "Aceptar y guardar",
+                title = if (state.failures.isEmpty()) "Aceptar y guardar" else "Reintentar lo que faltó",
                 colors = colors,
                 busy = state.applying,
                 enabled = !readOnly && !state.applying,
@@ -593,9 +780,90 @@ private fun AssistantReview(
 }
 
 @Composable
+private fun ReviewSection(
+    title: String?,
+    colors: OperationalColors,
+    note: String? = null,
+    content: @Composable () -> Unit,
+) {
+    Column(Modifier.padding(top = if (title != null) 14.dp else 8.dp)) {
+        title?.let {
+            Text(
+                it,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp).semantics { heading() },
+            )
+        }
+        AdminPanel(colors, padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) { content() }
+        note?.let {
+            Text(
+                it,
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+                modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ItemRow(
+    title: String,
+    detail: String,
+    colors: OperationalColors,
+    mark: Boolean = true,
+) {
+    ChangeRow(AssistantChange(field = "", title = title, value = detail, reason = null), colors, mark)
+}
+
+@Composable
+private fun PhotoThumb(
+    photo: AssistantPhoto?,
+    colors: OperationalColors,
+    size: Int,
+    modifier: Modifier = Modifier,
+) {
+    val bitmap: ImageBitmap? =
+        remember(photo) {
+            photo?.image?.bytes?.let { bytes ->
+                runCatching {
+                    BitmapFactory
+                        .decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = 4 })
+                        ?.asImageBitmap()
+                }.getOrNull()
+            }
+        }
+    Box(
+        modifier
+            .size(size.dp)
+            .clip(RoundedCornerShape(if (size > 60) 16.dp else 10.dp))
+            .background(colors.cardBackground),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (bitmap != null) {
+            Image(bitmap, contentDescription = "Foto", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Icon(Icons.Rounded.AddPhotoAlternate, null, tint = colors.textMuted, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+private val PHOTO_TOKEN = Regex("""\[(foto\d+)]""")
+
+private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, mimeType)
+
+private val AssistantProposal.itemCount: Int
+    get() = changes.size + spaces.size + productCount + storePhotos.size + invites.size
+
+@Composable
 private fun ChangeRow(
     change: AssistantChange,
     colors: OperationalColors,
+    mark: Boolean = true,
 ) {
     Row(Modifier.fillMaxWidth().padding(vertical = 13.dp)) {
         Box(
@@ -603,10 +871,15 @@ private fun ChangeRow(
                 .padding(top = 1.dp)
                 .size(22.dp)
                 .clip(CircleShape)
-                .background(colors.accentLime),
+                .background(if (mark) colors.accentLime else colors.cardBorder),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.Check, null, tint = colors.accentInk, modifier = Modifier.size(13.dp))
+            Icon(
+                if (mark) Icons.Rounded.Check else Icons.Rounded.Close,
+                null,
+                tint = if (mark) colors.accentInk else colors.textPrimary,
+                modifier = Modifier.size(13.dp),
+            )
         }
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(change.title, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, color = colors.textPrimary)

@@ -9,7 +9,11 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantUpload
+import com.vaiinilla.app.domain.admin.steps
+import com.vaiinilla.app.data.admin.AssistantPartialFailure
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
@@ -63,8 +67,21 @@ data class StoreAssistantState(
     val applying: Boolean = false,
     val error: String? = null,
     val remainingMessages: Int = Int.MAX_VALUE,
+    /** Las fotos que el dueño mandó en el chat, por id ("foto1"…); se suben al aceptar. */
+    val photos: Map<String, AssistantPhoto> = emptyMap(),
+    /** La foto elegida que se manda con el siguiente mensaje. */
+    val pendingPhotoId: String? = null,
+    /** Llave base de la propuesta actual: reintentar con la misma no duplica nada. */
+    val proposalKey: String? = null,
+    /** Pasos de la propuesta que ya quedaron guardados (por índice), para reintentar solo lo que faltó. */
+    val appliedSteps: Set<Int> = emptySet(),
+    /** Lo que no se pudo guardar al aceptar: qué y por qué. */
+    val failures: List<Pair<String, String>> = emptyList(),
+    /** "Guardando 3 de 9" mientras se aplica. */
+    val progress: String? = null,
 ) {
     val canSend: Boolean get() = !thinking && !applying && remainingMessages > 1
+    val canAddPhoto: Boolean get() = canSend && photos.size < ASSISTANT_MAX_PHOTOS
 }
 
 /** Flujo de mi tienda, pagos con tarjeta y cashback: la configuración del negocio. */
@@ -204,12 +221,39 @@ class AdminStoreViewModel
         }
 
         fun sendToAssistant(text: String) {
-            val clean = text.trim().take(ASSISTANT_MAX_LETTERS)
             val current = _assistant.value
+            val photo = current.pendingPhotoId?.let { " [$it]" }.orEmpty()
+            val clean = (text.trim().take(ASSISTANT_MAX_LETTERS - photo.length) + photo).trim()
             if (clean.isEmpty() || !current.canSend) return
             val messages = current.messages + AssistantMessage(fromOwner = true, text = clean)
-            _assistant.value = current.copy(messages = messages, options = emptyList(), error = null)
+            _assistant.value =
+                current.copy(messages = messages, options = emptyList(), error = null, pendingPhotoId = null)
             askAssistant(messages)
+        }
+
+        /** Una foto elegida en el chat: queda lista para mandarse con el siguiente mensaje. */
+        fun addAssistantPhoto(
+            image: AssistantUpload,
+            logo: AssistantUpload,
+        ) {
+            val current = _assistant.value
+            if (!current.canAddPhoto) return
+            current.pendingPhotoId?.let { removeAssistantPhoto() }
+            val now = _assistant.value
+            val id = "foto${(now.photos.keys.mapNotNull { it.removePrefix("foto").toIntOrNull() }.maxOrNull() ?: 0) + 1}"
+            _assistant.value =
+                now.copy(photos = now.photos + (id to AssistantPhoto(id, image, logo)), pendingPhotoId = id, error = null)
+        }
+
+        /** Quita la foto que aún no se manda. */
+        fun removeAssistantPhoto() {
+            val current = _assistant.value
+            val id = current.pendingPhotoId ?: return
+            _assistant.value = current.copy(photos = current.photos - id, pendingPhotoId = null)
+        }
+
+        fun photoPreparationFailed() {
+            _assistant.value = _assistant.value.copy(error = "No se pudo preparar la foto. Prueba otra de hasta 16 MB.")
         }
 
         /** Vuelve a pedir la respuesta que falló. */
@@ -222,7 +266,7 @@ class AdminStoreViewModel
         fun reviewProposal(show: Boolean) {
             val current = _assistant.value
             if (show && current.proposal == null) return
-            _assistant.value = current.copy(reviewing = show, error = null)
+            _assistant.value = current.copy(reviewing = show, error = null, failures = emptyList())
         }
 
         /** Empieza otra plática desde cero (la propuesta anterior se descarta). */
@@ -232,32 +276,62 @@ class AdminStoreViewModel
             askAssistant(emptyList())
         }
 
-        /** Guarda la propuesta con el PATCH de siempre; [onDone] cierra el asistente. */
+        /**
+         * Aplica la propuesta paso por paso con las rutas de siempre. Si algo falla sigue con lo demás y enseña qué
+         * faltó; aceptar otra vez reintenta solo eso, con las mismas llaves. [onDone] cierra el asistente.
+         */
         fun acceptProposal(onDone: () -> Unit) {
             val current = _assistant.value
             val proposal = current.proposal ?: return
             if (current.applying) return
-            _assistant.value = current.copy(applying = true, error = null)
+            val baseKey = current.proposalKey ?: UUID.randomUUID().toString()
+            val steps = proposal.steps()
+            _assistant.value =
+                current.copy(applying = true, error = null, failures = emptyList(), proposalKey = baseKey)
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.applyAssistantProposal(proposal) }
-                result.fold(
-                    onSuccess = {
-                        _uiState.value = _uiState.value.copy(config = it)
-                        _assistant.value = StoreAssistantState()
-                        showNotice("Tu tienda quedó configurada", isError = false)
-                        onDone()
-                    },
-                    onFailure = {
-                        _assistant.value = _assistant.value.copy(applying = false, error = storeErrorMessage(it))
-                    },
-                )
+                var applied = current.appliedSteps
+                val failures = mutableListOf<Pair<String, String>>()
+                steps.forEachIndexed { index, step ->
+                    if (index in applied) return@forEachIndexed
+                    _assistant.value = _assistant.value.copy(progress = "Guardando ${index + 1} de ${steps.size}")
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            repository.applyAssistantStep(step, _assistant.value.photos, "$baseKey-$index")
+                        }
+                    result.fold(
+                        onSuccess = { applied = applied + index },
+                        onFailure = {
+                            // Ya estaba invitado: no es un error, ya quedó.
+                            if ((it as? CatalogRepositoryException)?.code in ALREADY_INVITED) {
+                                applied = applied + index
+                            } else {
+                                failures += step.label to assistantStepError(it)
+                            }
+                        },
+                    )
+                }
+                if (proposal.patchBody != null || proposal.storePhotos.isNotEmpty()) refresh()
+                if (failures.isEmpty()) {
+                    _assistant.value = StoreAssistantState()
+                    showNotice("Tu tienda quedó configurada", isError = false)
+                    onDone()
+                } else {
+                    _assistant.value =
+                        _assistant.value.copy(
+                            applying = false,
+                            progress = null,
+                            appliedSteps = applied,
+                            failures = failures,
+                        )
+                }
             }
         }
 
         private fun askAssistant(messages: List<AssistantMessage>) {
             _assistant.value = _assistant.value.copy(thinking = true, error = null)
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages) }
+                val photoIds = _assistant.value.photos.keys.toList()
+                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds) }
                 val current = _assistant.value
                 _assistant.value =
                     result.fold(
@@ -267,6 +341,10 @@ class AdminStoreViewModel
                                 options = reply.options,
                                 proposal = reply.proposal ?: current.proposal,
                                 reviewing = reply.proposal != null,
+                                // Una propuesta nueva reemplaza a la anterior: se aplica desde cero.
+                                proposalKey = if (reply.proposal != null) null else current.proposalKey,
+                                appliedSteps = if (reply.proposal != null) emptySet() else current.appliedSteps,
+                                failures = if (reply.proposal != null) emptyList() else current.failures,
                                 thinking = false,
                                 remainingMessages = reply.remainingMessages,
                             )
@@ -463,7 +541,15 @@ internal fun assistantErrorMessage(error: Throwable): String =
         else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
     }
 
-private const val ASSISTANT_MAX_LETTERS = 800
+private const val ASSISTANT_MAX_LETTERS = 2000
+private const val ASSISTANT_MAX_PHOTOS = 20
+private val ALREADY_INVITED = setOf("INVITATION_PENDING_EXISTS", "MEMBERSHIP_ROLE_EXISTS")
+
+internal fun assistantStepError(error: Throwable): String =
+    when {
+        error is AssistantPartialFailure -> "Faltó: ${error.items.joinToString(", ")}"
+        else -> storeErrorMessage(error)
+    }
 
 internal fun storeErrorMessage(error: Throwable): String =
     when ((error as? CatalogRepositoryException)?.code) {

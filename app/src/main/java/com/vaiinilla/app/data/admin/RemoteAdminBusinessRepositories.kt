@@ -6,8 +6,9 @@ import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
-import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationState
@@ -159,14 +160,114 @@ class RemoteAdminStoreRepository(
         longitude: Double,
     ): Result<StoreConfig> = patchConfig(json.encodeStoreLocation(latitude, longitude))
 
-    override fun assistantReply(messages: List<AssistantMessage>): Result<AssistantReply> =
+    override fun assistantReply(
+        messages: List<AssistantMessage>,
+        photoIds: List<String>,
+    ): Result<AssistantReply> =
         apiClient
-            .post("establecimiento/asistente", assistantJson.encodeMessages(messages))
+            .post("establecimiento/asistente", assistantJson.encodeMessages(messages, photoIds))
             .mapCatching(assistantJson::parseReply)
             .mapApiErrors()
 
-    override fun applyAssistantProposal(proposal: AssistantProposal): Result<StoreConfig> =
-        patchConfig(proposal.patchBody)
+    override fun applyAssistantStep(
+        step: AssistantStep,
+        photos: Map<String, AssistantPhoto>,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        when (step) {
+            is AssistantStep.Settings -> patchConfig(step.patchBody).map { }
+            is AssistantStep.Spaces ->
+                apiClient
+                    .post(
+                        "espacios/lote",
+                        json.encodeBatch(step.group.type, step.group.prefix, 1, step.group.count),
+                        key(idempotencyKey),
+                    ).map { }
+                    .mapApiErrors()
+            is AssistantStep.Menu -> applyAssistantMenu(step, photos, idempotencyKey)
+            is AssistantStep.StorePhoto -> {
+                val photo = photos[step.photoId]
+                if (photo == null) {
+                    Result.failure(IllegalStateException("La foto ya no está en el teléfono."))
+                } else {
+                    val upload = if (step.kind == "logo") photo.logo else photo.image
+                    apiClient
+                        .putMultipart(
+                            "establecimiento/${step.kind}",
+                            "imagen",
+                            upload.filename,
+                            upload.mimeType,
+                            upload.bytes,
+                            key(idempotencyKey),
+                        ).map { }
+                        .mapApiErrors()
+                }
+            }
+            is AssistantStep.Invite ->
+                apiClient
+                    .post(
+                        "personal/invitaciones",
+                        json.encodeInvitation(step.invite.email, step.invite.role),
+                        key(idempotencyKey),
+                    ).map { }
+                    .mapApiErrors()
+        }
+
+    /** La categoría (si no existe) y sus productos uno por uno; si alguno falla sigue con los demás. */
+    private fun applyAssistantMenu(
+        step: AssistantStep.Menu,
+        photos: Map<String, AssistantPhoto>,
+        idempotencyKey: String,
+    ): Result<Unit> {
+        val category = step.category
+        val categoryId =
+            category.existingId
+                ?: apiClient
+                    .post(
+                        "catalogo/categorias",
+                        assistantJson.encodeCategory(category.name, 0),
+                        key("$idempotencyKey-categoria"),
+                    ).mapCatching(assistantJson::parseId)
+                    .mapApiErrors()
+                    .getOrElse { return Result.failure(it) }
+        val failed = mutableListOf<String>()
+        var firstError: Throwable? = null
+        category.products.forEachIndexed { index, product ->
+            val created =
+                apiClient
+                    .post(
+                        "catalogo/productos",
+                        assistantJson.encodeProduct(categoryId, product),
+                        key("$idempotencyKey-producto-$index"),
+                    ).mapCatching(assistantJson::parseId)
+                    .mapApiErrors()
+            val productId =
+                created.getOrElse {
+                    failed += product.name
+                    firstError = firstError ?: it
+                    return@forEachIndexed
+                }
+            val photo = product.photoId?.let(photos::get) ?: return@forEachIndexed
+            apiClient
+                .putMultipart(
+                    "catalogo/productos/$productId/imagen",
+                    "imagen",
+                    photo.image.filename,
+                    photo.image.mimeType,
+                    photo.image.bytes,
+                    key("$idempotencyKey-foto-$index"),
+                ).mapApiErrors()
+                .onFailure {
+                    failed += "foto de ${product.name}"
+                    firstError = firstError ?: it
+                }
+        }
+        return if (failed.isEmpty()) {
+            Result.success(Unit)
+        } else {
+            Result.failure(AssistantPartialFailure(failed, firstError))
+        }
+    }
 
     private fun patchConfig(body: String): Result<StoreConfig> =
         apiClient.patch("establecimiento/configuracion", body).mapCatching(json::parseStoreConfig).mapApiErrors()
@@ -332,3 +433,9 @@ class RemoteAdminSpacesRepository(
             .map { }
             .mapApiErrors()
 }
+
+/** Parte de un paso del asistente no se pudo guardar; [items] dice qué (productos o fotos). */
+class AssistantPartialFailure(
+    val items: List<String>,
+    cause: Throwable?,
+) : Exception("No se pudo guardar: ${items.joinToString(", ")}", cause)

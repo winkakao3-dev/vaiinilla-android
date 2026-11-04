@@ -16,14 +16,110 @@ data class AssistantChange(
     val reason: String?,
 )
 
+/** Mesas o lugares que el asistente propone crear: "[prefix] 1" a "[prefix] [count]", cada uno con su QR. */
+data class AssistantSpaceGroup(
+    val type: String,
+    val prefix: String,
+    val count: Int,
+)
+
+/** Un producto del menú propuesto. [photoId] es la foto del chat que lleva ("foto2"), si tiene. */
+data class AssistantProduct(
+    val name: String,
+    val price: String,
+    val description: String?,
+    val station: String,
+    val photoId: String?,
+)
+
+/** Una categoría del menú propuesto; [existingId] cuando la tienda ya la tiene y solo se agregan productos. */
+data class AssistantCategory(
+    val name: String,
+    val existingId: Int?,
+    val products: List<AssistantProduct>,
+)
+
+/** Una invitación al personal. */
+data class AssistantInvite(
+    val email: String,
+    val role: String,
+)
+
 /**
- * Lo que el asistente propone. [patchBody] es el JSON tal cual para `PATCH /establecimiento/configuracion`:
- * el servidor ya lo validó y solo trae lo que cambia.
+ * Lo que el asistente propone. [patchBody] es el JSON tal cual para `PATCH /establecimiento/configuracion`
+ * (null si no cambia ningún ajuste): el servidor ya lo validó y solo trae lo que cambia. Lo demás se crea con
+ * las rutas de siempre al aceptar. [storePhotos] va de "logo" o "foto" al id de la foto del chat.
  */
 data class AssistantProposal(
-    val patchBody: String,
+    val patchBody: String?,
     val changes: List<AssistantChange>,
+    val spaces: List<AssistantSpaceGroup> = emptyList(),
+    val menu: List<AssistantCategory> = emptyList(),
+    val invites: List<AssistantInvite> = emptyList(),
+    val storePhotos: Map<String, String> = emptyMap(),
+    val sectionReasons: Map<String, String> = emptyMap(),
+) {
+    val productCount: Int get() = menu.sumOf { it.products.size }
+}
+
+/** Una foto que el dueño mandó en el chat, ya lista para subir como producto o como logo. */
+class AssistantPhoto(
+    val id: String,
+    val image: AssistantUpload,
+    val logo: AssistantUpload,
 )
+
+class AssistantUpload(
+    val bytes: ByteArray,
+    val filename: String,
+    val mimeType: String,
+)
+
+/** Un paso al aplicar la propuesta; cada uno con su propia llave de idempotencia para poder reintentar. */
+sealed interface AssistantStep {
+    val label: String
+
+    data class Settings(
+        val patchBody: String,
+    ) : AssistantStep {
+        override val label = "Ajustes de la tienda"
+    }
+
+    data class Spaces(
+        val group: AssistantSpaceGroup,
+    ) : AssistantStep {
+        override val label = "${group.prefix} 1 a ${group.prefix} ${group.count}"
+    }
+
+    data class Menu(
+        val category: AssistantCategory,
+    ) : AssistantStep {
+        override val label = "Menú: ${category.name}"
+    }
+
+    data class StorePhoto(
+        val kind: String,
+        val photoId: String,
+    ) : AssistantStep {
+        override val label = if (kind == "logo") "Logo" else "Foto del local"
+    }
+
+    data class Invite(
+        val invite: AssistantInvite,
+    ) : AssistantStep {
+        override val label = "Invitar a ${invite.email}"
+    }
+}
+
+/** Los pasos en el orden en que se aplican: primero ajustes y lugares, luego menú, fotos y al final el equipo. */
+fun AssistantProposal.steps(): List<AssistantStep> =
+    buildList {
+        patchBody?.let { add(AssistantStep.Settings(it)) }
+        spaces.forEach { add(AssistantStep.Spaces(it)) }
+        menu.forEach { add(AssistantStep.Menu(it)) }
+        storePhotos.forEach { (kind, id) -> add(AssistantStep.StorePhoto(kind, id)) }
+        invites.forEach { add(AssistantStep.Invite(it)) }
+    }
 
 /** La respuesta del asistente: su mensaje, respuestas rápidas y, si ya la tiene, su propuesta. */
 data class AssistantReply(
@@ -64,6 +160,32 @@ object AssistantLabels {
             "encargos_requieren_aceptar" -> "Aceptar cada encargo"
             "anticipo_porcentaje" -> "Anticipo de encargos"
             else -> field
+        }
+
+    fun spaceType(type: String): String =
+        when (type) {
+            "mesa" -> "Mesas"
+            "barra" -> "Lugares en barra"
+            "cancha" -> "Canchas o pistas"
+            "asiento" -> "Asientos"
+            "drive_thru" -> "Carriles de autoservicio"
+            else -> type
+        }
+
+    fun station(station: String): String =
+        when (station) {
+            "cocina" -> "Lo prepara cocina"
+            "caja" -> "Lo prepara la barra"
+            else -> "Ya está listo"
+        }
+
+    fun role(role: String): String =
+        when (role) {
+            "cajero" -> "Caja"
+            "cocina" -> "Cocina"
+            "mesero" -> "Mesero"
+            "admin" -> "Administrador"
+            else -> role
         }
 
     fun yesNo(

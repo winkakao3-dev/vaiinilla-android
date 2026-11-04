@@ -451,7 +451,9 @@ class HttpVaiinillaApiClient
                 instanceFollowRedirects = false
                 requestMethod = method
                 connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
+                // El asistente de la tienda puede tardar en armar una propuesta con todo el menú.
+                readTimeout =
+                    if (path.trimStart('/').startsWith(SLOW_PATH)) SLOW_READ_TIMEOUT_MS else READ_TIMEOUT_MS
             }
         }
 
@@ -503,5 +505,7 @@ class HttpVaiinillaApiClient
             const val CONNECT_TIMEOUT_MS = 15_000
             const val READ_TIMEOUT_MS = 20_000
             const val MULTIPART_READ_TIMEOUT_MS = 60_000
+            const val SLOW_READ_TIMEOUT_MS = 55_000
+            const val SLOW_PATH = "establecimiento/asistente"
         }
     }
