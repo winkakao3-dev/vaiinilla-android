@@ -65,7 +65,8 @@ data class Dependent(
     val balance: BigDecimal?,
     /** `null` mientras la escuela no aprueba al tutor. */
     val controls: DependentControls?,
-    val isAwaitingSchool: Boolean = false,
+    /** Si la escuela ya aprobó esta tutela; solo aprobada deja ver saldo y controles. */
+    val schoolState: GuardianshipState = GuardianshipState.APPROVED,
     /** Quien lo dio de alta decide los controles e invita o quita a los demás tutores. */
     val isPrincipal: Boolean = true,
     val guardians: List<ChildGuardian> = emptyList(),
@@ -79,6 +80,13 @@ data class Dependent(
     val firstName: String get() = PersonNames.first(name)
 
     val initials: String get() = PersonNames.initials(name)
+
+    /**
+     * La escuela todavía no la aprueba, o la rechazó, o el servidor mandó un estado que esta versión no conoce:
+     * en todos esos casos el hijo no se abre ni se le ve el saldo. Antes solo «pendiente» contaba y cualquier
+     * otro valor se trataba como aprobado.
+     */
+    val isAwaitingSchool: Boolean get() = schoolState != GuardianshipState.APPROVED
 
     /** El nombre de pila de quien pone los controles, si no eres tú. */
     val principalFirstName: String?
@@ -350,6 +358,28 @@ data class CardReloadRange(
         if (minimum != null && amount < minimum) return "El mínimo es ${compactMoney(minimum)}."
         if (maximum != null && amount > maximum) return "El máximo es ${compactMoney(maximum)}."
         return null
+    }
+}
+
+/** Estado de la tutela tal como la revisa la escuela (`tutelas.estado`). */
+enum class GuardianshipState {
+    PENDING,
+    APPROVED,
+    REJECTED,
+
+    /** Un valor que esta versión no conoce: se trata como no aprobado. */
+    UNKNOWN,
+    ;
+
+    companion object {
+        /** Un servidor sin `estado` es anterior a la aprobación de tutores: ahí toda tutela listada está aprobada. */
+        fun fromWire(value: String?): GuardianshipState =
+            when (value?.trim()) {
+                null, "", "aprobada" -> APPROVED
+                "pendiente" -> PENDING
+                "rechazada" -> REJECTED
+                else -> UNKNOWN
+            }
     }
 }
 

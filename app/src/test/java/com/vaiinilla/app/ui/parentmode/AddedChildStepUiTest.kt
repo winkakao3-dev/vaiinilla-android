@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import com.vaiinilla.app.domain.guardianship.Dependent
+import com.vaiinilla.app.domain.guardianship.GuardianshipState
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -70,7 +71,7 @@ class AddedChildStepUiTest {
     @Test
     fun `aprobado ofrece la primera recarga con el monto elegido y abre su ficha en recargar`() {
         val opened = mutableListOf<Pair<String, Int?>>()
-        val child = ParentFixtures.tilin.copy(isAwaitingSchool = false, balance = java.math.BigDecimal.ZERO)
+        val child = ParentFixtures.tilin.copy(schoolState = GuardianshipState.APPROVED, balance = java.math.BigDecimal.ZERO)
         addChild(child, onOpenChild = { c, amount -> opened += c.userId to amount })
         waitForTag("added-child-reload")
 
