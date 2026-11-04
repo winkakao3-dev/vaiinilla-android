@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.ReceiptLong
@@ -110,6 +111,11 @@ enum class AdminSection(
     STAFF("Personal", "Invitaciones y accesos del equipo", Icons.Outlined.Group),
     CASHBACK("Cashback y wallet", "La regla de cashback y la cartera de clientes", Icons.Outlined.Savings),
     CASH("Caja", "Abrir y cerrar la caja", Icons.Outlined.PointOfSale),
+    INVENTORY(
+        "Inventario",
+        "Insumos, recetas, conteos y reporte; lo vendido se descuenta solo",
+        Icons.Outlined.Inventory2,
+    ),
 }
 
 /** Lo que las secciones de "Negocio" necesitan: sus ViewModels y lo de Caja que vive en el resto de la app. */
@@ -124,6 +130,8 @@ class AdminSectionsHost(
     val school: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel? = null,
     /** La pestaña Pedir; null si no hay con qué tomar pedidos. */
     val orderTaker: (@Composable (AdminHeader) -> Unit)? = null,
+    /** Negocio › Inventario; null la esconde. */
+    val inventory: com.vaiinilla.app.ui.admin.AdminInventoryViewModel? = null,
 )
 
 /** Lo que comparten las cabeceras de las pestañas: el negocio, sus imágenes y el botón de la cuenta. */
@@ -310,7 +318,8 @@ fun AdminScreen(
                                 header = header,
                                 sections =
                                     AdminSection.entries.filter {
-                                        it != AdminSection.SCHOOL || (isSchool && sections.school != null)
+                                        (it != AdminSection.SCHOOL || (isSchool && sections.school != null)) &&
+                                            (it != AdminSection.INVENTORY || sections.inventory != null)
                                     },
                                 host = sections,
                                 readOnly = readOnly,
@@ -539,6 +548,11 @@ private fun AdminSectionContent(
             LaunchedEffect(scope) { sections.spaces.onVisible(scope) }
             AdminSpacesSection(sections.spaces, colors, readOnly, onBack, sections.tablesBoard?.tables.orEmpty())
         }
+        AdminSection.INVENTORY ->
+            sections.inventory?.let { inventory ->
+                LaunchedEffect(scope) { inventory.onVisible(scope) }
+                AdminInventorySection(inventory, state.catalog?.products, colors, readOnly, onBack)
+            }
         AdminSection.CASH ->
             AdminCashSection(
                 state = state,
@@ -568,7 +582,7 @@ private fun AdminBusinessTab(
     val spaces by host.spaces.uiState
     val detail: (AdminSection) -> String = { businessDetail(it, state, store, spaces, readOnly) }
     val tiles = BusinessTiles.filter { it in sections }
-    val wide = listOf(AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
+    val wide = listOf(AdminSection.INVENTORY, AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
     if (readOnly) {
         ReadOnlyBusiness(sections, colors, header, detail, onOpen)
         return
@@ -635,6 +649,7 @@ private fun ReadOnlyBusiness(
                         AdminSection.STAFF,
                         AdminSection.CASHBACK,
                         AdminSection.SCHOOL,
+                        AdminSection.INVENTORY,
                     ).filter { it in sections }
                 order.forEachIndexed { index, section ->
                     if (index > 0) AdminRowDivider(colors)
@@ -675,6 +690,7 @@ private fun businessDetail(
                 null -> "Abrir y cerrar"
             }
         readOnly -> "Solo lectura"
+        section == AdminSection.INVENTORY -> "Insumos, recetas, conteos y reporte"
         section == AdminSection.STORE -> "Pagos, logo, entrega y cómo se pide"
         section == AdminSection.SPACES -> {
             val count = spaces.spaces?.size ?: 0

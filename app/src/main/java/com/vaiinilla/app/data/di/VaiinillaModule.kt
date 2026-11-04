@@ -11,6 +11,8 @@ import com.vaiinilla.app.data.admin.RemoteAdminRepository
 import com.vaiinilla.app.data.admin.RemoteAdminSpacesRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStaffRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStoreRepository
+import com.vaiinilla.app.data.inventory.InventoryRepository
+import com.vaiinilla.app.data.inventory.RemoteInventoryRepository
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
@@ -109,6 +111,11 @@ object VaiinillaModule {
     @Singleton
     fun provideAdminStoreRepository(apiClient: VaiinillaApiClient): AdminStoreRepository =
         RemoteAdminStoreRepository(apiClient)
+
+    @Provides
+    @Singleton
+    fun provideInventoryRepository(apiClient: VaiinillaApiClient): InventoryRepository =
+        RemoteInventoryRepository(apiClient)
 
     @Provides
     @Singleton

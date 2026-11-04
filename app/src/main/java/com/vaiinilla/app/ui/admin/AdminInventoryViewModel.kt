@@ -1,0 +1,324 @@
+package com.vaiinilla.app.ui.admin
+
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.data.inventory.InventoryMovement
+import com.vaiinilla.app.data.inventory.InventoryMovementType
+import com.vaiinilla.app.data.inventory.InventoryProduct
+import com.vaiinilla.app.data.inventory.InventoryReport
+import com.vaiinilla.app.data.inventory.InventoryRepository
+import com.vaiinilla.app.data.inventory.InventorySupplies
+import com.vaiinilla.app.data.inventory.InventorySupply
+import com.vaiinilla.app.data.inventory.InventorySupplyInput
+import com.vaiinilla.app.data.inventory.RecipeLine
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.UUID
+import javax.inject.Inject
+
+/** Las pestañas de Negocio › Inventario. */
+enum class InventoryTab(
+    val label: String,
+) {
+    STOCK("Existencias"),
+    RECIPES("Recetas"),
+    COUNT("Conteo"),
+    REPORT("Reporte"),
+}
+
+/** Periodos del reporte, como los cortes de Soft Restaurant. */
+enum class InventoryPeriod(
+    val label: String,
+) {
+    TODAY("Hoy"),
+    YESTERDAY("Ayer"),
+    WEEK("7 días"),
+    MONTH("30 días"),
+}
+
+data class AdminInventoryUiState(
+    val tab: InventoryTab = InventoryTab.STOCK,
+    val supplies: InventorySupplies? = null,
+    val products: List<InventoryProduct>? = null,
+    val loading: Boolean = false,
+    val error: String? = null,
+    val saving: Boolean = false,
+    val sheetError: String? = null,
+    /** Receta abierta: el producto y sus líneas como están en el servidor. */
+    val recipeProduct: InventoryProduct? = null,
+    val recipe: List<RecipeLine>? = null,
+    /** Conteo de fin de turno: lo que se lleva capturado por insumo (texto tal cual). */
+    val counted: Map<Long, String> = emptyMap(),
+    val period: InventoryPeriod = InventoryPeriod.TODAY,
+    val report: InventoryReport? = null,
+    val history: List<InventoryMovement>? = null,
+    val historyFor: InventorySupply? = null,
+    val notice: String? = null,
+    val noticeIsError: Boolean = false,
+)
+
+/** Negocio › Inventario: insumos, recetas, conteos y el reporte por periodo (backend migración 140). */
+@HiltViewModel
+class AdminInventoryViewModel
+    @Inject
+    constructor(
+        private val repository: InventoryRepository,
+    ) : ViewModel() {
+        private val _uiState = mutableStateOf(AdminInventoryUiState())
+        val uiState: State<AdminInventoryUiState> = _uiState
+        private var scope: String? = null
+        private var noticeJob: Job? = null
+
+        /** La misma llave mientras el usuario reintenta el mismo movimiento: el servidor no lo cuenta dos veces. */
+        private var pendingMovementKey: Pair<String, String>? = null
+
+        private fun update(block: AdminInventoryUiState.() -> AdminInventoryUiState) {
+            _uiState.value = _uiState.value.block()
+        }
+
+        fun onVisible(scope: String) {
+            if (scope != this.scope) {
+                this.scope = scope
+                _uiState.value = AdminInventoryUiState()
+            }
+            refresh()
+        }
+
+        fun selectTab(tab: InventoryTab) {
+            update { copy(tab = tab) }
+            if (tab == InventoryTab.REPORT && _uiState.value.report == null) loadReport()
+        }
+
+        fun refresh() {
+            update { copy(loading = true, error = null) }
+            viewModelScope.launch {
+                val supplies = withContext(Dispatchers.IO) { repository.supplies(includeInactive = true) }
+                val products = withContext(Dispatchers.IO) { repository.products() }
+                update {
+                    copy(
+                        loading = false,
+                        supplies = supplies.getOrNull() ?: this.supplies,
+                        products = products.getOrNull() ?: this.products,
+                        error =
+                            (supplies.exceptionOrNull() ?: products.exceptionOrNull())
+                                ?.toUserFacingMessage("No se pudo cargar el inventario."),
+                    )
+                }
+                if (_uiState.value.tab == InventoryTab.REPORT) loadReport()
+            }
+        }
+
+        private fun notice(
+            text: String,
+            error: Boolean = false,
+        ) {
+            noticeJob?.cancel()
+            update { copy(notice = text, noticeIsError = error) }
+            noticeJob =
+                viewModelScope.launch {
+                    delay(2_600)
+                    update { copy(notice = null) }
+                }
+        }
+
+        fun clearSheetError() = update { copy(sheetError = null) }
+
+        fun saveSupply(
+            existing: InventorySupply?,
+            input: InventorySupplyInput,
+            onDone: () -> Unit,
+        ) {
+            if (_uiState.value.saving) return
+            update { copy(saving = true, sheetError = null) }
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        if (existing == null) repository.createSupply(input) else repository.updateSupply(existing.id, input)
+                    }
+                result
+                    .onSuccess {
+                        update { copy(saving = false) }
+                        notice(if (existing == null) "${it.name} agregado" else "${it.name} guardado")
+                        onDone()
+                        refresh()
+                    }.onFailure {
+                        update {
+                            copy(saving = false, sheetError = it.toUserFacingMessage("No se pudo guardar el insumo."))
+                        }
+                    }
+            }
+        }
+
+        /** Entrada, merma o ajuste de un insumo desde su hoja. */
+        fun registerMovement(
+            supply: InventorySupply,
+            type: InventoryMovementType,
+            quantity: Double,
+            unitCost: Double?,
+            note: String?,
+            onDone: () -> Unit,
+        ) {
+            if (_uiState.value.saving) return
+            val signature = "${supply.id}|${type.wire}|$quantity|$unitCost|$note"
+            val key =
+                pendingMovementKey?.takeIf { it.first == signature }?.second
+                    ?: UUID.randomUUID().toString().also { pendingMovementKey = signature to it }
+            update { copy(saving = true, sheetError = null) }
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.registerMovement(key, supply.id, type, quantity, unitCost, note)
+                }.onSuccess {
+                    pendingMovementKey = null
+                    update { copy(saving = false) }
+                    notice("${supply.name}: quedan ${formatQuantity(it.stock)} ${supply.unit.short}")
+                    onDone()
+                    refresh()
+                }.onFailure {
+                    update {
+                        copy(saving = false, sheetError = it.toUserFacingMessage("No se pudo registrar el movimiento."))
+                    }
+                }
+            }
+        }
+
+        fun setCounted(
+            supplyId: Long,
+            text: String,
+        ) = update { copy(counted = counted + (supplyId to text)) }
+
+        fun clearCount() = update { copy(counted = emptyMap()) }
+
+        private var countKeys: Map<Long, String> = emptyMap()
+
+        /** Manda todo lo capturado en el conteo de una vez; lo que quedó vacío no se toca. */
+        fun submitCount(note: String?) {
+            val state = _uiState.value
+            if (state.saving) return
+            val entries =
+                state.counted.mapNotNull { (id, text) -> parseQuantity(text)?.let { id to it } }
+            if (entries.isEmpty()) {
+                notice("Captura al menos un insumo", error = true)
+                return
+            }
+            countKeys = entries.associate { (id, _) -> id to (countKeys[id] ?: UUID.randomUUID().toString()) }
+            update { copy(saving = true) }
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.registerCount(entries.map { (id, qty) -> Triple(countKeys.getValue(id), id, qty) }, note)
+                }.onSuccess { differences ->
+                    countKeys = emptyMap()
+                    update { copy(saving = false, counted = emptyMap()) }
+                    notice(
+                        when (differences) {
+                            0 -> "Conteo guardado, todo cuadra"
+                            1 -> "Conteo guardado, 1 insumo con diferencia"
+                            else -> "Conteo guardado, $differences insumos con diferencia"
+                        },
+                    )
+                    refresh()
+                }.onFailure {
+                    update { copy(saving = false) }
+                    notice(it.toUserFacingMessage("No se pudo guardar el conteo."), error = true)
+                }
+            }
+        }
+
+        fun openRecipe(product: InventoryProduct) {
+            update { copy(recipeProduct = product, recipe = null, sheetError = null) }
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { repository.recipe(product.id) }
+                    .onSuccess { lines -> if (_uiState.value.recipeProduct?.id == product.id) update { copy(recipe = lines) } }
+                    .onFailure {
+                        update { copy(recipe = emptyList(), sheetError = it.toUserFacingMessage("No se pudo cargar la receta.")) }
+                    }
+            }
+        }
+
+        fun closeRecipe() = update { copy(recipeProduct = null, recipe = null, sheetError = null) }
+
+        fun saveRecipe(lines: List<RecipeLine>) {
+            val product = _uiState.value.recipeProduct ?: return
+            if (_uiState.value.saving) return
+            update { copy(saving = true, sheetError = null) }
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { repository.saveRecipe(product.id, lines) }
+                    .onSuccess {
+                        update { copy(saving = false, recipeProduct = null, recipe = null) }
+                        notice("Receta de ${product.name} guardada")
+                        refresh()
+                    }.onFailure {
+                        update {
+                            copy(saving = false, sheetError = it.toUserFacingMessage("No se pudo guardar la receta."))
+                        }
+                    }
+            }
+        }
+
+        fun openHistory(supply: InventorySupply) {
+            update { copy(historyFor = supply, history = null) }
+            viewModelScope.launch {
+                val (from, to) = range(InventoryPeriod.MONTH)
+                withContext(Dispatchers.IO) { repository.movements(from, to, supply.id) }
+                    .onSuccess { list -> if (_uiState.value.historyFor?.id == supply.id) update { copy(history = list) } }
+                    .onFailure { update { copy(history = emptyList()) } }
+            }
+        }
+
+        fun closeHistory() = update { copy(historyFor = null, history = null) }
+
+        fun selectPeriod(period: InventoryPeriod) {
+            update { copy(period = period, report = null) }
+            loadReport()
+        }
+
+        fun loadReport() {
+            val period = _uiState.value.period
+            viewModelScope.launch {
+                val (from, to) = range(period)
+                withContext(Dispatchers.IO) { repository.report(from, to) }
+                    .onSuccess { report -> if (_uiState.value.period == period) update { copy(report = report) } }
+                    .onFailure { notice(it.toUserFacingMessage("No se pudo cargar el reporte."), error = true) }
+            }
+        }
+
+        private fun range(period: InventoryPeriod): Pair<String, String> {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now(zone)
+            val (start, end) =
+                when (period) {
+                    InventoryPeriod.TODAY -> today to today.plusDays(1)
+                    InventoryPeriod.YESTERDAY -> today.minusDays(1) to today
+                    InventoryPeriod.WEEK -> today.minusDays(6) to today.plusDays(1)
+                    InventoryPeriod.MONTH -> today.minusDays(29) to today.plusDays(1)
+                }
+            return start.atStartOfDay(zone).toInstant().toString() to end.atStartOfDay(zone).toInstant().toString()
+        }
+    }
+
+/** "12.5" o "12,5" a número; vacío o inválido es null. */
+fun parseQuantity(text: String): Double? =
+    text
+        .trim()
+        .replace(',', '.')
+        .takeIf { it.isNotEmpty() }
+        ?.toDoubleOrNull()
+        ?.takeIf { it.isFinite() && it >= 0 }
+
+/** Sin ceros de sobra: 12, 12.5, 0.25. */
+fun formatQuantity(value: Double): String {
+    val rounded = Math.round(value * 1000) / 1000.0
+    return if (rounded == Math.floor(rounded) && kotlin.math.abs(rounded) < 1e12) {
+        rounded.toLong().toString()
+    } else {
+        rounded.toBigDecimal().stripTrailingZeros().toPlainString()
+    }
+}
