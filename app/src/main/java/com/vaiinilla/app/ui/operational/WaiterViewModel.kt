@@ -508,11 +508,11 @@ class WaiterViewModel
                             start = start,
                             durationMinutes = minutes,
                             customerName = null,
-                            idempotencyKey = keyFor("rent", spaceId, start, minutes),
+                            idempotencyKey = keyFor("rent", spaceId, start, minutes, players),
                             players = players,
                         )
                     }
-                result.onSuccess { forgetKey("rent", spaceId, start, minutes) }
+                result.onSuccess { forgetKey("rent", spaceId, start, minutes, players) }
                 result.fold(
                     onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },

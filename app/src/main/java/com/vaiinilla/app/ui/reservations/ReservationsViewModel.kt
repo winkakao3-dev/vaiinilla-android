@@ -343,6 +343,8 @@ class ReservationsViewModel
                             durationMinutes = minutes,
                             customerName = null,
                             idempotencyKey = UUID.randomUUID().toString(),
+                            // Cambiar el tiempo no borra cuántos juegan.
+                            players = reservation.players,
                         )
                     }
                 held.fold(
