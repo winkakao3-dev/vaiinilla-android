@@ -330,6 +330,7 @@ fun KitchenOperationalScreen(
                     }
                 },
     ) {
+        val unreadableOrders = rememberUnreadableOrders()
         LazyColumn(
             modifier = Modifier.fillMaxSize().statusBarsPadding(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 100.dp),
@@ -387,6 +388,12 @@ fun KitchenOperationalScreen(
 
             if (state.lastRefreshOk == false && queueOrders.isNotEmpty()) {
                 item(key = "kitchen-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
+            }
+
+            if (unreadableOrders > 0) {
+                item(key = "kitchen-update-app") {
+                    StaffUpdateAppBanner(count = unreadableOrders, modifier = Modifier.animateItem())
+                }
             }
 
             item(key = "kitchen-title") {

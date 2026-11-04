@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.school.GuardianRequest
 import com.vaiinilla.app.domain.school.MenuCalendar
@@ -16,7 +17,6 @@ import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolSettingsRules
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import com.vaiinilla.app.ui.components.moneyLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -252,10 +252,13 @@ class AdminSchoolViewModel
         /** Primero pide el "hoy" de la escuela y luego los 15 días de la tira con esas fechas. */
         fun loadMenu() {
             viewModelScope.launch {
+                // Sin aviso, un fallo de red dejaba la tira de días como si ningún día tuviera menú.
+                val failed = { showNotice("No pudimos cargar el menú de los días. Revisa tu red.", isError = true) }
                 val today =
-                    state.today ?: io { repository.menuCalendar() }.getOrNull()?.today ?: return@launch
+                    state.today ?: io { repository.menuCalendar() }.getOrNull()?.today ?: return@launch failed()
                 io { repository.menuCalendar(today, today.plusDays(SchoolSettingsRules.MAX_DAYS_AHEAD.toLong())) }
                     .onSuccess { state = state.copy(menu = it) }
+                    .onFailure { failed() }
             }
         }
 

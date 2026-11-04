@@ -1,10 +1,11 @@
 package com.vaiinilla.app.data.school
 
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.school.DayClosure
 import com.vaiinilla.app.domain.school.GuardianRequest
 import com.vaiinilla.app.domain.school.MenuCalendar
 import com.vaiinilla.app.domain.school.NoServiceDay
-import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.ReservedDay
 import com.vaiinilla.app.domain.school.RosterStudent
 import com.vaiinilla.app.domain.school.SchoolDates
@@ -12,7 +13,6 @@ import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolSettingsRules
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

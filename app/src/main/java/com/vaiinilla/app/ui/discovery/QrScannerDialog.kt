@@ -2,11 +2,7 @@ package com.vaiinilla.app.ui.discovery
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -110,6 +106,7 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.vaiinilla.app.core.permissions.openAppSettings
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -285,7 +282,7 @@ fun QrScannerDialog(
                         onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                         modifier = Modifier.padding(top = 20.dp),
                     )
-                    TextButton(onClick = { context.startActivity(appSettingsIntent(context)) }) {
+                    TextButton(onClick = { openAppSettings(context) }) {
                         Text("Abrir ajustes", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                     alternative?.let { alt ->
@@ -301,10 +298,6 @@ fun QrScannerDialog(
         }
     }
 }
-
-private fun appSettingsIntent(context: Context): Intent =
-    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 @Composable
 @SuppressLint("UnsafeOptInUsageError")

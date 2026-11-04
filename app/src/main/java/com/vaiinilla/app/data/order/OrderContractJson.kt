@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.order
 
+import com.vaiinilla.app.core.contract.mapOrdersTolerant
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -202,14 +203,11 @@ class OrderContractJson
 
         /**
          * Un pedido con un valor que esta versión no conoce (un método de pago nuevo) no tira la lista entera: se
-         * omite ese y se muestran los demás. Si ninguno se entiende, el contrato cambió y el error sale (STAFF-21).
+         * omite ese y se muestran los demás, y UnreadableOrders lo cuenta para que la pantalla pida actualizar la
+         * app. Si ninguno se entiende, el contrato cambió y el error sale (STAFF-21).
          */
-        private fun List<OrderDetailDto>.toDomainTolerant(): List<OrderDetail> {
-            val parsed = map { runCatching { it.toDomain() } }
-            val understood = parsed.mapNotNull { it.getOrNull() }
-            if (understood.isEmpty() && parsed.isNotEmpty()) parsed.first().getOrThrow()
-            return understood
-        }
+        private fun List<OrderDetailDto>.toDomainTolerant(): List<OrderDetail> =
+            mapOrdersTolerant(id = { it.id }) { it.toDomain() }
 
         fun parsePickupToken(raw: String): String {
             val envelope = json.decodeFromString<PickupTokenEnvelopeDto>(raw)

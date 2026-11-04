@@ -368,7 +368,9 @@ class WaiterViewModel
             spaceId: Int,
             durationMinutes: Int?,
         ) = runSpaceAction(spaceId, "Turno abierto") {
-            waiterRepository.openSession(spaceId, durationMinutes, UUID.randomUUID().toString())
+            waiterRepository
+                .openSession(spaceId, durationMinutes, keyFor("open-turn", spaceId, durationMinutes))
+                .onSuccess { forgetKey("open-turn", spaceId, durationMinutes) }
         }
 
         fun extendTurn(
@@ -380,7 +382,9 @@ class WaiterViewModel
                     ?.session
                     ?.version
             runSpaceAction(spaceId, "+$minutes min") {
-                waiterRepository.extendSession(spaceId, minutes, version, UUID.randomUUID().toString())
+                waiterRepository
+                    .extendSession(spaceId, minutes, version, keyFor("extend-turn", spaceId, minutes, version))
+                    .onSuccess { forgetKey("extend-turn", spaceId, minutes, version) }
             }
         }
 
@@ -481,9 +485,10 @@ class WaiterViewModel
                             start = start,
                             durationMinutes = minutes,
                             customerName = null,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            idempotencyKey = keyFor("rent", spaceId, start, minutes),
                         )
                     }
+                result.onSuccess { forgetKey("rent", spaceId, start, minutes) }
                 result.fold(
                     onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
@@ -503,9 +508,10 @@ class WaiterViewModel
                             reservationId = reservation.id,
                             method = ReservationPaymentMethod.CASH,
                             cashReceived = received,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            idempotencyKey = keyFor("pay-rental", reservation.id, received),
                         )
                     }
+                result.onSuccess { forgetKey("pay-rental", reservation.id, received) }
                 result.fold(
                     onSuccess = { payment ->
                         _uiState.value = _uiState.value.copy(pendingRental = null)

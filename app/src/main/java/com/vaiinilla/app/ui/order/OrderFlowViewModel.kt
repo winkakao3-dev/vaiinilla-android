@@ -59,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -523,12 +524,20 @@ class OrderFlowViewModel
         fun claimGuestOrders(onClaimed: () -> Unit = {}) {
             if (!guestOrders.hasIdentity()) return
             launchTracked {
-                val token = studentAuthRepository.getIdToken().getOrNull() ?: return@launchTracked
-                withContext(Dispatchers.IO) { guestOrders.claim(token) }.onSuccess {
-                    // Ya reclamado (la llave del invitado se borró): el pedido de invitado que seguía en pantalla
-                    // no es de esta cuenta y no se queda (EQUIPO-28). Primero se reclama, después se limpia.
-                    clearCreatedOrder()
-                    onClaimed()
+                // Con red inestable un solo intento dejaba los pedidos de invitado fuera de la cuenta hasta el
+                // siguiente arranque: se reintenta unas veces con espera creciente.
+                for (attempt in 0 until CLAIM_ATTEMPTS) {
+                    if (attempt > 0) delay(CLAIM_RETRY_BASE_MS shl (attempt - 1))
+                    if (!guestOrders.hasIdentity()) return@launchTracked
+                    val token = studentAuthRepository.getIdToken().getOrNull() ?: continue
+                    val claimed = withContext(Dispatchers.IO) { guestOrders.claim(token) }
+                    if (claimed.isSuccess) {
+                        // Ya reclamado (la llave del invitado se borró): el pedido de invitado que seguía en
+                        // pantalla no es de esta cuenta y no se queda (EQUIPO-28). Primero se reclama, luego se limpia.
+                        clearCreatedOrder()
+                        onClaimed()
+                        return@launchTracked
+                    }
                 }
             }
         }
@@ -1564,7 +1573,9 @@ class OrderFlowViewModel
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return
             val paymentStatus = order.payment?.status
             val phaseBeforeRetry = _uiState.value.stripePaymentPhase
-            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry)) return
+            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry, orderClosed = order.summary.state.isClosed)) {
+                return
+            }
 
             val key =
                 resolveIdempotencyKey(
@@ -1828,6 +1839,8 @@ class OrderFlowViewModel
         private companion object {
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
             const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
+            const val CLAIM_ATTEMPTS = 3
+            const val CLAIM_RETRY_BASE_MS = 2_000L
             const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
         }
     }

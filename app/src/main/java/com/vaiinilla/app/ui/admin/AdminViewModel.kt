@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.MutationIdempotency
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
@@ -138,6 +139,9 @@ class AdminViewModel
         private var ordersJob: Job? = null
         private var visibleScope: String? = null
 
+        /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
+        private val retryKeys = RetryKeys()
+
         /** [scope] es la membresía activa: si cambió de negocio, no se muestran ni un momento los datos del anterior. */
         fun onVisible(scope: String) {
             if (scope != visibleScope) {
@@ -228,7 +232,9 @@ class AdminViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        spacesRepository.closeWithoutCharging(account.spaceId, note, UUID.randomUUID().toString())
+                        retryKeys.withKey("close-unpaid", account.spaceId, note) { key ->
+                            spacesRepository.closeWithoutCharging(account.spaceId, note, key)
+                        }
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(
@@ -306,7 +312,9 @@ class AdminViewModel
             val amount =
                 AdminProductRules.money(initialAmount)
                     ?: return showNotice("Escribe el fondo inicial, por ejemplo 500.", isError = true)
-            cashCall("Caja abierta", onDone) { cashSessionRepository.openSession(amount, UUID.randomUUID().toString()) }
+            cashCall("Caja abierta", onDone) {
+                retryKeys.withKey("open-cash", amount) { key -> cashSessionRepository.openSession(amount, key) }
+            }
         }
 
         fun closeCash(
@@ -334,7 +342,11 @@ class AdminViewModel
                         )
                     onDone()
                 },
-            ) { cashSessionRepository.closeSession(sessionId, amount, UUID.randomUUID().toString()) }
+            ) {
+                retryKeys.withKey("close-cash", sessionId, amount) { key ->
+                    cashSessionRepository.closeSession(sessionId, amount, key)
+                }
+            }
         }
 
         private fun cashCall(
@@ -407,7 +419,9 @@ class AdminViewModel
             if (input.name.isBlank()) return showNotice("Escribe el nombre de la categoría.", isError = true)
             mutate(success = if (id == null) "Categoría creada" else "Categoría guardada", onDone = onDone) {
                 if (id == null) {
-                    adminRepository.createCategory(input, UUID.randomUUID().toString()).map { }
+                    retryKeys
+                        .withKey("create-category", input) { key -> adminRepository.createCategory(input, key) }
+                        .map { }
                 } else {
                     adminRepository.updateCategory(id, input, UUID.randomUUID().toString()).map { }
                 }
@@ -432,7 +446,9 @@ class AdminViewModel
                 val saved =
                     withContext(Dispatchers.IO) {
                         if (id == null) {
-                            adminRepository.createProduct(ready, UUID.randomUUID().toString())
+                            retryKeys.withKey("create-product", ready) { key ->
+                                adminRepository.createProduct(ready, key)
+                            }
                         } else {
                             adminRepository.updateProduct(id, ready, UUID.randomUUID().toString())
                         }

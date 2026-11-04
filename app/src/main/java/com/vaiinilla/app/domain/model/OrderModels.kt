@@ -236,13 +236,7 @@ val OrderDetail.amountDueOnAcceptance: String
 fun OrderDetail.isStripePaymentConfirmedByBackend(): Boolean =
     summary.paymentMethod == PaymentMethod.STRIPE &&
         payment?.status == StripePaymentStatus.CONFIRMED &&
-        summary.state in
-        setOf(
-            OrderState.PAID,
-            OrderState.PREPARING,
-            OrderState.READY,
-            OrderState.DELIVERED,
-        )
+        summary.state.isPaidOrLater
 
 data class OrderSummary(
     val id: String,
@@ -504,6 +498,10 @@ enum class OrderState(
 
     val isTerminalWithoutDelivery: Boolean
         get() = this == CANCELED || this == NOT_PICKED_UP || this == EXPIRED
+
+    /** Ya se cobró y el pedido sigue su camino: cobrado, preparando, listo o entregado. */
+    val isPaidOrLater: Boolean
+        get() = this == PAID || this == PREPARING || this == READY || this == DELIVERED
 
     /** Ya no hay nada que seguir ni recoger: entregado o terminado sin entrega. */
     val isClosed: Boolean

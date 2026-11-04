@@ -56,6 +56,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
                     notifyCallerOnTheWay(data, noticeId).also { TableCallPushes.notifyChanged() }
                 else -> null
             }
+        if (data["type"] == "order_state" || data["type"] == "staff_alert") OrderPushes.notifyChanged()
         // Todo aviso se anota, también el que no se pudo mostrar: es justo el que hay que explicar.
         val explanation = NoticeExplanation.explain(data, isRemote = true)
         ReceivedNoticeLog.record(

@@ -4,10 +4,13 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.contract.UnreadableOrders
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.MutationIdempotency
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
+import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
@@ -24,6 +27,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.OrderTransitions
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.RefundOutcome
 import com.vaiinilla.app.domain.model.cashAmountDue
@@ -110,6 +114,9 @@ class OperationalViewModel
         val orderAdvanceEvents: Flow<OrderAdvance> = orderAdvances.receiveAsFlow()
         private var clientTrackingBaselineReady = false
         private var mutationErrorVisible = false
+
+        /** Abrir/cerrar caja, crear producto o llamar mesero: el reintento reusa la llave hasta que confirman. */
+        private val retryKeys = RetryKeys()
         private var errorClearJob: Job? = null
 
         // Cada refresh() lleva su número: una respuesta más vieja que la ya aplicada se descarta.
@@ -154,6 +161,8 @@ class OperationalViewModel
                 errorClearJob = null
                 mutationErrorVisible = false
                 resetStaffSync()
+                // Los pedidos que el rol anterior no pudo leer no son de este rol: la franja se recalcula.
+                UnreadableOrders.clear()
             }
             _uiState.value =
                 _uiState.value.copy(
@@ -211,6 +220,7 @@ class OperationalViewModel
             mutationErrorVisible = false
             errorClearJob?.cancel()
             errorClearJob = null
+            UnreadableOrders.clear()
             _uiState.value = OperationalUiState()
         }
 
@@ -308,7 +318,7 @@ class OperationalViewModel
                         // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
                         val merged =
                             when {
-                                role == OperationalRole.CLIENT -> orders
+                                role == OperationalRole.CLIENT -> keepNewerVersions(_uiState.value.orders, orders)
                                 fullSync -> reconcileOrders(_uiState.value.orders, orders)
                                 else -> mergeOrders(_uiState.value.orders, orders)
                             }
@@ -408,9 +418,7 @@ class OperationalViewModel
                 incoming.forEach { order ->
                     val before = previousStates[order.summary.id] ?: return@forEach
                     val after = order.summary.state
-                    val advanced = after.trackingIndex > before.trackingIndex
-                    val resolvedTerminal = after.isTerminalWithoutDelivery && before != after
-                    if (before != after && (advanced || resolvedTerminal)) {
+                    if (announcesClientAdvance(before, after)) {
                         orderAdvances.trySend(
                             OrderAdvance(
                                 orderId = order.summary.id,
@@ -418,6 +426,7 @@ class OperationalViewModel
                                 newState = after,
                                 inSpace = order.summary.destination == OrderDestination.IN_SPACE,
                                 spaceType = order.summary.space?.type,
+                                acceptedAwaitingPayment = acceptedAwaitingPayment(before, after),
                             ),
                         )
                     }
@@ -478,11 +487,12 @@ class OperationalViewModel
                 viewModelScope.launch {
                     val result =
                         withContext(Dispatchers.IO) {
-                            openCashSession(wireAmount, UUID.randomUUID().toString())
+                            openCashSession(wireAmount, retryKeys.keyFor("open-cash", wireAmount))
                         }
                     if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                     result
                         .onSuccess {
+                            retryKeys.forget("open-cash", wireAmount)
                             _uiState.value = _uiState.value.copy(acting = false, cashSessionOpen = true)
                         }.onFailure { error ->
                             // Si el POST llegó pero la respuesta se perdió, la sesión ya
@@ -525,7 +535,10 @@ class OperationalViewModel
                     withContext(Dispatchers.IO) {
                         cashSessionRepository.activeSessionId().mapCatching { id ->
                             val sessionId = id ?: error("No hay una caja abierta.")
-                            closeCashSession(sessionId, finalAmount, UUID.randomUUID().toString()).getOrThrow()
+                            val key = retryKeys.keyFor("close-cash", sessionId, finalAmount)
+                            closeCashSession(sessionId, finalAmount, key)
+                                .getOrThrow()
+                                .also { retryKeys.forget("close-cash", sessionId, finalAmount) }
                         }
                     }
                 if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
@@ -909,6 +922,22 @@ class OperationalViewModel
             }
         }
 
+        /**
+         * El pedido que se ve ya no está en un estado desde el que se pueda pedir [target] (otro dispositivo lo
+         * movió): se avisa y se pide la lista completa en vez de mandar una petición que el servidor rechazaría.
+         * Si el pedido no está en la lista no se sabe, y decide el servidor.
+         */
+        private fun staleForTransition(
+            orderId: String,
+            target: OrderState,
+        ): Boolean {
+            val current = _uiState.value.orders.firstOrNull { it.summary.id == orderId } ?: return false
+            if (OrderTransitions.canRequest(current.summary.state, target)) return false
+            showMutationError("Ese pedido ya cambió de estado. Actualizando la lista…")
+            requestFullSync()
+            return true
+        }
+
         private fun freshVersion(
             orderId: String,
             fallback: Int,
@@ -922,6 +951,7 @@ class OperationalViewModel
             orderId: String,
             expectedVersion: Int,
         ) {
+            if (staleForTransition(orderId, OrderState.PREPARING)) return
             val version = freshVersion(orderId, expectedVersion)
             performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
@@ -995,6 +1025,7 @@ class OperationalViewModel
             orderId: String,
             expectedVersion: Int,
         ) {
+            if (staleForTransition(orderId, OrderState.READY)) return
             val version = freshVersion(orderId, expectedVersion)
             performMutation(successNotice = ::kitchenActionNotice) {
                 transitionOrder(
@@ -1033,6 +1064,7 @@ class OperationalViewModel
                     else -> Unit
                 }
             }
+            if (staleForTransition(orderId, OrderState.DELIVERED)) return
             val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
             val version = freshest?.summary?.version ?: expectedVersion
             val pickupToken =
@@ -1097,6 +1129,8 @@ class OperationalViewModel
                             _uiState.value.copy(
                                 cashSessionOpen = open,
                                 cashSessionCheckFailed = false,
+                                // Otra caja la cerró: la hoja de cierre ya no tiene qué cerrar.
+                                closeCash = _uiState.value.closeCash.takeIf { open },
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 expectedCash = cashSessionRepository.expectedCash,
                                 cashOpeningAmount = session?.initialAmount,
@@ -1191,10 +1225,13 @@ class OperationalViewModel
                 viewModelScope.launch {
                     while (isActive) {
                         // El alumno sigue su pedido al ritmo de siempre; el personal baja a un minuto minimizado.
-                        if (_uiState.value.role == OperationalRole.CLIENT) {
-                            delay(POLL_INTERVAL_MS)
-                        } else {
-                            awaitNextStaffPoll(POLL_INTERVAL_MS)
+                        // Un push de pedido adelanta la consulta.
+                        OrderPushes.awaitNextPoll {
+                            if (_uiState.value.role == OperationalRole.CLIENT) {
+                                delay(POLL_INTERVAL_MS)
+                            } else {
+                                awaitNextStaffPoll(POLL_INTERVAL_MS)
+                            }
                         }
                         refresh()
                         refreshCashSession()
@@ -1416,8 +1453,9 @@ class OperationalViewModel
             viewModelScope.launch {
                 val created =
                     withContext(Dispatchers.IO) {
-                        catalogRepository.createProduct(draft, UUID.randomUUID().toString())
+                        catalogRepository.createProduct(draft, retryKeys.keyFor("create-product", draft))
                     }
+                created.onSuccess { retryKeys.forget("create-product", draft) }
                 val createdProduct =
                     created
                         .getOrElse { error ->
@@ -1563,7 +1601,10 @@ class OperationalViewModel
             orderId: String?,
         ): Result<TableCall> =
             withContext(Dispatchers.IO) {
-                waiterRepository.call(espacioId, reason, orderId, UUID.randomUUID().toString())
+                val signature = arrayOf<Any?>("call-waiter", espacioId, reason, orderId)
+                waiterRepository
+                    .call(espacioId, reason, orderId, retryKeys.keyFor(*signature))
+                    .onSuccess { retryKeys.forget(*signature) }
             }
 
         suspend fun cancelWaiterCall(call: TableCall): Result<TableCall> =
@@ -1705,6 +1746,17 @@ internal fun reconcileOrders(
     incoming: List<OrderDetail>,
 ): List<OrderDetail> {
     if (incoming.size >= FULL_LIST_LIMIT) return mergeOrders(current, incoming)
+    return keepNewerVersions(current, incoming)
+}
+
+/**
+ * Lista completa del cliente: manda el servidor, salvo un pedido que aquí ya va en una versión más nueva (una
+ * respuesta lenta que salió antes del último cambio no lo regresa a su estado anterior).
+ */
+internal fun keepNewerVersions(
+    current: List<OrderDetail>,
+    incoming: List<OrderDetail>,
+): List<OrderDetail> {
     val localById = current.associateBy { it.summary.id }
     return incoming.map { order -> newerOrder(localById[order.summary.id], order) }
 }
@@ -1783,4 +1835,28 @@ data class OrderAdvance(
     val newState: OrderState,
     val inSpace: Boolean = false,
     val spaceType: String? = null,
+    /** El negocio aceptó el encargo y ahora le toca pagar al cliente. */
+    val acceptedAwaitingPayment: Boolean = false,
 )
+
+/**
+ * Si un cambio de estado del pedido merece aviso al cliente: cuando avanza en la línea de tiempo, cuando termina
+ * sin entrega, o cuando le pide algo aunque la línea no se mueva. Aceptar un encargo (`por_aceptar → por_cobrar`)
+ * y que un domicilio salga (`listo → en_camino`) ocupan el mismo paso de la línea, así que solo con el índice no
+ * se avisaban.
+ */
+internal fun announcesClientAdvance(
+    before: OrderState,
+    after: OrderState,
+): Boolean {
+    if (before == after) return false
+    return after.trackingIndex > before.trackingIndex ||
+        after.isTerminalWithoutDelivery ||
+        acceptedAwaitingPayment(before, after) ||
+        (before == OrderState.READY && after == OrderState.ON_THE_WAY)
+}
+
+internal fun acceptedAwaitingPayment(
+    before: OrderState,
+    after: OrderState,
+): Boolean = before == OrderState.AWAITING_ACCEPTANCE && after == OrderState.PENDING_PAYMENT

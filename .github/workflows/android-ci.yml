@@ -9,7 +9,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       # Pull-request checks must use the current Development API explicitly;
       # this prevents a stale repository variable from routing CI to a retired
@@ -31,6 +31,17 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
+
+      # El runner tiene 16 GB: los 3 GB del proyecto (pensados para las Mac) ya no alcanzan para compilar
+      # dos sabores en paralelo y Kotlin se quedaba sin memoria. ~/.gradle/gradle.properties manda sobre el
+      # del proyecto solo aquí.
+      - name: Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo "org.gradle.jvmargs=-Xmx6g -XX:+UseG1GC -XX:+ParallelRefProcEnabled -Dfile.encoding=UTF-8"
+            echo "kotlin.daemon.jvmargs=-Xmx4g -XX:+UseG1GC"
+          } >> ~/.gradle/gradle.properties
 
       - name: Make scripts executable
         run: chmod +x gradlew scripts/*.sh scripts/*.py

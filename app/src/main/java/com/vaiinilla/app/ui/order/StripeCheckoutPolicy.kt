@@ -32,6 +32,9 @@ fun stripePhaseFromBackend(order: OrderDetail?): StripePaymentPhase =
         order?.payment?.status == StripePaymentStatus.REFUND_PENDING ||
             order?.payment?.status == StripePaymentStatus.REFUNDING -> StripePaymentPhase.REFUNDING
         order?.payment?.status == StripePaymentStatus.REFUNDED -> StripePaymentPhase.REFUNDED
+        // Cancelado, expirado o no recogido sin reembolso en curso: ya no hay cobro que esperar. Antes caía en
+        // PENDING, el sondeo duraba 90 s, terminaba en TIMED_OUT y el pedido muerto seguía bloqueando el carrito.
+        order?.summary?.state?.isTerminalWithoutDelivery == true -> StripePaymentPhase.CANCELED
         else -> StripePaymentPhase.PENDING
     }
 
@@ -62,6 +65,15 @@ internal fun canReturnStripeOrderToCart(
  * confirmación venció (TIMED_OUT): era la única salida que dejaba al pedido sin forma de pagarse (PAGO-08).
  */
 internal fun canRetryStripePayment(
+    paymentStatus: StripePaymentStatus?,
+    phase: StripePaymentPhase,
+    orderClosed: Boolean = false,
+): Boolean =
+    // Un pedido cancelado, expirado o entregado ya no se paga: reintentar solo daría un 409 (PAGO-05).
+    !orderClosed &&
+        canRetryOpenOrder(paymentStatus, phase)
+
+private fun canRetryOpenOrder(
     paymentStatus: StripePaymentStatus?,
     phase: StripePaymentPhase,
 ): Boolean =

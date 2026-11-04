@@ -153,6 +153,8 @@ fun StudentCounterSheet(
     var scanning by remember { mutableStateOf(false) }
     var linkingNfc by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
+    val nfcStatus = rememberNfcStatus()
+    val context = LocalContext.current
     LaunchedEffect(state.notice) {
         state.notice?.let {
             toast = it
@@ -190,7 +192,17 @@ fun StudentCounterSheet(
                 actions = actions,
                 onScan = { scanning = true },
                 linkingNfc = linkingNfc,
-                onLinkNfcChange = { linkingNfc = it },
+                onLinkNfcChange = { wanted ->
+                    // Sin NFC prendido el botón esperaba la tarjeta para siempre: se dice qué hacer.
+                    when {
+                        !wanted || nfcStatus == NfcStatus.ON -> linkingNfc = wanted
+                        nfcStatus == NfcStatus.OFF -> {
+                            toast = "Prende el NFC del teléfono y vuelve a intentar."
+                            openNfcSettings(context)
+                        }
+                        else -> toast = "Este teléfono no tiene NFC: usa la credencial QR."
+                    }
+                },
                 onClose = onDismiss,
             )
             ToastPill(

@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.counter.CounterScope
@@ -114,6 +115,9 @@ class StudentCounterViewModel
         val offlineState: StateFlow<OfflineCounterState> = offline.state
 
         private var chargeKey = UUID.randomUUID().toString()
+
+        /** Entregar o ligar credencial: el reintento tras perder la respuesta reusa la llave. */
+        private val retryKeys = RetryKeys()
         private var searchJob: Job? = null
 
         private var state: StudentCounterUiState
@@ -405,7 +409,9 @@ class StudentCounterViewModel
             work.launch {
                 val result =
                     withContext(io) {
-                        repository.deliver(order.id, order.version, credential, UUID.randomUUID().toString())
+                        retryKeys.withKey("deliver", order.id, order.version) { key ->
+                            repository.deliver(order.id, order.version, credential, key)
+                        }
                     }
                 state =
                     result.fold(
@@ -440,7 +446,9 @@ class StudentCounterViewModel
             work.launch {
                 val result =
                     withContext(io) {
-                        repository.assignCredential(student.userId, kind, nfcUid, UUID.randomUUID().toString())
+                        retryKeys.withKey("credential", student.userId, kind, nfcUid) { key ->
+                            repository.assignCredential(student.userId, kind, nfcUid, key)
+                        }
                     }
                 state =
                     result.fold(

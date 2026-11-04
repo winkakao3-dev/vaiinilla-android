@@ -49,7 +49,7 @@ private fun homeDeliveryHint(order: OrderDetail): String? =
             order.homeDelivery?.code?.let { "Va en camino. Al recibirlo, dicta el código $it." }
                 ?: "Tu pedido va en camino."
         OrderState.DELIVERED -> "Pedido entregado."
-        else -> null
+        OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED -> null
     }
 
 private fun OrderDetail.spaceName(): String = summary.space?.name?.takeIf { it.isNotBlank() } ?: "tu espacio"
@@ -64,7 +64,13 @@ internal fun pickupTitle(
         OrderState.PAID -> if (order.isHomeDelivery()) "Aceptado" else "Pedido recibido"
         OrderState.PREPARING -> "Preparando"
         OrderState.READY -> "¡Listo!"
-        else -> order.summary.state.label
+        OrderState.AWAITING_ACCEPTANCE,
+        OrderState.ON_THE_WAY,
+        OrderState.DELIVERED,
+        OrderState.CANCELED,
+        OrderState.NOT_PICKED_UP,
+        OrderState.EXPIRED,
+        -> order.summary.state.label
     }
 }
 

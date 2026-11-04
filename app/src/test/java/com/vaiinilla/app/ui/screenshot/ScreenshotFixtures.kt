@@ -23,7 +23,6 @@ import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
-import com.vaiinilla.app.ui.wallet.WalletUiState
 
 object ScreenshotFixtures {
     private val repository = FixtureCatalogRepository(TestFixtureSource(), ContractResponseParser())
@@ -123,8 +122,6 @@ object ScreenshotFixtures {
             role = OperationalRole.CLIENT,
             orders = emptyList(),
         )
-
-    fun walletState(): WalletUiState = WalletUiState()
 
     fun waiterBoardState(): WaiterUiState {
         val now = java.time.Instant.now()

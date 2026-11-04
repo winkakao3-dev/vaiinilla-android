@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentContextGrant
 import com.vaiinilla.app.domain.guardianship.DependentControls
 import com.vaiinilla.app.domain.guardianship.GuardianLinkCode
+import com.vaiinilla.app.domain.guardianship.GuardianshipState
 import com.vaiinilla.app.domain.guardianship.MenuCalendar
 import com.vaiinilla.app.domain.guardianship.MenuDay
 import com.vaiinilla.app.domain.guardianship.MyGuardianControls
@@ -62,7 +63,9 @@ class GuardianshipJson {
     fun parseDependent(raw: String): Dependent = dependent(data(raw).jsonObject)
 
     fun dependent(obj: JsonObject): Dependent {
-        val pending = obj.string("estado") == "pendiente"
+        val schoolState = GuardianshipState.fromWire(obj.string("estado"))
+        // Saldo y controles solo con la tutela aprobada: pendiente, rechazada o desconocida no son cero, no se ven.
+        val approved = schoolState == GuardianshipState.APPROVED
         val credentials = obj.obj("credenciales")
         return Dependent(
             userId = obj.requireString("usuario_id"),
@@ -71,9 +74,9 @@ class GuardianshipJson {
             photoUrl = obj.string("foto_url"),
             studentId = obj.string("matricula"),
             hasOwnAccount = obj.bool("tiene_cuenta") ?: false,
-            balance = if (pending) null else obj.money("saldo"),
-            controls = if (pending) null else obj.obj("controles")?.let(::controls),
-            isAwaitingSchool = pending,
+            balance = if (approved) obj.money("saldo") else null,
+            controls = if (approved) obj.obj("controles")?.let(::controls) else null,
+            schoolState = schoolState,
             // Un backend sin la migración 99 no lo manda: cada tutor seguía siendo dueño de los controles.
             isPrincipal = obj.bool("soy_principal") ?: true,
             guardians =

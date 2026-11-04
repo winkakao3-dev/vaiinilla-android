@@ -104,6 +104,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -389,12 +390,13 @@ fun OperationalAssistantHost(
         val step = controller.currentStep ?: return@LaunchedEffect
         val anchorId = step.anchorId
         if (anchorId != null) {
-            repeat(5) {
+            // Hasta 5 intentos mientras el ancla aparece; en cuanto se ve, se deja de buscar.
+            for (attempt in 1..5) {
                 val entry = registry.entry(anchorId)
                 if (entry != null) {
-                    runCatching { entry.bringIntoViewRequester.bringIntoView() }
+                    runCatchingCancellable { entry.bringIntoViewRequester.bringIntoView() }
                     delay(if (reduceMotion) 20 else 120)
-                    return@repeat
+                    break
                 }
                 delay(80)
             }
