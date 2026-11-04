@@ -220,8 +220,21 @@ private fun androidx.compose.foundation.lazy.LazyListScope.stockTab(
         }
         return
     }
-    val sorted = data.supplies.sortedWith(compareBy({ !it.active }, { !it.low }, { it.category ?: "~" }, { it.name.lowercase() }))
-    val groups = sorted.groupBy { if (!it.active) "Inactivos" else it.category?.takeIf { c -> c.isNotBlank() } ?: "Sin categoría" }
+    val sorted =
+        data.supplies.sortedWith(
+            compareBy({
+                !it.active
+            }, { !it.low }, { it.category ?: "~" }, { it.name.lowercase() }),
+        )
+    val groups =
+        sorted.groupBy {
+            if (!it.active) {
+                "Inactivos"
+            } else {
+                it.category?.takeIf { c -> c.isNotBlank() }
+                    ?: "Sin categoría"
+            }
+        }
     groups.forEach { (group, supplies) ->
         item(key = "stock-group-$group") {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -444,7 +457,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reportTab(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             InventoryPeriod.entries.forEach { p ->
-                ChipButton(label = p.label, enabled = true, colors = colors, selected = p == state.period) { onPeriod(p) }
+                ChipButton(
+                    label = p.label,
+                    enabled = true,
+                    colors = colors,
+                    selected = p == state.period,
+                ) { onPeriod(p) }
             }
         }
     }
@@ -529,7 +547,11 @@ private fun SupplyActionsSheet(
         }
         if (!readOnly) {
             AdminPrimaryButton(title = "Registrar entrada (compra)", colors = colors) { onPick(SupplySheet.ENTRY) }
-            AdminSecondaryButton(title = "Registrar merma", colors = colors, outlined = true) { onPick(SupplySheet.WASTE) }
+            AdminSecondaryButton(
+                title = "Registrar merma",
+                colors = colors,
+                outlined = true,
+            ) { onPick(SupplySheet.WASTE) }
             AdminSecondaryButton(title = "Contar este insumo", colors = colors, outlined = true) {
                 onPick(SupplySheet.ADJUST)
             }
@@ -552,7 +574,15 @@ private fun SupplyEditSheet(
     var category by rememberSaveable { mutableStateOf(supply?.category.orEmpty()) }
     var unit by rememberSaveable { mutableStateOf(supply?.unit ?: InventoryUnit.PIECE) }
     var minimum by rememberSaveable { mutableStateOf(supply?.minimum?.let(::formatQuantity).orEmpty()) }
-    var cost by rememberSaveable { mutableStateOf(supply?.unitCost?.takeIf { it > 0 }?.let(::formatQuantity).orEmpty()) }
+    var cost by rememberSaveable {
+        mutableStateOf(
+            supply
+                ?.unitCost
+                ?.takeIf { it > 0 }
+                ?.let(::formatQuantity)
+                .orEmpty(),
+        )
+    }
     var initial by rememberSaveable { mutableStateOf("") }
     var active by rememberSaveable { mutableStateOf(supply?.active ?: true) }
     val categories =
@@ -570,7 +600,10 @@ private fun SupplyEditSheet(
         AdminTextField("Nombre", name, { name = it }, colors, placeholder = "Cerveza Corona 355 ml")
         AdminTextField("Categoría", category, { category = it }, colors, placeholder = "Cervezas, Licores, Cocina…")
         if (categories.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 categories.forEach { c ->
                     ChipButton(label = c, enabled = true, colors = colors, selected = c == category) { category = c }
                 }
@@ -653,7 +686,14 @@ private fun MovementSheet(
     onSave: (Double, Double?, String?) -> Unit,
 ) {
     var amount by rememberSaveable { mutableStateOf("") }
-    var cost by rememberSaveable { mutableStateOf(supply.unitCost.takeIf { it > 0 }?.let(::formatQuantity).orEmpty()) }
+    var cost by rememberSaveable {
+        mutableStateOf(
+            supply.unitCost
+                .takeIf { it > 0 }
+                ?.let(::formatQuantity)
+                .orEmpty(),
+        )
+    }
     var note by rememberSaveable { mutableStateOf("") }
     val title =
         when (type) {
@@ -698,7 +738,9 @@ private fun MovementSheet(
             val diff = value - supply.stock
             if (diff != 0.0) {
                 AdminHint(
-                    "Diferencia: ${if (diff > 0) "+" else ""}${formatQuantity(diff)} ${supply.unit.short}. Queda en el reporte.",
+                    "Diferencia: ${if (diff > 0) "+" else ""}${formatQuantity(
+                        diff,
+                    )} ${supply.unit.short}. Queda en el reporte.",
                     colors,
                 )
             }
@@ -745,8 +787,15 @@ private fun RecipeSheet(
     }
     var adding by remember { mutableStateOf(false) }
     var addOption by remember { mutableStateOf<Pair<Int, String>?>(null) }
-    val options = catalogProduct?.optionGroups.orEmpty().flatMap { g -> g.options.map { it.id to "${g.name}: ${it.name}" } }
-    val supplies = state.supplies?.supplies?.filter { it.active }.orEmpty()
+    val options =
+        catalogProduct?.optionGroups.orEmpty().flatMap { g ->
+            g.options.map { it.id to "${g.name}: ${it.name}" }
+        }
+    val supplies =
+        state.supplies
+            ?.supplies
+            ?.filter { it.active }
+            .orEmpty()
 
     AdminSheet(title = "Receta de ${product.name}", colors = colors, busy = state.saving, onDismiss = onDismiss) {
         if (loaded == null) {
@@ -806,14 +855,24 @@ private fun RecipeSheet(
         }
         if (!readOnly) {
             if (!adding) {
-                AdminSecondaryButton(title = "Agregar insumo", colors = colors, outlined = true, icon = Icons.Outlined.Add) {
+                AdminSecondaryButton(
+                    title = "Agregar insumo",
+                    colors = colors,
+                    outlined = true,
+                    icon = Icons.Outlined.Add,
+                ) {
                     adding = true
                     addOption = null
                 }
             } else {
                 AdminPanel(colors) {
                     if (options.isNotEmpty()) {
-                        Text("¿Cuándo se gasta?", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.textPrimary)
+                        Text(
+                            "¿Cuándo se gasta?",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = colors.textPrimary,
+                        )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -828,7 +887,10 @@ private fun RecipeSheet(
                     if (supplies.isEmpty()) {
                         AdminHint("Primero da de alta insumos en Existencias.", colors)
                     }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         supplies
                             .filter { s -> draft.none { it.supplyId == s.id && it.optionId == addOption?.first } }
                             .sortedBy { it.name.lowercase() }
@@ -841,7 +903,13 @@ private fun RecipeSheet(
                                             s.unit,
                                             addOption?.first,
                                             addOption?.second?.substringAfter(": "),
-                                            if (s.unit == InventoryUnit.PIECE || s.unit == InventoryUnit.BOTTLE) "1" else "",
+                                            if (s.unit == InventoryUnit.PIECE ||
+                                                s.unit == InventoryUnit.BOTTLE
+                                            ) {
+                                                "1"
+                                            } else {
+                                                ""
+                                            },
                                         ),
                                     )
                                     adding = false
@@ -856,7 +924,9 @@ private fun RecipeSheet(
             AdminSheetError(state.sheetError ?: if (!valid) "Cada insumo necesita una cantidad mayor a 0." else null)
             AdminPrimaryButton(title = "Guardar receta", colors = colors, busy = state.saving, enabled = valid) {
                 onSave(
-                    parsed.map { (l, q) -> RecipeLine(l.supplyId, l.supplyName, l.unit, q ?: 0.0, l.optionId, l.optionName, 0.0) },
+                    parsed.map { (l, q) ->
+                        RecipeLine(l.supplyId, l.supplyName, l.unit, q ?: 0.0, l.optionId, l.optionName, 0.0)
+                    },
                 )
             }
         }
@@ -908,5 +978,8 @@ private fun localTime(iso: String): String =
         java.time.OffsetDateTime
             .parse(iso)
             .atZoneSameInstant(java.time.ZoneId.systemDefault())
-            .format(java.time.format.DateTimeFormatter.ofPattern("d MMM HH:mm", java.util.Locale("es", "MX")))
+            .format(
+                java.time.format.DateTimeFormatter
+                    .ofPattern("d MMM HH:mm", java.util.Locale("es", "MX")),
+            )
     }.getOrDefault(iso.take(16).replace('T', ' '))

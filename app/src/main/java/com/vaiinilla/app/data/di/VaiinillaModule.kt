@@ -11,8 +11,6 @@ import com.vaiinilla.app.data.admin.RemoteAdminRepository
 import com.vaiinilla.app.data.admin.RemoteAdminSpacesRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStaffRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStoreRepository
-import com.vaiinilla.app.data.inventory.InventoryRepository
-import com.vaiinilla.app.data.inventory.RemoteInventoryRepository
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
@@ -22,6 +20,8 @@ import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
 import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.guest.GuestReservationSession
+import com.vaiinilla.app.data.inventory.InventoryRepository
+import com.vaiinilla.app.data.inventory.RemoteInventoryRepository
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository

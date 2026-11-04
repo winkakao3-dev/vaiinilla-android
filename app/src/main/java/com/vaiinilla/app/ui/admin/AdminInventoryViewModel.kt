@@ -142,7 +142,13 @@ class AdminInventoryViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        if (existing == null) repository.createSupply(input) else repository.updateSupply(existing.id, input)
+                        if (existing ==
+                            null
+                        ) {
+                            repository.createSupply(input)
+                        } else {
+                            repository.updateSupply(existing.id, input)
+                        }
                     }
                 result
                     .onSuccess {
@@ -236,9 +242,19 @@ class AdminInventoryViewModel
             update { copy(recipeProduct = product, recipe = null, sheetError = null) }
             viewModelScope.launch {
                 withContext(Dispatchers.IO) { repository.recipe(product.id) }
-                    .onSuccess { lines -> if (_uiState.value.recipeProduct?.id == product.id) update { copy(recipe = lines) } }
-                    .onFailure {
-                        update { copy(recipe = emptyList(), sheetError = it.toUserFacingMessage("No se pudo cargar la receta.")) }
+                    .onSuccess { lines ->
+                        if (_uiState.value.recipeProduct?.id ==
+                            product.id
+                        ) {
+                            update { copy(recipe = lines) }
+                        }
+                    }.onFailure {
+                        update {
+                            copy(
+                                recipe = emptyList(),
+                                sheetError = it.toUserFacingMessage("No se pudo cargar la receta."),
+                            )
+                        }
                     }
             }
         }
@@ -268,8 +284,13 @@ class AdminInventoryViewModel
             viewModelScope.launch {
                 val (from, to) = range(InventoryPeriod.MONTH)
                 withContext(Dispatchers.IO) { repository.movements(from, to, supply.id) }
-                    .onSuccess { list -> if (_uiState.value.historyFor?.id == supply.id) update { copy(history = list) } }
-                    .onFailure { update { copy(history = emptyList()) } }
+                    .onSuccess { list ->
+                        if (_uiState.value.historyFor?.id ==
+                            supply.id
+                        ) {
+                            update { copy(history = list) }
+                        }
+                    }.onFailure { update { copy(history = emptyList()) } }
             }
         }
 

@@ -495,8 +495,12 @@ class RemoteInventoryRepository(
     override fun recipe(productId: Int): Result<List<RecipeLine>> =
         apiClient
             .get("inventario/productos/$productId/receta")
-            .mapCatching { json.decodeFromString<Envelope<RecipeDto>>(it).data.lineas.map(LineDto::toDomain) }
-            .mapApiErrors()
+            .mapCatching {
+                json
+                    .decodeFromString<Envelope<RecipeDto>>(it)
+                    .data.lineas
+                    .map(LineDto::toDomain)
+            }.mapApiErrors()
 
     override fun saveRecipe(
         productId: Int,
@@ -506,8 +510,12 @@ class RemoteInventoryRepository(
             .put(
                 "inventario/productos/$productId/receta",
                 json.encodeToString(RecipeBody(lines.map { LineBody(it.supplyId, it.quantity, it.optionId) })),
-            ).mapCatching { json.decodeFromString<Envelope<RecipeDto>>(it).data.lineas.map(LineDto::toDomain) }
-            .mapApiErrors()
+            ).mapCatching {
+                json
+                    .decodeFromString<Envelope<RecipeDto>>(it)
+                    .data.lineas
+                    .map(LineDto::toDomain)
+            }.mapApiErrors()
 
     override fun movements(
         fromIso: String?,
