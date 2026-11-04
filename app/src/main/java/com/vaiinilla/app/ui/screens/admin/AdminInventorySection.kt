@@ -574,15 +574,15 @@ private fun SupplyEditSheet(
     var category by rememberSaveable { mutableStateOf(supply?.category.orEmpty()) }
     var unit by rememberSaveable { mutableStateOf(supply?.unit ?: InventoryUnit.PIECE) }
     var minimum by rememberSaveable { mutableStateOf(supply?.minimum?.let(::formatQuantity).orEmpty()) }
-    var cost by rememberSaveable {
-        mutableStateOf(
-            supply
-                ?.unitCost
-                ?.takeIf { it > 0 }
-                ?.let(::formatQuantity)
-                .orEmpty(),
-        )
-    }
+    val savedCost =
+        supply
+            ?.unitCost
+            ?.takeIf { it > 0 }
+            ?.let { formatQuantity(it, decimals = 4) }
+            .orEmpty()
+    var cost by rememberSaveable { mutableStateOf(savedCost) }
+    // Con existencia o recetas, cambiar la unidad dejaría cantidades sin sentido.
+    val unitLocked = supply != null && (supply.stock != 0.0 || supply.usedBy > 0)
     var initial by rememberSaveable { mutableStateOf("") }
     var active by rememberSaveable { mutableStateOf(supply?.active ?: true) }
     val categories =
@@ -614,8 +614,11 @@ private fun SupplyEditSheet(
             options = InventoryUnit.entries.map { it to it.label },
             selected = unit,
             colors = colors,
-            enabled = !state.saving,
+            enabled = !state.saving && !unitLocked,
         ) { unit = it }
+        if (unitLocked) {
+            AdminHint("La unidad ya no se cambia porque hay existencia o recetas; da de alta otro insumo.", colors)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             AdminTextField(
                 "Mínimo (${unit.short})",
@@ -665,9 +668,9 @@ private fun SupplyEditSheet(
                 InventorySupplyInput(
                     name = name.trim(),
                     category = category.trim().ifBlank { null },
-                    unit = unit,
+                    unit = if (supply == null || unit != supply.unit) unit else null,
                     minimum = parseQuantity(minimum) ?: 0.0,
-                    unitCost = parseQuantity(cost) ?: 0.0,
+                    unitCost = if (supply == null || cost != savedCost) parseQuantity(cost) ?: 0.0 else null,
                     initialStock = if (supply == null) parseQuantity(initial) else null,
                     active = if (supply == null) null else active,
                 ),
@@ -690,7 +693,7 @@ private fun MovementSheet(
         mutableStateOf(
             supply.unitCost
                 .takeIf { it > 0 }
-                ?.let(::formatQuantity)
+                ?.let { formatQuantity(it, decimals = 4) }
                 .orEmpty(),
         )
     }

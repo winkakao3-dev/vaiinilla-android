@@ -98,7 +98,7 @@ class AdminInventoryViewModel
             if (tab == InventoryTab.REPORT && _uiState.value.report == null) loadReport()
         }
 
-        fun refresh() {
+        fun refresh(onLoaded: (() -> Unit)? = null) {
             update { copy(loading = true, error = null) }
             viewModelScope.launch {
                 val supplies = withContext(Dispatchers.IO) { repository.supplies(includeInactive = true) }
@@ -114,6 +114,7 @@ class AdminInventoryViewModel
                     )
                 }
                 if (_uiState.value.tab == InventoryTab.REPORT) loadReport()
+                onLoaded?.invoke()
             }
         }
 
@@ -270,7 +271,12 @@ class AdminInventoryViewModel
                     .onSuccess {
                         update { copy(saving = false, recipeProduct = null, recipe = null) }
                         notice("Receta de ${product.name} guardada")
-                        refresh()
+                        refresh {
+                            val now = _uiState.value.products?.find { it.id == product.id }
+                            if (now?.soldOutByInventory == true && !product.soldOutByInventory) {
+                                notice("${product.name} quedó agotado: no alcanzan los insumos", error = true)
+                            }
+                        }
                     }.onFailure {
                         update {
                             copy(saving = false, sheetError = it.toUserFacingMessage("No se pudo guardar la receta."))
@@ -325,18 +331,33 @@ class AdminInventoryViewModel
         }
     }
 
-/** "12.5" o "12,5" a número; vacío o inválido es null. */
-fun parseQuantity(text: String): Double? =
-    text
-        .trim()
-        .replace(',', '.')
-        .takeIf { it.isNotEmpty() }
-        ?.toDoubleOrNull()
-        ?.takeIf { it.isFinite() && it >= 0 }
+private val THOUSANDS_COMMA = Regex("^[1-9]\\d{0,2}(,\\d{3})+(\\.\\d+)?$")
 
-/** Sin ceros de sobra: 12, 12.5, 0.25. */
-fun formatQuantity(value: Double): String {
-    val rounded = Math.round(value * 1000) / 1000.0
+/**
+ * Texto capturado a número; vacío o inválido es null. En México la coma separa miles:
+ * «1,500» y «1,500.5» son mil quinientos. Una coma con uno o dos decimales («12,5») o tras un
+ * cero («0,500») se lee como punto decimal.
+ */
+fun parseQuantity(text: String): Double? {
+    val clean = text.trim().replace(" ", "")
+    if (clean.isEmpty()) return null
+    val normalized =
+        when {
+            THOUSANDS_COMMA.matches(clean) -> clean.replace(",", "")
+            ',' in clean && '.' in clean -> return null
+            clean.count { it == ',' } > 1 -> return null
+            else -> clean.replace(',', '.')
+        }
+    return normalized.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0 }
+}
+
+/** Sin ceros de sobra: 12, 12.5, 0.25 (costos con hasta 4 decimales). */
+fun formatQuantity(
+    value: Double,
+    decimals: Int = 3,
+): String {
+    val factor = Math.pow(10.0, decimals.toDouble())
+    val rounded = Math.round(value * factor) / factor
     return if (rounded == Math.floor(rounded) && kotlin.math.abs(rounded) < 1e12) {
         rounded.toLong().toString()
     } else {

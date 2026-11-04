@@ -60,12 +60,13 @@ data class InventorySupplies(
     val totalValue: Double,
 )
 
+/** Al editar, unidad y costo en null no se mandan: el servidor conserva lo que tiene. */
 data class InventorySupplyInput(
     val name: String,
     val category: String?,
-    val unit: InventoryUnit,
+    val unit: InventoryUnit?,
     val minimum: Double,
-    val unitCost: Double,
+    val unitCost: Double?,
     val initialStock: Double? = null,
     val active: Boolean? = null,
 )
@@ -237,9 +238,9 @@ private data class SuppliesDto(
 private data class SupplyBody(
     val nombre: String,
     val categoria: String?,
-    val unidad: String,
+    val unidad: String? = null,
     val minimo: Double,
-    @SerialName("costo_unitario") val costoUnitario: Double,
+    @SerialName("costo_unitario") val costoUnitario: Double? = null,
     @SerialName("existencia_inicial") val existenciaInicial: Double? = null,
     val activo: Boolean? = null,
 )
@@ -419,7 +420,7 @@ class RemoteInventoryRepository(
             SupplyBody(
                 input.name,
                 input.category,
-                input.unit.wire,
+                input.unit?.wire,
                 input.minimum,
                 input.unitCost,
                 input.initialStock,
