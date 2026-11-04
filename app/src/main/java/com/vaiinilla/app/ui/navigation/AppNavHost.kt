@@ -374,6 +374,7 @@ fun AppNavHost(
                     inSpace = event.inSpace,
                     spaceType = event.spaceType,
                     noticeId = noticeId,
+                    acceptedAwaitingPayment = event.acceptedAwaitingPayment,
                 )
             ReceivedNoticeLog.record(
                 context = appContext,

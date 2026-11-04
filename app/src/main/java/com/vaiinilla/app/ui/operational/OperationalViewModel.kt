@@ -412,9 +412,7 @@ class OperationalViewModel
                 incoming.forEach { order ->
                     val before = previousStates[order.summary.id] ?: return@forEach
                     val after = order.summary.state
-                    val advanced = after.trackingIndex > before.trackingIndex
-                    val resolvedTerminal = after.isTerminalWithoutDelivery && before != after
-                    if (before != after && (advanced || resolvedTerminal)) {
+                    if (announcesClientAdvance(before, after)) {
                         orderAdvances.trySend(
                             OrderAdvance(
                                 orderId = order.summary.id,
@@ -422,6 +420,7 @@ class OperationalViewModel
                                 newState = after,
                                 inSpace = order.summary.destination == OrderDestination.IN_SPACE,
                                 spaceType = order.summary.space?.type,
+                                acceptedAwaitingPayment = acceptedAwaitingPayment(before, after),
                             ),
                         )
                     }
@@ -1787,4 +1786,28 @@ data class OrderAdvance(
     val newState: OrderState,
     val inSpace: Boolean = false,
     val spaceType: String? = null,
+    /** El negocio aceptó el encargo y ahora le toca pagar al cliente. */
+    val acceptedAwaitingPayment: Boolean = false,
 )
+
+/**
+ * Si un cambio de estado del pedido merece aviso al cliente: cuando avanza en la línea de tiempo, cuando termina
+ * sin entrega, o cuando le pide algo aunque la línea no se mueva. Aceptar un encargo (`por_aceptar → por_cobrar`)
+ * y que un domicilio salga (`listo → en_camino`) ocupan el mismo paso de la línea, así que solo con el índice no
+ * se avisaban.
+ */
+internal fun announcesClientAdvance(
+    before: OrderState,
+    after: OrderState,
+): Boolean {
+    if (before == after) return false
+    return after.trackingIndex > before.trackingIndex ||
+        after.isTerminalWithoutDelivery ||
+        acceptedAwaitingPayment(before, after) ||
+        (before == OrderState.READY && after == OrderState.ON_THE_WAY)
+}
+
+internal fun acceptedAwaitingPayment(
+    before: OrderState,
+    after: OrderState,
+): Boolean = before == OrderState.AWAITING_ACCEPTANCE && after == OrderState.PENDING_PAYMENT
