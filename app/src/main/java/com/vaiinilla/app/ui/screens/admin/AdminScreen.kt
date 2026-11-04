@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -44,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -172,14 +176,41 @@ fun AdminScreen(
     /** La foto y el logo del negocio (Flujo de mi tienda) para las cabeceras. */
     photoUrl: String? = null,
     logoUrl: String? = null,
+    /** La bienvenida del admin nuevo (marco AS1); apagada en las capturas. */
+    offerWelcome: Boolean = false,
 ) {
     val colors = rememberOperationalColors()
     var tab by rememberSaveable { mutableStateOf(AdminTab.HOME) }
     var section by rememberSaveable { mutableStateOf<AdminSection?>(null) }
+    // El asistente de configuración (marcos AS2 y AS3) va encima de todo, como una sección.
+    var assistantOpen by rememberSaveable { mutableStateOf(false) }
     val reduced = reducedMotion()
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
+    val welcome = rememberStoreWelcome(scope)
+    val setup = adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
 
     AdminDialogHost(colors) {
+        if (assistantOpen) {
+            StoreAssistantScreen(sections.store, colors, readOnly) { assistantOpen = false }
+            return@AdminDialogHost
+        }
+        // Bienvenida (marco AS1): la primera vez que entra a una tienda que todavía no está lista.
+        if (offerWelcome && !readOnly && !welcome.seen && sections.store.uiState.value.config != null && showsStoreSetup(setup)) {
+            StoreWelcome(
+                placeName = placeName,
+                colors = colors,
+                onAssistant = {
+                    welcome.markSeen()
+                    assistantOpen = true
+                },
+                onManual = {
+                    welcome.markSeen()
+                    section = AdminSection.STORE
+                },
+                onLater = welcome::markSeen,
+            )
+            return@AdminDialogHost
+        }
         val openSection = section
         if (openSection != null) {
             Box(
@@ -189,7 +220,15 @@ fun AdminScreen(
                     .statusBarsPadding()
                     .navigationBarsPadding(),
             ) {
-                AdminSectionContent(openSection, state, sections, scope, colors, readOnly) { section = null }
+                AdminSectionContent(
+                    openSection,
+                    state,
+                    sections,
+                    scope,
+                    colors,
+                    readOnly,
+                    onOpenAssistant = { assistantOpen = true },
+                ) { section = null }
             }
             return@AdminDialogHost
         }
@@ -226,13 +265,9 @@ fun AdminScreen(
                                 readOnly = readOnly,
                                 actions = actions,
                                 header = header,
-                                setup =
-                                    adminSetupSteps(
-                                        state,
-                                        sections.store.uiState.value,
-                                        sections.staff.uiState.value,
-                                    ),
+                                setup = setup,
                                 onOpenOrders = { tab = AdminTab.ORDERS },
+                                onOpenAssistant = if (readOnly) null else ({ assistantOpen = true }),
                                 onSeeAsCustomer = onChangeMode,
                                 onOpenSection = { section = it },
                             )
@@ -461,6 +496,7 @@ private fun AdminSectionContent(
     scope: String,
     colors: OperationalColors,
     readOnly: Boolean,
+    onOpenAssistant: () -> Unit,
     onBack: () -> Unit,
 ) {
     when (section) {
@@ -474,7 +510,13 @@ private fun AdminSectionContent(
         }
         AdminSection.STORE -> {
             LaunchedEffect(scope) { sections.store.onVisible(scope) }
-            AdminStoreSection(sections.store, colors, readOnly, onBack)
+            AdminStoreSection(
+                sections.store,
+                colors,
+                readOnly,
+                onBack,
+                onOpenAssistant = onOpenAssistant.takeUnless { readOnly },
+            )
         }
         AdminSection.SCHOOL ->
             sections.school?.let { school ->
@@ -784,3 +826,26 @@ private fun RestrictedBanner(
 }
 
 internal val AdminCoral = Color(0xFFE5645A)
+
+/** Si ya se vio la bienvenida de esta tienda; se guarda en el teléfono para no repetirla. */
+internal class StoreWelcomeMemory(
+    private val prefs: SharedPreferences,
+    private val key: String,
+) {
+    var seen by mutableStateOf(prefs.getBoolean(key, false))
+        private set
+
+    fun markSeen() {
+        seen = true
+        prefs.edit().putBoolean(key, true).apply()
+    }
+}
+
+@Composable
+private fun rememberStoreWelcome(scope: String): StoreWelcomeMemory {
+    val context = LocalContext.current
+    return remember(scope) {
+        val prefs = context.applicationContext.getSharedPreferences("vaiinilla_admin_bienvenida", Context.MODE_PRIVATE)
+        StoreWelcomeMemory(prefs, "vista_$scope")
+    }
+}

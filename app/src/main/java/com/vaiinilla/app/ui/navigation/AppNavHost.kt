@@ -2555,6 +2555,7 @@ fun AppNavHost(
                         takesPreorders = storeState.config?.type == BusinessType.HOME_BAKERY,
                         photoUrl = storeState.images.photoUrl,
                         logoUrl = storeState.images.logoUrl,
+                        offerWelcome = true,
                         onChangeMode = returnToModes(navController, operationalViewModel),
                     )
                 }

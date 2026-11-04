@@ -126,6 +126,8 @@ internal fun AdminHomeTab(
     onOpenOrders: () -> Unit,
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit = {},
+    /** El asistente de configuración; null lo esconde. */
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
     val presentDialog = LocalAdminDialog.current
@@ -160,7 +162,7 @@ internal fun AdminHomeTab(
                     fadeIn(spring(stiffness = 400f)) + expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)),
                 exit = fadeOut(spring(stiffness = 600f)) + shrinkVertically(spring(stiffness = 600f)),
             ) {
-                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer)
+                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer, onOpenAssistant)
             }
         }
         item(key = "ventas-titulo") {
@@ -266,10 +268,14 @@ private fun SetupChecklist(
     modifier: Modifier,
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit,
+    onOpenAssistant: (() -> Unit)?,
 ) {
     val ready = setup.storeReady()
     Column(modifier) {
         AdminH2(if (ready) "Tu tienda está lista" else "Para dejar lista tu tienda", colors)
+        if (!ready && onOpenAssistant != null) {
+            AssistantEntryCard(colors, Modifier.padding(bottom = 10.dp), onOpenAssistant)
+        }
         AdminPanel(
             colors,
             padding =

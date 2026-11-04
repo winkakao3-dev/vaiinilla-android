@@ -5,6 +5,9 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationState
@@ -130,6 +133,7 @@ class RemoteAdminStoreRepository(
     private val json: AdminBusinessJson = AdminBusinessJson(),
 ) : AdminStoreRepository {
     private val plain = Json { ignoreUnknownKeys = true }
+    private val assistantJson = StoreAssistantJson()
 
     override fun config(): Result<StoreConfig> =
         apiClient.get("establecimiento/configuracion").mapCatching(json::parseStoreConfig).mapApiErrors()
@@ -154,6 +158,15 @@ class RemoteAdminStoreRepository(
         latitude: Double,
         longitude: Double,
     ): Result<StoreConfig> = patchConfig(json.encodeStoreLocation(latitude, longitude))
+
+    override fun assistantReply(messages: List<AssistantMessage>): Result<AssistantReply> =
+        apiClient
+            .post("establecimiento/asistente", assistantJson.encodeMessages(messages))
+            .mapCatching(assistantJson::parseReply)
+            .mapApiErrors()
+
+    override fun applyAssistantProposal(proposal: AssistantProposal): Result<StoreConfig> =
+        patchConfig(proposal.patchBody)
 
     private fun patchConfig(body: String): Result<StoreConfig> =
         apiClient.patch("establecimiento/configuracion", body).mapCatching(json::parseStoreConfig).mapApiErrors()

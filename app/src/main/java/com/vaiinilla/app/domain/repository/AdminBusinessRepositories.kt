@@ -3,6 +3,9 @@ package com.vaiinilla.app.domain.repository
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationState
@@ -86,6 +89,14 @@ interface AdminStoreRepository {
         latitude: Double,
         longitude: Double,
     ): Result<StoreConfig> = Result.failure(UnsupportedOperationException("Ubicación no soportada"))
+
+    /** La siguiente respuesta del asistente de configuración (`POST /establecimiento/asistente`). */
+    fun assistantReply(messages: List<AssistantMessage>): Result<AssistantReply> =
+        Result.failure(UnsupportedOperationException("Asistente no soportado"))
+
+    /** Guarda la propuesta del asistente tal cual, con el PATCH de la configuración. */
+    fun applyAssistantProposal(proposal: AssistantProposal): Result<StoreConfig> =
+        Result.failure(UnsupportedOperationException("Asistente no soportado"))
 
     /** `null` si el negocio aún no conecta su cuenta de Stripe. */
     fun stripe(): Result<StripeSetup?>

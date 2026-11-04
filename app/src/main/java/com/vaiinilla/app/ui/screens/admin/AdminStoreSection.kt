@@ -117,6 +117,8 @@ internal fun AdminStoreSection(
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
+    /** Abre el asistente de configuración (marco AS2); null lo esconde, como en solo consulta. */
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState
     // Al volver de Stripe (otra app) se vuelve a consultar el estado de la cuenta.
@@ -144,7 +146,7 @@ internal fun AdminStoreSection(
         label = "store-page",
     ) { current ->
         when (current) {
-            null -> StoreCover(viewModel, colors, readOnly, onBack) { page = it }
+            null -> StoreCover(viewModel, colors, readOnly, onBack, onOpenAssistant) { page = it }
             StorePage.PAYMENTS -> StorePaymentsPage(viewModel, colors, readOnly) { page = null }
             StorePage.FLOW -> StoreFlowPage(viewModel, colors, readOnly) { page = null }
             StorePage.PRESENCE -> StorePresencePage(viewModel, colors, readOnly) { page = null }
@@ -161,6 +163,7 @@ private fun StoreCover(
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
+    onOpenAssistant: (() -> Unit)?,
     onOpen: (StorePage) -> Unit,
 ) {
     val state by viewModel.uiState
@@ -194,6 +197,9 @@ private fun StoreCover(
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
+        }
+        onOpenAssistant?.let { open ->
+            item(key = "asistente") { AssistantEntryCard(colors, Modifier.adminRise(1), open) }
         }
         item { StoreHero(state.images, colors, Modifier.adminRise(1)) { onOpen(StorePage.PRESENCE) } }
         item {

@@ -8,6 +8,8 @@ import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantProposal
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
@@ -50,6 +52,21 @@ data class AdminStoreUiState(
     val images: StoreImages get() = StoreImages(photoUrl = config?.imageUrl, logoUrl = config?.logoUrl)
 }
 
+/** La plática con el asistente de configuración (marcos AS2 y AS3). */
+data class StoreAssistantState(
+    val messages: List<AssistantMessage> = emptyList(),
+    val options: List<String> = emptyList(),
+    /** La última propuesta; se queda aunque el dueño siga platicando. */
+    val proposal: AssistantProposal? = null,
+    val reviewing: Boolean = false,
+    val thinking: Boolean = false,
+    val applying: Boolean = false,
+    val error: String? = null,
+    val remainingMessages: Int = Int.MAX_VALUE,
+) {
+    val canSend: Boolean get() = !thinking && !applying && remainingMessages > 1
+}
+
 /** Flujo de mi tienda, pagos con tarjeta y cashback: la configuración del negocio. */
 @HiltViewModel
 class AdminStoreViewModel
@@ -60,6 +77,8 @@ class AdminStoreViewModel
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminStoreUiState())
         val uiState: State<AdminStoreUiState> = _uiState
+        private val _assistant = mutableStateOf(StoreAssistantState())
+        val assistant: State<StoreAssistantState> = _assistant
         private var noticeJob: Job? = null
         private var scope: String? = null
 
@@ -67,6 +86,7 @@ class AdminStoreViewModel
             if (scope != this.scope) {
                 this.scope = scope
                 _uiState.value = AdminStoreUiState()
+                _assistant.value = StoreAssistantState()
             }
             refresh()
         }
@@ -170,6 +190,89 @@ class AdminStoreViewModel
                     },
                     onFailure = { showNotice(storeErrorMessage(it), isError = true) },
                 )
+            }
+        }
+
+        // endregion
+
+        // region Asistente de configuración
+
+        /** Al abrir el asistente: si todavía no hay plática, que salude y haga la primera pregunta. */
+        fun startAssistant() {
+            val current = _assistant.value
+            if (current.messages.isEmpty() && !current.thinking) askAssistant(emptyList())
+        }
+
+        fun sendToAssistant(text: String) {
+            val clean = text.trim().take(ASSISTANT_MAX_LETTERS)
+            val current = _assistant.value
+            if (clean.isEmpty() || !current.canSend) return
+            val messages = current.messages + AssistantMessage(fromOwner = true, text = clean)
+            _assistant.value = current.copy(messages = messages, options = emptyList(), error = null)
+            askAssistant(messages)
+        }
+
+        /** Vuelve a pedir la respuesta que falló. */
+        fun retryAssistant() {
+            val current = _assistant.value
+            if (current.thinking) return
+            if (current.messages.isEmpty() || current.messages.last().fromOwner) askAssistant(current.messages)
+        }
+
+        fun reviewProposal(show: Boolean) {
+            val current = _assistant.value
+            if (show && current.proposal == null) return
+            _assistant.value = current.copy(reviewing = show, error = null)
+        }
+
+        /** Empieza otra plática desde cero (la propuesta anterior se descarta). */
+        fun restartAssistant() {
+            if (_assistant.value.thinking || _assistant.value.applying) return
+            _assistant.value = StoreAssistantState()
+            askAssistant(emptyList())
+        }
+
+        /** Guarda la propuesta con el PATCH de siempre; [onDone] cierra el asistente. */
+        fun acceptProposal(onDone: () -> Unit) {
+            val current = _assistant.value
+            val proposal = current.proposal ?: return
+            if (current.applying) return
+            _assistant.value = current.copy(applying = true, error = null)
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { repository.applyAssistantProposal(proposal) }
+                result.fold(
+                    onSuccess = {
+                        _uiState.value = _uiState.value.copy(config = it)
+                        _assistant.value = StoreAssistantState()
+                        showNotice("Tu tienda quedó configurada", isError = false)
+                        onDone()
+                    },
+                    onFailure = {
+                        _assistant.value = _assistant.value.copy(applying = false, error = storeErrorMessage(it))
+                    },
+                )
+            }
+        }
+
+        private fun askAssistant(messages: List<AssistantMessage>) {
+            _assistant.value = _assistant.value.copy(thinking = true, error = null)
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages) }
+                val current = _assistant.value
+                _assistant.value =
+                    result.fold(
+                        onSuccess = { reply ->
+                            current.copy(
+                                messages = messages + AssistantMessage(fromOwner = false, text = reply.message),
+                                options = reply.options,
+                                proposal = reply.proposal ?: current.proposal,
+                                reviewing = reply.proposal != null,
+                                thinking = false,
+                                remainingMessages = reply.remainingMessages,
+                            )
+                        },
+                        onFailure = { current.copy(thinking = false, error = assistantErrorMessage(it)) },
+                    )
             }
         }
 
@@ -351,6 +454,16 @@ class AdminStoreViewModel
             const val NOTICE_MS = 3_500L
         }
     }
+
+internal fun assistantErrorMessage(error: Throwable): String =
+    when ((error as? CatalogRepositoryException)?.code) {
+        "ASSISTANT_UNAVAILABLE" -> "El asistente no está disponible ahorita. Puedes configurar tu tienda paso a paso."
+        "ASSISTANT_CONVERSATION_TOO_LONG" -> "La plática ya está muy larga. Revisa la propuesta o empieza de nuevo."
+        "RATE_LIMITED" -> "Muchos mensajes seguidos. Espera unos minutos y vuelve a intentar."
+        else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
+    }
+
+private const val ASSISTANT_MAX_LETTERS = 800
 
 internal fun storeErrorMessage(error: Throwable): String =
     when ((error as? CatalogRepositoryException)?.code) {
