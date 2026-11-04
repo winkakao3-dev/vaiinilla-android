@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.guest
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -13,7 +14,7 @@ import javax.inject.Singleton
 
 /** Sin identidad guardada: hay que entrar como invitado antes de ver o apartar canchas. */
 class GuestIdentityRequiredException :
-    IllegalStateException("Entra como invitado para ver horarios y apartar una cancha.")
+    IllegalStateException("Entra como invitado para ver horarios y apartar una ${Venue.court}.")
 
 /**
  * Identidad de invitado para rentar sin cuenta (docs/compra-sin-cuenta.md del backend). La llave

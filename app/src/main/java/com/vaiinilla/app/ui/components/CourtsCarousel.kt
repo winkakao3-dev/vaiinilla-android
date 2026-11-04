@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -80,7 +81,7 @@ fun CourtsCarousel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
-                Text("Canchas", color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(Venue.courtsTitle, color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
                 Row(modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)) {
                     NumberTicker(value = free, label = "courts-free") { count ->
                         Text("$count", color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)

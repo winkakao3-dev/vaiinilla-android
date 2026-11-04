@@ -8,7 +8,7 @@ object SpaceCopy {
     /** Nombre corto del tipo para el personal: "Mesa", "Cancha"... */
     fun kindLabel(type: String?): String =
         when (type) {
-            "cancha" -> "Cancha"
+            "cancha" -> Venue.courtTitle
             "barra" -> "Barra"
             "drive_thru" -> "Carril"
             "asiento" -> "Asiento"
@@ -24,7 +24,7 @@ object SpaceCopy {
     /** Cómo nombra el cliente su lugar: "tu mesa", "tu cancha"... */
     fun yourPlace(type: String?): String =
         when (type) {
-            "cancha" -> "tu cancha"
+            "cancha" -> "tu ${Venue.court}"
             "barra" -> "la barra"
             "drive_thru" -> "tu auto"
             "asiento" -> "tu asiento"
@@ -35,7 +35,7 @@ object SpaceCopy {
     /** Título de la opción de destino en el carrito (antes siempre "Comer aquí"). */
     fun destinationTitle(type: String?): String =
         when (type) {
-            "cancha" -> "En la cancha"
+            "cancha" -> "En la ${Venue.court}"
             "barra" -> "En la barra"
             "drive_thru" -> "En tu auto"
             "asiento" -> "En tu asiento"
@@ -63,7 +63,7 @@ object SpaceCopy {
 
     fun pickPrompt(type: String?): String =
         when (type) {
-            "cancha" -> "Selecciona tu cancha"
+            "cancha" -> "Selecciona tu ${Venue.court}"
             "barra" -> "Selecciona tu lugar en la barra"
             "drive_thru" -> "Selecciona tu carril"
             "asiento" -> "Selecciona tu asiento"

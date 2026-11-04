@@ -36,6 +36,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
@@ -1203,7 +1204,7 @@ class OrderFlowViewModel
             withContext(Dispatchers.IO) { reservationRepository.list(access = ReservationAccess.Account) }
                 .getOrNull()
                 ?.firstOrNull { it.state == ReservationState.IN_PROGRESS }
-                ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: "Cancha", type = "cancha") }
+                ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: Venue.courtTitle, type = "cancha") }
 
         /**
          * Tras pagar una renta, la cancha pasa a "en curso" en la siguiente consulta de reservas:

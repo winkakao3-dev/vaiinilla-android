@@ -121,6 +121,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
@@ -389,7 +390,7 @@ private fun PickupJourney(
             when {
                 place == PickupPlace.COURT && reservation != null ->
                     PickupScene.Court(
-                        CourtRental(order.rentalCourtName ?: "Cancha", reservation.start, reservation.end),
+                        CourtRental(order.rentalCourtName ?: Venue.courtTitle, reservation.start, reservation.end),
                     )
                 place == PickupPlace.TABLE ->
                     PickupScene.Table(

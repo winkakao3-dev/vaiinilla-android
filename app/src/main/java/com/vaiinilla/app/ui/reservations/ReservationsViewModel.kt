@@ -17,6 +17,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,8 @@ data class ReservationsUiState(
     val selectedStart: Instant? = null,
     val rentNow: Boolean = false,
     val selectedDuration: Int? = null,
+    /** Boliche: cuántos juegan (0 = sin anotar). */
+    val players: Int = 0,
     val mine: List<Reservation> = emptyList(),
     /** Reserva apartada esperando que el cliente elija cómo pagar. */
     val pending: Reservation? = null,
@@ -126,7 +129,7 @@ class ReservationsViewModel
                     guestEntry = needsEntry,
                     accountRequired = false,
                     loading = next != null && !needsEntry,
-                    error = if (next == null) "Elige un lugar para ver sus canchas." else _uiState.value.error,
+                    error = if (next == null) "Elige un lugar para ver sus ${Venue.courts}." else _uiState.value.error,
                 )
             if (next != null && !needsEntry) startPolling()
         }
@@ -249,6 +252,10 @@ class ReservationsViewModel
             _uiState.value = _uiState.value.copy(selectedDuration = minutes)
         }
 
+        fun selectPlayers(players: Int) {
+            _uiState.value = _uiState.value.copy(players = players.coerceIn(0, 30))
+        }
+
         fun dismissMessages() {
             _uiState.value = _uiState.value.copy(error = null, notice = null)
         }
@@ -262,7 +269,8 @@ class ReservationsViewModel
             val minutes = state.selectedDuration ?: return
             _uiState.value = state.copy(working = true, error = null, notice = null)
             val start = if (state.rentNow) null else state.selectedStart
-            val signature = arrayOf<Any?>("reserve", court.id, start, minutes)
+            val players = state.players.takeIf { it > 0 && Venue.isBowling }
+            val signature = arrayOf<Any?>("reserve", court.id, start, minutes, players)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -273,6 +281,7 @@ class ReservationsViewModel
                             durationMinutes = minutes,
                             customerName = null,
                             idempotencyKey = retryKeys.keyFor(*signature),
+                            players = players,
                         )
                     }
                 result.onSuccess { retryKeys.forget(*signature) }
@@ -344,7 +353,7 @@ class ReservationsViewModel
                                 working = false,
                                 pending = null,
                                 pendingStartsNow = false,
-                                error = "${error.userMessage()} La cancha quedó libre: vuelve a elegirla.",
+                                error = "${error.userMessage()} La ${Venue.court} quedó libre: vuelve a elegirla.",
                             )
                     },
                 )
@@ -460,7 +469,7 @@ class ReservationsViewModel
                     error =
                         current.error
                             ?: dayResult.exceptionOrNull()?.takeIf { dateStillSelected }?.let {
-                                "No pudimos cargar las canchas. ${it.userMessage()}"
+                                "No pudimos cargar las ${Venue.courts}. ${it.userMessage()}"
                             },
                 )
         }
@@ -472,8 +481,8 @@ class ReservationsViewModel
 
         private fun paidNotice(method: ReservationPaymentMethod): String =
             when (method) {
-                ReservationPaymentMethod.BALANCE -> "¡Listo! Tu cancha quedó pagada."
-                ReservationPaymentMethod.CARD -> "Completa el pago con tarjeta para confirmar tu cancha."
+                ReservationPaymentMethod.BALANCE -> "¡Listo! Tu ${Venue.court} quedó pagada."
+                ReservationPaymentMethod.CARD -> "Completa el pago con tarjeta para confirmar tu ${Venue.court}."
                 ReservationPaymentMethod.CASH -> "Paga en caja antes de que venza el apartado."
             }
 

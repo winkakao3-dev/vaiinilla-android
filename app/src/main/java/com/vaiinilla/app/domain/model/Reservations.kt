@@ -96,6 +96,8 @@ data class Reservation(
     val channel: String,
     val customerName: String?,
     val version: Int,
+    /** Boliche: cuántos juegan; null sin dato. */
+    val players: Int? = null,
 )
 
 /** Quién aparta y paga: la cuenta con sesión, o un invitado (sin cuenta) del negocio. */

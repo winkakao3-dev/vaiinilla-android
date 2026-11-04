@@ -1362,6 +1362,7 @@ fun AppNavHost(
                     onSelectStart = reservationsViewModel::selectStart,
                     onSelectDuration = reservationsViewModel::selectDuration,
                     onReserve = reservationsViewModel::reserve,
+                    onSelectPlayers = reservationsViewModel::selectPlayers,
                     onPay = reservationsViewModel::pay,
                     onDismissPayment = reservationsViewModel::dismissPayment,
                     onResumePayment = reservationsViewModel::resumePayment,

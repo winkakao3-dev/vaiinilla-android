@@ -44,8 +44,9 @@ class RemoteReservationRepository(
         durationMinutes: Int,
         customerName: String?,
         idempotencyKey: String,
+        players: Int?,
     ): Result<Reservation> {
-        val body = contractJson.encodeCreate(courtId, start, durationMinutes, customerName)
+        val body = contractJson.encodeCreate(courtId, start, durationMinutes, customerName, players)
         val headers = mapOf("Idempotency-Key" to idempotencyKey)
         return access
             .perform { bearer -> send("reservas", bearer, body, headers) }
