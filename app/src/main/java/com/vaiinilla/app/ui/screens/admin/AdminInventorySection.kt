@@ -689,7 +689,8 @@ private fun SupplyEditSheet(
             onSave(
                 InventorySupplyInput(
                     name = name.trim(),
-                    category = category.trim().ifBlank { null },
+                    // "" borra la etiqueta: con null el PATCH no la manda y el servidor dejaba la anterior (#29).
+                    category = category.trim(),
                     unit = if (supply == null || unit != supply.unit) unit else null,
                     minimum = parseQuantity(minimum) ?: 0.0,
                     unitCost = if (supply == null || cost != savedCost) parseQuantity(cost) ?: 0.0 else null,

@@ -60,7 +60,10 @@ data class InventorySupplies(
     val totalValue: Double,
 )
 
-/** Al editar, unidad y costo en null no se mandan: el servidor conserva lo que tiene. */
+/**
+ * Al editar, unidad y costo en null no se mandan: el servidor conserva lo que tiene. [category] es la etiqueta propia
+ * del insumo (no la categoría del menú); "" la borra, null la deja como está (con `explicitNulls = false` no viaja).
+ */
 data class InventorySupplyInput(
     val name: String,
     val category: String?,
