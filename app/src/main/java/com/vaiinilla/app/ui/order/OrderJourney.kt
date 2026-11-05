@@ -45,6 +45,8 @@ internal fun orderJourney(
     return when {
         order.reservation != null -> OrderJourney.COURT_RENTAL
         summary.destination == OrderDestination.HOME_DELIVERY -> OrderJourney.HOME_DELIVERY
+        // «Pasa por él» (`recoge_en_barra`): se pide desde el lugar pero se entrega en la barra.
+        summary.destination == OrderDestination.IN_SPACE && summary.pickUpAtBar -> OrderJourney.BAR
         summary.destination == OrderDestination.IN_SPACE ->
             when (summary.space?.type) {
                 "barra" -> OrderJourney.BAR
@@ -457,7 +459,7 @@ internal fun journeyNote(
         } -> "Si ya no quieres lo demás, avísale al negocio antes de que lo terminen."
         journey == OrderJourney.DRIVE_THRU && state != OrderState.READY ->
             "Si llegas y aún no está listo, espera cerca de la ventanilla: te lo dan en cuanto salga."
-        journey == OrderJourney.BAR -> "Si te mueves a una mesa, dile al mesero tu folio."
+        journey == OrderJourney.BAR && !order.summary.pickUpAtBar -> "Si te mueves a una mesa, dile al mesero tu folio."
         journey == OrderJourney.SEAT -> "Si te cambias de lugar, díselo a quien te lo lleve."
         journey == OrderJourney.COURT_FOOD -> "Esta compra va aparte de tu renta. La renta se paga en su propio pedido."
         journey == OrderJourney.SCHOOL && order.summary.paymentMethod == PaymentMethod.BALANCE ->

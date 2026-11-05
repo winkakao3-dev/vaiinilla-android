@@ -78,6 +78,24 @@ class PickupJourneyPolicyTest {
     }
 
     @Test
+    fun pickUpAtBarIsCollectedAtTheBar() {
+        // «Pasa por él» (`recoge_en_barra`): se pidió desde la pista, pero se recoge en la barra (Z01).
+        val ready = atBar(order(OrderState.READY, toSpace = true))
+        assertEquals("Recógelo en la barra.", pickupHint(ready))
+        assertEquals("Tu comida se está preparando.", pickupHint(atBar(order(OrderState.PREPARING, toSpace = true))))
+        assertEquals("Pasa a la barra por él y muéstralo en Caja.", pickupCodeHint(ready))
+        assertTrue(shouldAutoRevealPickupCode(ready, hasCode = true))
+        assertTrue(ready.needsPickupQr(deliveryRequiresQr = false))
+        assertTrue(pickupCodeUseful(ready, deliveryRequiresQr = false))
+        assertEquals(PickupPlace.STOREFRONT, pickupPlace(ready))
+        // Capturado por el personal: el QR quedó en su teléfono y Caja no lo pide.
+        val byStaff = atBar(order(OrderState.READY, toSpace = true, withoutQr = true))
+        assertFalse(byStaff.needsPickupQr(deliveryRequiresQr = true))
+    }
+
+    private fun atBar(order: OrderDetail): OrderDetail = order.copy(summary = order.summary.copy(pickUpAtBar = true))
+
+    @Test
     fun everyMosaicBlockSettlesBeforeTheEnd() {
         val size = 29
         for (row in 0 until size) {
