@@ -109,6 +109,7 @@ import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.order.cartPreviewTotal
 import com.vaiinilla.app.ui.order.inSchoolVenue
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.menuWaiterSpaceId
@@ -1738,6 +1739,13 @@ fun AppNavHost(
                     onSubmitName = { name -> assistantViewModel.submitName(name, prepare) },
                     onBack = { navController.popBackStack() },
                     guestName = orderFlowViewModel.guestDisplayName(),
+                    cart =
+                        orderState.cartLines.takeIf { it.isNotEmpty() }?.let {
+                            MenuCartBar(orderState.cartItemCount, moneyLabel(orderState.cartPreviewTotal)) {
+                                navController.navigateStudent(Routes.CART)
+                            }
+                        },
+                    cartProductIds = orderState.cartLines.mapTo(mutableSetOf()) { it.product.id },
                 )
                 if (courtRentSheetOpen) {
                     val hasAccount = !orderFlowViewModel.requiresStudentAuth()

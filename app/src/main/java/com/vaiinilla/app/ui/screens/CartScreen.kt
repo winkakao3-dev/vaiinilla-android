@@ -309,11 +309,12 @@ fun CartScreen(
             ) {
                 item(key = "hero") {
                     CartHero(
+                        // La foto de la tienda se queda arriba con o sin productos; antes la tapaba la del primer
+                        // producto y, si ese no tenía foto (o venía vacía), quedaba un hueco negro.
                         photoUrl =
-                            state.cartLines
-                                .firstOrNull()
-                                ?.product
-                                ?.imageUrl ?: venuePhotoUrl,
+                            venuePhotoUrl?.takeIf { it.isNotBlank() }
+                                ?: state.cartLines
+                                    .firstNotNullOfOrNull { line -> line.product.imageUrl.takeIf { it.isNotBlank() } },
                         height = if (hasLines) 380.dp else 400.dp,
                         venueName = venueName,
                         profileInitials = profileInitials,

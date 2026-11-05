@@ -76,6 +76,7 @@ import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.assistant.AssistantOrderProposal
 import com.vaiinilla.app.domain.assistant.AssistantProductCard
 import com.vaiinilla.app.domain.assistant.AssistantWaiterOffer
+import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -115,13 +116,16 @@ fun CustomerAssistantScreen(
     onSubmitName: (String) -> Unit,
     onBack: () -> Unit,
     guestName: String = "",
+    /** Lo que ya lleva el carrito: con algo, sale la barra «Pedir ya» que lleva a pagar. */
+    cart: MenuCartBar? = null,
+    /** Los productos que están en el carrito: su tarjeta sale con ✓ aunque se hayan agregado desde el menú. */
+    cartProductIds: Set<Int> = emptySet(),
 ) {
     val colors = LocalVaiinillaColors.current
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     // Por turno: lo que no entró al carrito o cómo salió la llamada al mesero.
     val notes = remember(state.conversation) { mutableStateMapOf<Int, String>() }
-    val added = remember(state.conversation) { mutableStateMapOf<Int, Boolean>() }
     val scope = rememberCoroutineScope()
     val rows = state.turns.size + 2
     LaunchedEffect(state.turns.size, state.thinking, state.error, state.needsName) {
@@ -157,9 +161,9 @@ fun CustomerAssistantScreen(
                     if (turn.products.isNotEmpty()) {
                         ProductShelf(
                             cards = turn.products,
-                            isAdded = { added[it.productId] == true },
+                            isAdded = { it.productId in cartProductIds },
                             colors = colors,
-                            onAdd = { if (actions.addProduct(it)) added[it.productId] = true },
+                            onAdd = { actions.addProduct(it) },
                             onOpen = actions.openProduct,
                         )
                     }
@@ -255,7 +259,50 @@ fun CustomerAssistantScreen(
                 items(state.options) { option -> Chip(option, colors) { send(option) } }
             }
         }
+        cart?.takeIf { it.count > 0 }?.let { CartBar(it, colors) }
         Composer(draft, { draft = it.take(CustomerAssistantJson.MAX_LETTERS) }, state.canSend, colors) { send(draft) }
+    }
+}
+
+/**
+ * «Pedir ya» (marco CA3d): lo que se fue eligiendo en la plática se junta en el carrito; esta barra dice cuánto
+ * lleva y lleva a pagar. Antes las tarjetas solo quedaban con ✓ y no había cómo seguir desde aquí.
+ */
+@Composable
+private fun CartBar(
+    cart: MenuCartBar,
+    colors: VaiinillaColors,
+) {
+    val items = if (cart.count == 1) "1 producto" else "${cart.count} productos"
+    Row(
+        Modifier
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(colors.accent)
+            .clickable(role = Role.Button, onClick = cart.onOpen)
+            .semantics { contentDescription = "Pedir ya, $items, ${cart.total}" }
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Pedir ya", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentInk, maxLines = 1)
+            Text(
+                "$items en tu carrito",
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.accentInk.copy(alpha = 0.75f),
+                maxLines = 1,
+            )
+        }
+        Text(cart.total, fontSize = 17.sp, fontWeight = FontWeight.Black, color = colors.accentInk, maxLines = 1)
+        Icon(
+            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            null,
+            tint = colors.accentInk,
+            modifier = Modifier.padding(start = 6.dp).size(22.dp),
+        )
     }
 }
 
