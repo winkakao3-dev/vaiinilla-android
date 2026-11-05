@@ -70,6 +70,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.paymentWireLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import java.time.DayOfWeek
@@ -837,6 +838,8 @@ private fun sinceLabel(iso: String): String? =
             minutes < 1 -> "ahora"
             minutes < 60 -> "hace $minutes min"
             minutes < 1440 -> "hace ${minutes / 60} h"
-            else -> "hace ${minutes / 1440} d"
+            minutes < 7 * 1440 -> "hace ${minutes / 1440} d"
+            // Después de una semana, la fecha: «hace 340 d» no dice nada.
+            else -> NoticePanel.shortDate(Instant.parse(iso).toEpochMilli())
         }
     }.getOrNull()

@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -136,6 +137,7 @@ fun EditorialSearchField(
             Box(
                 modifier =
                     Modifier
+                        .minimumInteractiveComponentSize()
                         .size(28.dp)
                         .clip(CircleShape)
                         .background(colors.line)
@@ -329,7 +331,16 @@ fun EditorialSectionHead(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text(title, color = colors.ink, fontSize = 19.sp, fontWeight = FontWeight.Black)
+        // Con peso: un título largo se corta con «…» en vez de sacar la acción de la derecha.
+        Text(
+            title,
+            color = colors.ink,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
         when {
             onTrailingClick != null ->
                 TextButton(onClick = onTrailingClick) {

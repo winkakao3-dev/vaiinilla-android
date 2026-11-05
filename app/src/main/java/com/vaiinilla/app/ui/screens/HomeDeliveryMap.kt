@@ -77,6 +77,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -287,7 +288,7 @@ private fun MapPin(
                 fontWeight = FontWeight.Bold,
                 modifier =
                     Modifier
-                        .offset(y = lift)
+                        .offset { IntOffset(0, lift.roundToPx()) }
                         .clip(RoundedCornerShape(12.dp))
                         .background(colors.ink)
                         .padding(horizontal = 10.dp, vertical = 5.dp),
@@ -298,7 +299,8 @@ private fun MapPin(
             Icons.Filled.LocationOn,
             contentDescription = null,
             tint = colors.accent,
-            modifier = Modifier.size(44.dp).offset(y = lift),
+            // offset { }: mientras se arrastra el mapa, el pin sube sin recomponer en cada cuadro.
+            modifier = Modifier.size(44.dp).offset { IntOffset(0, lift.roundToPx()) },
         )
         Box(
             Modifier

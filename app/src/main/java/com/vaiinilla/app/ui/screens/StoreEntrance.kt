@@ -140,9 +140,10 @@ internal fun StoreEntranceOverlay(
                 }
             }
             delay(if (reduceMotion) 0 else 450)
-            fade.animateTo(0f, tween(500))
+            // El desvanecido bajo 300 ms: la tienda no se puede usar hasta que termina.
+            fade.animateTo(0f, tween(280))
         } else {
-            fade.animateTo(0f, tween(if (reduceMotion) 200 else 450))
+            fade.animateTo(0f, tween(if (reduceMotion) 200 else 280))
         }
         latestOnFinished()
     }

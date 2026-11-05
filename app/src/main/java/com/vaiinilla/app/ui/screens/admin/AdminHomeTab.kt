@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.QrCode2
@@ -410,6 +411,8 @@ private fun SalesCard(
                 fontWeight = FontWeight.Black,
                 color = if (loading) colors.textMuted else colors.textPrimary,
                 maxLines = 1,
+                // Un monto nunca se trunca: se achica antes que cortarse.
+                autoSize = TextAutoSize.StepBased(minFontSize = 26.sp, maxFontSize = 50.sp),
             )
         }
         Text(
@@ -562,7 +565,7 @@ private fun DailySales(
         AdminPanel(colors) {
             Row(Modifier.fillMaxWidth()) {
                 Text(
-                    "Últimos ${days.size} días",
+                    if (days.size == 1) "Último día" else "Últimos ${days.size} días",
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textMuted,

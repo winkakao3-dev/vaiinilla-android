@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -45,6 +46,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -238,13 +240,23 @@ private fun DestinationOption(
         shape = RoundedCornerShape(24.dp),
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
+            val reduced = reducedMotion()
             AnimatedVisibility(
                 visible = selected,
                 modifier = Modifier.align(Alignment.TopEnd),
                 enter =
-                    fadeIn(spring(stiffness = 500f)) +
-                        scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.4f),
-                exit = fadeOut(spring(stiffness = 600f)) + scaleOut(spring(stiffness = 600f), targetScale = 0.6f),
+                    if (reduced) {
+                        fadeIn(snap())
+                    } else {
+                        fadeIn(spring(stiffness = 500f)) +
+                            scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.9f)
+                    },
+                exit =
+                    if (reduced) {
+                        fadeOut(snap())
+                    } else {
+                        fadeOut(spring(stiffness = 600f)) + scaleOut(spring(stiffness = 600f), targetScale = 0.6f)
+                    },
             ) {
                 Box(
                     modifier =
@@ -404,6 +416,7 @@ private fun PaymentOption(
                 fontSize = 14.sp,
                 lineHeight = 18.sp,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -154,13 +155,13 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -905,10 +906,10 @@ internal fun WaiterLivePill(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
+        // En línea el punto se queda fijo: el pulso se guarda para lo que pide atención (una llamada).
         Box(
             Modifier
                 .size(8.dp)
-                .pulseGlow(active = online, color = colors.accentLime, spread = 8.dp, corner = 4.dp)
                 .clip(CircleShape)
                 .background(tone),
         )
@@ -1516,7 +1517,13 @@ private fun WaiterNextUpRow(
                     color = colors.textPrimary,
                 )
                 if (item.detail.isNotBlank()) {
-                    Text(item.detail, fontSize = 13.sp, color = colors.textSecondary, maxLines = 2)
+                    Text(
+                        item.detail,
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             Surface(
@@ -1644,7 +1651,9 @@ private fun waiterSince(iso: String): String {
             "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
         }
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        else -> "hace ${ms / 86_400_000} d"
+        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
+        // Después de una semana, la fecha: «hace 340 d» no dice nada.
+        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 
@@ -1781,7 +1790,9 @@ private fun WaiterTableSheet(
                                 .verticalScroll(rememberScrollState())
                                 .padding(horizontal = 22.dp)
                                 .padding(bottom = 36.dp)
-                                .animateContentSize(),
+                                .animateContentSize(
+                                    if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+                                ),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         val readyHere = table.orders.count { it.state == OrderState.READY }
@@ -1969,7 +1980,7 @@ private fun WaiterTableSheet(
                                 } else {
                                     "Ojo: $count pedidos de esta cuenta todavía no se entregan."
                                 },
-                                color = Yolk,
+                                color = colors.amberInk,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.5.sp,
                                 textAlign = TextAlign.Center,
@@ -2176,7 +2187,13 @@ internal fun WaiterSheetOrderRow(
         remember(order.itemsSummary, stations) {
             splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
         }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize()) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .animateContentSize(if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow)),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -2471,7 +2488,7 @@ private fun WaiterCallCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .animateContentSize(),
+                .animateContentSize(if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -136,7 +137,7 @@ internal fun KitchenSoldOutContent(
         if (message != null) {
             Text(
                 message,
-                color = coral,
+                color = LocalVaiinillaColors.current.coralText,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier =
@@ -268,6 +269,14 @@ private fun KitchenSwitch(
         label = "soldout-x",
     )
     Box(modifier = Modifier.size(width = 52.dp, height = 32.dp).clip(CircleShape).background(track)) {
-        Box(modifier = Modifier.offset(x = x, y = 3.dp).size(26.dp).clip(CircleShape).background(knob))
+        // offset { } lee la posición al acomodar, sin recomponer en cada cuadro.
+        Box(
+            modifier =
+                Modifier
+                    .offset { IntOffset(x.roundToPx(), 3.dp.roundToPx()) }
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(knob),
+        )
     }
 }

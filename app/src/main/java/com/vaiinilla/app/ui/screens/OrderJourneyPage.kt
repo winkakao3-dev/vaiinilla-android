@@ -28,8 +28,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,6 +109,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.WaiterCallHost
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.canAnnounceArrival
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -366,7 +369,7 @@ internal fun OrderJourneyPage(
             }
             AnimatedVisibility(
                 visible = showCode,
-                enter = fadeIn(spring(stiffness = 300f)) + scaleIn(spring(0.62f, 320f), initialScale = 0.85f),
+                enter = fadeIn(spring(stiffness = 300f)) + scaleIn(spring(0.62f, 320f), initialScale = 0.92f),
                 exit = fadeOut(spring(stiffness = 400f)) + scaleOut(spring(stiffness = 400f), targetScale = 0.92f),
             ) {
                 FolioCodeCard(order, matrix, colors)
@@ -922,22 +925,31 @@ private fun FactRow(
     ) {
         Text(fact.label, color = colors.muted, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
+        // Lima y yema sobre el papel claro no se leen: lo que se gana o falta va en su pastilla.
+        val (pill, ink) =
+            when (fact.tone) {
+                FactTone.PLAIN -> Color.Transparent to colors.ink
+                FactTone.GOOD -> colors.accent to colors.accentInk
+                FactTone.DUE -> colors.yolk to FactDueInk
+            }
         Text(
             fact.value,
-            color =
-                when (fact.tone) {
-                    FactTone.PLAIN -> colors.ink
-                    FactTone.GOOD -> colors.accent
-                    FactTone.DUE -> colors.yolk
-                },
+            color = ink,
             fontSize = 14.5.sp,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(pill)
+                    .padding(horizontal = if (fact.tone == FactTone.PLAIN) 0.dp else 8.dp, vertical = 2.dp),
         )
     }
 }
+
+private val FactDueInk = Color(0xFF1D1E1C)
 
 @Composable
 private fun DashedNote(
@@ -981,10 +993,12 @@ private fun CancelQuote(
         modifier
             .padding(top = 14.dp)
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 18.dp, bottomEnd = 18.dp))
             .background(colors.paper2),
     ) {
-        Box(Modifier.width(3.dp).height(68.dp).background(colors.coral))
+        // La barra mide lo que la cita: con un motivo largo no termina antes que la tarjeta.
+        Box(Modifier.width(3.dp).fillMaxHeight().background(colors.coral))
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text("«$reason»", color = colors.ink, fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
             Text(
@@ -1166,7 +1180,7 @@ private fun CourierRow(
                 .background(colors.accent),
             contentAlignment = Alignment.Center,
         ) {
-            Text(name.trim().take(1).uppercase(), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(initialOf(name), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(12.dp))
         Column {
@@ -1331,7 +1345,7 @@ private fun DeliveredReceipt(
         }
         Text(
             "ENTREGADO",
-            color = colors.accent,
+            color = if (colors.isDark) colors.accent else colors.accentInk,
             fontSize = 11.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 2.2.sp,
@@ -1401,7 +1415,8 @@ private fun DeliveredReceipt(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("¿Qué tal estuvo?", color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Cada estrella toca en 48 dp (el ícono sigue de 34): juntas era fácil tocar la de al lado.
+            Row(Modifier.padding(top = 8.dp)) {
                 (1..5).forEach { star ->
                     Icon(
                         Icons.Rounded.Star,
@@ -1409,8 +1424,9 @@ private fun DeliveredReceipt(
                         tint = if (star <= stars) colors.yolk else colors.ink.copy(alpha = 0.15f),
                         modifier =
                             Modifier
-                                .size(34.dp)
-                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star },
+                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star }
+                                .size(48.dp)
+                                .padding(7.dp),
                     )
                 }
             }

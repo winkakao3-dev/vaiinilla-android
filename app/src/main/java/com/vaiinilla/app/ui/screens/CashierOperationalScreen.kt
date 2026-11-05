@@ -138,6 +138,7 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
@@ -1218,7 +1219,9 @@ private fun elapsedShort(
         ms < 60_000 -> "ahora"
         ms < 3_600_000 -> "hace ${ms / 60_000} min"
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        else -> "hace ${ms / 86_400_000} d"
+        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
+        // Después de una semana, la fecha: «hace 340 d» no dice nada.
+        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 
@@ -1363,7 +1366,7 @@ private fun ProductGridCard(
                         } else {
                             "BARRA"
                         },
-                        fontSize = 8.5.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 0.6.sp,
                         color = colors.textSecondary,
@@ -1461,7 +1464,12 @@ private fun CashierQueueCard(
         shape = RoundedCornerShape(22.dp),
         color = colors.cardBackground,
     ) {
-        Column(modifier = Modifier.animateContentSize(spring(dampingRatio = 0.85f, stiffness = 380f))) {
+        Column(
+            modifier =
+                Modifier.animateContentSize(
+                    if (reducedMotion()) snap() else spring(dampingRatio = 0.85f, stiffness = 380f),
+                ),
+        ) {
             orders.forEachIndexed { index, order ->
                 key(order.summary.id) {
                     if (index > 0) {

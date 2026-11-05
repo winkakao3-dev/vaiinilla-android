@@ -597,7 +597,7 @@ private fun AssistantSheetContent(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            IconButton(onClick = controller::closeSheet, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = controller::closeSheet) {
                 Icon(Icons.Outlined.Close, contentDescription = "Cerrar manual", tint = palette.muted)
             }
         }
@@ -688,7 +688,7 @@ private fun ManualGuideDetail(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = onClose) {
                 Icon(Icons.Outlined.Close, contentDescription = "Cerrar manual", tint = palette.muted)
             }
         }

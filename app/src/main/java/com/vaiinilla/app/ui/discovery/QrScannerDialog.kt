@@ -57,6 +57,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -476,6 +477,7 @@ internal fun QrScannerOverlay(
                 Box(
                     modifier =
                         Modifier
+                            .minimumInteractiveComponentSize()
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(ScannerChrome)
@@ -496,7 +498,7 @@ internal fun QrScannerOverlay(
                 if (torchAvailable) {
                     TorchPill(on = torchOn, onClick = onToggleTorch)
                 } else if (topLabel != null) {
-                    Spacer(Modifier.size(40.dp))
+                    Spacer(Modifier.size(48.dp))
                 }
             }
             if (topLabel == null) {
@@ -870,8 +872,10 @@ private fun DigitBox(
             pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 650f))
         }
     }
+    val reduced = reducedMotion()
     val caretAlpha =
-        if (current && focused) {
+        // Con movimiento reducido, el cursor se queda fijo.
+        if (current && focused && !reduced) {
             val blink = rememberInfiniteTransition(label = "caret")
             val value by blink.animateFloat(
                 initialValue = 1f,

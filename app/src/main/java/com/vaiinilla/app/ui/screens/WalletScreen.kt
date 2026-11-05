@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -373,6 +374,8 @@ private fun WalletBalance(
                     lineHeight = 64.sp,
                     letterSpacing = (-2.8).sp,
                     maxLines = 1,
+                    // Un monto nunca se trunca: con letra grande del sistema se achica antes que cortarse.
+                    autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = 60.sp),
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }

@@ -4,12 +4,12 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -47,14 +47,14 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -175,7 +175,7 @@ internal fun MenuWaiterLayer(
                         } else {
                             fadeIn(tween(200)) +
                                 scaleIn(
-                                    initialScale = 0.8f,
+                                    initialScale = 0.92f,
                                     transformOrigin = TransformOrigin(0f, 1f),
                                     animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
                                 )
@@ -184,7 +184,8 @@ internal fun MenuWaiterLayer(
                         if (reduced) {
                             fadeOut()
                         } else {
-                            fadeOut(tween(160)) + scaleOut(targetScale = 0.8f, transformOrigin = TransformOrigin(0f, 1f))
+                            fadeOut(tween(160)) +
+                                scaleOut(targetScale = 0.92f, transformOrigin = TransformOrigin(0f, 1f))
                         },
                 ) {
                     WaiterPill(state = state)
@@ -192,8 +193,8 @@ internal fun MenuWaiterLayer(
                 if (onOpenAssistant != null) {
                     AnimatedVisibility(
                         visible = visible && cart == null,
-                        enter = if (reduced) fadeIn() else fadeIn(tween(200)) + scaleIn(initialScale = 0.8f),
-                        exit = if (reduced) fadeOut() else fadeOut(tween(160)) + scaleOut(targetScale = 0.8f),
+                        enter = if (reduced) fadeIn() else fadeIn(tween(200)) + scaleIn(initialScale = 0.92f),
+                        exit = if (reduced) fadeOut() else fadeOut(tween(160)) + scaleOut(targetScale = 0.92f),
                         modifier = Modifier.weight(1f, fill = false),
                     ) {
                         AssistantPill(onOpenAssistant)

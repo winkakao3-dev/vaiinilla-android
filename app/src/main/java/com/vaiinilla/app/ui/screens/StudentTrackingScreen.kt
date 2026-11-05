@@ -696,7 +696,7 @@ private fun ClosedOrderCard(order: OrderDetail) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 if (notPickedUp) "No se recogió a tiempo" else "Este pedido expiró",
-                color = colors.coral,
+                color = colors.coralText,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
             )
@@ -752,7 +752,7 @@ private fun CancelReasonCard(order: OrderDetail) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 if (by != null && by != "Tú") "$by canceló tu pedido" else "Pedido cancelado",
-                color = colors.coral,
+                color = colors.coralText,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
             )
@@ -828,7 +828,7 @@ private fun PickupCodeCard(order: OrderDetail) {
             } else {
                 Text(
                     "Estamos trayendo tu código. Si no aparece, dile al personal tu folio ${order.summary.folio}.",
-                    color = colors.coral,
+                    color = colors.coralText,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     fontSize = 13.sp,
@@ -1441,7 +1441,7 @@ internal fun CallWaiterButton(
         error?.let { message ->
             Text(
                 message,
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -1553,7 +1553,7 @@ private fun InlinePickupQr(order: OrderDetail) {
             token,
             color = OrderTrackingCardText.copy(alpha = 0.4f),
             fontFamily = FontFamily.Monospace,
-            fontSize = 9.sp,
+            fontSize = 11.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp),
         )
