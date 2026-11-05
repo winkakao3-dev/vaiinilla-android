@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
+import com.vaiinilla.app.domain.repository.CashDrawerReport
 import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.StoreImages
 
@@ -57,6 +58,8 @@ data class OperationalUiState(
      * cajón pero no en el esperado. Mientras haya alguno no se cierra la caja (R5).
      */
     val unsyncedOfflineCash: Int = 0,
+    /** Hoja «Movimientos del cajón» y desglose del cierre: el resumen y los renglones de la sesión abierta. */
+    val cashDrawer: CashDrawerUi = CashDrawerUi(),
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
@@ -76,6 +79,18 @@ internal fun queuePresentation(
         lastRefreshOk == false -> QueuePresentation.Error
         else -> QueuePresentation.Empty
     }
+
+/** Lo que se sabe del cajón de la sesión abierta y si se está anotando una entrada o salida. */
+data class CashDrawerUi(
+    val loading: Boolean = false,
+    val report: CashDrawerReport? = null,
+    /** No se pudo leer el cajón; lo que haya en [report] es la última lectura buena. */
+    val errorMessage: String? = null,
+    val saving: Boolean = false,
+    val saveError: String? = null,
+    /** Sube con cada movimiento anotado: la hoja limpia el formulario. */
+    val savedCount: Int = 0,
+)
 
 /** Estado de la hoja "Cerrar caja". */
 data class CloseCashUi(

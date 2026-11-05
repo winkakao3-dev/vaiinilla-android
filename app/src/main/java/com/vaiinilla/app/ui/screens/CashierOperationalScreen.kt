@@ -111,6 +111,7 @@ import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
+import com.vaiinilla.app.domain.repository.CashDrawerMovementType
 import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.time.BusinessTime
@@ -161,6 +162,10 @@ fun CashierOperationalScreen(
     onRequestCloseCash: () -> Unit = {},
     onDismissCloseCash: () -> Unit = {},
     onCloseCash: (String) -> Unit = {},
+    /** Lee el resumen y los renglones del cajón (N11, R37). */
+    onLoadCashDrawer: () -> Unit = {},
+    /** Meter o sacar efectivo del cajón con su motivo (R7). */
+    onSaveDrawerMovement: (CashDrawerMovementType, String, String) -> Unit = { _, _, _ -> },
     onCollect: (orderId: String, amount: String, version: Int, tip: String?) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     /** Entregar sin escanear: el backend dispensa el QR de ese pedido (`entrega_sin_qr`). */
@@ -953,7 +958,15 @@ fun CashierOperationalScreen(
             )
         }
         if (cashDrawerOpen) {
-            CashDrawerSheet(expectedCash = state.expectedCash, colors = colors, onDismiss = { cashDrawerOpen = false })
+            LaunchedEffect(Unit) { onLoadCashDrawer() }
+            CashDrawerSheet(
+                expectedCash = state.expectedCash,
+                colors = colors,
+                onDismiss = { cashDrawerOpen = false },
+                drawer = state.cashDrawer,
+                onSave = onSaveDrawerMovement.takeIf { restrictedMode != RestrictedMode.READ_ONLY },
+                onRetry = onLoadCashDrawer,
+            )
         }
         state.closeCash?.let { closeState ->
             CashCloseSheet(
@@ -970,6 +983,7 @@ fun CashierOperationalScreen(
                 expectedCash = state.expectedCash,
                 openingAmount = state.cashOpeningAmount,
                 unsyncedCashOrders = state.unsyncedOfflineCash,
+                drawerSummary = state.cashDrawer.report?.summary,
             )
         }
         chargeOrder?.let { order ->

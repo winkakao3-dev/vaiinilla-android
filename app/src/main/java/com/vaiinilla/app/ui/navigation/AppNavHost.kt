@@ -2270,6 +2270,8 @@ fun AppNavHost(
                         },
                         onDismissCloseCash = operationalViewModel::dismissCloseCash,
                         onCloseCash = operationalViewModel::closeCashRegister,
+                        onLoadCashDrawer = operationalViewModel::loadCashDrawer,
+                        onSaveDrawerMovement = operationalViewModel::registerDrawerMovement,
                         onCollect = operationalViewModel::collectCash,
                         onSearchWalletClients = operationalViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },

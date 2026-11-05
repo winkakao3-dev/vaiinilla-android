@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.repository.CashDrawerSummary
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -100,6 +101,7 @@ fun CashCloseSheet(
     expectedCash: String? = null,
     openingAmount: String? = null,
     unsyncedCashOrders: Int = 0,
+    drawerSummary: CashDrawerSummary? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -124,6 +126,7 @@ fun CashCloseSheet(
                 expectedCash,
                 openingAmount,
                 unsyncedCashOrders = unsyncedCashOrders,
+                drawerSummary = drawerSummary,
             )
         }
     }
@@ -152,7 +155,11 @@ fun CashCloseContent(
     openingAmount: String? = null,
     /** Pedidos cobrados sin internet que el servidor aún no registra: mientras haya, no se cierra (R5). */
     unsyncedCashOrders: Int = 0,
+    /** El `resumen` del cajón: con él la hoja desglosa igual que el corte (R37). */
+    drawerSummary: CashDrawerSummary? = null,
 ) {
+    // Con el resumen del cajón, lo que debe haber es el suyo: es la lectura más reciente del servidor.
+    val shownExpected = drawerSummary?.expected ?: expectedCash
     var amount by remember { mutableStateOf("") }
     var counting by remember { mutableStateOf(false) }
     var billCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
@@ -228,11 +235,7 @@ fun CashCloseContent(
                     expiringOrdersNotice(ordersToExpire, amountToExpire)?.let {
                         CashWarningCard(title = it, body = "Cóbralos antes de cerrar para no perder ese dinero.")
                     }
-                    if (expectedCash != null) {
-                        val cashIn =
-                            openingAmount?.toBigDecimalOrNull()?.let { opening ->
-                                expectedCash.toBigDecimalOrNull()?.minus(opening)?.toPlainString()
-                            }
+                    if (shownExpected != null) {
                         Column(
                             modifier =
                                 Modifier
@@ -242,9 +245,10 @@ fun CashCloseContent(
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            openingAmount?.let { CloseRow("Fondo al abrir", moneyLabelCents(it), colors) }
-                            cashIn?.let { CloseRow("Cobros en efectivo", "+${moneyLabelCents(it)}", colors) }
-                            CloseRow("Debe haber", moneyLabelCents(expectedCash), colors, strong = true)
+                            closeBreakdown(drawerSummary, openingAmount, shownExpected).forEach { (label, value) ->
+                                CloseRow(label, value, colors)
+                            }
+                            CloseRow("Debe haber", moneyLabelCents(shownExpected), colors, strong = true)
                         }
                     }
                     val invalid = amount.isNotBlank() && normalized == null
@@ -291,7 +295,7 @@ fun CashCloseContent(
                             },
                         )
                     }
-                    cashCountDifference(normalized, expectedCash)?.let { diff ->
+                    cashCountDifference(normalized, shownExpected)?.let { diff ->
                         CashDifferenceCard(diff, colors)
                     }
                     state.errorMessage?.let {
@@ -491,6 +495,45 @@ internal fun CashAmountField(
         supporting?.let { Text(it, fontSize = 12.sp, color = coral) }
     }
 }
+
+/**
+ * Los renglones arriba de «Debe haber», con las palabras del corte. Con el `resumen` del cajón cada concepto va
+ * aparte (los que valen cero no salen, salvo fondo y cobros); sin él solo se sabe el neto del turno, con su signo.
+ */
+internal fun closeBreakdown(
+    summary: CashDrawerSummary?,
+    openingAmount: String?,
+    expectedCash: String,
+): List<Pair<String, String>> {
+    if (summary == null) {
+        val openingText = openingAmount ?: return emptyList()
+        val opening = openingText.toBigDecimalOrNull() ?: return emptyList()
+        val net =
+            expectedCash.toBigDecimalOrNull()?.minus(opening)
+                ?: return listOf("Fondo al abrir" to moneyLabelCents(openingText))
+        return listOf(
+            "Fondo al abrir" to moneyLabelCents(openingText),
+            "Movimientos del turno (neto)" to signedCents(net),
+        )
+    }
+    fun nonZero(value: String): Boolean = (value.toBigDecimalOrNull()?.signum() ?: 0) != 0
+    return buildList {
+        add("Fondo al abrir" to moneyLabelCents(summary.opening))
+        add("Cobros en efectivo" to "+${moneyLabelCents(summary.cashSales)}")
+        if (nonZero(summary.tips)) add("Propinas en efectivo" to "+${moneyLabelCents(summary.tips)}")
+        if (nonZero(summary.reloads)) add("Recargas de saldo" to "+${moneyLabelCents(summary.reloads)}")
+        if (nonZero(summary.cashIn)) add("Entradas al cajón" to "+${moneyLabelCents(summary.cashIn)}")
+        if (nonZero(summary.cashOut)) add("Salidas del cajón" to "−${moneyLabelCents(summary.cashOut)}")
+        if (nonZero(summary.refunds)) add("Devoluciones en efectivo" to "−${moneyLabelCents(summary.refunds)}")
+    }
+}
+
+private fun signedCents(value: BigDecimal): String =
+    when (value.signum()) {
+        -1 -> "−${moneyLabelCents(value.abs().toPlainString())}"
+        0 -> moneyLabelCents("0.00")
+        else -> "+${moneyLabelCents(value.toPlainString())}"
+    }
 
 /** El aviso que bloquea el cierre mientras haya efectivo cobrado sin internet sin registrar. */
 internal fun unsyncedCashTitle(count: Int): String =

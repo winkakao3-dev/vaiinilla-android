@@ -3,6 +3,8 @@ package com.vaiinilla.app.data.operational
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
+import com.vaiinilla.app.domain.repository.CashDrawerMovementType
+import com.vaiinilla.app.domain.repository.CashDrawerReport
 import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.domain.repository.CashSessionInfo
 import com.vaiinilla.app.domain.repository.CashSessionRepository
@@ -81,6 +83,30 @@ class RemoteCashSessionRepository(
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).map { }
             .mapApiErrors()
+
+    override fun drawerReport(sessionId: String): Result<CashDrawerReport> =
+        apiClient
+            .get("sesiones-caja/$sessionId/movimientos")
+            .mapCatching { CashDrawerJson.parseReport(it) }
+            .mapApiErrors()
+
+    override fun registerDrawerMovement(
+        sessionId: String,
+        type: CashDrawerMovementType,
+        amount: String,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<String?> =
+        apiClient
+            .post(
+                path = "sesiones-caja/$sessionId/movimientos",
+                body = CashDrawerJson.encodeMovement(type, amount, reason),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { raw ->
+                // Ya respondió 2xx: el movimiento quedó aunque el cuerpo no se entienda.
+                runCatching { CashDrawerJson.parseExpectedAfterMovement(raw) }.getOrNull()
+                    ?.also { expectedCash = it }
+            }.mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(
