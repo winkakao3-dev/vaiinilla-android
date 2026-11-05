@@ -59,8 +59,19 @@ class MenuFeedTest {
                 cursor = null,
             )
         assertEquals(listOf(11, 14, 10, 12, 13), MenuFeed.products(catalog).map { it.id })
-        // La cuadrícula tampoco lo esconde (B10): sale al final, como Agotado.
-        assertEquals(listOf(10, 11, 13, 14, 12), OrderFlowUiState(catalog = catalog).filteredProducts.map { it.id })
+        // La cuadrícula tampoco lo esconde (B10): sale al final de su categoría, como Agotado (en vivo, #23).
+        assertEquals(listOf(11, 14, 10, 12, 13), OrderFlowUiState(catalog = catalog).filteredProducts.map { it.id })
+    }
+
+    @Test
+    fun `marcar agotado no mueve el platillo fuera de su categoria aunque el servidor lo reordene`() {
+        val categories = listOf(Category(1, "Postres", order = 1), Category(2, "Antojitos", order = 2))
+        val before = Catalog(categories, listOf(product(10, 1), product(11, 1), product(20, 2)), cursor = null)
+        // El servidor ordena por actualizado_en: lo recién marcado llega al final de la lista.
+        val reordered = listOf(product(11, 1), product(20, 2), product(10, 1, available = false))
+        val after = Catalog(categories, reordered, cursor = null)
+        assertEquals(listOf(10, 11, 20), OrderFlowUiState(catalog = before).filteredProducts.map { it.id })
+        assertEquals(listOf(11, 10, 20), OrderFlowUiState(catalog = after).filteredProducts.map { it.id })
     }
 
     @Test

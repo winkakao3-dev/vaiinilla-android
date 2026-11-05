@@ -944,6 +944,10 @@ private fun ProductCard(
             placeholder = { m -> ProductIllustration(kind, m) },
             card = true,
         )
+        // Lo agotado se queda en su lugar, deslavado, para que se lea «Agotado» de un vistazo (en vivo, #23).
+        if (!product.available) {
+            Box(Modifier.matchParentSize().background(colors.paper.copy(alpha = 0.5f)))
+        }
         Column(
             modifier =
                 Modifier

@@ -142,8 +142,17 @@ val OrderFlowUiState.selectedProduct: Product?
 
 val OrderFlowUiState.filteredProducts: List<Product>
     get() {
-        // Lo agotado se queda en el menú, al final, con "Agotado" y sin Agregar (B10).
-        val products = catalog?.products.orEmpty().sortedBy { !it.available }
+        // Lo agotado se queda en el menú con "Agotado" y sin Agregar (B10), al final de su categoría y no de todo el
+        // menú: allá abajo parecía que había desaparecido (en vivo, #23). El orden va por categoría y por id, no por
+        // el del servidor, que cambia con cada edición (marcar agotado lo mandaba al final).
+        val categoryOrder =
+            catalog?.categories.orEmpty().sortedBy { it.order }.withIndex().associate { (index, category) ->
+                category.id to index
+            }
+        val products =
+            catalog?.products.orEmpty().sortedWith(
+                compareBy({ categoryOrder[it.categoryId] ?: Int.MAX_VALUE }, { !it.available }, { it.id }),
+            )
         val categoryFiltered =
             selectedCategoryId
                 ?.takeIf { id -> catalog?.categories.orEmpty().any { it.id == id } }
