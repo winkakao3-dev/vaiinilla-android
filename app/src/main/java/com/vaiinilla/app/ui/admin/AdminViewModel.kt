@@ -21,6 +21,7 @@ import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.HomeOrderBoard
+import com.vaiinilla.app.domain.model.HomeOrderStep
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -158,6 +159,9 @@ class AdminViewModel
 
         /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
         private val retryKeys = RetryKeys()
+
+        /** Se pidió la agenda mientras otra lectura seguía en curso: al terminar se vuelve a leer. */
+        private var agendaStale = false
 
         /** [scope] es la membresía activa: si cambió de negocio, no se muestran ni un momento los datos del anterior. */
         fun onVisible(scope: String) {
@@ -618,9 +622,17 @@ class AdminViewModel
                 _uiState.value.copy(deliveredToday = page.orders.filter { it.summary.operationalDate == today })
         }
 
-        /** Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. */
+        /**
+         * Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. Si ya hay una lectura en
+         * curso, se vuelve a leer al terminar: «Entregar y cobrar» pedía la agenda tras entregar y otra vez tras cobrar,
+         * la segunda se perdía y «Me deben» seguía con el pedido ya cobrado (13).
+         */
         fun refreshAgenda() {
-            if (_uiState.value.agendaLoading) return
+            if (_uiState.value.agendaLoading) {
+                agendaStale = true
+                return
+            }
+            agendaStale = false
             val today = java.time.LocalDate.now(BusinessTime.zone)
             _uiState.value = _uiState.value.copy(agendaLoading = true, agendaError = null)
             viewModelScope.launch {
@@ -644,6 +656,7 @@ class AdminViewModel
                             )
                         },
                     )
+                if (agendaStale) refreshAgenda()
             }
         }
 
@@ -674,6 +687,12 @@ class AdminViewModel
                                     },
                                 awaitingOrders =
                                     _uiState.value.awaitingOrders.filter { it.summary.id != updated.summary.id },
+                                // Ya cobrado sale de «Me deben» sin esperar a la agenda.
+                                owed =
+                                    _uiState.value.owed.filter {
+                                        it.summary.id != updated.summary.id ||
+                                            HomeOrderBoard.step(updated) == HomeOrderStep.COLLECT
+                                    },
                             )
                         showNotice(doneMessage(action), isError = false)
                         onDone(updated)

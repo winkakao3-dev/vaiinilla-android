@@ -749,7 +749,13 @@ fun CashierOperationalScreen(
 
             if (state.cashSessionOpen == true) {
                 item(key = "cashier-today") {
+                    // Cada cobro en efectivo mueve el esperado: se relee el cajón para que lo cobrado no se quede en «—».
+                    LaunchedEffect(state.expectedCash) { onLoadCashDrawer() }
                     CashierTodayCard(
+                        cashSales =
+                            state.cashDrawer.report
+                                ?.summary
+                                ?.cashSales,
                         expectedCash = state.expectedCash,
                         colors = colors,
                         modifier = Modifier.animateItem(),
@@ -1689,11 +1695,13 @@ private fun CashWelcome(
 }
 
 /**
- * «COBRADO HOY | Efectivo en el cajón» bajo la fila. El servidor todavía no manda lo cobrado del día, así que
- * se ve «—» hasta que llegue; el efectivo abre el detalle del cajón.
+ * «COBRADO EN EFECTIVO | Efectivo en el cajón» bajo la fila. Lo cobrado son las ventas en efectivo de esta caja, del
+ * resumen del cajón (13): el servidor no manda lo cobrado del día con todos los métodos. Hasta que llega se ve «—»; el
+ * efectivo abre el detalle del cajón.
  */
 @Composable
 private fun CashierTodayCard(
+    cashSales: String?,
     expectedCash: String?,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
@@ -1711,14 +1719,14 @@ private fun CashierTodayCard(
         ) {
             Column {
                 Text(
-                    "COBRADO HOY",
+                    "COBRADO EN EFECTIVO",
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.5.sp,
                 )
                 Text(
-                    "—",
+                    cashSales?.let(::moneyLabel) ?: "—",
                     color = colors.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,

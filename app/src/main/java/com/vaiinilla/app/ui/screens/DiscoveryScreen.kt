@@ -809,8 +809,9 @@ private fun CodeCard(
         )
         Spacer(Modifier.weight(1f).heightIn(min = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            listOf("4", "8", "", "").forEachIndexed { index, digit ->
-                val current = index == 2
+            // Casillas vacías con un punto tenue: los 4 y 8 fijos parecían un código ya escrito (en vivo, #22).
+            repeat(TABLE_CODE_LENGTH) { index ->
+                val current = index == 0
                 val box = RoundedCornerShape(if (tall) 9.dp else 8.dp)
                 Box(
                     modifier =
@@ -829,12 +830,14 @@ private fun CodeCard(
                             ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        digit,
-                        color = colors.ink,
-                        fontSize = if (tall) 15.sp else 14.sp,
-                        fontWeight = FontWeight.Black,
-                    )
+                    if (!current) {
+                        Box(
+                            Modifier
+                                .size(if (tall) 5.dp else 4.dp)
+                                .clip(CircleShape)
+                                .background(colors.muted.copy(alpha = 0.45f)),
+                        )
+                    }
                 }
             }
         }

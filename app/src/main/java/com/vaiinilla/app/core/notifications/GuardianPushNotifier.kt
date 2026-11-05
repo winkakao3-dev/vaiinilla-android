@@ -23,25 +23,28 @@ object GuardianPushNotifier {
         val body: String,
     )
 
-    /** Lo mismo que dice el backend al tutor (TEXTO_ESTADO_TUTOR), con el nombre de pila guardado del hijo. */
+    /** Lo que dice el backend al tutor (TEXTO_ESTADO_TUTOR), con el nombre de pila del hijo y en frase completa. */
     fun orderStateText(
         childName: String?,
         folio: String,
         state: String,
     ): Text? {
-        val action =
+        val name = childName ?: "Tu hijo"
+        // Sin nombre, «tu hijo» a media frase: decía «Tu hijo su pedido está listo para recoger» (15).
+        val ofChild = childName?.let { "de $it" } ?: "de tu hijo"
+        val body =
             when (state) {
-                "cobrado" -> "pidió y ya está en cocina."
-                "preparando" -> "su comida se está preparando."
-                "listo" -> "su pedido está listo para recoger."
-                "entregado" -> "ya recogió su pedido."
-                "cancelado" -> "su pedido se canceló."
-                "no_recogido" -> "no recogió su pedido."
-                "expirado" -> "su pedido expiró."
+                "cobrado" -> "$name pidió y ya está en cocina."
+                "preparando" -> "La comida $ofChild se está preparando."
+                "listo" -> "El pedido $ofChild está listo para recoger."
+                "en_camino" -> "El pedido $ofChild va en camino."
+                "entregado" -> "$name ya recogió su pedido."
+                "cancelado" -> "El pedido $ofChild se canceló."
+                "no_recogido" -> "$name no recogió su pedido."
+                "expirado" -> "El pedido $ofChild expiró."
                 else -> return null
             }
-        val name = childName ?: "Tu hijo"
-        return Text(title = "$name · Pedido #$folio", body = "$name $action")
+        return Text(title = "$name · Pedido #$folio", body = body)
     }
 
     fun lowBalanceText(
