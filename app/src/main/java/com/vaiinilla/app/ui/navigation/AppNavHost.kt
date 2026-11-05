@@ -2421,7 +2421,7 @@ fun AppNavHost(
                 )
             }
 
-            composable(Routes.CONFIRMATION) {
+            composable(Routes.CONFIRMATION) { entry ->
                 val isFreshConfirmation = orderState.createdOrder != null
                 val selectedOrder = operationalState.selectedOrder
                 // El pedido recién creado es una foto; el seleccionado se refresca con el polling y trae el estado
@@ -2447,6 +2447,16 @@ fun AppNavHost(
                             selectedId == null || selectedId == it.summary.id
                         }
                         ?: selectedOrder
+                // Sin pedido que mostrar (ni recién creado ni uno elegido que aún carga) la pantalla es solo el
+                // fondo oscuro: al volver al carrito, la navegación restauraba esta confirmación vieja encima y se
+                // veía negra hasta tocar Atrás (en vivo, #11). Pasada la animación de salida, se quita sola.
+                val nothingToConfirm = confirmationOrder == null && selectedId == null
+                LaunchedEffect(nothingToConfirm) {
+                    if (!nothingToConfirm) return@LaunchedEffect
+                    delay(POP_ANIMATION_MILLIS.toLong() + 50)
+                    if (navController.currentBackStackEntry?.id != entry.id) return@LaunchedEffect
+                    if (!navController.popBackStack()) navController.navigateStudent(Routes.CATALOG)
+                }
                 val context = LocalContext.current
                 LaunchedEffect(confirmationOrder?.summary?.id) {
                     val order = confirmationOrder ?: return@LaunchedEffect
