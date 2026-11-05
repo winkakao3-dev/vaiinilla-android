@@ -8,6 +8,7 @@ import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.components.needsPickupQr
+import com.vaiinilla.app.ui.components.trackingStepDescription
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
@@ -261,6 +262,18 @@ class HomeDeliveryTest {
         assertEquals("1 día", answerTimeLabel(1440))
         assertEquals("2 días", answerTimeLabel(2880))
         assertEquals("1 h 30 min", answerTimeLabel(90))
+    }
+
+    @Test
+    fun `listo a domicilio no dice que se recoge en la barra`() {
+        assertEquals(
+            "Está listo para salir.",
+            trackingStepDescription(OrderState.READY, OrderDestination.HOME_DELIVERY, PaymentMethod.CASH, null),
+        )
+        assertEquals(
+            "Recógelo en la barra.",
+            trackingStepDescription(OrderState.READY, OrderDestination.TAKE_AWAY, PaymentMethod.CASH, null),
+        )
     }
 
     private fun order(raw: String) = Json { ignoreUnknownKeys = true }.decodeFromString<OrderDetailDto>(raw).toDomain()

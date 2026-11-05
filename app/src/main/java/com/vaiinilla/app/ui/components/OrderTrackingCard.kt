@@ -123,10 +123,10 @@ private val timelineSteps =
             "Tu comida se está preparando."
         },
         TimelineStep(OrderState.READY, { _, _ -> "LISTO" }) { destination, _, _ ->
-            if (destination == OrderDestination.IN_SPACE) {
-                "El personal lo llevará a tu mesa."
-            } else {
-                "Recógelo en la barra."
+            when (destination) {
+                OrderDestination.IN_SPACE -> "El personal lo llevará a tu mesa."
+                OrderDestination.HOME_DELIVERY -> "Está listo para salir."
+                OrderDestination.TAKE_AWAY -> "Recógelo en la barra."
             }
         },
         TimelineStep(OrderState.DELIVERED, { _, _ -> "ENTREGADO" }) { _, _, _ ->
