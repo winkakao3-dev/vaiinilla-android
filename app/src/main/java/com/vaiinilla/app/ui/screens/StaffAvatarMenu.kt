@@ -31,6 +31,8 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Savings
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -63,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.notifications.NotificationMute
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.notices.LocalOpenReceivedNotices
@@ -200,6 +204,8 @@ private fun StaffAccountCard(
     }
     var themeOpen by remember { mutableStateOf(false) }
     val openNotices = LocalOpenReceivedNotices.current
+    val context = LocalContext.current
+    var staffMuted by remember { mutableStateOf(NotificationMute.isMuted(context, NotificationMute.Scope.STAFF)) }
     val coral = LocalVaiinillaColors.current.coral
     Dialog(
         onDismissRequest = onDismiss,
@@ -260,6 +266,16 @@ private fun StaffAccountCard(
                         onDismiss()
                         openNotices()
                     }
+                }
+                // Naev (2026-11-05): en cada rol del personal se pueden apagar los avisos de este teléfono.
+                AccountRow(
+                    if (staffMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.NotificationsActive,
+                    if (staffMuted) "Prender notificaciones" else "Apagar notificaciones",
+                    value = if (staffMuted) "Apagadas" else "",
+                    colors = colors,
+                ) {
+                    staffMuted = !staffMuted
+                    NotificationMute.setMuted(context, NotificationMute.Scope.STAFF, staffMuted)
                 }
                 AccountRow(Icons.Outlined.Savings, "Mi turno y mis propinas", colors = colors, onClick = onOpenShift)
                 AccountRow(Icons.Outlined.SwapHoriz, "Cambiar de modo", value = modeLabel, colors = colors, onClick = onChangeMode)

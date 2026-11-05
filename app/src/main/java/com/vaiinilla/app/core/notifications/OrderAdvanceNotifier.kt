@@ -88,7 +88,7 @@ object OrderAdvanceNotifier {
         customerName: String? = null,
     ): Shown {
         val (title, text) = staffAlertText(folio, alert, customerName)
-        if (!canPost(context)) return Shown(title, text, posted = false)
+        if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF, noticeId)
         val notification =
@@ -159,7 +159,7 @@ object OrderAdvanceNotifier {
     ): Shown {
         val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
         val text = tableCallText(reason)
-        if (!canPost(context)) return Shown(title, text, posted = false)
+        if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val notification =
             NotificationCompat
@@ -188,7 +188,7 @@ object OrderAdvanceNotifier {
     ): Shown {
         val title = turnEndingTitle(spaceName)
         val text = turnEndingText(minutesLeft)
-        if (!canPost(context)) return Shown(title, text, posted = false)
+        if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val notification =
             NotificationCompat
@@ -228,7 +228,7 @@ object OrderAdvanceNotifier {
     ): Shown {
         val title = "Tu mesero va en camino"
         val text = "Va a tu mesa."
-        if (!canPost(context)) return Shown(title, text, posted = false)
+        if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =
             NotificationCompat
@@ -249,6 +249,12 @@ object OrderAdvanceNotifier {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+
+    /** Con permiso del sistema y sin «Apagar notificaciones» en ese lado (cliente o personal). */
+    fun canPost(
+        context: Context,
+        scope: NotificationMute.Scope,
+    ): Boolean = canPost(context) && !NotificationMute.isMuted(context, scope)
 
     @SuppressLint("MissingPermission")
     fun notify(
@@ -281,7 +287,7 @@ object OrderAdvanceNotifier {
                         homeDelivery,
                     )
             }
-        if (!canPost(context)) return Shown(title, text, posted = false)
+        if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.CLIENT, noticeId)
         val notification =

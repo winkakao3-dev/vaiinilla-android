@@ -78,7 +78,7 @@ object GuardianPushNotifier {
         link: ChildDeepLink?,
         noticeId: String? = null,
     ): Boolean {
-        if (!OrderAdvanceNotifier.canPost(context)) return false
+        if (!OrderAdvanceNotifier.canPost(context, NotificationMute.Scope.CLIENT)) return false
         OrderAdvanceNotifier.ensureChannel(context)
         val intent =
             Intent(context, MainActivity::class.java)
