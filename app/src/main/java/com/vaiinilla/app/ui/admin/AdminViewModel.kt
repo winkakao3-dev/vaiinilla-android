@@ -15,6 +15,8 @@ import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MIN
+import com.vaiinilla.app.domain.admin.ForcedCloseResult
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.HomeOrderAction
@@ -34,6 +36,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.moneyLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -224,22 +227,25 @@ class AdminViewModel
         /** "Cerrar sin cobrar": el cliente se fue sin pagar y la cuenta se cierra sin cobro. */
         fun closeWithoutCharging(
             account: AdminUnpaidAccount,
-            note: String,
+            reason: String,
             onDone: (Boolean) -> Unit,
         ) {
             if (_uiState.value.saving) return onDone(false)
+            val motivo = reason.trim()
+            // Contrato D: el servidor pide de 3 a 240 letras; el diálogo no deja confirmar con menos.
+            if (motivo.length < FORCED_CLOSE_REASON_MIN) return onDone(false)
             _uiState.value = _uiState.value.copy(saving = true)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        retryKeys.withKey("close-unpaid", account.spaceId, note) { key ->
-                            spacesRepository.closeWithoutCharging(account.spaceId, note, key)
+                        retryKeys.withKey("close-unpaid", account.spaceId, motivo) { key ->
+                            spacesRepository.closeWithoutCharging(account.spaceId, motivo, key)
                         }
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(
-                    onSuccess = {
-                        showNotice("Cuenta de ${account.spaceName} cerrada sin cobrar", isError = false)
+                    onSuccess = { closed ->
+                        showNotice(forcedCloseNotice(account.spaceName, closed), isError = false)
                         onDone(true)
                         refreshHome()
                     },
@@ -266,7 +272,8 @@ class AdminViewModel
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 cashExpected = cashSessionRepository.expectedCash,
                                 cashOpenedAt = it?.openedAt,
-                                cashLastClose = cashSessionRepository.lastClose ?: _uiState.value.cashLastClose,
+                                cashLastClose =
+                                    mergeLastClose(cashSessionRepository.lastClose, _uiState.value.cashLastClose),
                                 cashLoaded = true,
                                 cashCheckFailed = false,
                             )
@@ -692,9 +699,45 @@ class AdminViewModel
         }
     }
 
+/**
+ * El cierre del servidor gana, pero si es el mismo que este dispositivo acaba de hacer
+ * (mismo monto contado) conserva el «Cerró: Tú».
+ */
+internal fun mergeLastClose(
+    server: CashLastClose?,
+    local: CashLastClose?,
+): CashLastClose? {
+    if (server == null) return local
+    if (local == null || !local.closedByMe) return server
+    val sameCount =
+        server.counted.toBigDecimalOrNull()?.let { counted ->
+            local.counted.toBigDecimalOrNull()?.compareTo(counted) == 0
+        } == true
+    return if (sameCount) server.copy(closedByMe = true) else server
+}
+
 /** Una foto ya preparada para subir. */
 class AdminImage(
     val bytes: ByteArray,
     val filename: String,
     val mimeType: String,
 )
+
+/** R3: lo que dejó «Cerrar sin cobrar», en una línea: cuánto se perdió, cuánto abonado sí entró y qué salió de Cocina. */
+internal fun forcedCloseNotice(
+    spaceName: String,
+    closed: ForcedCloseResult,
+): String {
+    val lost = closed.lost.toBigDecimalOrNull()?.signum() == 1
+    val paid = closed.paid.toBigDecimalOrNull()?.signum() == 1
+    return buildList {
+        add("$spaceName cerrada sin cobrar")
+        if (lost) add("se perdieron ${moneyLabel(closed.lost)}")
+        if (paid) add("lo abonado (${moneyLabel(closed.paid)}) sí entró a la caja")
+        when (closed.cancelled) {
+            0 -> Unit
+            1 -> add("1 pedido cancelado")
+            else -> add("${closed.cancelled} pedidos cancelados")
+        }
+    }.joinToString(" · ")
+}

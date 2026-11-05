@@ -69,6 +69,8 @@ import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MIN
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
@@ -195,17 +197,19 @@ internal fun AdminHomeTab(
                     modifier = Modifier.adminRise(6),
                     onOpenOrders = onOpenOrders,
                 ) { account ->
-                    val amount = moneyLabel(account.total)
+                    // R3: se pide el motivo y se dice qué se pierde; lo abonado sí entró a la caja.
                     presentDialog(
                         AdminDialogRequest(
                             title = "¿Cerrar la cuenta de ${account.spaceName} sin cobrar?",
-                            message =
-                                "Los $amount no entran a la caja ni a las ventas. " +
-                                    "${account.spaceName} queda libre para otro cliente.",
+                            message = forcedCloseMessage(account),
                             confirm = "Cerrar sin cobrar",
-                        ) {
+                            fieldPlaceholder = "¿Por qué? (p. ej. se fue sin pagar)",
+                            accepts = { it.trim().length in FORCED_CLOSE_REASON_MIN..FORCED_CLOSE_REASON_MAX },
+                        ) { reason ->
                             suspendCancellableCoroutine { done ->
-                                actions.onCloseWithoutCharging(account, "") { ok -> if (done.isActive) done.resume(ok) }
+                                actions.onCloseWithoutCharging(account, reason) { ok ->
+                                    if (done.isActive) done.resume(ok)
+                                }
                             }
                         },
                     )
@@ -654,6 +658,22 @@ private fun dayLabel(
     return text.replaceFirstChar { it.uppercase() }
 }
 
+/** R3: el texto del aviso de «Cerrar sin cobrar», con lo abonado y lo que falta. */
+internal fun forcedCloseMessage(account: AdminUnpaidAccount): String {
+    val paid = account.paid.toBigDecimalOrNull()?.signum() == 1
+    val lost = moneyLabel(account.remaining)
+    return buildString {
+        if (paid) {
+            append("Ya abonaron ${moneyLabel(account.paid)}: eso sí se queda en la caja. ")
+            append("Se pierden los $lost que faltan. ")
+        } else {
+            append("Los $lost no entran a la caja ni a las ventas. ")
+        }
+        append("Lo que no se pagó se cancela y sale de Cocina. ")
+        append("${account.spaceName} queda libre para otro cliente.")
+    }
+}
+
 @Composable
 private fun UnpaidBlock(
     unpaid: AdminUnpaidAccounts,
@@ -675,11 +695,14 @@ private fun UnpaidBlock(
                             listOfNotNull(
                                 adminOrdersText(account.orders),
                                 account.hours.takeIf { it > 0 }?.let { "hace $it h" },
+                                account.paid
+                                    .takeIf { it.toBigDecimalOrNull()?.signum() == 1 }
+                                    ?.let { "abonado ${moneyLabel(it)}" },
                                 "espacio liberado".takeIf { account.abandoned },
                             ).joinToString(" · "),
                         leading = { AdminIconBox(Icons.Outlined.QrCode2, colors) },
                     ) {
-                        AdminRowValue(moneyLabel(account.total), colors)
+                        AdminRowValue(moneyLabel(account.remaining), colors)
                     }
                     if (canClose && !account.abandoned) {
                         Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -691,6 +714,15 @@ private fun UnpaidBlock(
                             ) { onClose(account) }
                             AdminPrimaryButton("Cobrar", colors, Modifier.weight(1f), onClick = onOpenOrders)
                         }
+                    } else if (account.abandoned) {
+                        // R1: sin turno, la cobra Caja desde «Cuentas por cobrar» (el admin no cobra cuentas).
+                        Text(
+                            "Cóbrala en Caja › Cuentas por cobrar.",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textMuted,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
                     }
                 }
             }
@@ -699,11 +731,11 @@ private fun UnpaidBlock(
             when (unpaid.abandoned) {
                 0 -> "Una cuenta sin pagar se queda abierta hasta que Caja la cobra o tú la cierras."
                 1 -> "1 cuenta quedó sin pagar en un espacio ya liberado. Por cobrar en total: ${moneyLabel(
-                    unpaid.total,
+                    unpaid.remaining,
                 )}."
                 else ->
                     "${unpaid.abandoned} cuentas quedaron sin pagar en espacios ya liberados. " +
-                        "Por cobrar en total: ${moneyLabel(unpaid.total)}."
+                        "Por cobrar en total: ${moneyLabel(unpaid.remaining)}."
             },
             fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,

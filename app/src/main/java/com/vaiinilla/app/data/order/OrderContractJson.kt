@@ -255,6 +255,24 @@ class OrderContractJson
             )
         }
 
+        /**
+         * El cierre que devuelve `GET sesiones-caja/ultimo-cierre`: la sesión cerrada viene en `data`
+         * (null si el negocio nunca ha cerrado caja).
+         */
+        fun parseLastClosedSession(raw: String): CashLastClose? {
+            val root = json.parseToJsonElement(raw) as? JsonObject ?: return null
+            val session = root["data"] as? JsonObject ?: return null
+            fun text(key: String) = (session[key] as? JsonPrimitive)?.content?.takeIf { it != "null" }
+            val counted = text("monto_final") ?: return null
+            return CashLastClose(
+                counted = counted,
+                closedAt = text("cerrada_en"),
+                opening = text("monto_inicial"),
+                expected = text("efectivo_esperado"),
+                cashSales = text("ventas_efectivo"),
+            )
+        }
+
         /** Un monto de la caja que puede llegar dentro de la sesión, en `meta` o junto a `data`. */
         fun parseCashAmount(
             raw: String,

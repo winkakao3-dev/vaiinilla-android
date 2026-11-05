@@ -64,6 +64,8 @@ data class AdminUnpaidAccounts(
     val accounts: List<AdminUnpaidAccount>,
     val total: String,
     val abandoned: Int,
+    /** Lo que falta por cobrar de todas, ya sin lo abonado; un servidor anterior no lo manda. */
+    val remaining: String = total,
 )
 
 data class AdminUnpaidAccount(
@@ -74,6 +76,33 @@ data class AdminUnpaidAccount(
     val hours: Int,
     /** El espacio ya se liberó y la cuenta sigue sin pagar: alguien se fue sin pagar. */
     val abandoned: Boolean,
+    /** Lo ya abonado (dividir por monto) que sí entró a la caja (R3). */
+    val paid: String = "0.00",
+    /** Lo que falta por cobrar: total − abonado. Es el `total_esperado` del cobro (contrato F). */
+    val remaining: String = total,
+    /** Turno abierto al que pertenece; null en una cuenta de un turno ya cerrado (G09). */
+    val sessionId: String? = null,
+    /** Los pedidos de la cuenta; vacío con un servidor que solo manda cuántos son. */
+    val orderLines: List<AdminUnpaidOrder> = emptyList(),
+)
+
+/** Un pedido de una cuenta sin pagar, con lo que falta de él. */
+data class AdminUnpaidOrder(
+    val id: String,
+    val folio: String,
+    val total: String,
+    val remaining: String,
+)
+
+/** Largo del motivo de «Cerrar sin cobrar» que acepta el servidor (contrato D). */
+const val FORCED_CLOSE_REASON_MIN = 3
+const val FORCED_CLOSE_REASON_MAX = 240
+
+/** Lo que dejó «Cerrar sin cobrar» (contrato D): pedidos cancelados, lo abonado que sí entró y lo que se perdió. */
+data class ForcedCloseResult(
+    val cancelled: Int,
+    val paid: String,
+    val lost: String,
 )
 
 /** Una página del historial de pedidos; [cursor] trae la siguiente. */

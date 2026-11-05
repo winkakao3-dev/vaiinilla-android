@@ -35,6 +35,7 @@ import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
+import com.vaiinilla.app.domain.usecase.KITCHEN_NOTES_MAX
 import com.vaiinilla.app.ui.order.CounterOrderKey
 import com.vaiinilla.app.ui.order.counterOrderKeyFor
 import com.vaiinilla.app.ui.order.createOrderFingerprint
@@ -100,6 +101,10 @@ data class WaiterUiState(
     val consecutiveBoardFailures: Int = 0,
     /** Pedidos tomados sin internet: por mandar y con problema (plan «Vaiinilla sin internet», fase 1). */
     val offlineOrders: OfflineStaffOrdersState = OfflineStaffOrdersState(),
+    /** Espacio cuya hoja está abierta. Una pantalla nueva (Admin › Pedidos › Mesas) la abre desde aquí (R18). */
+    val openSpaceId: Int? = null,
+    /** Lo que el admin lleva armado en «Pedir»: sobrevive a cambiar de pestaña (R17). */
+    val adminOrderDraft: StaffOrderDraft = StaffOrderDraft(),
 ) {
     /** Ya llegó al menos un tablero bueno. Las mesas solo entran con uno, así que también cuentan como prueba. */
     val boardLoaded: Boolean
@@ -108,6 +113,16 @@ data class WaiterUiState(
     val boardLink: WaiterBoardLink
         get() = waiterBoardLink(boardLoaded, consecutiveBoardFailures)
 }
+
+/**
+ * Pedido a medio armar del admin en «Pedir»: las líneas (por id de línea, ver [StaffOrderLines]), el nombre y a dónde
+ * va. Vive en el ViewModel para no perderse al ir a otra pestaña y volver (R17).
+ */
+data class StaffOrderDraft(
+    val lines: Map<Int, CartLine> = emptyMap(),
+    val name: String = "",
+    val space: TableSpace? = null,
+)
 
 @HiltViewModel
 class WaiterViewModel
@@ -130,7 +145,11 @@ class WaiterViewModel
         private var pollingJob: Job? = null
         private var boardJob: Job? = null
         private val pendingKeys = mutableMapOf<String, String>()
-        private var openSpaceId: Int? = null
+        private var openSpaceId: Int?
+            get() = _uiState.value.openSpaceId
+            set(value) {
+                if (_uiState.value.openSpaceId != value) _uiState.value = _uiState.value.copy(openSpaceId = value)
+            }
         private var knownCallIds: Set<String>? = null
         private var visible = false
         private var toastClearJob: Job? = null
@@ -483,6 +502,45 @@ class WaiterViewModel
             _uiState.value = _uiState.value.copy(counterPickUpAtBar = pickUpAtBar)
         }
 
+        /** Admin › «Pedir» al entrar: vuelve a abrir el pedido hacia donde iba el borrador (mostrador o su mesa). */
+        fun openAdminOrder() = openOrderSheet(_uiState.value.adminOrderDraft.space)
+
+        /** Admin › «Pedir»: cambia a dónde va el pedido sin tocar lo armado. */
+        fun pickAdminOrderTarget(space: TableSpace?) {
+            _uiState.value =
+                _uiState.value.copy(adminOrderDraft = _uiState.value.adminOrderDraft.copy(space = space))
+            openOrderSheet(space)
+        }
+
+        fun updateAdminOrderDraft(
+            lines: Map<Int, CartLine>,
+            name: String,
+        ) {
+            _uiState.value =
+                _uiState.value.copy(
+                    adminOrderDraft = _uiState.value.adminOrderDraft.copy(lines = lines, name = name),
+                )
+        }
+
+        /**
+         * Admin › «Pedir» al salir de la pestaña: cierra la hoja compartida (si no, el tablero de Mesas la abriría)
+         * pero el borrador y su destino se quedan para cuando vuelva (R17).
+         */
+        fun parkAdminOrder() = closeCounterOrder()
+
+        /** Manda el borrador del admin; al salir bien se limpia y el siguiente arranca en mostrador. */
+        fun submitAdminOrder() {
+            val draft = _uiState.value.adminOrderDraft
+            if (draft.lines.isEmpty()) return
+            if (_uiState.value.counterOrderSpace?.id != draft.space?.id) openOrderSheet(draft.space)
+            submitCounterOrder(
+                lines = draft.lines.values.toList(),
+                customerName = draft.name,
+                // La pestaña, si se ve, vuelve a abrir el mostrador sola al ver la hoja cerrada.
+                onSent = { _uiState.value = _uiState.value.copy(adminOrderDraft = StaffOrderDraft()) },
+            )
+        }
+
         /**
          * Envía el pedido de mostrador. Solo efectivo, para cobrarse en Caja; el total y el folio los calcula el
          * servidor. Un reintento del mismo pedido reusa la llave; si cambió, se genera una nueva.
@@ -493,6 +551,8 @@ class WaiterViewModel
             cashier: CashierContext? = null,
             /** Caja eligió cobrarlo ya: recibe el id para abrir su cobro (G03). */
             onCreated: ((orderId: String) -> Unit)? = null,
+            /** Además del aviso: el admin limpia su borrador (R17). */
+            onSent: (() -> Unit)? = null,
         ) {
             if (_uiState.value.counterOrderSending) return
             val space = _uiState.value.counterOrderSpace
@@ -506,10 +566,16 @@ class WaiterViewModel
                     payAtEnd = toAccount,
                     origin = OrderOrigin.MOSTRADOR,
                     customerName = customerName,
-                ).copy(
-                    pickUpAtBar =
-                        space != null && _uiState.value.spaceDelivery.pickUpAtBar(_uiState.value.counterPickUpAtBar),
-                )
+                ).let { built ->
+                    // R24: cada línea lleva su nota en `notas`; el resumen de `notas_cocina` se corta al límite del
+                    // servidor para que muchas notas no hagan rechazar el pedido.
+                    built.copy(
+                        kitchenNotes = built.kitchenNotes.take(KITCHEN_NOTES_MAX),
+                        pickUpAtBar =
+                            space != null &&
+                                _uiState.value.spaceDelivery.pickUpAtBar(_uiState.value.counterPickUpAtBar),
+                    )
+                }
             val key =
                 counterOrderKeyFor(counterOrderKey, createOrderFingerprint(request)) {
                     UUID.randomUUID().toString()
@@ -533,6 +599,7 @@ class WaiterViewModel
                                 counterOrderSpace = null,
                                 counterPickUpAtBar = false,
                             )
+                        onSent?.invoke()
                         if (onCreated != null) {
                             onCreated(created.summary.id)
                         } else {

@@ -38,9 +38,13 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +87,38 @@ fun normalizeCountedCash(raw: String): String? {
     return "${parts[0].trimStart('0').ifEmpty { "0" }}.$cents"
 }
 
+/** El conteo del cierre de caja: el total escrito y, si se contó billete por billete, cada denominación. */
+data class CashCountDraft(
+    val amount: String = "",
+    val counting: Boolean = false,
+    val billCounts: Map<Int, Int> = emptyMap(),
+    val coins: String = "",
+) {
+    companion object {
+        /** Guarda el conteo en el estado de la ruta: sobrevive a ir a «Ver cuentas» y volver. */
+        val Saver: Saver<CashCountDraft, Any> =
+            listSaver(
+                save = { draft ->
+                    listOf(
+                        draft.amount,
+                        draft.counting,
+                        draft.coins,
+                        ArrayList(draft.billCounts.flatMap { (bill, count) -> listOf(bill, count) }),
+                    )
+                },
+                restore = { saved ->
+                    val bills = (saved[3] as List<*>).map { it as Int }
+                    CashCountDraft(
+                        amount = saved[0] as String,
+                        counting = saved[1] as Boolean,
+                        coins = saved[2] as String,
+                        billCounts = bills.chunked(2).associate { (bill, count) -> bill to count },
+                    )
+                },
+            )
+    }
+}
+
 /**
  * Cierre de caja (C07): lo que debe haber, el efectivo contado y la diferencia en grande, y se confirma
  * deslizando porque no se deshace. Si el servidor rechaza el cierre porque hay cuentas a pagar al final sin
@@ -100,6 +136,7 @@ fun CashCloseSheet(
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
     openingAmount: String? = null,
+    countState: MutableState<CashCountDraft>? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -123,6 +160,7 @@ fun CashCloseSheet(
                 amountToExpire,
                 expectedCash,
                 openingAmount,
+                countState,
             )
         }
     }
@@ -149,16 +187,22 @@ fun CashCloseContent(
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
     openingAmount: String? = null,
+    /** Dónde vive el conteo; si es null, la hoja lo guarda ella misma. */
+    countState: MutableState<CashCountDraft>? = null,
 ) {
-    var amount by remember { mutableStateOf("") }
-    var counting by remember { mutableStateOf(false) }
-    var billCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
-    var coins by remember { mutableStateOf("") }
+    val ownCount = rememberSaveable(stateSaver = CashCountDraft.Saver) { mutableStateOf(CashCountDraft()) }
+    val count = countState ?: ownCount
+    val draft = count.value
+    val amount = draft.amount
+    val counting = draft.counting
+    val billCounts = draft.billCounts
+    val coins = draft.coins
     val normalized = normalizeCountedCash(amount)
     val haptics = rememberVaiinillaHaptics()
 
-    fun syncFromCounter() {
-        billCountTotal(billCounts, coins)?.let { amount = it }
+    /** Con el contador, el total se recalcula de los billetes y monedas. */
+    fun updateCounter(next: CashCountDraft) {
+        count.value = billCountTotal(next.billCounts, next.coins)?.let { next.copy(amount = it) } ?: next
     }
     Column(
         modifier =
@@ -239,7 +283,7 @@ fun CashCloseContent(
                     val invalid = amount.isNotBlank() && normalized == null
                     CashAmountField(
                         value = amount,
-                        onValueChange = { amount = it },
+                        onValueChange = { count.value = count.value.copy(amount = it) },
                         label = "EFECTIVO CONTADO",
                         colors = colors,
                         enabled = !state.closing,
@@ -255,8 +299,12 @@ fun CashCloseContent(
                             Modifier
                                 .physicalPress(enabled = !state.closing, scale = PhysicalPressScale.Small) {
                                     haptics.selection()
-                                    counting = !counting
-                                    if (counting && (billCounts.isNotEmpty() || coins.isNotBlank())) syncFromCounter()
+                                    val next = count.value.copy(counting = !count.value.counting)
+                                    if (next.counting && (next.billCounts.isNotEmpty() || next.coins.isNotBlank())) {
+                                        updateCounter(next)
+                                    } else {
+                                        count.value = next
+                                    }
                                 }.heightIn(min = 40.dp)
                                 .wrapContentHeight(),
                     )
@@ -270,14 +318,10 @@ fun CashCloseContent(
                             coins = coins,
                             colors = colors,
                             enabled = !state.closing,
-                            onCountChange = { bill, count ->
-                                billCounts = billCounts + (bill to count)
-                                syncFromCounter()
+                            onCountChange = { bill, bills ->
+                                updateCounter(count.value.copy(billCounts = count.value.billCounts + (bill to bills)))
                             },
-                            onCoinsChange = {
-                                coins = it
-                                syncFromCounter()
-                            },
+                            onCoinsChange = { updateCounter(count.value.copy(coins = it)) },
                         )
                     }
                     cashCountDifference(normalized, expectedCash)?.let { diff ->

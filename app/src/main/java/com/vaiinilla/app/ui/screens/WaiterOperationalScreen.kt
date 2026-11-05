@@ -222,7 +222,9 @@ fun WaiterOperationalScreen(
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
-    var openTableId by remember { mutableStateOf<Int?>(null) }
+    // R18: una pantalla recién compuesta (Admin › Pedidos › tocar una mesa) abre la hoja que el ViewModel ya tiene abierta.
+    var openTableId by remember { mutableStateOf(state.openSpaceId) }
+    LaunchedEffect(state.openSpaceId) { state.openSpaceId?.let { openTableId = it } }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
@@ -1986,7 +1988,9 @@ internal fun splitByStation(
                 SummaryLine(1, text)
             }
         }
-    val (counter, kitchen) = lines.partition { stations[it.name.lowercase()] == PreparationStation.CASHIER }
+    // R8: «ninguna» (sin preparación) también se recoge en Caja; solo lo desconocido o de Cocina espera a Cocina.
+    val (counter, kitchen) =
+        lines.partition { line -> stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN } }
     return StationSplit(counter = counter, kitchen = kitchen)
 }
 

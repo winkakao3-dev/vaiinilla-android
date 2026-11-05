@@ -324,7 +324,7 @@ class DoopGaleriaAdminTest {
             orderTaker =
                 state?.let { s ->
                     { header ->
-                        AdminTakeOrderTab(s, rememberOperationalColors(), header, {}, {}, { _, _ -> })
+                        AdminTakeOrderTab(s, rememberOperationalColors(), header, {}, {}, { _, _ -> }, {})
                     }
                 },
         )

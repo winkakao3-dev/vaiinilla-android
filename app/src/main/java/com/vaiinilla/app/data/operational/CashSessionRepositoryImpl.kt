@@ -67,7 +67,17 @@ class RemoteCashSessionRepository(
         readActive()
             .mapCatching { body ->
                 contractJson.parseCashSession(body)?.let { CashSessionInfo(it.id, it.initialAmount, it.openedAt) }
+            }.onSuccess { session ->
+                // Con la caja cerrada `activa` no trae el último cierre: se pide aparte.
+                // Si falla, queda el que había.
+                if (session == null) readLastClose()?.let { lastClose = it }
             }.mapApiErrors()
+
+    private fun readLastClose(): CashLastClose? =
+        apiClient
+            .get("sesiones-caja/ultimo-cierre")
+            .mapCatching { contractJson.parseLastClosedSession(it) }
+            .getOrNull()
 
     override fun closeSession(
         sessionId: String,

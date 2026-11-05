@@ -45,6 +45,33 @@ class AdminContractTest {
         )
 
     @Test
+    fun `unpaid accounts read orders, paid and remaining, and the old count still parses`() {
+        val parsed =
+            json.parseUnpaidAccounts(
+                """
+                {"data":{"cuentas":[
+                  {"espacio":{"id":4,"nombre":"Pista 4","tipo":"pista"},"sesion_id":null,"abandonada":true,
+                   "pedidos":[{"id":"p1","folio":12,"total":"120.00","restante":"80.00"}],"num_pedidos":1,
+                   "total":"120.00","abonado":"40.00","restante":"80.00","horas":3},
+                  {"espacio":{"id":5,"nombre":"Mesa 5"},"pedidos":2,"total":"90.00","horas":0}
+                ],"total":"210.00","restante":"170.00","abandonadas":1}}
+                """.trimIndent(),
+            )
+        val first = parsed.accounts[0]
+        assertEquals(1, first.orders)
+        assertEquals("40.00", first.paid)
+        assertEquals("80.00", first.remaining)
+        assertNull(first.sessionId)
+        assertEquals("12", first.orderLines.single().folio)
+        assertEquals("80.00", first.orderLines.single().remaining)
+        val old = parsed.accounts[1]
+        assertEquals(2, old.orders)
+        assertEquals("90.00", old.remaining)
+        assertTrue(old.orderLines.isEmpty())
+        assertEquals("170.00", parsed.remaining)
+    }
+
+    @Test
     fun `money pads to two decimals and rejects malformed amounts`() {
         assertEquals("55.00", AdminProductRules.money("55"))
         assertEquals("12.50", AdminProductRules.money("12.5"))

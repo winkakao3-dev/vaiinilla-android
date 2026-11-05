@@ -188,12 +188,26 @@ class AdminBusinessContractTest {
     }
 
     @Test
-    fun `forced close sends forzar with the optional note`() {
+    fun `forced close sends forzar with the required reason`() {
         val client = ScriptedClient(emptyMap())
-        RemoteAdminSpacesRepository(client).closeWithoutCharging(4, " Se fue sin pagar ", "k1").getOrThrow()
+        val result = RemoteAdminSpacesRepository(client).closeWithoutCharging(4, " Se fue sin pagar ", "k1").getOrThrow()
         assertEquals("espacios/4/sesion/cierres", client.lastPath)
-        assertEquals("""{"forzar":true,"nota":"Se fue sin pagar"}""", client.lastBody)
+        assertEquals("""{"forzar":true,"motivo":"Se fue sin pagar"}""", client.lastBody)
         assertEquals("k1", client.lastHeaders["Idempotency-Key"])
+        // Un servidor anterior no manda el resultado: se lee como cero.
+        assertEquals(0, result.cancelled)
+        assertEquals("0.00", result.lost)
+    }
+
+    @Test
+    fun `forced close reads what was cancelled, paid and lost`() {
+        val parsed =
+            AdminBusinessJson().parseForcedClose(
+                """{"data":{"id":"s1","cancelados":2,"abonado":"50.00","perdida":"130.00"}}""",
+            )
+        assertEquals(2, parsed.cancelled)
+        assertEquals("50.00", parsed.paid)
+        assertEquals("130.00", parsed.lost)
     }
 
     private class ScriptedClient(
