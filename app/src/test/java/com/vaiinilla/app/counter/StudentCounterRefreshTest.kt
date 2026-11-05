@@ -1,5 +1,6 @@
 package com.vaiinilla.app.counter
 
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.counter.CounterScope
 import com.vaiinilla.app.domain.counter.OfflineCounterSnapshot
@@ -16,11 +17,13 @@ import com.vaiinilla.app.ui.counter.ChargePhase
 import com.vaiinilla.app.ui.counter.StudentCounterViewModel
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
@@ -77,12 +80,14 @@ class StudentCounterRefreshTest {
             return searchResult(text)
         }
 
+        var purchaseResult: () -> Result<OrderDetail> = { Result.success(ScreenshotFixtures.sampleOrder()) }
+
         override fun purchase(
             studentId: String,
             items: List<StudentPurchaseItem>,
             pin: String?,
             idempotencyKey: String,
-        ): Result<OrderDetail> = Result.success(ScreenshotFixtures.sampleOrder())
+        ): Result<OrderDetail> = purchaseResult()
 
         override fun find(credential: String) = Result.success<StudentCard?>(null)
 
@@ -196,6 +201,48 @@ class StudentCounterRefreshTest {
 
             assertTrue(model.uiState.value.chargePhase is ChargePhase.Charged)
             assertEquals("", model.uiState.value.pin)
+            model.setShift(null)
+        }
+
+    @Test
+    fun `si el cobro vuelve con PIN requerido la ficha pide el PIN sin reabrirla`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val model = counterWithTilinSelected(repository)
+            val opened = model.uiState.value.selected
+            assertEquals(false, opened?.requiresPin)
+            repository.purchaseResult = {
+                Result.failure(ApiClientException("PIN_REQUIRED", "Su tutor le puso PIN: pídeselo para cobrar.", 422))
+            }
+
+            model.charge(BigDecimal("20.00"))
+            runCurrent()
+
+            val state = model.uiState.value
+            assertTrue(state.chargePhase is ChargePhase.Failed)
+            assertEquals(true, state.selected?.requiresPin)
+            assertTrue(state.results.first { it.userId == before.userId }.requiresPin)
+            assertFalse(state.pinReady)
+            model.setShift(null)
+        }
+
+    @Test
+    fun `con la ficha abierta se vuelve a pedir y aparece el PIN que puso su tutor`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val model = counterWithTilinSelected(repository)
+            repository.searchResult = { Result.success(listOf(before.copy(requiresPin = true))) }
+
+            val watch = launch { model.watchSelected(before.userId) }
+            testScheduler.advanceTimeBy(16_000)
+            runCurrent()
+
+            val refreshed = model.uiState.value.selected
+            assertEquals(true, refreshed?.requiresPin)
+            model.closeStudent()
+            testScheduler.advanceTimeBy(16_000)
+            runCurrent()
+            assertTrue(watch.isCompleted)
             model.setShift(null)
         }
 }

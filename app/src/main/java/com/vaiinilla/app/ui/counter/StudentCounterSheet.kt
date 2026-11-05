@@ -119,6 +119,8 @@ data class StudentCounterActions(
     val onLinkNfc: (String) -> Unit = {},
     val onSettleOffline: (com.vaiinilla.app.domain.counter.OfflineStudentPurchase) -> Unit = {},
     val onNoticeShown: () -> Unit = {},
+    /** Mientras la ficha de ese alumno está abierta, la mantiene al día (si su tutor le pone PIN, por ejemplo). */
+    val onWatchSelected: suspend (userId: String) -> Unit = {},
 )
 
 fun StudentCounterViewModel.actions(): StudentCounterActions =
@@ -137,6 +139,7 @@ fun StudentCounterViewModel.actions(): StudentCounterActions =
         onLinkNfc = ::linkNfcCard,
         onSettleOffline = offline::dismiss,
         onNoticeShown = ::consumeNotice,
+        onWatchSelected = ::watchSelected,
     )
 
 /** Caja con un alumno que no trae teléfono: se busca por nombre o matrícula, o se lee su credencial. */
@@ -169,6 +172,9 @@ fun StudentCounterSheet(
             toast = null
         }
     }
+    // Con la ficha abierta se vuelve a pedir de vez en cuando: el PIN recién puesto aparece sin reabrirla.
+    val watchedId = state.selected?.userId
+    LaunchedEffect(watchedId) { watchedId?.let { actions.onWatchSelected(it) } }
     // Con la hoja abierta, acercar la tarjeta del alumno lo abre; en su credencial, la liga.
     NfcCardReaderEffect(enabled = !scanning) { uid ->
         if (linkingNfc) {
