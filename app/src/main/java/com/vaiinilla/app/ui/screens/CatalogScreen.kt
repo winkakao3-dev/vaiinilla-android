@@ -100,6 +100,7 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
@@ -127,6 +128,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
+import com.vaiinilla.app.ui.order.currentSpace
 import com.vaiinilla.app.ui.order.filteredProducts
 import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.menuNotice
@@ -738,9 +740,10 @@ private fun MenuHero(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 VenueLogo(establishment?.logoUrl, name, size = 28.dp)
-                venue?.space?.let { space ->
+                // Con una pista rentada en curso, el cliente ya está allá y no en la mesa del QR.
+                state.currentSpace?.let { space ->
                     Text(
-                        text = "${space.name} · ${space.type}",
+                        text = "${space.name} · ${SpaceCopy.kindLabel(space.type).lowercase()}",
                         color = colors.ink,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,

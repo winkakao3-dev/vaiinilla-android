@@ -20,14 +20,15 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * La mesa desde la que se puede llamar al mesero en el menú: la del QR o el código con el que entró, la mesa
  * compartida donde ya está sentado o la cancha que rentó en la app y está jugando (el servidor acepta a quien
- * tiene la reserva en curso). Para llevar, en una escuela o sin cuenta no hay a quién llamar.
+ * tiene la reserva en curso). La pista en curso va primero: quien entró por la Mesa 1 y rentó una pista ya está
+ * allá. Para llevar, en una escuela o sin cuenta no hay a quién llamar.
  */
 fun menuWaiterSpaceId(
     guestSpaceId: Int?,
     sharedTableSpaceId: Int?,
     signedIn: Boolean,
     rentedCourtId: Int? = null,
-): Int? = if (signedIn) guestSpaceId ?: sharedTableSpaceId ?: rentedCourtId else null
+): Int? = if (signedIn) rentedCourtId ?: guestSpaceId ?: sharedTableSpaceId else null
 
 /** Con quién entra a la mesa quien llama sin haberse unido: su primer nombre, como en Pedidos. */
 fun waiterCallAlias(displayName: String): String {

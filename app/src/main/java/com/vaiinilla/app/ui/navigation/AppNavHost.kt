@@ -439,6 +439,8 @@ fun AppNavHost(
             // Pagar, cancelar o devolver mueve el saldo: no se espera a que el dato envejezca.
             walletViewModel.invalidate()
             walletViewModel.refreshIfStale(latestVenueId)
+            // La renta cobrada en caja (o cancelada) cambia dónde está el cliente: pasa a la pista o regresa a su mesa.
+            if (event.rental) orderFlowViewModel.refreshRentedCourt()
         }
     }
     // Con el carrito vacío (pedido mandado o vaciado a mano) el asistente olvida lo que puso: su siguiente pedido ya
@@ -1574,10 +1576,10 @@ fun AppNavHost(
                                                 { name: String -> sharedTableViewModel.joinForWaiterCall(token, name) }
                                             },
                                     place =
-                                        orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
+                                        orderState.rentedCourt?.let { SpaceCopy.named(it.type, it.name) }
+                                            ?: orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
                                             ?: sharedTableViewModel.uiState.value.table
-                                                ?.let { SpaceCopy.named(it.spaceType, it.spaceName) }
-                                            ?: orderState.rentedCourt?.let { SpaceCopy.named(it.type, it.name) },
+                                                ?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
                                     // Solo si la tienda tiene el asistente para clientes.
                                     onOpenAssistant =
                                         if (orderState.guestVenue?.establishment?.assistantForCustomers == false) {
@@ -1651,7 +1653,8 @@ fun AppNavHost(
                     )
                 // Quien rentó una pista en la app también llama al mesero desde el asistente (#18).
                 val rentedCourt = orderState.rentedCourt
-                val assistantSpaceId = assistantPlaceId ?: rentedCourt?.id?.takeIf { assistantSignedIn }
+                // La pista en curso manda sobre la mesa del QR: ahí está el cliente ahora.
+                val assistantSpaceId = rentedCourt?.id?.takeIf { assistantSignedIn } ?: assistantPlaceId
                 // La plática se reinicia con el lugar del QR o la mesa, no cuando llega la pista rentada.
                 LaunchedEffect(venue?.establishment?.id, assistantPlaceId) {
                     val establishmentId = venue?.establishment?.id
@@ -1662,11 +1665,11 @@ fun AppNavHost(
                     state = assistantViewModel.state.value,
                     venueName = venue?.establishment?.name,
                     place =
-                        venue?.space?.let { SpaceCopy.named(it.type, it.name) }
-                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) }
-                            ?: rentedCourt
-                                ?.takeIf { assistantSpaceId == it.id }
-                                ?.let { SpaceCopy.named(it.type, it.name) },
+                        rentedCourt
+                            ?.takeIf { assistantSpaceId == it.id }
+                            ?.let { SpaceCopy.named(it.type, it.name) }
+                            ?: venue?.space?.let { SpaceCopy.named(it.type, it.name) }
+                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
                     customerName =
                         (studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName())
                             .takeIf { it.isNotBlank() }
