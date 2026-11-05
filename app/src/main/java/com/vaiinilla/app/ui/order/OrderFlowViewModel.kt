@@ -1075,6 +1075,8 @@ class OrderFlowViewModel
                         paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
                         withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
                         pickUpAtBar = !home && current.pickUpAtBarForOrder,
+                        confirmTakeAway =
+                            current.takeAwayConfirmed && current.checkoutDestination == OrderDestination.TAKE_AWAY,
                     )
                 // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
                 // respondería con un 400 sin explicación (COMPRA-18).
@@ -1170,6 +1172,8 @@ class OrderFlowViewModel
                                     ),
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
+                                takeAwayWithSeatPrompt = null,
+                                takeAwayConfirmed = false,
                                 cartNotice = null,
                                 unavailableCartKeys = emptySet(),
                             )
@@ -1178,6 +1182,19 @@ class OrderFlowViewModel
                     },
                     onFailure = { error ->
                         val code = (error as? OrderRepositoryException)?.code
+                        // Tiene lugar en una mesa o pista: se le pregunta si de verdad lo quiere para llevar y,
+                        // si confirma, el pedido se reenvía con `confirmar_para_llevar` (R15).
+                        if (code == TAKE_AWAY_WITH_ACTIVE_SEAT) {
+                            pendingIdempotencyKey = null
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    creatingOrder = false,
+                                    createOrderError = null,
+                                    takeAwayConfirmed = false,
+                                    takeAwayWithSeatPrompt = takeAwayWithSeatMessage(current),
+                                )
+                            return@fold
+                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
@@ -1192,6 +1209,32 @@ class OrderFlowViewModel
                         if (code == PRODUCT_UNAVAILABLE) reconcileCartWithCatalog()
                     },
                 )
+            }
+        }
+
+        /** El cliente confirma «Para llevar» aunque tenga lugar en una mesa o pista: se reenvía el pedido. */
+        fun confirmTakeAwayWithSeat() {
+            if (_uiState.value.takeAwayWithSeatPrompt == null) return
+            _uiState.value =
+                _uiState.value.copy(
+                    takeAwayWithSeatPrompt = null,
+                    takeAwayConfirmed = true,
+                    createOrderError = null,
+                )
+            submitOrder()
+        }
+
+        /** No lo quiere para llevar: se queda en el carrito para cambiar el destino. */
+        fun dismissTakeAwayWithSeat() {
+            _uiState.value = _uiState.value.copy(takeAwayWithSeatPrompt = null, takeAwayConfirmed = false)
+        }
+
+        private fun takeAwayWithSeatMessage(state: OrderFlowUiState): String {
+            val place = state.checkoutSpaces.firstOrNull()?.name
+            return if (place != null) {
+                "Tienes lugar en $place. Si lo pides para llevar, no te lo llevan ahí. ¿Lo pides para llevar?"
+            } else {
+                "Tienes lugar en una mesa o pista. Si lo pides para llevar, no te lo llevan ahí. ¿Lo pides para llevar?"
             }
         }
 
@@ -1895,6 +1938,7 @@ class OrderFlowViewModel
         private companion object {
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
             const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
+            const val TAKE_AWAY_WITH_ACTIVE_SEAT = "PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA"
             const val CLAIM_ATTEMPTS = 3
             const val CLAIM_RETRY_BASE_MS = 2_000L
             const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"

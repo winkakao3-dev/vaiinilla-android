@@ -1732,6 +1732,8 @@ fun AppNavHost(
                         onPaymentChange = orderFlowViewModel::updateCheckoutPayment,
                         onPayAtEnd = orderFlowViewModel::selectPayAtEnd,
                         onPickUpAtBarChange = orderFlowViewModel::updateCheckoutPickUpAtBar,
+                        onConfirmTakeAwayWithSeat = orderFlowViewModel::confirmTakeAwayWithSeat,
+                        onDismissTakeAwayWithSeat = orderFlowViewModel::dismissTakeAwayWithSeat,
                         onConfirm = {
                             if (guestAuthRequired) {
                                 studentAuthViewModel.ensureVenueContext(

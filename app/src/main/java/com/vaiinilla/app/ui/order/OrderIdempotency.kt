@@ -24,6 +24,8 @@ internal fun createOrderFingerprint(request: CreateOrderRequest): String {
             // Solo cuando es true, para no cambiar la huella de los pedidos de siempre.
             if (request.payAtEnd) append("|pago_al_final")
             if (request.pickUpAtBar) append("|recoge_en_barra")
+            // Confirmar «Para llevar» cambia el cuerpo: el reintento necesita una llave nueva.
+            if (request.confirmTakeAway) append("|confirmar_para_llevar")
             // Solo en pedidos de mostrador: el nombre cambia el pedido, así que no puede reusar la llave.
             if (request.origin == OrderOrigin.MOSTRADOR) {
                 val name = request.customerName.orEmpty()

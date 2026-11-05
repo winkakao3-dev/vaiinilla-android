@@ -54,6 +54,15 @@ class PayAtEndContractTest {
     }
 
     @Test
+    fun `confirmar_para_llevar only travels once the customer confirms and changes the fingerprint`() {
+        val takeAway = request(destination = OrderDestination.TAKE_AWAY, spaceId = null)
+        assertFalse(json.encodeCreateRequest(takeAway).contains("confirmar_para_llevar"))
+        val confirmed = takeAway.copy(confirmTakeAway = true)
+        assertTrue(json.encodeCreateRequest(confirmed).contains("\"confirmar_para_llevar\":true"))
+        assertNotEquals(createOrderFingerprint(takeAway), createOrderFingerprint(confirmed))
+    }
+
+    @Test
     fun `a take away order also sends pago_diferido false`() {
         val raw = json.encodeCreateRequest(request(destination = OrderDestination.TAKE_AWAY, spaceId = null))
         assertTrue(raw.contains("\"pago_diferido\":false"))

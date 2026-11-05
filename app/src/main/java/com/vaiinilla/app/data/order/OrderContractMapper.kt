@@ -35,6 +35,7 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         kitchenNotes = kitchenNotes.trim().takeIf { it.isNotEmpty() },
         items = items.map { it.toDto() },
         payAtEnd = payAtEnd,
+        confirmTakeAway = confirmTakeAway.takeIf { it },
         customerName = customerName?.trim()?.takeIf { it.isNotEmpty() },
         delivery = delivery?.toDto(),
         deliveryDate = deliveryDate?.takeIf { it.isNotBlank() },

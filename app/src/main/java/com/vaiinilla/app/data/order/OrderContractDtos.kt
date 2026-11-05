@@ -20,6 +20,9 @@ data class CreateOrderRequestDto(
     // «Pago en caja» elegido a propósito acababa en la cuenta del espacio.
     @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("pago_diferido") val payAtEnd: Boolean = false,
+    // Solo tras el 409 PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA, cuando el cliente confirma «Para llevar».
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("confirmar_para_llevar") val confirmTakeAway: Boolean? = null,
     // El backend lee `nombre_cliente` al crear; con `nombre_cliente_snapshot` el nombre se perdía.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("nombre_cliente") val customerName: String? = null,

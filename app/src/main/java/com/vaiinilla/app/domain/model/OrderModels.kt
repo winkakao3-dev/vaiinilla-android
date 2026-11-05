@@ -56,6 +56,8 @@ data class CreateOrderRequest(
     val withDeposit: Boolean = false,
     /** «Pasa por él»: en un espacio, el cliente lo recoge en la barra en lugar de que se lo lleven. */
     val pickUpAtBar: Boolean = false,
+    /** «Para llevar» confirmado aunque el cliente tenga una silla activa en una mesa o pista (R15). */
+    val confirmTakeAway: Boolean = false,
 )
 
 /** A dónde se lleva un pedido, como lo escribe el cliente. */

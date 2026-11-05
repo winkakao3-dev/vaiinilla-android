@@ -102,6 +102,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -124,6 +125,8 @@ import com.vaiinilla.app.ui.components.CremePillRow
 import com.vaiinilla.app.ui.components.CremeStat
 import com.vaiinilla.app.ui.components.CremeStatRow
 import com.vaiinilla.app.ui.components.CremeVenueChip
+import com.vaiinilla.app.ui.components.EditorialAccentButton
+import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.GlassCircleButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
@@ -206,6 +209,9 @@ fun CartScreen(
     onWallet: () -> Unit = {},
     /** A domicilio y encargos (CASA-05 a 08); sin `reparto` en el estado de la tienda no se ve nada de esto. */
     home: HomeCheckoutActions = HomeCheckoutActions(),
+    /** Con silla activa en una mesa o pista, el servidor pide confirmar «Para llevar» (R15). */
+    onConfirmTakeAwayWithSeat: () -> Unit = {},
+    onDismissTakeAwayWithSeat: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -620,6 +626,13 @@ fun CartScreen(
                         onPaymentChange(method)
                         onConfirm()
                     },
+                )
+            }
+            state.takeAwayWithSeatPrompt?.let { message ->
+                TakeAwayWithSeatDialog(
+                    message = message,
+                    onConfirm = onConfirmTakeAwayWithSeat,
+                    onDismiss = onDismissTakeAwayWithSeat,
                 )
             }
         }
@@ -1748,3 +1761,37 @@ internal fun shouldShowCheckoutDock(
     hasCartItems: Boolean,
     imeVisible: Boolean,
 ): Boolean = hasCartItems && !imeVisible
+
+/** «Para llevar» con lugar en una mesa o pista: se confirma antes de reenviar el pedido (R15). */
+@Composable
+private fun TakeAwayWithSeatDialog(
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalVaiinillaColors.current
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = colors.paper,
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("¿Para llevar?", color = colors.ink, fontWeight = FontWeight.Black, fontSize = 19.sp)
+                Text(
+                    message,
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 18.dp),
+                )
+                EditorialAccentButton(text = "Sí, para llevar", onClick = onConfirm)
+                EditorialSecondaryButton(
+                    text = "Cambiar destino",
+                    onClick = onDismiss,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+}

@@ -47,6 +47,13 @@ data class OrderFlowUiState(
     val checkoutPayAtEnd: Boolean = false,
     /** «Pasa por él»: lo que eligió el cliente cuando el negocio ofrece las dos formas. */
     val checkoutPickUpAtBar: Boolean = false,
+    /**
+     * El servidor pidió confirmar «Para llevar» porque el cliente tiene lugar en una mesa o pista
+     * (409 PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA): con texto se muestra la pregunta.
+     */
+    val takeAwayWithSeatPrompt: String? = null,
+    /** El cliente ya confirmó «Para llevar» con su silla activa: el pedido se reenvía con la confirmación. */
+    val takeAwayConfirmed: Boolean = false,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     /** Líneas del carrito que el menú vigente ya no permite pedir (agotadas o con opciones que cambiaron). */
