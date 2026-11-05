@@ -1712,12 +1712,13 @@ private fun CashierTodayCard(
         shape = RoundedCornerShape(24.dp),
         color = colors.cardBackground,
     ) {
+        // L01: con letra grande las dos mitades se encimaban; cada una tiene su mitad y se parte entre palabras.
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "COBRADO EN EFECTIVO",
                     color = colors.textSecondary,
@@ -1734,7 +1735,10 @@ private fun CashierTodayCard(
                 )
             }
             Column(
-                modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
@@ -1742,6 +1746,7 @@ private fun CashierTodayCard(
                     color = colors.textSecondary,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.End,
                 )
                 Text(
                     expectedCash?.let(::moneyLabel) ?: "—",
