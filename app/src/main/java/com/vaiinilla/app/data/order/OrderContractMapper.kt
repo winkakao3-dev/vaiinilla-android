@@ -104,6 +104,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 paymentPending = paymentPending,
                 cancelReason = cancelReason,
                 canceledByRole = canceledByRole,
+                cancelReasonCode = cancelReasonCode,
                 tableSessionId = tableSessionId,
                 deliveryWithoutQr = deliveryWithoutQr,
                 amountPaid = amountPaid,

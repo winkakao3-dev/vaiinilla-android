@@ -159,6 +159,20 @@ class OrderJourneyTest {
         assertTrue(journeyFacts(unpaidPreorder, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste el anticipo" })
     }
 
+    @Test
+    fun aPreorderCanceledForAnUnpaidDepositSaysTheDeadlinePassed() {
+        val canceled = order(OrderState.CANCELED, PaymentMethod.STRIPE, home = true)
+        val noAnswer =
+            canceled.copy(
+                payBy = Instant.parse("2026-11-03T23:30:00Z"),
+                summary = canceled.summary.copy(cancelReasonCode = "sin_respuesta_del_negocio"),
+            )
+        assertEquals("No pudieron aceptarlo", journeyCaption(noAnswer, OrderJourney.HOME_DELIVERY).text)
+        val unpaid = noAnswer.copy(summary = noAnswer.summary.copy(cancelReasonCode = "anticipo_sin_pagar"))
+        assertEquals("Venció el plazo de pago", journeyCaption(unpaid, OrderJourney.HOME_DELIVERY).text)
+        assertTrue(journeyHeadline(unpaid, OrderJourney.HOME_DELIVERY).startsWith("Se pasó el plazo para pagar tu "))
+    }
+
     private fun order(
         state: OrderState,
         payment: PaymentMethod = PaymentMethod.BALANCE,

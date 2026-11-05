@@ -234,6 +234,8 @@ data class OrderDetailDto(
     @SerialName("saldo_pendiente") val balanceDue: String? = null,
     @SerialName("motivo_cancelacion") val cancelReason: String? = null,
     @SerialName("cancelado_por_rol") val canceledByRole: String? = null,
+    /** `anticipo_sin_pagar`, `sin_respuesta_del_negocio`…; un servidor anterior no lo envía. */
+    @SerialName("motivo_cancelacion_codigo") val cancelReasonCode: String? = null,
     @SerialName("reserva") val reservation: OrderReservationDto? = null,
     @SerialName("llegada_en") val arrivedAt: String? = null,
     @SerialName("sesion_espacio_id") val tableSessionId: String? = null,

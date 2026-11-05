@@ -264,6 +264,8 @@ data class OrderSummary(
     /** Motivo que indicó quien canceló o rechazó el pedido; solo si está cancelado. */
     val cancelReason: String? = null,
     val canceledByRole: String? = null,
+    /** Código del motivo de cancelación (`anticipo_sin_pagar`…); distingue quién dejó pasar el plazo (R29). */
+    val cancelReasonCode: String? = null,
     /** Sesión de mesa a la que pertenece el pedido; `null` si va para llevar o no tiene sesión. */
     val tableSessionId: String? = null,
     /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */

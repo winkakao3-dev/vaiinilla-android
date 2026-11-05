@@ -522,6 +522,8 @@ internal fun journeyCaption(
     val waiting = CaptionTone.WAITING
     val done = CaptionTone.DONE
     return when {
+        state == OrderState.CANCELED && order.depositDeadlineMissed() ->
+            JourneyCaption("Venció el plazo de pago", CaptionTone.PROBLEM)
         state == OrderState.CANCELED && order.neverCharged() ->
             JourneyCaption(
                 "No pudieron aceptarlo",
@@ -615,6 +617,7 @@ internal fun journeyHeadline(
     val rejected = order.rejectedItems()
     val word = order.itemWord(journey)
     return when {
+        state == OrderState.CANCELED && order.depositDeadlineMissed() -> "Se pasó el plazo para pagar tu $word."
         state == OrderState.CANCELED && order.neverCharged() -> "El negocio no pudo aceptar tu $word."
         state == OrderState.CANCELED ->
             if (order.summary.canceledByRole in setOf("cocina", "cajero", "admin")) {
@@ -808,11 +811,16 @@ internal fun journeyMoneyBack(order: OrderDetail): String? {
 /** El renglón bajo [journeyMoneyBack]. */
 internal fun journeyMoneyBackNote(order: OrderDetail): String? =
     cancellationMoneyNote(order)
-        ?: if (order.summary.state == OrderState.CANCELED && order.neverCharged()) {
-            "El anticipo se paga cuando el negocio acepta. Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
-        } else {
-            null
+        ?: when {
+            order.summary.state == OrderState.CANCELED && order.depositDeadlineMissed() ->
+                "El negocio lo aceptó, pero el anticipo no se pagó a tiempo. Tu tarjeta no tuvo ningún cargo."
+            order.summary.state == OrderState.CANCELED && order.neverCharged() ->
+                "El anticipo se paga cuando el negocio acepta. Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
+            else -> null
         }
+
+/** El negocio aceptó el encargo, pero el cliente no pagó el anticipo a tiempo (R29): no fue un rechazo. */
+private fun OrderDetail.depositDeadlineMissed(): Boolean = summary.cancelReasonCode == "anticipo_sin_pagar"
 
 /** Un encargo con tarjeta que se canceló antes de pagarse: a la tarjeta nunca se le cobró (EQUIPO-53). */
 private fun OrderDetail.neverCharged(): Boolean =
