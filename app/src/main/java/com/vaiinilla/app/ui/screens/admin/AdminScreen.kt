@@ -307,6 +307,8 @@ fun AdminScreen(
                                 cardFeeToCustomer = cardFeeToCustomer,
                                 isSchool = isSchool,
                                 takesPreorders = takesPreorders,
+                                inventory = sections.inventory,
+                                scope = scope,
                             )
                         AdminTab.TAKE_ORDER ->
                             sections.orderTaker?.invoke(header)
