@@ -292,9 +292,9 @@ internal fun OrderJourneyPage(
             modifier
                 .fillMaxSize()
                 .background(colors.paper)
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
     ) {
         JourneyTopRow(
