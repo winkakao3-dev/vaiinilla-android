@@ -646,7 +646,7 @@ internal fun PrivacyNoticeText(
         notice.paragraphs.forEach { Text(it, color = colors.textPrimary, fontSize = 14.sp, lineHeight = 20.sp) }
         if (notice.isDraft) {
             Text(
-                "Borrador en revisión legal · versión ${notice.version}",
+                "Versión ${notice.version}",
                 color = colors.textSecondary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
