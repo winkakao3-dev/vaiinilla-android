@@ -256,7 +256,8 @@ private fun WaiterPill(state: MenuWaiterCallState) {
 }
 
 /**
- * Una sola barra de tinta: "Ver carrito · N" y el total abren el carrito; adentro, a la derecha, "Mesero" llama.
+ * Una sola barra lima: "Pedir ya · N" y el total abren el carrito para pagar; adentro, a la derecha, "Mesero" llama.
+ * Antes era de tinta y decía "Ver carrito": quien no conoce la app no la veía como el paso para pedir (Doop L02b).
  * Si el negocio no tiene llamadas, queda solo el carrito. Salta un poco con cada producto que entra.
  */
 @Composable
@@ -297,12 +298,12 @@ private fun CartWaiterBar(
                     scaleY = barScale * bump.value
                 }.shadow(18.dp, shape, clip = false)
                 .clip(shape)
-                .background(colors.ink)
+                .background(colors.accent)
                 .clickable(interactionSource = barPress, indication = null, role = Role.Button) {
                     haptics.click()
                     cart.onOpen()
                 }.semantics(mergeDescendants = false) {
-                    contentDescription = "Ver carrito: $products, ${cart.total}"
+                    contentDescription = "Pedir ya: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
                 .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -311,15 +312,15 @@ private fun CartWaiterBar(
             AssistantDot(onOpenAssistant)
             Spacer(Modifier.width(12.dp))
         }
-        Text("Ver carrito · ", color = colors.onInk, fontSize = 15.5.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text("Pedir ya · ", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
         NumberTicker(value = cart.count, label = "cart-bar-count") { value ->
-            Text("$value", color = colors.onInk, fontSize = 15.5.sp, fontWeight = FontWeight.Black)
+            Text("$value", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.weight(1f))
         RollingText(
             text = cart.total,
             style = TextStyle(fontSize = 15.5.sp, fontWeight = FontWeight.Black),
-            color = colors.onInk,
+            color = colors.accentInk,
             modifier = Modifier.padding(end = if (state.phase == MenuWaiterPhase.UNAVAILABLE) 13.dp else 8.dp),
         )
         if (state.phase != MenuWaiterPhase.UNAVAILABLE) WaiterSegment(state = state)
@@ -350,7 +351,7 @@ private fun WaiterSegment(state: MenuWaiterCallState) {
                     scaleY = scale
                     alpha = if (waiting) 0.6f else 1f
                 }.clip(RoundedCornerShape(percent = 50))
-                .background(if (calling) colors.accent else colors.onInk)
+                .background(if (calling) colors.ink else colors.onInk)
                 .clickable(interactionSource = press, indication = null, enabled = !waiting, role = Role.Button) {
                     haptics.click()
                     state.tap()
@@ -370,7 +371,7 @@ private fun WaiterSegment(state: MenuWaiterCallState) {
                 }.padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val ink = if (calling) colors.accentInk else colors.ink
+        val ink = if (calling) colors.accent else colors.ink
         CompositionLocalProvider(LocalContentColor provides ink) { WaiterIcon(icon = label.icon) }
         AnimatedContent(
             targetState = label.shortTitle,
@@ -424,7 +425,7 @@ private fun AssistantPill(onOpen: () -> Unit) {
     }
 }
 
-/** El asistente dentro de la barra del carrito: un círculo lima a la izquierda (Doop CA1b). */
+/** El asistente dentro de la barra «Pedir ya»: un círculo de tinta con la chispa lima a la izquierda (Doop CA1b). */
 @Composable
 private fun AssistantDot(onOpen: () -> Unit) {
     val colors = LocalVaiinillaColors.current
@@ -435,7 +436,7 @@ private fun AssistantDot(onOpen: () -> Unit) {
                 .minimumInteractiveComponentSize()
                 .size(42.dp)
                 .clip(RoundedCornerShape(percent = 50))
-                .background(colors.accent)
+                .background(colors.ink)
                 .clickable(role = Role.Button) {
                     haptics.click()
                     onOpen()
@@ -443,7 +444,7 @@ private fun AssistantDot(onOpen: () -> Unit) {
                 .testTag(MENU_ASSISTANT_PILL_TAG),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(20.dp))
+        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
     }
 }
 
