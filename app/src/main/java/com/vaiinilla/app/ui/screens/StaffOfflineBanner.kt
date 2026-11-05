@@ -208,7 +208,7 @@ internal fun OfflineOrdersCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "${order.localFolio} · ${order.placeLabel}",
+                        offlineProblemTitle(order),
                         color = OfflineInk,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.5.sp,
@@ -223,9 +223,21 @@ internal fun OfflineOrdersCard(
                     )
                 }
                 TextButton(onClick = { onDismiss(order) }) {
-                    Text("Ya lo resolví", color = OfflineInk, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (order.collectedButNotRegistered) "Ya lo cobré" else "Ya lo resolví",
+                        color = OfflineInk,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }
     }
 }
+
+/** «Cobrado sin registrar» va primero: el efectivo ya está en el cajón y no entró a ningún corte. */
+internal fun offlineProblemTitle(order: OfflineStaffOrder): String =
+    if (order.collectedButNotRegistered) {
+        "Cobrado sin registrar · #${order.registeredFolio} (${order.localFolio}) · ${order.placeLabel}"
+    } else {
+        "${order.localFolio} · ${order.placeLabel}"
+    }

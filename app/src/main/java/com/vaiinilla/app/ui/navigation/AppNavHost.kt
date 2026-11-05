@@ -52,6 +52,7 @@ import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.core.notifications.ReceivedNoticeLog
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
+import com.vaiinilla.app.data.counter.AndroidConnectivityWatcher
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.counter.CounterScope
 import com.vaiinilla.app.domain.mode.RestrictedMode
@@ -261,6 +262,11 @@ fun AppNavHost(
     LaunchedEffect(cashierShift) { studentCounterViewModel.setShift(cashierShift) }
     LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
+    }
+    // Efectivo que Caja cobró sin internet y aún no se registra: el cierre de caja espera a que se mande (R5).
+    val unsyncedOfflineCash = waiterState.offlineOrders.unregisteredCash.size
+    LaunchedEffect(unsyncedOfflineCash, operationalState.role) {
+        operationalViewModel.setUnsyncedOfflineCash(unsyncedOfflineCash)
     }
     // Pedidos guardados sin internet de un modo que ya no está abierto (app reiniciada, otro modo): salen solos.
     LaunchedEffect(authorizedAccessState.modes, authorizedAccessState.activeContext?.membershipId) {
@@ -708,6 +714,55 @@ fun AppNavHost(
         }
     }
 
+    /** Con los modos ya cargados, vuelve al modo de personal que estaba abierto (O04). */
+    fun reopenRememberedStaffMode() {
+        if (authorizedAccessViewModel.state.value.activeContext != null) return
+        val remembered = authorizedAccessViewModel.rememberedStaffMode() ?: return
+        authorizedAccessViewModel.activateMode(remembered) {
+            operationalViewModel.setRole(remembered.role)
+            navigateAuthorizedMode(remembered.role)
+        }
+    }
+
+    /**
+     * O04: al volver la red, Modos que se quedó en error recarga solo y reabre el modo recordado; un modo reabierto
+     * sin internet se activa de nuevo con el servidor (token nuevo; si el acceso se revocó, lo saca la revisión).
+     */
+    fun onNetworkBack() {
+        val access = authorizedAccessViewModel.state.value
+        val active = access.activeContext
+        if (access.restoredOffline && active != null) {
+            authorizedAccessViewModel.refreshModes(force = true) { loaded ->
+                if (!loaded) return@refreshModes
+                val current = authorizedAccessViewModel.state.value
+                if (!current.restoredOffline) return@refreshModes
+                current.modes
+                    .firstOrNull {
+                        it.role == active.role &&
+                            it.establishmentId == active.establishmentId &&
+                            it.membershipId == active.membershipId
+                    }?.let { authorizedAccessViewModel.activateMode(it) }
+            }
+            return
+        }
+        val onModes = navController.currentDestination?.route == Routes.STAFF_MODES
+        if (onModes && active == null && !access.loading && (access.modes.isEmpty() || access.errorMessage != null)) {
+            authorizedAccessViewModel.refreshModes(force = true) { loaded ->
+                if (loaded) reopenRememberedStaffMode()
+            }
+        }
+    }
+
+    val connectivityContext = LocalContext.current
+    DisposableEffect(Unit) {
+        val reconnect =
+            AndroidConnectivityWatcher(connectivityContext).onReconnect {
+                // Llega en un hilo de ConnectivityManager: se pasa al principal.
+                launchNavScope.launch { onNetworkBack() }
+            }
+        onDispose { reconnect.close() }
+    }
+
     LaunchedEffect(
         authorizedAccessState.activeContext,
         authorizedAccessState.modes,
@@ -1109,6 +1164,13 @@ fun AppNavHost(
                                 operationalViewModel.setRole(remembered.role)
                                 navigateAuthorizedMode(remembered.role)
                             }
+                        } else if (!modesLoaded && destination == LaunchDestination.StaffModes) {
+                            // Sin internet al abrir (O04): Mesero o Caja se reabren con lo guardado y la cola sin
+                            // conexión guarda los pedidos. Si no se puede, Modos muestra el error y reintenta solo.
+                            authorizedAccessViewModel.reopenRememberedModeOffline()?.let { reopened ->
+                                operationalViewModel.setRole(reopened.role)
+                                navigateAuthorizedMode(reopened.role)
+                            }
                         }
                     }
                 }
@@ -1261,7 +1323,11 @@ fun AppNavHost(
                         }
                     },
                     onSignOut = { signOutAndFinish() },
-                    onRetry = { authorizedAccessViewModel.refreshModes(force = true) },
+                    onRetry = {
+                        authorizedAccessViewModel.refreshModes(force = true) { loaded ->
+                            if (loaded) reopenRememberedStaffMode()
+                        }
+                    },
                     isPlatformAuthority = platformViewModel.state.value.authority?.isAuthority == true,
                     onOpenPlatform = { navController.navigate(Routes.PLATFORM) { launchSingleTop = true } },
                     onContinueAsClient = {
@@ -2470,9 +2536,17 @@ fun AppNavHost(
                         openSearchRequest = cashierSearchRequests,
                         onBack = returnToModes(navController, operationalViewModel),
                         onOpenCashSession = operationalViewModel::openCashRegister,
-                        onRequestCloseCash = operationalViewModel::requestCloseCash,
+                        onRequestCloseCash = {
+                            // Antes de cerrar se intenta mandar ya lo cobrado sin internet.
+                            if (waiterState.offlineOrders.unregisteredCash.isNotEmpty()) {
+                                waiterViewModel.sendOfflineOrdersNow()
+                            }
+                            operationalViewModel.requestCloseCash()
+                        },
                         onDismissCloseCash = operationalViewModel::dismissCloseCash,
                         onCloseCash = operationalViewModel::closeCashRegister,
+                        onLoadCashDrawer = operationalViewModel::loadCashDrawer,
+                        onSaveDrawerMovement = operationalViewModel::registerDrawerMovement,
                         onCollect = operationalViewModel::collectCash,
                         onSearchWalletClients = operationalViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },

@@ -33,6 +33,8 @@ import com.vaiinilla.app.domain.model.RefundOutcome
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.domain.repository.CashDrawerMovementType
+import com.vaiinilla.app.domain.repository.CashDrawerRules
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
@@ -118,6 +120,10 @@ class OperationalViewModel
         /** Abrir/cerrar caja, crear producto o llamar mesero: el reintento reusa la llave hasta que confirman. */
         private val retryKeys = RetryKeys()
         private var errorClearJob: Job? = null
+        private var cashDrawerJob: Job? = null
+
+        /** La llave del movimiento del cajón que falló por red: el reintento del mismo no lo anota dos veces. */
+        private var drawerMovementKey: Pair<String, String>? = null
 
         // Cada refresh() lleva su número: una respuesta más vieja que la ya aplicada se descarta.
         private var refreshSeq = 0L
@@ -184,6 +190,7 @@ class OperationalViewModel
                     walletReloadReceipt = null,
                     pendingWalletReload = null,
                     catalog = null,
+                    cashDrawer = CashDrawerUi(),
                 )
             pendingWalletReload = null
             if (role == OperationalRole.CASHIER) surfaceDeferredCashierNotice()
@@ -541,6 +548,124 @@ class OperationalViewModel
         fun requestCloseCash() {
             if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
             _uiState.value = _uiState.value.copy(closeCash = CloseCashUi())
+            // El cierre enseña el mismo desglose que el corte (R37).
+            loadCashDrawer()
+        }
+
+        /** Lee el resumen y los renglones del cajón de la caja abierta (N11). */
+        fun loadCashDrawer() {
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
+            if (cashDrawerJob?.isActive == true) return
+            val generation = roleGeneration
+            _uiState.value =
+                _uiState.value.copy(cashDrawer = _uiState.value.cashDrawer.copy(loading = true, errorMessage = null))
+            cashDrawerJob =
+                viewModelScope.launch {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            cashSessionRepository.activeSessionId().mapCatching { id ->
+                                val sessionId = id ?: error("No hay una caja abierta.")
+                                cashSessionRepository.drawerReport(sessionId).getOrThrow()
+                            }
+                        }
+                    if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                    val drawer = _uiState.value.cashDrawer
+                    _uiState.value =
+                        result.fold(
+                            onSuccess = { report ->
+                                _uiState.value.copy(
+                                    cashDrawer = drawer.copy(loading = false, report = report, errorMessage = null),
+                                    expectedCash = report.summary.expected,
+                                )
+                            },
+                            onFailure = { error ->
+                                _uiState.value.copy(
+                                    cashDrawer =
+                                        drawer.copy(
+                                            loading = false,
+                                            errorMessage = error.toUserFacingMessage("No se pudo leer el cajón."),
+                                        ),
+                                    // Lo que haya respondido la consulta de la caja sigue valiendo.
+                                    expectedCash = cashSessionRepository.expectedCash ?: _uiState.value.expectedCash,
+                                )
+                            },
+                        )
+                }
+        }
+
+        /** Caja mete o saca efectivo del cajón con su motivo; el esperado y el cierre ya lo cuentan. */
+        fun registerDrawerMovement(
+            type: CashDrawerMovementType,
+            amount: String,
+            reason: String,
+        ) {
+            if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
+            val drawer = _uiState.value.cashDrawer
+            if (drawer.saving) return
+            val positive = amount.toBigDecimalOrNull()?.signum() == 1
+            if (!positive || !CashDrawerRules.validReason(reason)) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        cashDrawer =
+                            drawer.copy(
+                                saveError =
+                                    "Escribe un monto mayor a cero y un motivo de ${CashDrawerRules.REASON_MIN} a " +
+                                        "${CashDrawerRules.REASON_MAX} letras.",
+                            ),
+                    )
+                return
+            }
+            val fingerprint = listOf(type.wireValue, amount, reason.trim()).joinToString("|")
+            val key =
+                drawerMovementKey?.takeIf { it.first == fingerprint }?.second ?: UUID.randomUUID().toString()
+            drawerMovementKey = fingerprint to key
+            val generation = roleGeneration
+            _uiState.value = _uiState.value.copy(cashDrawer = drawer.copy(saving = true, saveError = null))
+            viewModelScope.launch {
+                val result =
+                    withContext(Dispatchers.IO) {
+                        cashSessionRepository.activeSessionId().mapCatching { id ->
+                            val sessionId = id ?: error("No hay una caja abierta.")
+                            cashSessionRepository
+                                .registerDrawerMovement(sessionId, type, amount, reason, key)
+                                .getOrThrow()
+                        }
+                    }
+                if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                val current = _uiState.value.cashDrawer
+                result
+                    .onSuccess { expected ->
+                        drawerMovementKey = null
+                        _uiState.value =
+                            _uiState.value.copy(
+                                cashDrawer =
+                                    current.copy(saving = false, saveError = null, savedCount = current.savedCount + 1),
+                                expectedCash = expected ?: _uiState.value.expectedCash,
+                                actionNotice =
+                                    if (type == CashDrawerMovementType.IN) {
+                                        "Entrada de ${moneyLabel(amount)} anotada"
+                                    } else {
+                                        "Salida de ${moneyLabel(amount)} anotada"
+                                    },
+                            )
+                        loadCashDrawer()
+                    }.onFailure { error ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                cashDrawer =
+                                    current.copy(
+                                        saving = false,
+                                        saveError = error.toUserFacingMessage("No se pudo anotar el movimiento."),
+                                    ),
+                            )
+                    }
+            }
+        }
+
+        /** Lo dice la cola de pedidos sin internet de Caja; el cierre se bloquea mientras haya alguno. */
+        fun setUnsyncedOfflineCash(count: Int) {
+            if (_uiState.value.unsyncedOfflineCash == count) return
+            _uiState.value = _uiState.value.copy(unsyncedOfflineCash = count)
         }
 
         fun dismissCloseCash() {
@@ -552,6 +677,14 @@ class OperationalViewModel
         fun closeCashRegister(finalAmount: String) {
             val current = _uiState.value.closeCash ?: return
             if (_uiState.value.role != OperationalRole.CASHIER || current.closing) return
+            // Efectivo cobrado sin internet que aún no se registra: cerrar ahora lo deja fuera del arqueo y, al
+            // sincronizar, caería en otra caja o quedaría por cobrar (y se cobraría dos veces).
+            val unsynced = _uiState.value.unsyncedOfflineCash
+            if (unsynced > 0) {
+                _uiState.value =
+                    _uiState.value.copy(closeCash = current.copy(errorMessage = unsyncedOfflineCashNotice(unsynced)))
+                return
+            }
             val generation = roleGeneration
             _uiState.value = _uiState.value.copy(closeCash = CloseCashUi(closing = true))
             viewModelScope.launch {
@@ -568,7 +701,8 @@ class OperationalViewModel
                 if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
                 result
                     .onSuccess {
-                        _uiState.value = _uiState.value.copy(closeCash = null, cashSessionOpen = false)
+                        _uiState.value =
+                            _uiState.value.copy(closeCash = null, cashSessionOpen = false, cashDrawer = CashDrawerUi())
                         // Al cerrar, el servidor expira los pedidos por cobrar: que no queden como cobrables.
                         requestFullSync()
                     }.onFailure { error ->

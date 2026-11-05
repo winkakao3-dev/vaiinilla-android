@@ -92,6 +92,8 @@ class PreferencesOfflineStaffOrderStore(
         val summary: String,
         val capturedAt: String,
         val problem: String? = null,
+        val collectedCash: Boolean = false,
+        val registeredFolio: Int? = null,
     ) {
         fun toDomain(): OfflineStaffOrder =
             OfflineStaffOrder(
@@ -103,6 +105,9 @@ class PreferencesOfflineStaffOrderStore(
                 summary = summary,
                 capturedAt = Instant.parse(capturedAt),
                 problem = problem,
+                // Guardados antes de este campo: el cuerpo dice si Caja ya lo cobró.
+                collectedCash = collectedCash || body.contains(COLLECT_NOW_MARK),
+                registeredFolio = registeredFolio,
             )
 
         companion object {
@@ -116,6 +121,8 @@ class PreferencesOfflineStaffOrderStore(
                     summary = order.summary,
                     capturedAt = order.capturedAt.toString(),
                     problem = order.problem,
+                    collectedCash = order.collectedCash,
+                    registeredFolio = order.registeredFolio,
                 )
         }
     }
@@ -124,6 +131,7 @@ class PreferencesOfflineStaffOrderStore(
         const val PREFERENCES_NAME = "vaiinilla_offline_staff_orders"
         const val DEVICE_TAG_3 = "device-tag-3"
         const val KEY_PREFIX = "offline-orders-"
+        const val COLLECT_NOW_MARK = "\"cobrar_ahora\":true"
         val json =
             Json {
                 ignoreUnknownKeys = true

@@ -15,6 +15,11 @@ data class AuthorizedAccessUiState(
     val activeContext: AuthorizedModeContext? = null,
     val errorMessage: String? = null,
     val message: String? = null,
+    /**
+     * O04: el modo abierto se reabrió sin internet con lo guardado en el teléfono. Al volver la red se activa de
+     * nuevo con el servidor (token nuevo y revisión del acceso).
+     */
+    val restoredOffline: Boolean = false,
 ) {
     val hasMultipleModes: Boolean
         get() = modes.size > 1 || modes.any { it.role != OperationalRole.CLIENT }

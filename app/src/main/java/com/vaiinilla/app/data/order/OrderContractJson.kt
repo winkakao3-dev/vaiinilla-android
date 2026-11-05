@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.CreationCashCollection
 import com.vaiinilla.app.domain.model.HomeDeliveryQuote
 import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -141,7 +142,28 @@ class OrderContractJson
                 } else {
                     null
                 }
-            return CreatedOrder(order = order, stripeSession = session)
+            return CreatedOrder(order = order, stripeSession = session, cashCollection = parseCreationCollection(raw))
+        }
+
+        /**
+         * `data.cobro` de un pedido con `cobrar_ahora`. `aplicado` es la respuesta nueva; sin él, `estado: cobrado`.
+         * Un `cobro` que no se entiende cuenta como no aplicado: el efectivo ya se recibió y alguien debe revisarlo.
+         */
+        internal fun parseCreationCollection(raw: String): CreationCashCollection? {
+            val cobro =
+                runCatching {
+                    (json.parseToJsonElement(raw) as? JsonObject)
+                        ?.get("data")
+                        ?.let { it as? JsonObject }
+                        ?.get("cobro")
+                }.getOrNull() ?: return null
+            if (cobro is JsonNull) return null
+            val fields = cobro as? JsonObject ?: return CreationCashCollection(applied = false)
+            fun text(key: String): String? = (fields[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+            val applied =
+                (fields["aplicado"] as? JsonPrimitive)?.takeUnless { it.isString }?.content?.toBooleanStrictOrNull()
+                    ?: (text("estado") == "cobrado")
+            return CreationCashCollection(applied = applied, code = text("codigo"), message = text("mensaje"))
         }
 
         /** Con `con_anticipo` Stripe cobra solo el anticipo; sin él, el total (CASA-07). */

@@ -155,12 +155,29 @@ data class CreateOrderItem(
 data class CreatedOrder(
     val order: OrderDetail,
     val stripeSession: StripePaymentSession? = null,
+    /** Lo que dijo el servidor del cobro en efectivo pedido con `cobrar_ahora`; null si no lo mandó. */
+    val cashCollection: CreationCashCollection? = null,
 ) {
     val summary: OrderSummary
         get() = order.summary
     val pickupToken: String?
         get() = order.pickupToken
+
+    /**
+     * Caja pidió cobrarlo al crearlo (`cobrar_ahora`) y el cobro no entró a ninguna caja: el servidor lo dice con
+     * `cobro.aplicado = false` (o `estado: pendiente`); uno anterior sin `cobro` lo deja ver con el pedido por cobrar.
+     */
+    val cashCollectionNotApplied: Boolean
+        get() = cashCollection?.applied == false ||
+            (cashCollection == null && summary.state == OrderState.PENDING_PAYMENT)
 }
+
+/** `cobro` de `POST /pedidos` con `cobrar_ahora`: si el efectivo quedó registrado en la caja abierta. */
+data class CreationCashCollection(
+    val applied: Boolean,
+    val code: String? = null,
+    val message: String? = null,
+)
 
 data class OrderDetail(
     val summary: OrderSummary,
