@@ -60,7 +60,10 @@ data class InventorySupplies(
     val totalValue: Double,
 )
 
-/** Al editar, unidad y costo en null no se mandan: el servidor conserva lo que tiene. */
+/**
+ * Al editar, unidad y costo en null no se mandan: el servidor conserva lo que tiene. [category] es la etiqueta propia
+ * del insumo (no la categoría del menú); "" la borra, null la deja como está (con `explicitNulls = false` no viaja).
+ */
 data class InventorySupplyInput(
     val name: String,
     val category: String?,
@@ -82,6 +85,15 @@ data class InventoryProduct(
     val enoughFor: Int?,
     val recipeCost: Double,
     val margin: Double?,
+)
+
+/** Un producto del menú cuya receta base gasta el insumo ([quantity] por unidad del producto). */
+data class SupplyProductLink(
+    val productId: Int,
+    val name: String,
+    val categoryId: Int,
+    val categoryName: String,
+    val quantity: Double,
 )
 
 data class RecipeLine(
@@ -173,6 +185,20 @@ interface InventoryRepository {
         productId: Int,
         lines: List<RecipeLine>,
     ): Result<List<RecipeLine>>
+
+    /** `GET /inventario/insumos/:id/productos`: los productos cuya receta base usa este insumo. */
+    fun supplyProducts(supplyId: Long): Result<List<SupplyProductLink>>
+
+    /**
+     * `PUT /inventario/insumos/:id/productos`: este insumo queda exactamente en esos productos (id → cantidad) y en los
+     * productos que hoy tiene cada categoría de [categories] (id → cantidad; lo suelto gana). Las líneas «si eligen…»
+     * no se tocan. Regresa cómo quedó.
+     */
+    fun saveSupplyProducts(
+        supplyId: Long,
+        products: Map<Int, Double>,
+        categories: Map<Int, Double> = emptyMap(),
+    ): Result<List<SupplyProductLink>>
 
     fun movements(
         fromIso: String?,
@@ -327,6 +353,35 @@ private data class LineBody(
 @Serializable
 private data class RecipeBody(
     val lineas: List<LineBody>,
+)
+
+@Serializable
+private data class SupplyProductDto(
+    @SerialName("producto_id") val productoId: Int,
+    val nombre: String = "",
+    @SerialName("categoria_id") val categoriaId: Int = 0,
+    @SerialName("categoria_nombre") val categoriaNombre: String = "",
+    val cantidad: Double = 0.0,
+) {
+    fun toDomain() = SupplyProductLink(productoId, nombre, categoriaId, categoriaNombre, cantidad)
+}
+
+@Serializable
+private data class SupplyProductBody(
+    @SerialName("producto_id") val productoId: Int,
+    val cantidad: Double,
+)
+
+@Serializable
+private data class SupplyCategoryBody(
+    @SerialName("categoria_id") val categoriaId: Int,
+    val cantidad: Double,
+)
+
+@Serializable
+private data class SupplyProductsBody(
+    val productos: List<SupplyProductBody>,
+    val categorias: List<SupplyCategoryBody>,
 )
 
 @Serializable
@@ -518,6 +573,24 @@ class RemoteInventoryRepository(
                     .map(LineDto::toDomain)
             }.mapApiErrors()
 
+    override fun supplyProducts(supplyId: Long): Result<List<SupplyProductLink>> =
+        apiClient
+            .get("inventario/insumos/$supplyId/productos")
+            .mapCatching { decodeSupplyProducts(it) }
+            .mapApiErrors()
+
+    override fun saveSupplyProducts(
+        supplyId: Long,
+        products: Map<Int, Double>,
+        categories: Map<Int, Double>,
+    ): Result<List<SupplyProductLink>> =
+        apiClient
+            .put(
+                "inventario/insumos/$supplyId/productos",
+                encodeSupplyProducts(products, categories),
+            ).mapCatching { decodeSupplyProducts(it) }
+            .mapApiErrors()
+
     override fun movements(
         fromIso: String?,
         toIso: String?,
@@ -592,3 +665,25 @@ class RemoteInventoryRepository(
             }.mapApiErrors()
     }
 }
+
+private val supplyProductsJson =
+    Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
+/** Contrato 5: `{data: [{producto_id, nombre, categoria_id, categoria_nombre, cantidad}]}`. */
+internal fun decodeSupplyProducts(raw: String): List<SupplyProductLink> =
+    supplyProductsJson.decodeFromString<Envelope<List<SupplyProductDto>>>(raw).data.map(SupplyProductDto::toDomain)
+
+/** Contrato 5: `{productos: [{producto_id, cantidad}], categorias: [{categoria_id, cantidad}]}`. */
+internal fun encodeSupplyProducts(
+    products: Map<Int, Double>,
+    categories: Map<Int, Double>,
+): String =
+    supplyProductsJson.encodeToString(
+        SupplyProductsBody(
+            products.map { (id, qty) -> SupplyProductBody(id, qty) },
+            categories.map { (id, qty) -> SupplyCategoryBody(id, qty) },
+        ),
+    )

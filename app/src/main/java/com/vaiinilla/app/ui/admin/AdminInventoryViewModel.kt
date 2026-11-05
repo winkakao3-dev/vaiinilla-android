@@ -14,6 +14,7 @@ import com.vaiinilla.app.data.inventory.InventorySupplies
 import com.vaiinilla.app.data.inventory.InventorySupply
 import com.vaiinilla.app.data.inventory.InventorySupplyInput
 import com.vaiinilla.app.data.inventory.RecipeLine
+import com.vaiinilla.app.data.inventory.SupplyProductLink
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -62,6 +63,9 @@ data class AdminInventoryUiState(
     val report: InventoryReport? = null,
     val history: List<InventoryMovement>? = null,
     val historyFor: InventorySupply? = null,
+    /** «Lo usan» del insumo [usesFor]: los productos cuya receta lo gasta, como están en el servidor. */
+    val usesFor: InventorySupply? = null,
+    val uses: List<SupplyProductLink>? = null,
     val notice: String? = null,
     val noticeIsError: Boolean = false,
 )
@@ -314,6 +318,55 @@ class AdminInventoryViewModel
                     }.onFailure {
                         update {
                             copy(saving = false, sheetError = it.toUserFacingMessage("No se pudo guardar la receta."))
+                        }
+                    }
+            }
+        }
+
+        /** Abre «Lo usan» de un insumo; si no carga, `uses` queda en null y no se ofrece guardar. */
+        fun openUses(supply: InventorySupply) {
+            update { copy(usesFor = supply, uses = null, sheetError = null) }
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { repository.supplyProducts(supply.id) }
+                    .onSuccess { links -> if (_uiState.value.usesFor?.id == supply.id) update { copy(uses = links) } }
+                    .onFailure {
+                        if (_uiState.value.usesFor?.id == supply.id) {
+                            update {
+                                copy(
+                                    uses = null,
+                                    sheetError = it.toUserFacingMessage("No se pudieron cargar los productos."),
+                                )
+                            }
+                        }
+                    }
+            }
+        }
+
+        fun closeUses() = update { copy(usesFor = null, uses = null, sheetError = null) }
+
+        /** Guarda en qué productos (y categorías completas del menú) se gasta el insumo abierto en «Lo usan». */
+        fun saveUses(
+            products: Map<Int, Double>,
+            categories: Map<Int, Double>,
+        ) {
+            val supply = _uiState.value.usesFor ?: return
+            if (_uiState.value.saving) return
+            update { copy(saving = true, sheetError = null) }
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { repository.saveSupplyProducts(supply.id, products, categories) }
+                    .onSuccess { links ->
+                        update { copy(saving = false, usesFor = null, uses = null) }
+                        notice(
+                            when (links.size) {
+                                0 -> "${supply.name} ya no se usa en ningún producto"
+                                1 -> "${supply.name} se usa en 1 producto"
+                                else -> "${supply.name} se usa en ${links.size} productos"
+                            },
+                        )
+                        refresh()
+                    }.onFailure {
+                        update {
+                            copy(saving = false, sheetError = it.toUserFacingMessage("No se pudo guardar."))
                         }
                     }
             }
