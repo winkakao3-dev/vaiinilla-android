@@ -727,11 +727,14 @@ private fun Modifier.pressClickable(
 @Composable
 private fun Modifier.modeArrive(index: Int): Modifier {
     val reduce = reducedMotion()
-    val progress = remember { Animatable(if (reduce) 1f else 0f) }
+    // rememberSaveable, como adminRise: la entrada sale una vez y no se repite al volver a componer.
+    var shown by rememberSaveable { mutableStateOf(reduce) }
+    val progress = remember { Animatable(if (shown) 1f else 0f) }
     LaunchedEffect(Unit) {
-        if (!reduce) {
+        if (!shown) {
             delay(index * 45L)
             progress.animateTo(1f, spring(dampingRatio = 0.85f, stiffness = 320f))
+            shown = true
         }
     }
     return graphicsLayer {

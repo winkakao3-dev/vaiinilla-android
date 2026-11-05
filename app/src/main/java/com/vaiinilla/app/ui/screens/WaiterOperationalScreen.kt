@@ -864,10 +864,10 @@ internal fun WaiterLivePill(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
+        // En línea el punto se queda fijo: el pulso se guarda para lo que pide atención (una llamada).
         Box(
             Modifier
                 .size(8.dp)
-                .pulseGlow(active = online, color = colors.accentLime, spread = 8.dp, corner = 4.dp)
                 .clip(CircleShape)
                 .background(tone),
         )

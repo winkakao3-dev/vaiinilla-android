@@ -89,6 +89,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.guardianship.restrictionFor
@@ -1221,7 +1222,8 @@ private fun MenuModeIcons(
             modifier =
                 Modifier
                     .align(Alignment.BottomStart)
-                    .offset(x = indicatorX)
+                    // offset { } lee la posición al acomodar: el indicador no recompone ni vuelve a medir.
+                    .offset { IntOffset(indicatorX.roundToPx(), 0) }
                     .width(tabWidth)
                     .height(3.dp)
                     .clip(CircleShape)
