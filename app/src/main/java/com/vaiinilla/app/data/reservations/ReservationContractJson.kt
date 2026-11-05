@@ -62,6 +62,8 @@ data class CourtScheduleDto(
     val ocupado: List<BusyIntervalDto> = emptyList(),
     /** Las del establecimiento desde el mínimo de este espacio; un servidor anterior no las manda. */
     @SerialName("duraciones_min") val duracionesMin: List<Int> = emptyList(),
+    /** R25: cuántos caben (1-99); null = sin tope propio. Un servidor anterior no la manda. */
+    val capacidad: Int? = null,
 )
 
 @Serializable
@@ -220,6 +222,16 @@ class ReservationContractJson
                 put("metodo_pago", method)
                 cashReceived?.let { put("monto_recibido", it) }
             }.toString()
+
+        /** #28: cancelar una renta pagada desde el personal exige `{monto_reembolso, motivo}`. */
+        fun encodeRefund(
+            amount: String,
+            reason: String,
+        ): String =
+            buildJsonObject {
+                put("monto_reembolso", amount)
+                put("motivo", reason.trim())
+            }.toString()
     }
 
 private fun CustomerPriceDto.toDomain() = CustomerPrice(card = tarjeta, cashOrBalance = efectivoSaldo)
@@ -263,6 +275,7 @@ private fun CourtDayDto.toDomain(): CourtDay {
                             )
                         },
                     durations = court.duracionesMin.sorted(),
+                    capacity = court.capacidad?.takeIf { it > 0 },
                 )
             },
     )

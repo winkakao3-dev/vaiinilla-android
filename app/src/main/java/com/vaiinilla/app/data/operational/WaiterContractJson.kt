@@ -17,6 +17,7 @@ import com.vaiinilla.app.domain.repository.RejectedOrder
 import com.vaiinilla.app.domain.repository.SpaceAccount
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
+import com.vaiinilla.app.domain.repository.SpaceRent
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableCall
@@ -30,6 +31,8 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
@@ -175,6 +178,9 @@ data class NextReservationDto(
     val inicio: String,
     val fin: String,
     val estado: String? = null,
+    /** Boliche: cuántos juegan; un servidor anterior no lo envía. */
+    val jugadores: Int? = null,
+    @SerialName("nombre_cliente") val customerName: String? = null,
 )
 
 @Serializable
@@ -204,6 +210,8 @@ data class AccountOrderDto(
     @SerialName("items_resumen") val itemsSummary: String = "",
     /** Alias de quien dijo "esto lo pago yo"; un servidor anterior no lo envía. */
     val pagara: String? = null,
+    /** R13: lo que falta de este pedido (número o texto decimal); un servidor anterior no lo envía. */
+    val restante: JsonPrimitive? = null,
 )
 
 @Serializable
@@ -230,6 +238,18 @@ data class SpaceSessionDetailDto(
     @SerialName("inicio") val startedAt: String? = null,
     val sesion: SpaceSessionInfoDto? = null,
     val cuenta: SpaceAccountDto? = null,
+    /** La renta ya pagada del turno: va aparte de la cuenta (es su propio pedido) y no se cobra otra vez. */
+    val renta: SpaceRentDto? = null,
+)
+
+/** `renta` de `GET /espacios/:id/sesion`: lo pagado por las reservas confirmadas ligadas a la sesión. */
+@Serializable
+data class SpaceRentDto(
+    val pagada: String,
+    val minutos: Int = 0,
+    /** Boliche: cuántos juegan (de la reserva más reciente); null sin dato. */
+    val jugadores: Int? = null,
+    @SerialName("nombre_cliente") val customerName: String? = null,
 )
 
 @Serializable
@@ -374,6 +394,8 @@ fun SpaceAvailabilityDto.toDomain(): SpaceAvailability =
         nextReservationStart = nextReservation?.inicio,
         nextReservationEnd = nextReservation?.fin,
         nextReservationState = nextReservation?.estado,
+        nextReservationPlayers = nextReservation?.jugadores?.takeIf { it > 0 },
+        nextReservationCustomer = nextReservation?.customerName?.takeIf { it.isNotBlank() },
     )
 
 fun AccountOrderDto.toDomain(): AccountOrder =
@@ -387,7 +409,18 @@ fun AccountOrderDto.toDomain(): AccountOrder =
         payAtEnd = payAtEnd,
         pending = pending,
         payer = pagara,
+        due = restante.moneyOrNull() ?: total.toMoney(),
     )
+
+/** Un monto que el servidor manda como número o como texto decimal ("12.50"); null o ilegible = sin dato. */
+private fun JsonPrimitive?.moneyOrNull(): String? =
+    this
+        ?.takeUnless { it is JsonNull }
+        ?.content
+        ?.trim()
+        ?.toBigDecimalOrNull()
+        ?.setScale(2, RoundingMode.HALF_UP)
+        ?.toPlainString()
 
 fun SpaceAccountDto.toDomain(): SpaceAccount =
     SpaceAccount(
@@ -423,6 +456,15 @@ fun SpaceSessionDetailDto.toDomain(): SpaceSessionDetail =
                 )
             },
         account = cuenta?.toDomain(),
+        rent = renta?.toDomain(),
+    )
+
+fun SpaceRentDto.toDomain(): SpaceRent =
+    SpaceRent(
+        paid = pagada,
+        minutes = minutos,
+        players = jugadores?.takeIf { it > 0 },
+        customerName = customerName?.takeIf { it.isNotBlank() },
     )
 
 fun TableCallDto.toDomain(): TableCall =

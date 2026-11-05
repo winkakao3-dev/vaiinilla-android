@@ -64,7 +64,13 @@ data class CourtSchedule(
     val profile: CourtProfile = CourtProfile(),
     /** Duraciones que se pueden rentar en este espacio (respeta su mínimo); vacía con un servidor anterior. */
     val durations: List<Int> = emptyList(),
-)
+    /** R25: cuántos caben en el espacio; null = sin tope propio (el servidor usa [ReservationSlots.MAX_PLAYERS]). */
+    val capacity: Int? = null,
+) {
+    /** Tope de jugadores que acepta el servidor para este espacio. */
+    val maxPlayers: Int
+        get() = capacity ?: ReservationSlots.MAX_PLAYERS
+}
 
 /** Horario reservable de un día y lo ocupado de cada cancha. */
 data class CourtDay(
@@ -100,6 +106,16 @@ data class Reservation(
     val version: Int,
     /** Boliche: cuántos juegan; null sin dato. */
     val players: Int? = null,
+)
+
+/**
+ * #28: reembolso al cancelar una renta ya pagada desde el personal. El servidor lo exige para cancelar una
+ * reserva `confirmada` y lo devuelve por la misma vía del pago. `amount` va con dos decimales («150.00»),
+ * de 0 a lo pagado; `reason` de 3 a 240 caracteres.
+ */
+data class ReservationRefund(
+    val amount: String,
+    val reason: String,
 )
 
 /** Quién aparta y paga: la cuenta con sesión, o un invitado (sin cuenta) del negocio. */
@@ -142,6 +158,9 @@ enum class ReservationShift(
  * Sin Android para poder probarlas.
  */
 object ReservationSlots {
+    /** Jugadores de una renta cuando el espacio no tiene capacidad propia (contrato C del backend). */
+    const val MAX_PLAYERS = 30
+
     /** Mismos cortes que la PWA: 06–11 mañana, 12–18 tarde, el resto noche. */
     fun shiftOf(
         start: Instant,

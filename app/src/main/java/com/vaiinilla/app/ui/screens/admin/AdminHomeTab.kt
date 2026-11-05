@@ -695,6 +695,7 @@ private fun UnpaidBlock(
                             listOfNotNull(
                                 adminOrdersText(account.orders),
                                 account.hours.takeIf { it > 0 }?.let { "hace $it h" },
+                                // R33: el monto de la derecha ya descuenta lo abonado.
                                 account.paid
                                     .takeIf { it.toBigDecimalOrNull()?.signum() == 1 }
                                     ?.let { "abonado ${moneyLabel(it)}" },

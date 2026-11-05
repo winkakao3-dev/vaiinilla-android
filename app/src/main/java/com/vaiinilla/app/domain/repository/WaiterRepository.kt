@@ -125,6 +125,10 @@ data class SpaceAvailability(
     val nextReservationEnd: String? = null,
     /** `pendiente_pago` o `confirmada`. */
     val nextReservationState: String? = null,
+    /** Boliche: cuántos juegan en la siguiente reserva; null sin dato. */
+    val nextReservationPlayers: Int? = null,
+    /** A nombre de quién está la siguiente reserva; null sin dato. */
+    val nextReservationCustomer: String? = null,
 ) {
     val rentable: Boolean
         get() = space.type == "cancha" && pricePerHour != null
@@ -167,6 +171,11 @@ data class AccountOrder(
     val pending: Boolean,
     /** Alias de quien dijo "esto lo pago yo" en la mesa compartida. */
     val payer: String? = null,
+    /**
+     * R13: lo que falta cobrar de este pedido (`restante`): sin lo ya pagado. Es lo que el servidor suma para el
+     * total esperado. Un servidor anterior no lo manda y se usa el total.
+     */
+    val due: String = total,
 )
 
 data class SpaceAccount(
@@ -188,6 +197,20 @@ data class SpaceSessionDetail(
     val availability: SpaceAvailability,
     val session: SpaceSessionInfo?,
     val account: SpaceAccount?,
+    /** La renta ya pagada del turno; no forma parte de lo que falta cobrar. null sin renta. */
+    val rent: SpaceRent? = null,
+)
+
+/**
+ * Lo pagado por rentar la pista o cancha en este turno (U05). Es su propio pedido, así que no está en
+ * `cuenta.pedidos` ni en lo que falta cobrar: se muestra aparte para que la cuenta cuadre con el cliente.
+ */
+data class SpaceRent(
+    val paid: String,
+    val minutes: Int,
+    /** Boliche: cuántos juegan; null sin dato. */
+    val players: Int? = null,
+    val customerName: String? = null,
 )
 
 /** Cómo se cobra una cuenta abierta: efectivo en la caja o con la terminal de tarjeta del negocio. */

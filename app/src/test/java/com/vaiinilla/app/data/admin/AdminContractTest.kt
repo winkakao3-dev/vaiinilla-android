@@ -216,4 +216,27 @@ class AdminContractTest {
             return Result.success(response)
         }
     }
+
+    @Test
+    fun `unpaid accounts show what is left after abonos (R33)`() {
+        val unpaid =
+            json.parseUnpaidAccounts(
+                """
+                {"data":{"cuentas":[
+                  {"espacio":{"id":4,"nombre":"Mesa 4"},"pedidos":2,"total":"300.00","horas":1,"abandonada":true,
+                   "abonado":"100.00","restante":"200.00"},
+                  {"espacio":{"id":9,"nombre":"Mesa 9"},"pedidos":1,"total":"80.00"}
+                 ],"total":"380.00","restante":"280.00","abandonadas":1}}
+                """.trimIndent(),
+            )
+
+        assertEquals("300.00", unpaid.accounts[0].total)
+        assertEquals("200.00", unpaid.accounts[0].remaining)
+        assertEquals("100.00", unpaid.accounts[0].paid)
+        // Un servidor anterior no manda restante: se queda el total.
+        assertEquals("80.00", unpaid.accounts[1].remaining)
+        assertEquals("0.00", unpaid.accounts[1].paid)
+        assertEquals("380.00", unpaid.total)
+        assertEquals("280.00", unpaid.remaining)
+    }
 }

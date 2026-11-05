@@ -8,8 +8,8 @@ import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
-import com.vaiinilla.app.domain.admin.AdminUnpaidOrder
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.admin.AdminUnpaidOrder
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.OrderState
 import kotlinx.serialization.SerialName
@@ -79,7 +79,8 @@ class AdminContractJson {
                         total = it.total,
                         hours = it.horas,
                         abandoned = it.abandonada,
-                        paid = it.abonado,
+                        // R33: lo abonado ya entró a la caja; «Por cobrar» es lo que falta (restante).
+                        paid = it.abonado ?: "0.00",
                         remaining = it.restante ?: it.total,
                         sessionId = it.sesionId,
                         orderLines = orderLines,
@@ -223,6 +224,7 @@ private data class UnpaidAccountsDto(
     val cuentas: List<UnpaidAccountDto> = emptyList(),
     val total: String = "0.00",
     val abandonadas: Int = 0,
+    /** R33: sin lo abonado; un servidor anterior no lo manda. */
     val restante: String? = null,
 )
 
@@ -235,7 +237,8 @@ private data class UnpaidAccountDto(
     val total: String,
     val horas: Int = 0,
     val abandonada: Boolean = false,
-    val abonado: String = "0.00",
+    /** R33: abonos sin liquidar y lo que falta; un servidor anterior no los manda. */
+    val abonado: String? = null,
     val restante: String? = null,
     @SerialName("sesion_id") val sesionId: String? = null,
 )
