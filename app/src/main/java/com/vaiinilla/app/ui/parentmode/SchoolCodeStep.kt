@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -252,6 +253,7 @@ private fun WhereTheCodeComes(
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.sp,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Box(Modifier.padding(top = 8.dp).fillMaxWidth(0.92f).height(7.dp).clip(RoundedCornerShape(4.dp)).background(paperLine))
             Box(Modifier.padding(top = 6.dp).fillMaxWidth(0.78f).height(7.dp).clip(RoundedCornerShape(4.dp)).background(paperLine))

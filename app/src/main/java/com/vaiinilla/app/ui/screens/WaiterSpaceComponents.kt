@@ -894,7 +894,14 @@ internal fun ChipButton(
                 modifier = Modifier.padding(horizontal = 6.dp),
             )
             if (detail != null) {
-                Text(detail, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = detailInk, maxLines = 1)
+                Text(
+                    detail,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = detailInk,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

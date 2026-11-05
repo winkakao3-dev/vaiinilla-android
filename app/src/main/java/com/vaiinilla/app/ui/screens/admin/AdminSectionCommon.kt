@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.ui.components.ToastPill
@@ -338,7 +339,7 @@ internal fun AdminQrBlock(
                 Text("Código", fontSize = 12.sp, color = colors.textSecondary)
                 Text(code, fontSize = 22.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
             }
-            Text(url, fontSize = 11.sp, color = colors.textSecondary, maxLines = 2)
+            Text(url, fontSize = 11.sp, color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

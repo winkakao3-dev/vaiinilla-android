@@ -65,6 +65,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -692,7 +693,14 @@ private fun ScheduledRow(
     val pickup = order.deliverySlot?.substringBefore("-")?.let { "Recoge a las $it · " }.orEmpty()
     Row(modifier = Modifier.padding(start = 4.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-            Text(title, color = colors.ink, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 2)
+            Text(
+                title,
+                color = colors.ink,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(pickup + compactMoney(order.total), color = colors.muted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         }
         when {

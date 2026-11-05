@@ -556,6 +556,7 @@ private fun FeedPage(
                 product.name,
                 style = mediaText(30.sp, FontWeight.Black, lineHeight = 32.sp, letterSpacing = (-0.6).sp),
                 maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(moneyLabel(product.digitalPrice), style = mediaText(20.sp, FontWeight.Bold))
             if (product.description.isNotBlank()) {

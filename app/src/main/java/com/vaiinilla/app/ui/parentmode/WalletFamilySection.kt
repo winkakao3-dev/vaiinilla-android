@@ -689,7 +689,9 @@ private fun ChildCard(
             modifier = Modifier.padding(top = 12.dp),
         )
         Text(balance, color = colors.ink, fontWeight = FontWeight.Black, fontSize = 24.sp)
-        childTodayLine(child)?.let { Text(it, color = colors.muted, fontSize = 12.sp, maxLines = 1) }
+        childTodayLine(child)?.let {
+            Text(it, color = colors.muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 

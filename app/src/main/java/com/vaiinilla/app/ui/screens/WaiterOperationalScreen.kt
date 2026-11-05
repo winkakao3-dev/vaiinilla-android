@@ -1465,7 +1465,13 @@ private fun WaiterNextUpRow(
                     color = colors.textPrimary,
                 )
                 if (item.detail.isNotBlank()) {
-                    Text(item.detail, fontSize = 13.sp, color = colors.textSecondary, maxLines = 2)
+                    Text(
+                        item.detail,
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             Surface(

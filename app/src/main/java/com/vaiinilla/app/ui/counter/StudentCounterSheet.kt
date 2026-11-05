@@ -293,9 +293,23 @@ private fun SheetHeader(
     ) {
         if (onBack != null) RoundIcon(Icons.AutoMirrored.Outlined.ArrowBack, "Volver", colors, onBack)
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Black, fontSize = 22.sp, color = colors.textPrimary, maxLines = 1)
+            Text(
+                title,
+                fontWeight = FontWeight.Black,
+                fontSize = 22.sp,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             subtitle?.let {
-                Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, maxLines = 1)
+                Text(
+                    it,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
         if (onClose != null) RoundIcon(Icons.Outlined.Close, "Cerrar", colors, onClose)
@@ -504,7 +518,13 @@ private fun StudentResultRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(card.identity, fontSize = 12.sp, color = colors.textSecondary, maxLines = 1)
+                Text(
+                    card.identity,
+                    fontSize = 12.sp,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Text(moneyLabel(card.balance), fontWeight = FontWeight.Black, fontSize = 16.sp, color = colors.textPrimary)
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
