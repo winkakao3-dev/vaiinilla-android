@@ -174,6 +174,12 @@ data class StoreConfig(
     val spaceDelivery: SpaceDelivery? = null,
     /** Qué asistentes de IA tiene; null si el servidor todavía no lo conoce. */
     val assistantMode: AssistantMode? = null,
+    /** Fondo con el que se abre la caja (`fondo_sugerido`); "" si no hay, null si el servidor no lo conoce. */
+    val suggestedFloat: String? = null,
+    /** Teléfono que ven los clientes (`telefono_contacto`); "" si no hay, null si el servidor no lo conoce. */
+    val contactPhone: String? = null,
+    /** Pausar pedidos y reservas si el local se queda sin internet; null si el servidor no lo conoce. */
+    val pauseWhenOffline: Boolean? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -187,6 +193,9 @@ data class StoreConfig(
             orderWindows = orderWindows,
             kitchenPreparesUnpaid = kitchenPreparesUnpaid,
             spaceDelivery = spaceDelivery,
+            suggestedFloat = suggestedFloat,
+            contactPhone = contactPhone,
+            pauseWhenOffline = pauseWhenOffline,
             // asistente_modo no va en cada guardado: solo cuando el dueño lo cambia (si no, pisaría lo que Vaiinilla
             // cambió mientras tanto, y un servidor sin la migración 180 rechazaría todo el flujo).
         )
@@ -205,6 +214,12 @@ data class StoreFlow(
     val spaceDelivery: SpaceDelivery? = null,
     /** null: no se cambia (solo se manda al elegirlo). */
     val assistantMode: AssistantMode? = null,
+    /** El fondo sugerido como lo escribe el dueño; "" lo borra. null: el servidor no lo conoce y no se envía. */
+    val suggestedFloat: String? = null,
+    /** El teléfono de contacto; "" lo borra. null: el servidor no lo conoce y no se envía. */
+    val contactPhone: String? = null,
+    /** null: el servidor no lo conoce y no se envía. */
+    val pauseWhenOffline: Boolean? = null,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =
         copy(
@@ -217,6 +232,7 @@ data class StoreFlow(
 }
 
 object StoreRules {
+    private val PHONE = Regex("""\+?\d{7,15}""")
     const val MAX_WINDOWS = 6
     const val MAX_GRACE_MINUTES = 60
     const val MAX_VIDEOS = 5
@@ -236,8 +252,19 @@ object StoreRules {
         if (flow.releaseGraceMinutes !in 0..MAX_GRACE_MINUTES) {
             return "La gracia al terminar un turno va de 0 a $MAX_GRACE_MINUTES minutos."
         }
+        val fund = flow.suggestedFloat
+        if (!fund.isNullOrBlank() && HomeBusinessRules.money(fund) == null) {
+            return "Escribe el fondo de caja como 500 o déjalo vacío."
+        }
+        val contact = flow.contactPhone
+        if (!contact.isNullOrBlank() && phone(contact) == null) {
+            return "El teléfono de contacto lleva de 7 a 15 dígitos."
+        }
         return windowsProblem(flow.orderWindows)
     }
+
+    /** "55 1234-5678" → "5512345678" (con + si lo trae); null si no son de 7 a 15 dígitos. Igual que el servidor. */
+    fun phone(raw: String): String? = raw.trim().replace(Regex("""[\s()-]"""), "").takeIf { PHONE.matches(it) }
 
     fun windowsProblem(windows: List<OrderWindow>): String? {
         if (windows.size > MAX_WINDOWS) return "Puedes tener hasta $MAX_WINDOWS franjas de pedidos."
