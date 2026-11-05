@@ -156,7 +156,7 @@ internal fun MenuWaiterLayer(
                     } else {
                         fadeIn(tween(200)) +
                             scaleIn(
-                                initialScale = 0.8f,
+                                initialScale = 0.92f,
                                 transformOrigin = TransformOrigin(0f, 1f),
                                 animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
                             )
@@ -165,7 +165,7 @@ internal fun MenuWaiterLayer(
                     if (reduced) {
                         fadeOut()
                     } else {
-                        fadeOut(tween(160)) + scaleOut(targetScale = 0.8f, transformOrigin = TransformOrigin(0f, 1f))
+                        fadeOut(tween(160)) + scaleOut(targetScale = 0.92f, transformOrigin = TransformOrigin(0f, 1f))
                     },
             ) {
                 WaiterPill(state = state)

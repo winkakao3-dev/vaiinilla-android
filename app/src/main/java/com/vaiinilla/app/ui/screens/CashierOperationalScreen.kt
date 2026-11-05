@@ -1401,7 +1401,12 @@ private fun CashierQueueCard(
         shape = RoundedCornerShape(22.dp),
         color = colors.cardBackground,
     ) {
-        Column(modifier = Modifier.animateContentSize(spring(dampingRatio = 0.85f, stiffness = 380f))) {
+        Column(
+            modifier =
+                Modifier.animateContentSize(
+                    if (reducedMotion()) snap() else spring(dampingRatio = 0.85f, stiffness = 380f),
+                ),
+        ) {
             orders.forEachIndexed { index, order ->
                 key(order.summary.id) {
                     if (index > 0) {

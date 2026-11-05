@@ -521,9 +521,9 @@ private fun DiscoverySearchBar(
                         fadeIn(snap())
                     } else {
                         fadeIn() +
-                            scaleIn(spring(stiffness = 600f), initialScale = 0.6f)
+                            scaleIn(spring(stiffness = 600f), initialScale = 0.9f)
                     },
-                exit = if (reduced) fadeOut(snap()) else fadeOut() + scaleOut(targetScale = 0.6f),
+                exit = if (reduced) fadeOut(snap()) else fadeOut() + scaleOut(targetScale = 0.9f),
             ) {
                 Box(
                     modifier =

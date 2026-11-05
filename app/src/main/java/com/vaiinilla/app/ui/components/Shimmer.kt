@@ -35,6 +35,13 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 @Composable
 fun Modifier.shimmerEffect(): Modifier {
     val colors = LocalVaiinillaColors.current
+    // Con movimiento reducido, el esqueleto se queda en un color fijo: sin brillo que cruce.
+    val skeletonSemantics =
+        Modifier.semantics {
+            progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+            hideFromAccessibility()
+        }
+    if (reducedMotion()) return this.then(skeletonSemantics).background(colors.paper2)
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
         initialValue = -600f,
@@ -62,13 +69,9 @@ fun Modifier.shimmerEffect(): Modifier {
             end = Offset(translateAnim + 350f, translateAnim + 350f),
         )
 
-    return this
-        // Para las pruebas, un esqueleto es "cargando" como un CircularProgressIndicator. Oculto a TalkBack:
-        // una pantalla en carga tiene decenas de bloques y los leería uno por uno.
-        .semantics {
-            progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
-            hideFromAccessibility()
-        }.background(brush)
+    // Para las pruebas, un esqueleto es "cargando" como un CircularProgressIndicator. Oculto a TalkBack:
+    // una pantalla en carga tiene decenas de bloques y los leería uno por uno.
+    return this.then(skeletonSemantics).background(brush)
 }
 
 @Composable

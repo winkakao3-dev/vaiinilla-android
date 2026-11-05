@@ -872,8 +872,10 @@ private fun DigitBox(
             pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 650f))
         }
     }
+    val reduced = reducedMotion()
     val caretAlpha =
-        if (current && focused) {
+        // Con movimiento reducido, el cursor se queda fijo.
+        if (current && focused && !reduced) {
             val blink = rememberInfiniteTransition(label = "caret")
             val value by blink.animateFloat(
                 initialValue = 1f,

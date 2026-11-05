@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -1732,7 +1733,9 @@ private fun WaiterTableSheet(
                                 .verticalScroll(rememberScrollState())
                                 .padding(horizontal = 22.dp)
                                 .padding(bottom = 36.dp)
-                                .animateContentSize(),
+                                .animateContentSize(
+                                    if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+                                ),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         val readyHere = table.orders.count { it.state == OrderState.READY }
@@ -2119,7 +2122,13 @@ internal fun WaiterSheetOrderRow(
         remember(order.itemsSummary, stations) {
             splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
         }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize()) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .animateContentSize(if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow)),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -2414,7 +2423,7 @@ private fun WaiterCallCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .animateContentSize(),
+                .animateContentSize(if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

@@ -369,7 +369,7 @@ internal fun OrderJourneyPage(
             }
             AnimatedVisibility(
                 visible = showCode,
-                enter = fadeIn(spring(stiffness = 300f)) + scaleIn(spring(0.62f, 320f), initialScale = 0.85f),
+                enter = fadeIn(spring(stiffness = 300f)) + scaleIn(spring(0.62f, 320f), initialScale = 0.92f),
                 exit = fadeOut(spring(stiffness = 400f)) + scaleOut(spring(stiffness = 400f), targetScale = 0.92f),
             ) {
                 FolioCodeCard(order, matrix, colors)
