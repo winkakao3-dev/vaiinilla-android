@@ -510,4 +510,24 @@ class OfflineStaffOrderQueueTest {
             assertEquals(0, queue.state.value.count)
             queue.stop()
         }
+
+    @Test
+    fun `el cuerpo guardado lleva pago diferido explicito y conserva lo que armo el pedido con red`() {
+        val sinCuenta =
+            Json.parseToJsonElement(
+                OfflineOrderBody.withOfflineCapture("""{"metodo_pago":"efectivo"}""", "id", now, "C7-001"),
+            ).jsonObject
+        assertEquals("false", sinCuenta.getValue("pago_diferido").toString())
+        val aLaCuenta =
+            Json.parseToJsonElement(
+                OfflineOrderBody.withOfflineCapture(
+                    """{"metodo_pago":"efectivo","pago_diferido":true,"recoge_en_barra":true}""",
+                    "id",
+                    now,
+                    "M7-001",
+                ),
+            ).jsonObject
+        assertEquals("true", aLaCuenta.getValue("pago_diferido").toString())
+        assertEquals("true", aLaCuenta.getValue("recoge_en_barra").toString())
+    }
 }
