@@ -386,7 +386,7 @@ private fun CatalogContent(
             state.filteredProducts
         }
 
-    val cartShortcutVisible = onOpenCart != null && state.cartItemCount > 0 && state.selectedProduct == null
+    val cartShortcutVisible = onOpenCart != null && menuCartPillVisible(state)
 
     val scene = scenePaletteForTheme()
     val shelfColors =
@@ -1231,3 +1231,9 @@ private fun MenuModeIcons(
         )
     }
 }
+
+/** Con el aviso de que no se reciben pedidos, la píldora «Ver carrito» no invita a pagar (en vivo, #20). */
+internal fun menuCartPillVisible(state: OrderFlowUiState): Boolean =
+    state.cartItemCount > 0 &&
+        state.selectedProduct == null &&
+        state.operationalStatus?.acceptingOrders != false
