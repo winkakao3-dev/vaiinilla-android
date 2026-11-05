@@ -458,19 +458,17 @@ fun CartScreen(
                                 ),
                                 Modifier.padding(top = 16.dp),
                             )
-                        }
-                    }
-                    // Con el cashback prendido, cuánto deja este pedido; apagado o sin cuenta no se menciona (24).
-                    val cashback = state.cashbackLine().takeUnless { guestCheckout }
-                    if (cashback != null) {
-                        item(key = "cashback") {
-                            Text(
-                                cashback,
-                                color = colors.ink2,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
-                            )
+                            // Con el cashback prendido, cuánto deja este pedido, junto al total; apagado o sin cuenta
+                            // no se menciona (24). Va dentro de este renglón para que siempre se vea con el total.
+                            state.cashbackLine().takeUnless { guestCheckout }?.let { cashback ->
+                                Text(
+                                    cashback,
+                                    color = colors.ink2,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
+                                )
+                            }
                         }
                     }
                     item(key = "limit") {
