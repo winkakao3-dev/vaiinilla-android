@@ -1576,7 +1576,7 @@ internal enum class SplitMode(
 /** Entre cuántos se divide; "Resto" (1) paga todo lo que queda. */
 private val PartsChoices = listOf(2, 3, 4, 5, 1)
 
-/** "Parte de Ana": marca solo los pedidos que esa persona dijo que paga. */
+/** "Parte de Ana": marca lo que Ana pidió y lo que dijo que paga, sin lo que otra persona dijo pagarle (I07). */
 @Composable
 private fun PayerShortcuts(
     orders: List<AccountOrder>,
@@ -1584,7 +1584,7 @@ private fun PayerShortcuts(
     colors: OperationalColors,
     onPick: (Set<String>) -> Unit,
 ) {
-    val payers = orders.mapNotNull { it.payer }.distinct()
+    val payers = orders.mapNotNull { it.partOf }.distinct()
     if (payers.isEmpty()) return
     Row(
         modifier = Modifier.fillMaxWidth().arrive(1),
@@ -1596,7 +1596,7 @@ private fun PayerShortcuts(
                 enabled = enabled,
                 colors = colors,
                 modifier = Modifier.weight(1f),
-            ) { onPick(orders.filter { it.payer == payer }.map { it.id }.toSet()) }
+            ) { onPick(orders.filter { it.partOf == payer }.map { it.id }.toSet()) }
         }
     }
 }
@@ -1649,7 +1649,7 @@ private fun SplitOrdersPicker(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "#${order.folio} · ${order.clientName ?: "Cliente"}" +
+                            "#${order.folio} · ${order.owner ?: order.clientName ?: "Cliente"}" +
                                 (order.payer?.let { " · Paga $it" } ?: ""),
                             fontWeight = FontWeight.Black,
                             fontSize = 15.sp,
@@ -1691,7 +1691,7 @@ internal fun partialPayer(
 ): String? =
     payable
         .filter { it.id in selected }
-        .map { it.payer ?: it.clientName }
+        .map { it.partOf ?: it.clientName }
         .distinct()
         .singleOrNull()
 
@@ -1703,7 +1703,7 @@ internal fun pendingAfterPartial(
     val rest = payable.filter { it.id !in selected }
     if (rest.isEmpty() || rest.size == payable.size) return null
     val amount = rest.fold(BigDecimal.ZERO) { sum, order -> sum + order.due.moneyOrZero() }
-    val names = rest.mapNotNull { it.payer ?: it.clientName }.distinct()
+    val names = rest.mapNotNull { it.partOf ?: it.clientName }.distinct()
     val who = if (names.isEmpty()) "" else " de ${names.joinToString(" y ")}"
     return "faltan ${moneyLabel(Money.format(amount))}$who"
 }
