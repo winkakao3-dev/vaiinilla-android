@@ -101,6 +101,22 @@ private fun OrderDetail.placePhrase(journey: OrderJourney): String =
         else -> place()
     }
 
+/**
+ * El renglón bajo lo pedido en un apartado o un encargo para recoger: cuándo se recoge (P08). Decía solo «Apartado ·
+ * se recoge en el comedor»; sin fecha queda esa frase.
+ */
+internal fun scheduledPickupLine(
+    order: OrderDetail,
+    journey: OrderJourney,
+): String {
+    val schedule = journeyWhen(order)
+    return if (journey == OrderJourney.SCHOOL) {
+        schedule?.let { "Se recoge el $it" } ?: "Apartado · se recoge en el comedor"
+    } else {
+        schedule?.let { "Lo recoges el $it" } ?: "Encargo · lo recoges en el local"
+    }
+}
+
 /** «sáb 7 nov entre 11:00 y 13:00» para una frase; `null` si es para ahora. */
 private fun journeyWhen(order: OrderDetail): String? {
     val schedule = journeySchedule(order) ?: return null
