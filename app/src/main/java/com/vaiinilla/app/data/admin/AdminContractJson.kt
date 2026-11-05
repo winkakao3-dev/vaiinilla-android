@@ -15,9 +15,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
 /** Contratos de la administración: el resumen, las cuentas sin pagar y la escritura del menú. */
 class AdminContractJson {
@@ -69,7 +71,7 @@ class AdminContractJson {
                     AdminUnpaidAccount(
                         spaceId = it.espacio.id,
                         spaceName = it.espacio.nombre,
-                        orders = it.pedidos,
+                        orders = it.numPedidos ?: unpaidOrderCount(it.pedidos),
                         // R33: lo abonado ya entró a la caja; «Por cobrar» es lo que falta.
                         total = it.restante ?: it.total,
                         hours = it.horas,
@@ -221,7 +223,9 @@ private data class UnpaidAccountsDto(
 @Serializable
 private data class UnpaidAccountDto(
     val espacio: UnpaidSpaceDto,
-    val pedidos: Int,
+    /** Antes un conteo; el servidor nuevo manda la lista de pedidos y el conteo en `num_pedidos`. */
+    val pedidos: JsonElement? = null,
+    @SerialName("num_pedidos") val numPedidos: Int? = null,
     val total: String,
     val horas: Int = 0,
     val abandonada: Boolean = false,
@@ -277,3 +281,11 @@ private data class OptionWriteDto(
     val nombre: String,
     @SerialName("precio_extra") val precioExtra: String,
 )
+
+/** Conteo de pedidos de una cuenta sin pagar: lista (servidor nuevo) o número (servidor anterior). */
+private fun unpaidOrderCount(raw: JsonElement?): Int =
+    when (raw) {
+        is JsonArray -> raw.size
+        is JsonPrimitive -> raw.intOrNull ?: 0
+        else -> 0
+    }
