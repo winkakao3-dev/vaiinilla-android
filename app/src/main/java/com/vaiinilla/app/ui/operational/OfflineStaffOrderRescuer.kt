@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.mode.AuthorizedMode
@@ -29,6 +30,7 @@ class OfflineStaffOrderRescuer
         private val access: AuthorizedAccessRepository,
         private val auth: StudentAuthRepository,
         private val apiClient: HttpVaiinillaApiClient,
+        private val contractJson: OrderContractJson,
         connectivity: ConnectivityWatcher,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -70,7 +72,10 @@ class OfflineStaffOrderRescuer
                             path = "pedidos",
                             body = body,
                             headers = mapOf("Idempotency-Key" to key),
-                        ).map { }
+                        ).map { raw ->
+                            // Con 2xx ya llegó; se lee para saber si el efectivo cobrado quedó en la caja.
+                            runCatching { contractJson.parseCreatedOrder(raw) }.getOrNull()
+                        }
                 }
             }
         }

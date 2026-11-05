@@ -140,6 +140,9 @@ class WaiterViewModel
             offlineOrders.onAlreadyRegistered = { localFolio ->
                 viewModelScope.launch { showToast("El pedido $localFolio sí había llegado; ya está en la lista") }
             }
+            offlineOrders.onCashNotRegistered = { localFolio, folio ->
+                viewModelScope.launch { showToast(cashNotRegisteredToast(localFolio, folio)) }
+            }
         }
 
         /**
@@ -519,8 +522,9 @@ class WaiterViewModel
                     roleInitial = if (cashier != null) 'C' else 'M',
                     placeLabel = space?.name ?: "Mostrador",
                     summary = offlineSummary(lines),
-                    // Caja cobra el efectivo en el momento (el aviso se lo pide): el pedido llega cobrado.
-                    collectNow = cashier != null && !toAccount,
+                    // Caja cobra el efectivo en el momento (el aviso se lo pide): el pedido llega cobrado. Con la caja
+                    // cerrada no: al volver la red no habría turno donde registrar ese efectivo.
+                    collectNow = collectsOfflineNow(cashier, toAccount),
                 )
             if (saved == null) {
                 _uiState.value =
@@ -816,6 +820,7 @@ class WaiterViewModel
             // La cola vive lo que la app; esta pantalla ya no recibe sus avisos.
             offlineOrders.onSent = null
             offlineOrders.onAlreadyRegistered = null
+            offlineOrders.onCashNotRegistered = null
             pollingJob?.cancel()
             boardJob?.cancel()
             super.onCleared()
@@ -905,11 +910,28 @@ internal fun offlineOrderToast(
 ): String {
     val label = if (spaceName == null) "Pedido $localFolio" else "Pedido $localFolio de $spaceName"
     return when {
-        cashier != null -> "Sin internet: $label guardado. Cóbralo en efectivo; se registra solo al volver la red."
+        cashier != null && collectsOfflineNow(cashier, toAccount) ->
+            "Sin internet: $label guardado. Cóbralo en efectivo; se registra solo al volver la red."
+        cashier != null && !toAccount ->
+            "Sin internet: $label guardado. La caja está cerrada: no lo cobres ahora; cóbralo al abrirla."
+        cashier != null -> "Sin internet: $label guardado. Avísale a cocina; se manda solo al volver la red."
         toAccount -> "Sin internet: $label guardado. Avísale a cocina; se manda solo al volver la red."
         else -> "Sin internet: $label guardado. Llévalo a Caja; se manda solo al volver la red."
     }
 }
+
+/** Caja cobra ya el pedido guardado sin internet solo si no va a la cuenta y no se sabe que la caja esté cerrada. */
+internal fun collectsOfflineNow(
+    cashier: CashierContext?,
+    toAccount: Boolean,
+): Boolean = cashier != null && !toAccount && cashier.cashOpen != false
+
+internal fun cashNotRegisteredToast(
+    localFolio: String,
+    folio: Int,
+): String =
+    "Atención: el pedido $localFolio quedó como #$folio, pero el efectivo que cobraste no se registró. " +
+        "Cóbralo en la lista de Caja."
 
 internal fun counterOrderToast(
     folio: Int,

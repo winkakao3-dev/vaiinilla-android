@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.CreatedOrder
+import com.vaiinilla.app.domain.model.CreationCashCollection
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -32,6 +33,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -360,7 +362,7 @@ class OfflineStaffOrderQueueTest {
             val sentKeys = mutableListOf<String>()
             queue.rescue(caja) { _, key ->
                 sentKeys += key
-                Result.success(Unit)
+                Result.success(null)
             }
             assertEquals(listOf("a"), sentKeys)
             assertTrue(store.saved.getValue(caja).orders.isEmpty())
@@ -418,6 +420,94 @@ class OfflineStaffOrderQueueTest {
             queue.flush()
             assertTrue(queue.state.value.pending.isEmpty())
             assertTrue(queue.state.value.problems.isEmpty())
+            queue.stop()
+        }
+
+    @Test
+    fun `cobrado sin internet que llega sin cobro aplicado queda como cobrado sin registrar`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            val saved = queue.enqueue(request, "a", 'C', "Mostrador", "1× Café", collectNow = true)!!
+            assertTrue(saved.collectedCash)
+            var alerted: Pair<String, Int>? = null
+            var sent = false
+            queue.onCashNotRegistered = { local, folio -> alerted = local to folio }
+            queue.onSent = { _, _ -> sent = true }
+            val created = ScreenshotFixtures.sampleOrder()
+            repository.next = {
+                Result.success(
+                    CreatedOrder(
+                        order = created,
+                        cashCollection = CreationCashCollection(applied = false, code = "X", message = "Caja cerrada"),
+                    ),
+                )
+            }
+            queue.flush()
+            val problem = queue.state.value.problems.single()
+            assertEquals(created.summary.folio, problem.registeredFolio)
+            assertTrue(problem.collectedButNotRegistered)
+            assertEquals(saved.localFolio to created.summary.folio, alerted)
+            assertFalse(sent)
+            assertEquals(1, queue.state.value.unregisteredCash.size)
+
+            // Reintentar no lo reenvía: ya está en el servidor y el efectivo se cobra en la lista de Caja.
+            queue.retryAll()
+            runCurrent()
+            assertEquals(listOf("a"), repository.keys)
+            assertTrue(queue.state.value.problems.single().collectedButNotRegistered)
+
+            queue.dismiss(problem)
+            assertTrue(queue.state.value.unregisteredCash.isEmpty())
+            queue.stop()
+        }
+
+    @Test
+    fun `un servidor anterior sin cobro que lo deja por cobrar tambien cuenta como no registrado`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'C', "Mostrador", "", collectNow = true)
+            repository.next = {
+                Result.success(CreatedOrder(order = ScreenshotFixtures.sampleOrder(state = OrderState.PENDING_PAYMENT)))
+            }
+            queue.flush()
+            assertTrue(queue.state.value.problems.single().collectedButNotRegistered)
+            queue.stop()
+        }
+
+    @Test
+    fun `cobrado sin internet que llega cobrado sale de la lista`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'C', "Mostrador", "", collectNow = true)
+            repository.next = {
+                Result.success(
+                    CreatedOrder(
+                        order = ScreenshotFixtures.sampleOrder(state = OrderState.PAID),
+                        cashCollection = CreationCashCollection(applied = true),
+                    ),
+                )
+            }
+            queue.flush()
+            assertEquals(0, queue.state.value.count)
+            queue.stop()
+        }
+
+    @Test
+    fun `sin cobrar ahora un pedido por cobrar es lo normal y sale de la lista`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val queue = queue(repository)
+            queue.start(mesero)
+            queue.enqueue(request, "a", 'M', "Mesa 1", "")
+            repository.next = { Result.success(CreatedOrder(order = ScreenshotFixtures.sampleOrder())) }
+            queue.flush()
+            assertEquals(0, queue.state.value.count)
             queue.stop()
         }
 }

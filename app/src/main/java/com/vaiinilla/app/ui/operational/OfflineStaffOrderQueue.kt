@@ -3,11 +3,13 @@ package com.vaiinilla.app.ui.operational
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderStore
 import com.vaiinilla.app.domain.offline.OfflineStaffOrdersSnapshot
 import com.vaiinilla.app.domain.offline.OfflineStaffScope
+import com.vaiinilla.app.domain.offline.cashNotRegisteredProblem
 import com.vaiinilla.app.domain.repository.OrderRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +37,9 @@ data class OfflineStaffOrdersState(
     val isSending: Boolean = false,
 ) {
     val count: Int get() = pending.size + problems.size
+
+    /** Pedidos que Caja ya cobró en efectivo y que aún no están registrados en el servidor (por mandar o con problema). */
+    val unregisteredCash: List<OfflineStaffOrder> get() = (pending + problems).filter { it.collectedCash }
 }
 
 /**
@@ -74,6 +79,9 @@ class OfflineStaffOrderQueue(
 
     /** El intento con red sí había llegado: el pedido ya estaba en el servidor con su folio. */
     var onAlreadyRegistered: ((localFolio: String) -> Unit)? = null
+
+    /** Llegó con su folio real, pero el efectivo que Caja ya cobró no entró a ninguna caja: hay que avisarle. */
+    var onCashNotRegistered: ((localFolio: String, folio: Int) -> Unit)? = null
 
     /** Otra membresía tiene su propia cola: la anterior se queda guardada en su archivo. */
     @Synchronized
@@ -133,6 +141,7 @@ class OfflineStaffOrderQueue(
                 placeLabel = placeLabel,
                 summary = summary,
                 capturedAt = capturedAt,
+                collectedCash = collectNow,
             )
         snapshot = snapshot.copy(nextSequence = snapshot.nextSequence + 1, orders = snapshot.orders + order)
         save()
@@ -167,8 +176,15 @@ class OfflineStaffOrderQueue(
                 when {
                     error == null -> {
                         forgetFailures(order.id)
-                        remove(order.id)
-                        result.getOrNull()?.let { onSent?.invoke(order.localFolio, it.summary.folio) }
+                        val created = result.getOrNull()
+                        if (created != null && order.collectedCash && created.cashCollectionNotApplied) {
+                            // El pedido sí quedó, pero el efectivo no: se queda a la vista hasta que Caja lo cobre.
+                            markCashNotRegistered(order.id, created)
+                            onCashNotRegistered?.invoke(order.localFolio, created.summary.folio)
+                        } else {
+                            remove(order.id)
+                            created?.let { onSent?.invoke(order.localFolio, it.summary.folio) }
+                        }
                     }
                     OfflineStaffOrderRules.alreadyRegistered(error) ||
                         OfflineStaffOrderRules.acceptedUnreadable(error) -> {
@@ -224,7 +240,11 @@ class OfflineStaffOrderQueue(
                 snapshot.copy(
                     orders =
                         snapshot.orders.map {
-                            val fixable = it.problem != null && !OfflineStaffOrderRules.isTooOld(it, now())
+                            // «Cobrado sin registrar» ya está en el servidor: reenviarlo no registra el efectivo.
+                            val fixable =
+                                it.problem != null &&
+                                    it.registeredFolio == null &&
+                                    !OfflineStaffOrderRules.isTooOld(it, now())
                             if (fixable) it.copy(problem = null) else it
                         },
                 )
@@ -241,7 +261,8 @@ class OfflineStaffOrderQueue(
      */
     suspend fun rescue(
         rescued: OfflineStaffScope,
-        send: (body: String, idempotencyKey: String) -> Result<Unit>,
+        /** El pedido creado si la respuesta se entendió; null si llegó (2xx) pero no se pudo leer. */
+        send: (body: String, idempotencyKey: String) -> Result<CreatedOrder?>,
     ) {
         if (synchronized(this) { rescued == staffScope }) {
             launchFlush()
@@ -252,12 +273,22 @@ class OfflineStaffOrderQueue(
             var stored = withContext(io) { store.load(rescued, today()) }
             for (order in stored.pending) {
                 if (synchronized(this) { rescued == staffScope }) return
+                var registeredFolio: Int? = null
                 val problem =
                     if (OfflineStaffOrderRules.isTooOld(order, now())) {
                         OfflineStaffOrderRules.TOO_OLD_PROBLEM
                     } else {
-                        val error = withContext(io) { send(order.body, order.idempotencyKey) }.exceptionOrNull()
+                        val result = withContext(io) { send(order.body, order.idempotencyKey) }
+                        val error = result.exceptionOrNull()
+                        val created = result.getOrNull()
                         when {
+                            error == null && created != null && order.collectedCash &&
+                                created.cashCollectionNotApplied -> {
+                                forgetFailures(order.id)
+                                registeredFolio = created.summary.folio
+                                onCashNotRegistered?.invoke(order.localFolio, created.summary.folio)
+                                cashNotRegisteredProblem(created.summary.folio, created.cashCollection?.message)
+                            }
                             error == null || OfflineStaffOrderRules.alreadyRegistered(error) -> {
                                 forgetFailures(order.id)
                                 null
@@ -276,7 +307,14 @@ class OfflineStaffOrderQueue(
                         stored.copy(orders = stored.orders.filterNot { it.id == order.id })
                     } else {
                         stored.copy(
-                            orders = stored.orders.map { if (it.id == order.id) it.copy(problem = problem) else it },
+                            orders =
+                                stored.orders.map {
+                                    if (it.id == order.id) {
+                                        it.copy(problem = problem, registeredFolio = registeredFolio)
+                                    } else {
+                                        it
+                                    }
+                                },
                         )
                     }
                 withContext(io) { store.save(rescued, stored) }
@@ -289,6 +327,23 @@ class OfflineStaffOrderQueue(
     @Synchronized
     private fun remove(id: String) {
         snapshot = snapshot.copy(orders = snapshot.orders.filterNot { it.id == id })
+        save()
+        publish()
+    }
+
+    @Synchronized
+    private fun markCashNotRegistered(
+        id: String,
+        created: CreatedOrder,
+    ) {
+        val problem = cashNotRegisteredProblem(created.summary.folio, created.cashCollection?.message)
+        snapshot =
+            snapshot.copy(
+                orders =
+                    snapshot.orders.map {
+                        if (it.id == id) it.copy(problem = problem, registeredFolio = created.summary.folio) else it
+                    },
+            )
         save()
         publish()
     }
