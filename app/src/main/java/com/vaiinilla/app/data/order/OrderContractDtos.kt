@@ -16,9 +16,10 @@ data class CreateOrderRequestDto(
     @SerialName("espacio_id") val spaceId: Int?,
     @SerialName("notas_cocina") val kitchenNotes: String?,
     @SerialName("items") val items: List<CreateOrderItemDto>,
-    // Solo viaja cuando es true: los demás pedidos se envían exactamente igual que antes.
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
-    @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
+    // Viaja siempre, true o false (contrato A): sin la clave el servidor infiere «pagar al final» y un
+    // «Pago en caja» elegido a propósito acababa en la cuenta del espacio.
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("pago_diferido") val payAtEnd: Boolean = false,
     // El backend lee `nombre_cliente` al crear; con `nombre_cliente_snapshot` el nombre se perdía.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("nombre_cliente") val customerName: String? = null,
