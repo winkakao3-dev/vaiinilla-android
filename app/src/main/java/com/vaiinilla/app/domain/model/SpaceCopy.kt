@@ -78,13 +78,22 @@ object SpaceCopy {
             else -> "Selecciona tu mesa"
         }
 
-    /** Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). */
+    /**
+     * Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). Un «Pasa por
+     * él» (`recoge_en_barra`) se entrega en la barra aunque se pidió desde el lugar:
+     * «Pasa por él a la barra · Pista 1».
+     */
     fun staffDestination(
         destination: OrderDestination,
         space: OrderSpace?,
+        pickUpAtBar: Boolean = false,
     ): String {
-        if (destination != OrderDestination.IN_SPACE) return "Para llevar"
-        val title = destinationTitle(space?.type)
+        when (destination) {
+            OrderDestination.TAKE_AWAY -> return "Para llevar"
+            OrderDestination.HOME_DELIVERY -> return "A domicilio"
+            OrderDestination.IN_SPACE -> Unit
+        }
+        val title = if (pickUpAtBar) "Pasa por él a la barra" else destinationTitle(space?.type)
         val name = space?.name?.takeIf { it.isNotBlank() } ?: return title
         return "$title · $name"
     }

@@ -59,6 +59,20 @@ class SpaceCopyTest {
     }
 
     @Test
+    fun `cocina y caja distinguen domicilio y pasa por el`() {
+        assertEquals("A domicilio", SpaceCopy.staffDestination(OrderDestination.HOME_DELIVERY, null))
+        assertEquals(
+            "Pasa por él a la barra · Pista 1",
+            SpaceCopy.staffDestination(
+                OrderDestination.IN_SPACE,
+                OrderSpace(9, "Pista 1", "cancha"),
+                pickUpAtBar = true,
+            ),
+        )
+        assertEquals("Pasa por él a la barra", SpaceCopy.staffDestination(OrderDestination.IN_SPACE, null, true))
+    }
+
+    @Test
     fun `en la barra el carrito y el aviso de listo no dicen mesa ni llevar`() {
         assertEquals("Pagas en caja y te lo entregamos en la barra", SpaceCopy.payAtCashierHint("barra"))
         assertEquals("Pagas en caja y te lo llevamos a tu mesa", SpaceCopy.payAtCashierHint("mesa"))

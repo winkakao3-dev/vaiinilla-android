@@ -1090,7 +1090,7 @@ internal fun cashierPlaceLabel(order: OrderDetail): String =
     if (order.summary.destination.name == "TAKE_AWAY") {
         "Para llevar"
     } else {
-        SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
+        SpaceCopy.staffDestination(order.summary.destination, order.summary.space, order.summary.pickUpAtBar)
     }
 
 // Una venta de mostrador no tiene cliente: el servidor manda «Mostrador» como nombre y eso ya dice de dónde viene.

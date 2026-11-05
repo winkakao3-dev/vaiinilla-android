@@ -222,7 +222,7 @@ private fun CashierSearchRow(
     val summary = order.summary
     val who =
         listOfNotNull(
-            if (summary.destination.name == "TAKE_AWAY") "Para llevar" else SpaceCopy.staffDestination(summary.destination, summary.space),
+            SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar),
             staffCustomerName(order),
         ).joinToString(" · ")
     Row(

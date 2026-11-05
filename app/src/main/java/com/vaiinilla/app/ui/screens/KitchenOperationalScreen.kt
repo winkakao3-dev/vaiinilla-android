@@ -823,7 +823,7 @@ private fun KitchenOrderCard(
     val summary = order.summary
     val place =
         buildList {
-            add(SpaceCopy.staffDestination(summary.destination, summary.space))
+            add(SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar))
             staffCustomerName(order)?.let(::add)
             when {
                 summary.state == OrderState.PENDING_PAYMENT && !summary.payAtEnd -> add("falta pagar")
