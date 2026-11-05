@@ -9,11 +9,10 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeRight
 import com.vaiinilla.app.ui.operational.CloseCashUi
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -47,20 +46,16 @@ class CashCloseContentTest {
         }
     }
 
+    // C07 (Doop) cambió el deslizador por el botón «Cerrar caja con $…»: se confirma tocándolo.
     @Test
-    fun `deslizar cierra una sola vez con el efectivo normalizado`() {
+    fun `tocar cierra una sola vez con el efectivo normalizado`() {
         showSheet()
-        composeTestRule.onNodeWithContentDescription("Escribe el efectivo contado").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Escribe el efectivo contado").assertIsNotEnabled()
 
         composeTestRule.onNode(hasSetTextAction()).performTextInput("725.5")
-        composeTestRule
-            .onNodeWithContentDescription(
-                "Desliza para cerrar con $725.50",
-            ).performTouchInput { swipeRight() }
+        composeTestRule.onNodeWithText("Cerrar caja con $725.50").assertIsEnabled().performClick()
         composeTestRule.waitForIdle()
         assertEquals(listOf("725.50"), closes)
-
-        composeTestRule.onNodeWithContentDescription("Desliza para cerrar con $725.50").assertIsNotEnabled()
     }
 
     @Test
@@ -68,7 +63,7 @@ class CashCloseContentTest {
         showSheet()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("1200")
         composeTestRule
-            .onNodeWithContentDescription("Desliza para cerrar con $1,200")
+            .onNodeWithText("Cerrar caja con $1,200")
             .performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf("1200.00"), closes)
     }
@@ -78,9 +73,9 @@ class CashCloseContentTest {
         showSheet()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("12.345")
         composeTestRule
-            .onNodeWithContentDescription("Escribe el efectivo contado")
+            .onNodeWithText("Escribe el efectivo contado")
             .assertIsNotEnabled()
-            .performTouchInput { swipeRight() }
+            .performClick()
         composeTestRule.waitForIdle()
         assertEquals(emptyList<String>(), closes)
     }
@@ -103,16 +98,13 @@ class CashCloseContentTest {
             }
         }
         composeTestRule.onNode(hasSetTextAction()).performTextInput("725.5")
-        composeTestRule
-            .onNodeWithContentDescription(
-                "Desliza para cerrar con $725.50",
-            ).performTouchInput { swipeRight() }
+        composeTestRule.onNodeWithText("Cerrar caja con $725.50").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithContentDescription("Cerrando…").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Cerrando…").assertIsNotEnabled()
 
         composeTestRule.runOnIdle { state = CloseCashUi(errorMessage = "Sin conexión") }
         composeTestRule
-            .onNodeWithContentDescription("Desliza para cerrar con $725.50")
+            .onNodeWithText("Cerrar caja con $725.50")
             .assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf("725.50", "725.50"), closes)
@@ -142,7 +134,7 @@ class CashCloseContentTest {
         shown = true
         composeTestRule.waitForIdle()
         composeTestRule
-            .onNodeWithContentDescription("Desliza para cerrar con $980")
+            .onNodeWithText("Cerrar caja con $980")
             .performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf("980.00"), closes)
     }
