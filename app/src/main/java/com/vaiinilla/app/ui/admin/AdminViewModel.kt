@@ -394,13 +394,18 @@ class AdminViewModel
         fun refreshCatalog() {
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
+                val remembered = withContext(Dispatchers.IO) { adminRepository.archivedProducts() }
                 _uiState.value =
                     result.fold(
                         onSuccess = { loaded ->
                             val (archived, active) = loaded.products.partition(Product::archived)
                             val activeIds = active.map(Product::id).toSet()
+                            // Si volvió al menú desde otro lado, ya no es archivado.
+                            remembered.filter { it.id in activeIds }.forEach { adminRepository.forgetArchived(it.id) }
+                            // `GET catalogo` no trae los archivados: tras reiniciar salen de lo que se recordó (T03).
                             val known =
-                                (_uiState.value.archivedProducts.filter { it.id !in activeIds } + archived)
+                                (remembered + _uiState.value.archivedProducts + archived)
+                                    .filter { it.id !in activeIds }
                                     .associateBy(Product::id)
                                     .values
                                     .toList()

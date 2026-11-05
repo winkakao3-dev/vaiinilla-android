@@ -166,6 +166,56 @@ class AdminContractTest {
         assertEquals(5, category.id)
     }
 
+    @Test
+    fun `lo archivado se recuerda tras reiniciar y desarchivar lo olvida`() {
+        val raw =
+            """{"data":{"id":7,"categoria_id":3,"estacion_preparacion":"caja","nombre":"Té viejo",
+            "tiempo_estimado_min":1,"precio_mostrador":"20.00","precio_digital":"20.00","disponible":true,
+            "archivado":true},"error":null,"meta":{}}"""
+        val store = MemoryArchivedProductsStore()
+        val repository =
+            RemoteAdminRepository(
+                RecordingClient(raw),
+                ContractResponseParser(),
+                OrderContractJson(),
+                archivedStore = store,
+            )
+        repository.setProductArchived(7, archived = true, idempotencyKey = "idem-arch").getOrThrow()
+
+        // Otra instancia con el mismo almacén: como la app tras un reinicio en frío.
+        val restarted =
+            RemoteAdminRepository(
+                RecordingClient(raw),
+                ContractResponseParser(),
+                OrderContractJson(),
+                archivedStore = store,
+            )
+        val remembered = restarted.archivedProducts().single()
+        assertEquals(7, remembered.id)
+        assertEquals("Té viejo", remembered.name)
+        assertTrue(remembered.archived)
+
+        restarted.setProductArchived(7, archived = false, idempotencyKey = "idem-desarch").getOrThrow()
+        assertTrue(restarted.archivedProducts().isEmpty())
+    }
+
+    private class MemoryArchivedProductsStore : ArchivedProductsStore {
+        private val products = linkedMapOf<Int, String>()
+
+        override fun readAll(): List<String> = products.values.toList()
+
+        override fun put(
+            productId: Int,
+            rawProduct: String,
+        ) {
+            products[productId] = rawProduct
+        }
+
+        override fun remove(productId: Int) {
+            products.remove(productId)
+        }
+    }
+
     private class RecordingClient(
         private val response: String,
     ) : VaiinillaApiClient {

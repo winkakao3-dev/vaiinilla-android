@@ -7,6 +7,7 @@ import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
+import com.vaiinilla.app.data.admin.PreferencesArchivedProductsStore
 import com.vaiinilla.app.data.admin.RemoteAdminRepository
 import com.vaiinilla.app.data.admin.RemoteAdminSpacesRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStaffRepository
@@ -102,7 +103,9 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         parser: ContractResponseParser,
         orderContractJson: OrderContractJson,
-    ): AdminRepository = RemoteAdminRepository(apiClient, parser, orderContractJson)
+        archivedStore: PreferencesArchivedProductsStore,
+    ): AdminRepository =
+        RemoteAdminRepository(apiClient, parser, orderContractJson, archivedStore = archivedStore)
 
     @Provides
     @Singleton
