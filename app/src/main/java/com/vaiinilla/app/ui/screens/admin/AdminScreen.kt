@@ -215,7 +215,15 @@ fun AdminScreen(
     AdminDialogHost(colors) {
         if (assistantOpen) {
             com.vaiinilla.app.ui.components.ResizeForKeyboard()
-            StoreAssistantScreen(sections.store, colors, readOnly) { assistantOpen = false }
+            StoreAssistantScreen(sections.store, colors, readOnly) {
+                assistantOpen = false
+                // Lo que guardó (menú, mesas, fotos, equipo) sale en Inicio sin reiniciar la app (en vivo, Y01).
+                actions.onRefreshHome()
+                actions.onRefreshCatalog()
+                sections.store.refresh()
+                sections.spaces.refresh()
+                sections.staff.refresh()
+            }
             return@AdminDialogHost
         }
         // Bienvenida (marco AS1): la primera vez que entra a una tienda que todavía no está lista.
