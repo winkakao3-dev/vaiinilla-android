@@ -2975,6 +2975,7 @@ fun AppNavHost(
                                 onSetArchived = adminViewModel::setArchived,
                                 onSelectOrderFilter = adminViewModel::selectOrderFilter,
                                 onRefreshOrders = adminViewModel::refreshOrders,
+                                onPollOrders = adminViewModel::pollOrders,
                                 onLoadMoreOrders = adminViewModel::loadMoreOrders,
                                 onRefreshAgenda = adminViewModel::refreshAgenda,
                                 onHomeAction = adminViewModel::homeAction,

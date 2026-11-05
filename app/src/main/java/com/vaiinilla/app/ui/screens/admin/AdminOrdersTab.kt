@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.HomeOrderBoard
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -64,6 +65,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.amberInk
 import com.vaiinilla.app.ui.theme.Yolk
+import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -149,6 +151,14 @@ private fun OrdersPage(
     LaunchedEffect(Unit) {
         actions.onRefreshHome()
         tables?.onRefresh?.invoke()
+    }
+    // Un encargo nuevo aparece en «Por aceptar» sin reabrir la app: cada 15 s mientras Pedidos está a la vista, o
+    // en cuanto llega el push del pedido.
+    LaunchedEffect(Unit) {
+        while (true) {
+            OrderPushes.awaitNextPoll { delay(ORDERS_POLL_MS) }
+            actions.onPollOrders()
+        }
     }
     val photos =
         remember(state.catalog) {
@@ -690,6 +700,9 @@ private fun whereLabel(order: OrderDetail): String? =
 
 private fun whoLabel(order: OrderDetail): String? =
     order.customerName?.takeIf { it.isNotBlank() } ?: order.user?.name?.takeIf { it.isNotBlank() }
+
+/** Cada cuánto se vuelven a pedir los pedidos mientras Pedidos está a la vista; un push lo adelanta. */
+private const val ORDERS_POLL_MS = 15_000L
 
 private val ArrivalFormat = DateTimeFormatter.ofPattern("HH:mm")
 

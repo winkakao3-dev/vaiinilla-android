@@ -601,6 +601,27 @@ class AdminViewModel
                 }
         }
 
+        /**
+         * Con Pedidos abierto, cada ~15 s (o al llegar un push de pedido) se vuelve a leer sin girar la rueda: un
+         * encargo nuevo no salía en «Por aceptar» hasta reabrir la app. Solo la primera página, y solo si no se
+         * cargaron más; así no se pierde lo que la persona ya bajó.
+         */
+        fun pollOrders() {
+            val current = _uiState.value
+            if (current.orderFilter != AdminOrderFilter.ACTIVE || current.ordersLoading || current.saving) return
+            if (ordersJob?.isActive == true) return
+            ordersJob =
+                viewModelScope.launch {
+                    loadAwaiting()
+                    if (_uiState.value.ordersCursor != null) return@launch
+                    val states = AdminOrderFilter.ACTIVE.states(_uiState.value.takesHomeOrders)
+                    val page = withContext(Dispatchers.IO) { adminRepository.orders(states, null) }.getOrNull()
+                    if (page == null || _uiState.value.orderFilter != AdminOrderFilter.ACTIVE) return@launch
+                    if (_uiState.value.ordersLoading) return@launch
+                    _uiState.value = _uiState.value.copy(orders = page.orders, ordersCursor = page.cursor)
+                }
+        }
+
         private suspend fun loadAwaiting() {
             val page =
                 withContext(Dispatchers.IO) {
