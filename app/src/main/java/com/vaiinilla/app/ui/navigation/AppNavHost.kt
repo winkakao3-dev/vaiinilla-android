@@ -61,6 +61,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
@@ -665,6 +666,10 @@ fun AppNavHost(
         orderFlowViewModel.enterGuestVenue(venue)
         orderFlowViewModel.clearMenuFilters()
         navController.navigate(Routes.CATALOG) {
+            // El menú, el carrito y el seguimiento de abajo eran del negocio anterior: Atrás regresaba allá (#10).
+            if (switchingEstablishment) {
+                popUpTo(Routes.CATALOG) { inclusive = true }
+            }
             launchSingleTop = true
         }
         // Con el QR de una mesa, la entrada se vuelve el plano del lugar con tu mesa marcada.
@@ -1465,6 +1470,11 @@ fun AppNavHost(
                 // Con sesión el mapa sale del negocio; sin sesión, del mapa público del slug que se está mirando.
                 val hasStudentSession = !orderFlowViewModel.requiresStudentAuth()
                 val venueSlug = orderState.guestVenue?.establishment?.slug
+                // El nombre de lo que se renta es del negocio que se mira: sin esto un boliche decía «Canchas» y la
+                // pastelería heredaba las «Pistas» del boliche (en vivo, #21). El estado operativo es de este negocio.
+                val venueType =
+                    orderState.guestVenue?.establishment?.businessType ?: orderState.operationalStatus?.businessType
+                LaunchedEffect(venueType) { Venue.update(venueType) }
                 // Los sondeos de pantalla se pausan con la app en segundo plano (FLOW-15).
                 WhileStarted(
                     hasStudentSession,
@@ -3138,6 +3148,7 @@ fun AppNavHost(
                             authorizedAccessState.activeContext?.membershipId ?: "cashier-accounts",
                         kicker = "CAJA",
                         roleChip = "CJ",
+                        assistantRole = OperationalRole.CASHIER,
                     )
                 }
             }
