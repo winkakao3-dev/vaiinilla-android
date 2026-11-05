@@ -179,4 +179,23 @@ class StudentCounterRefreshTest {
             )
             model.setShift(null)
         }
+
+    @Test
+    fun `tras cobrar con PIN el PIN queda borrado`() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val model = StudentCounterViewModel(repository, MemoryStore(), NoReconnect, dispatcher, scope)
+            model.setShift(shift)
+            model.select(before.copy(requiresPin = true))
+            model.step(productId = 4, delta = 1)
+            model.updatePin("4821")
+            assertTrue(model.uiState.value.pinReady)
+
+            model.charge(BigDecimal("20.00"))
+            runCurrent()
+
+            assertTrue(model.uiState.value.chargePhase is ChargePhase.Charged)
+            assertEquals("", model.uiState.value.pin)
+            model.setShift(null)
+        }
 }
