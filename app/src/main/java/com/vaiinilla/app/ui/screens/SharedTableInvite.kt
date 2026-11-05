@@ -140,7 +140,7 @@ internal fun SharedTableInvite(
         state.error?.let {
             Text(
                 it,
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp),

@@ -1776,7 +1776,7 @@ private fun SpaceCodeSheet(
                 if (showError) {
                     Text(
                         "Escribe un código para continuar.",
-                        color = colors.coral,
+                        color = colors.coralText,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 8.dp, start = 4.dp),

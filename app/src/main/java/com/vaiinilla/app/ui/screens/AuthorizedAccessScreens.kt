@@ -157,7 +157,11 @@ fun InvitationAcceptanceScreen(
                 exit = fadeOut(),
             ) {
                 state.message?.let { message ->
-                    Text(message, color = colors.accent, fontWeight = FontWeight.Bold)
+                    Text(
+                        message,
+                        color = if (colors.isDark) colors.accent else colors.accentInk,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }
@@ -261,7 +265,12 @@ private fun InvitationHeader(invitation: AuthorizedInvitation?) {
                 modifier = Modifier.padding(top = 20.dp).arrive(1),
             )
         } else {
-            Text("Acceso invitado", color = colors.accent, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+            Text(
+                "Acceso invitado",
+                color = if (colors.isDark) colors.accent else colors.accentInk,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.3.sp,
+            )
         }
         Text(
             title,
@@ -332,7 +341,7 @@ private fun InvitationDetails(
         if (matches == false) {
             Text(
                 "Entraste con otro correo. Sal y entra con ${invitation.invitedEmail} para aceptarla.",
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 10.dp),

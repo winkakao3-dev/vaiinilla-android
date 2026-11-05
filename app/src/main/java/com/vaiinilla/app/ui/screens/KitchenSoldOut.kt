@@ -136,7 +136,7 @@ internal fun KitchenSoldOutContent(
         if (message != null) {
             Text(
                 message,
-                color = coral,
+                color = LocalVaiinillaColors.current.coralText,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier =

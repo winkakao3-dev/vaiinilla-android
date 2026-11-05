@@ -210,7 +210,7 @@ internal fun WaiterCallContent(
         state.error?.let { message ->
             Text(
                 message,
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp).testTag("menu-waiter-error"),

@@ -668,7 +668,7 @@ private fun ChildCard(
             if (child.isLowBalance) {
                 Text(
                     "Saldo bajo",
-                    color = colors.coral,
+                    color = colors.coralText,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
                     modifier =

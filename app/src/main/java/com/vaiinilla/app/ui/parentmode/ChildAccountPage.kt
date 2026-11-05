@@ -940,7 +940,7 @@ internal fun CardCaption(
         if (action != null) {
             Text(
                 action,
-                color = colors.accent,
+                color = if (colors.isDark) colors.accent else colors.accentInk,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 13.sp,
                 modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onAction).minTouchTarget(),

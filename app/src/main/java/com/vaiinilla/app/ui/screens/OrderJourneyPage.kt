@@ -1340,7 +1340,7 @@ private fun DeliveredReceipt(
         }
         Text(
             "ENTREGADO",
-            color = colors.accent,
+            color = if (colors.isDark) colors.accent else colors.accentInk,
             fontSize = 11.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 2.2.sp,

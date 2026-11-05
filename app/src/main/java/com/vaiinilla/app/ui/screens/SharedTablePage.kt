@@ -138,7 +138,7 @@ fun SharedTablePage(
             error?.takeIf { errorFolio == null }?.let {
                 Text(
                     it,
-                    color = colors.coral,
+                    color = colors.coralText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).semantics { liveRegion = LiveRegionMode.Polite },
@@ -397,7 +397,7 @@ private fun TableRow(
         error?.let {
             Text(
                 it,
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite },
@@ -431,7 +431,12 @@ private fun PaidTag() {
             .padding(horizontal = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text("Pagado", color = colors.accent, fontSize = 11.5.sp, fontWeight = FontWeight.ExtraBold)
+        Text(
+            "Pagado",
+            color = if (colors.isDark) colors.accent else colors.accentInk,
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+        )
     }
 }
 
