@@ -32,8 +32,8 @@ class MenuWaiterCallTest {
     fun `quien rento la cancha en la app tambien llama al mesero`() {
         val court = 5
         assertEquals(court, menuWaiterSpaceId(null, null, signedIn = true, rentedCourtId = court))
-        // El QR que escaneó manda sobre la cancha rentada.
-        assertEquals(1, menuWaiterSpaceId(1, null, signedIn = true, rentedCourtId = court))
+        // La pista rentada en curso manda sobre la mesa del QR: ya está jugando allá.
+        assertEquals(court, menuWaiterSpaceId(1, null, signedIn = true, rentedCourtId = court))
         assertNull(menuWaiterSpaceId(null, null, signedIn = false, rentedCourtId = court))
     }
 

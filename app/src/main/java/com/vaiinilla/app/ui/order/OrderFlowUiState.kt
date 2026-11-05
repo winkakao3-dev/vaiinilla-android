@@ -304,9 +304,17 @@ val OrderFlowUiState.requiresOperationalReady: Boolean
 val OrderFlowUiState.canCreateOrder: Boolean
     get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady) && checkoutScheduleProblem == null
 
-/** Espacios a los que se puede mandar el pedido: el del QR y, si hay, la cancha rentada. */
+/** Espacios a los que se puede mandar el pedido: la cancha rentada (primero) y el del QR. */
 val OrderFlowUiState.checkoutSpaces: List<PublicSpace>
-    get() = listOfNotNull(guestVenue?.space, rentedCourt).distinctBy { it.id }
+    get() = listOfNotNull(rentedCourt, guestVenue?.space).distinctBy { it.id }
+
+/**
+ * Dónde está el cliente ahora. Con una cancha o pista rentada en curso, esa manda sobre la mesa del QR: quien
+ * entró por «La Mesa 1» y rentó la Pista 3 ya está en la pista, y ahí deben llegar sus pedidos y el mesero.
+ * La mesa del QR se queda en [GuestVenueContext.space] (mesa compartida, carrito guardado) por si la renta acaba.
+ */
+val OrderFlowUiState.currentSpace: PublicSpace?
+    get() = rentedCourt ?: guestVenue?.space
 
 /** El espacio elegido, si sigue entre los permitidos; si no, el primero (la cancha rentada va primero). */
 val OrderFlowUiState.checkoutSpace: PublicSpace?

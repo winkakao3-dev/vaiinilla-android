@@ -34,6 +34,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
@@ -67,6 +68,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -110,6 +113,7 @@ class OrderFlowViewModel
         private var pendingStripeRetryIdempotencyKey: String? = null
         private var activeCartStorageKey: String? = null
         private var guestVenueLoadJob: Job? = null
+        private var rentedCourtCheckJob: Job? = null
         private var cartReconcileJob: Job? = null
         private val activeJobs = mutableSetOf<Job>()
         private var stripeConfirmationJob: Job? = null
@@ -144,6 +148,9 @@ class OrderFlowViewModel
                 activeJobs.toList().forEach(Job::cancel)
                 activeJobs.clear()
                 guestVenueLoadJob = null
+                // La revisión de la pista rentada era del negocio anterior.
+                rentedCourtCheckJob?.cancel()
+                rentedCourtCheckJob = null
                 // La llave persistida de crear pedido se conserva: si el POST ya salió y la respuesta se perdió al
                 // cambiar de lugar, volver y reintentar debe devolver ese pedido y no crear otro (PAGO-09). El
                 // servidor la acota por establecimiento y la app la vence a las 24 h.
@@ -639,6 +646,8 @@ class OrderFlowViewModel
         fun clearForSessionTermination() {
             activeJobs.toList().forEach(Job::cancel)
             activeJobs.clear()
+            rentedCourtCheckJob?.cancel()
+            rentedCourtCheckJob = null
             pendingIdempotencyKey = null
             pendingStripeRetryIdempotencyKey = null
             guestVenueLoadJob?.cancel()
@@ -1443,26 +1452,67 @@ class OrderFlowViewModel
             }
         }
 
-        private suspend fun loadRentedCourt(): PublicSpace? =
-            withContext(Dispatchers.IO) { reservationRepository.list(access = ReservationAccess.Account) }
-                .getOrNull()
+        private suspend fun loadRentedCourt(): PublicSpace? {
+            val reservations =
+                withContext(Dispatchers.IO) { reservationRepository.list(access = ReservationAccess.Account) }
+                    .getOrNull()
+            scheduleRentedCourtCheck(reservations)
+            return reservations
                 ?.firstOrNull { it.state == ReservationState.IN_PROGRESS }
                 ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: Venue.courtTitle, type = "cancha") }
+        }
 
         /**
-         * Tras pagar una renta, la cancha pasa a "en curso" en la siguiente consulta de reservas:
-         * se vuelve a leer para ofrecerla como destino sin recargar el lugar.
+         * La renta pagada que empieza en unos minutos, o la que está en curso y termina, cambia el lugar del cliente
+         * sin que nadie recargue: se vuelve a leer justo al empezar o al acabar (en vivo: pagó la pista desde la
+         * Mesa 1 y la app lo dejaba en la mesa).
+         */
+        private fun scheduleRentedCourtCheck(reservations: List<Reservation>?) {
+            rentedCourtCheckJob?.cancel()
+            rentedCourtCheckJob = null
+            val now = Instant.now()
+            val next =
+                reservations
+                    .orEmpty()
+                    .mapNotNull {
+                        when (it.state) {
+                            ReservationState.CONFIRMED -> it.start
+                            ReservationState.IN_PROGRESS -> it.end
+                            else -> null
+                        }
+                    }.filter { it.isAfter(now) && Duration.between(now, it) <= RENTED_COURT_CHECK_HORIZON }
+                    .minOrNull() ?: return
+            val wait = Duration.between(now, next).toMillis() + RENTED_COURT_CHECK_SLACK_MS
+            rentedCourtCheckJob =
+                viewModelScope.launch {
+                    delay(wait)
+                    refreshRentedCourt()
+                }
+        }
+
+        /**
+         * Tras pagar una renta, la cancha pasa a "en curso" en la siguiente consulta de reservas: se vuelve a leer
+         * y se vuelve el lugar del cliente (el del QR queda como segunda opción en el carrito).
          */
         fun refreshRentedCourt() {
             // Sin estado operativo (invitado) no hay cancha rentada que ofrecer.
             if (_uiState.value.operationalStatus == null) return
             launchTracked {
                 val rentedCourt = loadRentedCourt()
+                val current = _uiState.value
+                // Solo una pista nueva cambia el destino elegido: si el cliente volvió a escoger su mesa, se respeta.
+                val courtChanged = rentedCourt?.id != current.rentedCourt?.id
                 _uiState.value =
-                    _uiState.value.copy(
+                    current.copy(
                         rentedCourt = rentedCourt,
-                        selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
-                        checkoutDestination = destinationWithRentedCourt(_uiState.value, rentedCourt),
+                        selectedSpaceId =
+                            if (courtChanged && rentedCourt != null) rentedCourt.id else current.selectedSpaceId,
+                        checkoutDestination =
+                            if (courtChanged && rentedCourt != null) {
+                                OrderDestination.IN_SPACE
+                            } else {
+                                destinationWithRentedCourt(current, rentedCourt)
+                            },
                     )
             }
         }
@@ -1977,6 +2027,10 @@ class OrderFlowViewModel
             if (unlockPendingOrder) {
                 guestSessionStore.clearPendingStripeConfirmationOrderId(requireNotNull(order).summary.id)
             }
+            // Si lo cobrado era una renta, la pista ya puede estar en curso: el cliente pasa a ella.
+            if (phase == StripePaymentPhase.CONFIRMED && current.stripePaymentPhase != StripePaymentPhase.CONFIRMED) {
+                refreshRentedCourt()
+            }
             val shouldCelebrateStripe =
                 phase == StripePaymentPhase.CONFIRMED &&
                     order != null &&
@@ -2107,6 +2161,12 @@ class OrderFlowViewModel
             const val CLAIM_ATTEMPTS = 3
             const val CLAIM_RETRY_BASE_MS = 2_000L
             const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
+
+            /** Solo se espera a la renta de hoy: una de mañana se revisa al volver a entrar. */
+            val RENTED_COURT_CHECK_HORIZON: Duration = Duration.ofHours(12)
+
+            /** Unos segundos después de la hora, para que el servidor ya la diga «en curso» o «terminada». */
+            const val RENTED_COURT_CHECK_SLACK_MS = 5_000L
         }
     }
 
