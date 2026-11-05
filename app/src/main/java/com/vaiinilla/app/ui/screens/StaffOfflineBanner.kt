@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.runtime.remember
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
@@ -21,11 +20,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.contract.UnreadableOrders
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.OfflineStaffOrdersState
@@ -104,6 +108,53 @@ internal fun StaffOfflineBanner(
     }
 }
 
+/** Cuántos pedidos mandó el servidor que esta versión no supo leer; se lee en cada pantalla del personal. */
+@Composable
+internal fun rememberUnreadableOrders(): Int {
+    val count by UnreadableOrders.count.collectAsState()
+    return count
+}
+
+/**
+ * Un pedido con un estado o un método de pago que esta versión no conoce se omite de la lista para que los demás
+ * se sigan viendo. Sin esta franja el personal no sabría que le falta un pedido real: se le pide actualizar la app.
+ */
+@Composable
+internal fun StaffUpdateAppBanner(
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
+    if (count <= 0) return
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(OfflineYolk)
+                .semantics { liveRegion = LiveRegionMode.Polite }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Outlined.SystemUpdate, contentDescription = null, tint = OfflineInk, modifier = Modifier.size(22.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Actualiza la app", color = OfflineInk, fontWeight = FontWeight.Black, fontSize = 15.sp)
+            Text(
+                if (count == 1) {
+                    "Hay 1 pedido que esta versión no puede mostrar. Actualiza desde la tienda para verlo."
+                } else {
+                    "Hay $count pedidos que esta versión no puede mostrar. Actualiza desde la tienda para verlos."
+                },
+                color = OfflineInk,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
 /**
  * Pedidos que Mesero o Caja tomó sin internet: cuántos faltan por mandar y los que el servidor no aceptó, para
  * resolverlos a mano. Se ve mientras quede alguno, con o sin red.
@@ -157,7 +208,7 @@ internal fun OfflineOrdersCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "${order.localFolio} · ${order.placeLabel}",
+                        offlineProblemTitle(order),
                         color = OfflineInk,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.5.sp,
@@ -172,9 +223,21 @@ internal fun OfflineOrdersCard(
                     )
                 }
                 TextButton(onClick = { onDismiss(order) }) {
-                    Text("Ya lo resolví", color = OfflineInk, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (order.collectedButNotRegistered) "Ya lo cobré" else "Ya lo resolví",
+                        color = OfflineInk,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }
     }
 }
+
+/** «Cobrado sin registrar» va primero: el efectivo ya está en el cajón y no entró a ningún corte. */
+internal fun offlineProblemTitle(order: OfflineStaffOrder): String =
+    if (order.collectedButNotRegistered) {
+        "Cobrado sin registrar · #${order.registeredFolio} (${order.localFolio}) · ${order.placeLabel}"
+    } else {
+        "${order.localFolio} · ${order.placeLabel}"
+    }

@@ -29,7 +29,7 @@ import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 import com.vaiinilla.app.ui.screens.admin.AdminSheet
-import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.screens.amberInk
 
 /** El padrón de la escuela: con él, los tutores solo dan de alta a alumnos que de verdad son de aquí. */
 @Composable
@@ -145,14 +145,14 @@ private fun RosterPaste(
                 color = if (colors.isDark) colors.accentLime else colors.accentInk,
             )
             result.problems.take(3).forEach {
-                Text(it.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Yolk)
+                Text(it.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.amberInk)
             }
             if (result.problems.size > 3) {
                 Text(
                     "y ${result.problems.size - 3} líneas más con problema",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Yolk,
+                    color = colors.amberInk,
                 )
             }
         }

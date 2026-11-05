@@ -3,7 +3,12 @@ package com.vaiinilla.app.domain.repository
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantPhoto
+import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.CashbackRule
+import com.vaiinilla.app.domain.admin.ForcedCloseResult
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.InvitationsPage
@@ -87,6 +92,22 @@ interface AdminStoreRepository {
         longitude: Double,
     ): Result<StoreConfig> = Result.failure(UnsupportedOperationException("Ubicación no soportada"))
 
+    /** La siguiente respuesta del asistente de configuración (`POST /establecimiento/asistente`). */
+    fun assistantReply(
+        messages: List<AssistantMessage>,
+        photoIds: List<String> = emptyList(),
+    ): Result<AssistantReply> = Result.failure(UnsupportedOperationException("Asistente no soportado"))
+
+    /**
+     * Aplica un paso de la propuesta del asistente con la ruta de siempre (ajustes, lugares, menú, fotos o
+     * invitación). La misma [idempotencyKey] en un reintento no duplica lo que ya se creó.
+     */
+    fun applyAssistantStep(
+        step: AssistantStep,
+        photos: Map<String, AssistantPhoto>,
+        idempotencyKey: String,
+    ): Result<Unit> = Result.failure(UnsupportedOperationException("Asistente no soportado"))
+
     /** `null` si el negocio aún no conecta su cuenta de Stripe. */
     fun stripe(): Result<StripeSetup?>
 
@@ -168,10 +189,13 @@ interface AdminSpacesRepository {
         idempotencyKey: String,
     ): Result<ReservationSchedule>
 
-    /** Cierra la cuenta de un espacio sin cobrarla, cuando el cliente se fue sin pagar. */
+    /**
+     * Cierra la cuenta de un espacio sin cobrarla, cuando el cliente se fue sin pagar. El motivo es obligatorio; el
+     * servidor cancela lo no pagado (sale de Cocina) y deja lo abonado como ingreso (contrato D).
+     */
     fun closeWithoutCharging(
         spaceId: Int,
-        note: String?,
+        reason: String,
         idempotencyKey: String,
-    ): Result<Unit>
+    ): Result<ForcedCloseResult>
 }

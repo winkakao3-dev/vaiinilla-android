@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.AddressStreet
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.HomeCheckoutRules
 import com.vaiinilla.app.domain.model.HomePayment
@@ -48,6 +50,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartTotalFor
 import com.vaiinilla.app.ui.order.deliveryDates
+import com.vaiinilla.app.ui.order.effectiveHomePayment
 import com.vaiinilla.app.ui.order.homeDeliveryOffer
 import com.vaiinilla.app.ui.order.homePayments
 import com.vaiinilla.app.ui.order.isHomeDelivery
@@ -60,6 +63,8 @@ import java.time.LocalDate
 data class HomeCheckoutActions(
     val onDestinationChange: (OrderDestination) -> Unit = {},
     val onEditAddress: ((DeliveryAddress) -> DeliveryAddress) -> Unit = {},
+    /** La calle que falta, escrita a mano: cambia el texto sin borrar el punto ni la cotización. */
+    val onEditStreet: (String) -> Unit = {},
     val onQuoteStart: () -> Unit = {},
     val onQuoteFailed: (String) -> Unit = {},
     val onQuote: (latitude: Double, longitude: Double, written: String, street: String?) -> Unit = { _, _, _, _ -> },
@@ -172,6 +177,7 @@ internal fun HomeDeliverySection(
             picking = true
         }
         HomeAddressSummary(state, offer)
+        HomeStreetField(address, actions, colors)
         HomeField(
             value = address.reference,
             onValueChange = { value -> actions.onEditAddress { it.copy(reference = value.take(120)) } },
@@ -187,12 +193,16 @@ internal fun HomeDeliverySection(
             colors = colors,
             keyboardType = KeyboardType.Phone,
         )
+        // Como la calle: el aviso va junto al campo, no solo al fondo del carrito, una vez elegido el punto.
+        address.phoneProblem?.takeIf { address.point() != null }?.let { problem ->
+            FieldProblem(problem, colors)
+        }
         if (state.homePayments.isNotEmpty()) {
             CartSectionHead(title = "¿Cómo pagas?", meta = null)
             state.homePayments.forEach { payment ->
                 SelectPill(
                     paymentLabel(payment, state),
-                    selected = state.homeCheckout.payment == payment,
+                    selected = state.effectiveHomePayment == payment,
                     colors = colors,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -200,7 +210,7 @@ internal fun HomeDeliverySection(
                     actions.onSelectPayment(payment)
                 }
             }
-            if (state.homeCheckout.payment == HomePayment.ON_ARRIVAL) {
+            if (state.effectiveHomePayment == HomePayment.ON_ARRIVAL) {
                 offer.transferDetails?.let { details ->
                     Column(
                         modifier =
@@ -224,6 +234,56 @@ internal fun HomeDeliverySection(
     }
     if (picking) HomeMapPicker(state, offer, actions) { picking = false }
 }
+
+/**
+ * Si el mapa solo resolvió el código postal, la colonia o el punto, falta la calle: «Pagar» se quedaba gris sin
+ * decir por qué. Aquí se pide y lo escrito va delante del resto de la dirección, con el mismo punto y envío.
+ */
+@Composable
+private fun HomeStreetField(
+    address: DeliveryAddress,
+    actions: HomeCheckoutActions,
+    colors: VaiinillaColors,
+) {
+    val point = address.point()
+    val asks =
+        rememberSaveable(point?.latitude, point?.longitude) {
+            point != null && address.street.isEmpty()
+        }
+    if (!asks) return
+    val area = remember(point?.latitude, point?.longitude) { AddressStreet.area(address.address) }
+    var typed by rememberSaveable(point?.latitude, point?.longitude) { mutableStateOf("") }
+    HomeField(
+        value = typed,
+        onValueChange = { value ->
+            typed = value.take(STREET_MAX)
+            actions.onEditStreet(AddressStreet.join(typed, area).take(ADDRESS_MAX))
+        },
+        placeholder = "Calle y número",
+        colors = colors,
+    )
+    if (address.street.isEmpty()) {
+        FieldProblem("El mapa solo encontró la zona. Escribe tu calle y número para poder pagar.", colors)
+    }
+}
+
+/** Lo que le falta a un campo de la entrega, en coral justo debajo de él. */
+@Composable
+private fun FieldProblem(
+    text: String,
+    colors: VaiinillaColors,
+) {
+    Text(
+        text,
+        color = colors.coral,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = 18.sp,
+    )
+}
+
+private const val STREET_MAX = 80
+private const val ADDRESS_MAX = 160
 
 private fun paymentLabel(
     payment: HomePayment,

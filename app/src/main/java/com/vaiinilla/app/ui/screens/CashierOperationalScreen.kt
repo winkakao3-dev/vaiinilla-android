@@ -40,6 +40,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -108,9 +109,10 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
-import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
+import com.vaiinilla.app.domain.model.offlineCaptureLabel
+import com.vaiinilla.app.domain.repository.CashDrawerMovementType
 import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.time.BusinessTime
@@ -137,6 +139,10 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.components.rentalChargeLabel
+import com.vaiinilla.app.ui.notices.NoticePanel
+import com.vaiinilla.app.ui.operational.CashSession
+import com.vaiinilla.app.ui.operational.CollectedToday
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
 import com.vaiinilla.app.ui.operational.queuePresentation
@@ -161,6 +167,10 @@ fun CashierOperationalScreen(
     onRequestCloseCash: () -> Unit = {},
     onDismissCloseCash: () -> Unit = {},
     onCloseCash: (String) -> Unit = {},
+    /** Lee el resumen y los renglones del cajón (N11, R37). */
+    onLoadCashDrawer: () -> Unit = {},
+    /** Meter o sacar efectivo del cajón con su motivo (R7). */
+    onSaveDrawerMovement: (CashDrawerMovementType, String, String) -> Unit = { _, _, _ -> },
     onCollect: (orderId: String, amount: String, version: Int, tip: String?) -> Unit,
     onScanDeliver: (orderId: String, version: Int) -> Unit = { _, _ -> },
     /** Entregar sin escanear: el backend dispensa el QR de ese pedido (`entrega_sin_qr`). */
@@ -180,6 +190,8 @@ fun CashierOperationalScreen(
     onCashChangeNoticed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     onOpenAccounts: (() -> Unit)? = null,
+    /** R1: «Ver cuentas por cobrar» del cierre bloqueado abre esta lista; sin ella, el tablero de mesas. */
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
@@ -199,6 +211,8 @@ fun CashierOperationalScreen(
     orderTablesError: String? = null,
     onRefreshOrderTables: () -> Unit = {},
     onNewTableOrder: ((TableSpace) -> Unit)? = null,
+    /** Doop CR5: el corte de caja del día y de cada turno, a pantalla completa; null lo oculta del menú. */
+    cashCutContent: (@Composable (onClose: () -> Unit) -> Unit)? = null,
     /** Mesas y canchas con cuenta sin cobrar; null mientras no se sabe. */
     pendingSpaces: Int? = null,
     /** Caja de una escuela: la fila Alumnos (padres e hijos); null fuera de una escuela. */
@@ -224,6 +238,7 @@ fun CashierOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var cashDrawerOpen by remember { mutableStateOf(false) }
+    var cashCutOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
     var tick by remember { mutableIntStateOf(0) }
@@ -288,6 +303,12 @@ fun CashierOperationalScreen(
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
     var openCashSheet by remember { mutableStateOf(false) }
     var browsingClosed by rememberSaveable { mutableStateOf(false) }
+    // El conteo del cierre vive en la ruta y no en la hoja: ir a «Ver cuentas por cobrar» cierra la hoja, y al
+    // volver el cajero no tiene que contar el cajón otra vez. Se borra cuando la caja ya quedó cerrada.
+    val closeCount = rememberSaveable(stateSaver = CashCountDraft.Saver) { mutableStateOf(CashCountDraft()) }
+    LaunchedEffect(state.cashSessionOpen) {
+        if (state.cashSessionOpen == false) closeCount.value = CashCountDraft()
+    }
     val cashRegisterOpen = state.cashSessionOpen == true
     val canReloadWallet = cashRegisterOpen && restrictedMode != RestrictedMode.READ_ONLY
     val walletBlockedReason =
@@ -383,6 +404,7 @@ fun CashierOperationalScreen(
                     }
                 },
     ) {
+        val unreadableOrders = rememberUnreadableOrders()
         LazyColumn(
             modifier =
                 Modifier
@@ -456,6 +478,13 @@ fun CashierOperationalScreen(
                                 } else {
                                     null
                                 },
+                            onOpenCashCut =
+                                cashCutContent?.let {
+                                    {
+                                        haptics.selection()
+                                        cashCutOpen = true
+                                    }
+                                },
                         )
                     }
                 }
@@ -470,6 +499,12 @@ fun CashierOperationalScreen(
             if (offlineOrdersEntry != null) {
                 item(key = "cashier-offline-orders") {
                     Box(modifier = Modifier.animateItem()) { offlineOrdersEntry() }
+                }
+            }
+
+            if (unreadableOrders > 0) {
+                item(key = "cashier-update-app") {
+                    StaffUpdateAppBanner(count = unreadableOrders, modifier = Modifier.animateItem())
                 }
             }
 
@@ -496,10 +531,12 @@ fun CashierOperationalScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "Por cobrar",
-                            fontSize = 34.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-1).sp,
                             color = colors.textPrimary,
+                            maxLines = 1,
+                            // L01: con letra grande «Por cobrar» se partía junto al buscador; se encoge.
+                            autoSize = TextAutoSize.StepBased(minFontSize = 22.sp, maxFontSize = 34.sp),
                             modifier = Modifier.weight(1f),
                         )
                         CashierSearchButton(
@@ -521,7 +558,8 @@ fun CashierOperationalScreen(
                         fontSize = 12.5.sp,
                         color = colors.textSecondary,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        // L01: con letra grande el negocio, el fondo y la hora no caben en un renglón.
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
@@ -631,7 +669,7 @@ fun CashierOperationalScreen(
             }
 
             // Sin leer el estado de la caja no hay "Abrir" ni "Cerrar": que no parezca que todo va bien.
-            if (state.cashSessionOpen == null && state.cashSessionCheckFailed) {
+            if (state.cashSession == CashSession.CheckFailed) {
                 item(key = "cash-session-unknown") {
                     OperationalErrorCard(
                         title = "No se pudo saber si la caja está abierta",
@@ -712,7 +750,17 @@ fun CashierOperationalScreen(
 
             if (state.cashSessionOpen == true) {
                 item(key = "cashier-today") {
+                    // Cada cobro en efectivo mueve el esperado: se relee el cajón para que lo cobrado no se quede en «—».
+                    // Un cobro con tarjeta o saldo no lo mueve: también se relee cuando un pedido cambia de estado,
+                    // para que «Cobrado hoy» (todos los métodos) siga al día.
+                    val orderStates = state.orders.map { it.summary.id to it.summary.state }
+                    LaunchedEffect(state.expectedCash, orderStates) { onLoadCashDrawer() }
                     CashierTodayCard(
+                        cashSales =
+                            state.cashDrawer.report
+                                ?.summary
+                                ?.cashSales,
+                        collectedToday = state.collectedToday,
                         expectedCash = state.expectedCash,
                         colors = colors,
                         modifier = Modifier.animateItem(),
@@ -953,7 +1001,33 @@ fun CashierOperationalScreen(
             )
         }
         if (cashDrawerOpen) {
-            CashDrawerSheet(expectedCash = state.expectedCash, colors = colors, onDismiss = { cashDrawerOpen = false })
+            LaunchedEffect(Unit) { onLoadCashDrawer() }
+            CashDrawerSheet(
+                expectedCash = state.expectedCash,
+                colors = colors,
+                onDismiss = { cashDrawerOpen = false },
+                drawer = state.cashDrawer,
+                onSave = onSaveDrawerMovement.takeIf { restrictedMode != RestrictedMode.READ_ONLY },
+                onRetry = onLoadCashDrawer,
+            )
+        }
+        if (cashCutOpen && cashCutContent != null) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { cashCutOpen = false },
+                properties =
+                    androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        decorFitsSystemWindows = false,
+                    ),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(colors.background)
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
+                ) { cashCutContent { cashCutOpen = false } }
+            }
         }
         state.closeCash?.let { closeState ->
             CashCloseSheet(
@@ -966,9 +1040,12 @@ fun CashierOperationalScreen(
                 colors = colors,
                 onDismiss = onDismissCloseCash,
                 onConfirm = onCloseCash,
-                onOpenAccounts = onOpenAccounts,
+                onOpenAccounts = onOpenUnpaidAccounts ?: onOpenAccounts,
                 expectedCash = state.expectedCash,
                 openingAmount = state.cashOpeningAmount,
+                countState = closeCount,
+                unsyncedCashOrders = state.unsyncedOfflineCash,
+                drawerSummary = state.cashDrawer.report?.summary,
             )
         }
         chargeOrder?.let { order ->
@@ -1088,16 +1165,21 @@ internal fun arrivalSuffix(order: OrderDetail): String =
 
 private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-/** El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. */
+/**
+ * El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. Una renta no se lleva: es «Renta de
+ * Pista 3» (en vivo, D03).
+ */
 internal fun cashierPlaceLabel(order: OrderDetail): String =
-    if (order.summary.destination.name == "TAKE_AWAY") {
-        "Para llevar"
-    } else {
-        SpaceCopy.staffDestination(order.summary.destination, order.summary.space)
+    when {
+        order.reservation != null -> rentalChargeLabel(order)
+        order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
+        else -> SpaceCopy.staffDestination(order.summary.destination, order.summary.space, order.summary.pickUpAtBar)
     }
 
 // Una venta de mostrador no tiene cliente: el servidor manda «Mostrador» como nombre y eso ya dice de dónde viene.
-private fun isCounterSale(order: OrderDetail): Boolean = staffCustomerName(order).equals("Mostrador", ignoreCase = true)
+// Una renta apartada en Caja también puede llegar a nombre de «Mostrador», pero se dice como renta.
+private fun isCounterSale(order: OrderDetail): Boolean =
+    order.reservation == null && staffCustomerName(order).equals("Mostrador", ignoreCase = true)
 
 /** «Mostrador» o el lugar del pedido, para la hoja de cobro. */
 internal fun cashierOrderOrigin(order: OrderDetail): String =
@@ -1158,7 +1240,9 @@ private fun elapsedShort(
         ms < 60_000 -> "ahora"
         ms < 3_600_000 -> "hace ${ms / 60_000} min"
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        else -> "hace ${ms / 86_400_000} d"
+        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
+        // Después de una semana, la fecha: «hace 340 d» no dice nada.
+        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 
@@ -1303,7 +1387,7 @@ private fun ProductGridCard(
                         } else {
                             "BARRA"
                         },
-                        fontSize = 8.5.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 0.6.sp,
                         color = colors.textSecondary,
@@ -1401,7 +1485,12 @@ private fun CashierQueueCard(
         shape = RoundedCornerShape(22.dp),
         color = colors.cardBackground,
     ) {
-        Column(modifier = Modifier.animateContentSize(spring(dampingRatio = 0.85f, stiffness = 380f))) {
+        Column(
+            modifier =
+                Modifier.animateContentSize(
+                    if (reducedMotion()) snap() else spring(dampingRatio = 0.85f, stiffness = 380f),
+                ),
+        ) {
             orders.forEachIndexed { index, order ->
                 key(order.summary.id) {
                     if (index > 0) {
@@ -1611,44 +1700,66 @@ private fun CashWelcome(
 }
 
 /**
- * «COBRADO HOY | Efectivo en el cajón» bajo la fila. El servidor todavía no manda lo cobrado del día, así que
- * se ve «—» hasta que llegue; el efectivo abre el detalle del cajón.
+ * «COBRADO HOY | Efectivo en el cajón» bajo la fila. Lo cobrado es lo del día con todos los métodos, del corte del día
+ * (GET /sesiones-caja/cortes: `resumen.ventas` y `formas_pago`), con el desglose debajo si cabe. Sin corte todavía
+ * (o si falla) queda lo de antes: las ventas en efectivo de esta caja, del resumen del cajón. El efectivo abre el
+ * detalle del cajón.
  */
 @Composable
 private fun CashierTodayCard(
+    cashSales: String?,
     expectedCash: String?,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
+    collectedToday: CollectedToday? = null,
     onOpenDrawer: () -> Unit,
 ) {
+    val title = if (collectedToday != null) "COBRADO HOY" else "COBRADO EN EFECTIVO"
+    val amount = collectedToday?.total ?: cashSales
+    val breakdown = collectedToday?.breakdownLine(::moneyLabel)
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         color = colors.cardBackground,
     ) {
+        // L01: con letra grande las dos mitades se encimaban; cada una tiene su mitad y se parte entre palabras.
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "COBRADO HOY",
+                    title,
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.5.sp,
                 )
                 Text(
-                    "—",
+                    amount?.let(::moneyLabel) ?: "—",
                     color = colors.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+                breakdown?.let {
+                    Text(
+                        it,
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
             Column(
-                modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
@@ -1656,6 +1767,7 @@ private fun CashierTodayCard(
                     color = colors.textSecondary,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.End,
                 )
                 Text(
                     expectedCash?.let(::moneyLabel) ?: "—",
@@ -1695,12 +1807,16 @@ private fun CashierScanButton(
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(8.dp))
+        // L01: con letra grande se cortaba en «Escanear QR para…»: se encoge y, si hace falta, usa dos renglones.
         Text(
             "Escanear QR para entregar",
             color = colors.background,
-            fontSize = 15.sp,
             fontWeight = FontWeight.Black,
-            maxLines = 1,
+            maxLines = 2,
+            lineHeight = 17.sp,
+            textAlign = TextAlign.Center,
+            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
+            modifier = Modifier.weight(1f, fill = false),
         )
     }
 }

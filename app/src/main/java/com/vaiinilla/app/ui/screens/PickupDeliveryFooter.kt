@@ -71,7 +71,7 @@ internal fun PickupDeliveryFooter(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "PEDIDO #${summary.folio} · ${
-                        SpaceCopy.staffDestination(summary.destination, summary.space).uppercase()
+                        SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar).uppercase()
                     }",
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Black,

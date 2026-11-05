@@ -15,12 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.school.GuardianRequest
-import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.SchoolGuardianship
 import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -33,7 +33,7 @@ import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
-import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.screens.amberInk
 
 /** Los tutores que esperan a la escuela, con lo que hace falta para decidir. */
 @Composable
@@ -389,7 +389,7 @@ private fun StudentRequestRow(
             )
         }
         studentRequestWarning(request)?.let {
-            Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Yolk)
+            Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.amberInk)
         }
         when (confirming) {
             "r${request.id}" ->

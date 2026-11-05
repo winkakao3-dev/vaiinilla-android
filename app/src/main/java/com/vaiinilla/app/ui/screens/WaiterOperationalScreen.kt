@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -117,6 +118,7 @@ import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.repository.AbonoMode
@@ -127,6 +129,7 @@ import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.SpaceAccount
+import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
@@ -137,6 +140,7 @@ import com.vaiinilla.app.domain.repository.tableState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.NumberTicker
+import com.vaiinilla.app.ui.components.OperationalAssistantGuide
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.ToastPill
@@ -144,6 +148,7 @@ import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.cashierAssistantGuides
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -152,12 +157,13 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.notices.NoticePanel
+import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -187,10 +193,20 @@ fun WaiterOperationalScreen(
     /** Abonos por monto o partes iguales: el espacio y el abono. */
     onAbono: ((Int, AccountPaymentMethod, AbonoMode, String?, Int?, String?, String, String?) -> Unit)? = null,
     onDismissCollection: () -> Unit = {},
-    /** Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. */
-    onStartRental: (Int, Int, Instant?) -> Unit = { _, _, _ -> },
+    /**
+     * Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. Espacio,
+     * minutos, inicio, jugadores y a nombre de quién (#27).
+     */
+    onStartRental: (Int, Int, Instant?, Int?, String?) -> Unit = { _, _, _, _, _ -> },
+    /** U04: guarda lo elegido para rentar (espacio, minutos, jugadores, nombre) fuera de la hoja. */
+    onRentalDraftChange: (Int, Int?, Int, String) -> Unit = { _, _, _, _ -> },
+    /** U04: cambia la duración o los jugadores de la renta apartada desde el cobro. */
+    onChangeRental: (Int, Int?) -> Unit = { _, _ -> },
+    /** Vuelve a pedir al servidor los tiempos de renta. */
+    onRetryRentalDurations: () -> Unit = {},
     onConfirmRental: (String) -> Unit = {},
-    onCancelRental: () -> Unit = {},
+    /** R16: con los jugadores tocados en el cobro que aún no se mandaban. */
+    onCancelRental: (Int?) -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     /** Pedido de mostrador a nombre de un cliente que no usa la app; se cobra en efectivo en Caja. */
     onOpenCounterOrder: () -> Unit = {},
@@ -210,17 +226,23 @@ fun WaiterOperationalScreen(
     /** Quién usa el tablero: el mesero, o Caja cuando entra a cobrar cuentas. */
     kicker: String = "MESERO",
     roleChip: String = "MS",
+    /** De quién es el manual del orbe: Caja, cuando entra a Mesas desde su pantalla, ve el suyo (#18). */
+    assistantRole: OperationalRole = OperationalRole.WAITER,
     /** Dentro de Pedidos de Administración: sin encabezado propio (lo pone esa pantalla) y con "Para llevar". */
     embedded: Boolean = false,
     /** Cobrar la cuenta y entregar son de Mesero y Caja: el backend se los niega a Administración. */
     canChargeAndDeliver: Boolean = true,
+    /** En vivo, I09: las cuentas de mesas y canchas sin cobrar, también de turnos cerrados. */
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
-    var openTableId by remember { mutableStateOf<Int?>(null) }
+    // R18: una pantalla recién compuesta (Admin › Pedidos › tocar una mesa) abre la hoja que el ViewModel ya tiene abierta.
+    var openTableId by remember { mutableStateOf(state.openSpaceId) }
+    LaunchedEffect(state.openSpaceId) { state.openSpaceId?.let { openTableId = it } }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
@@ -228,7 +250,7 @@ fun WaiterOperationalScreen(
     var kindFilter by remember { mutableStateOf<String?>(null) }
     var choosingScan by remember { mutableStateOf(false) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
-    val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.WAITER)
+    val assistantController = rememberOperationalAssistantController(assistantUserKey, assistantRole)
     val assistantFocusRequester = remember { FocusRequester() }
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
     val assistantPalette =
@@ -302,6 +324,7 @@ fun WaiterOperationalScreen(
                     }
                 },
     ) {
+        val unreadableOrders = rememberUnreadableOrders()
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier =
@@ -372,6 +395,13 @@ fun WaiterOperationalScreen(
                                     haptics.impact()
                                     onChangeMode?.invoke() ?: onBack()
                                 },
+                                onOpenUnpaidAccounts =
+                                    onOpenUnpaidAccounts?.let { open ->
+                                        {
+                                            haptics.selection()
+                                            open()
+                                        }
+                                    },
                             )
                         }
                     }
@@ -404,6 +434,12 @@ fun WaiterOperationalScreen(
                         onDismiss = onDismissOfflineOrder,
                         modifier = Modifier.animateItem(),
                     )
+                }
+            }
+
+            if (unreadableOrders > 0) {
+                item(key = "waiter-update-app", span = fullWidth) {
+                    StaffUpdateAppBanner(count = unreadableOrders, modifier = Modifier.animateItem())
                 }
             }
 
@@ -643,8 +679,8 @@ fun WaiterOperationalScreen(
             OperationalAssistantHost(
                 controller = assistantController,
                 registry = assistantRegistry,
-                guides = remember { waiterAssistantGuides() },
-                manualTitle = "Manual de Mesero",
+                guides = remember(assistantRole) { tablesBoardAssistantGuides(assistantRole) },
+                manualTitle = if (assistantRole == OperationalRole.CASHIER) "Manual de Caja" else "Manual de Mesero",
                 palette = assistantPalette,
                 buttonFocusRequester = assistantFocusRequester,
                 modifier = Modifier.fillMaxSize(),
@@ -685,8 +721,17 @@ fun WaiterOperationalScreen(
             onOpenTurn = { onOpenTurn(open.space.id, it) },
             onExtendTurn = { onExtendTurn(open.space.id, it) },
             rentable = open.availability?.rentable == true,
-            onStartRental = { minutes, start -> onStartRental(open.space.id, minutes, start) },
+            onStartRental = { minutes, start, players, name ->
+                onStartRental(open.space.id, minutes, start, players, name)
+            },
+            rentalDraft = state.rentalDraft?.takeIf { it.spaceId == open.space.id },
+            onRentalDraftChange = { minutes, players, name ->
+                onRentalDraftChange(open.space.id, minutes, players, name)
+            },
             rentalDurations = state.rentalDurations,
+            rentalDurationsFailed = state.rentalDurationsFailed,
+            onRetryDurations = onRetryRentalDurations,
+            rentalMaxPlayers = state.rentalMaxPlayers,
             onTakeOrder = {
                 openTableId = null
                 onCloseSpace()
@@ -716,6 +761,9 @@ fun WaiterOperationalScreen(
             colors = colors,
             onDismiss = onCancelRental,
             onConfirm = onConfirmRental,
+            durations = state.rentalDurations,
+            onChange = onChangeRental,
+            maxPlayers = state.rentalMaxPlayers,
         )
     }
 
@@ -871,10 +919,10 @@ internal fun WaiterLivePill(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
+        // En línea el punto se queda fijo: el pulso se guarda para lo que pide atención (una llamada).
         Box(
             Modifier
                 .size(8.dp)
-                .pulseGlow(active = online, color = colors.accentLime, spread = 8.dp, corner = 4.dp)
                 .clip(CircleShape)
                 .background(tone),
         )
@@ -1181,7 +1229,7 @@ internal fun waiterTileStatus(
             if (availability.isWaitingPayment) {
                 WaiterTileStatus("APARTADA", "Esperando el pago", TileTone.Turn)
             } else {
-                WaiterTileStatus("RESERVADA AHORA", "Se abre sola", TileTone.Turn)
+                WaiterTileStatus("RESERVADA AHORA", reservationTileDetail(availability), TileTone.Turn)
             }
         availability?.state == SpaceAvailabilityState.OCUPADA && availability.endsAt != null -> {
             val left =
@@ -1207,13 +1255,21 @@ internal fun waiterTileStatus(
         else -> {
             val next = nextReservationCaption(availability?.nextReservationStart)
             if (next != null) {
-                WaiterTileStatus(next.uppercase(), "Se abre sola", TileTone.Turn)
+                WaiterTileStatus(next.uppercase(), reservationTileDetail(availability), TileTone.Turn)
             } else {
                 WaiterTileStatus("LIBRE", null, TileTone.Free)
             }
         }
     }
 }
+
+/** #13: «4 jugadores · se abre sola», para tener la pista lista; sin el dato, solo «Se abre sola». */
+private fun reservationTileDetail(availability: SpaceAvailability?): String =
+    availability
+        ?.nextReservationPlayers
+        ?.takeIf { it > 0 }
+        ?.let { "$it ${if (it == 1) "jugador" else "jugadores"} · se abre sola" }
+        ?: "Se abre sola"
 
 private fun ordersCaption(table: BoardTable): String? =
     table.orders.size
@@ -1474,7 +1530,13 @@ private fun WaiterNextUpRow(
                     color = colors.textPrimary,
                 )
                 if (item.detail.isNotBlank()) {
-                    Text(item.detail, fontSize = 13.sp, color = colors.textSecondary, maxLines = 2)
+                    Text(
+                        item.detail,
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             Surface(
@@ -1556,14 +1618,16 @@ private fun WaiterTile(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Box(Modifier.size(7.dp).clip(CircleShape).background(tone))
+                // L01: con letra grande «POR PREPARAR» se cortaba: se encoge y, si no, pasa a dos renglones.
                 Text(
                     status.label,
                     color = tone,
                     fontWeight = FontWeight.Black,
-                    fontSize = 11.5.sp,
                     letterSpacing = 0.6.sp,
-                    maxLines = 1,
+                    lineHeight = 13.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.5.sp, stepSize = 0.5.sp),
                 )
             }
             status.detail?.let {
@@ -1602,7 +1666,9 @@ private fun waiterSince(iso: String): String {
             "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
         }
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        else -> "hace ${ms / 86_400_000} d"
+        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
+        // Después de una semana, la fecha: «hace 340 d» no dice nada.
+        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 
@@ -1634,8 +1700,13 @@ private fun WaiterTableSheet(
     /** Personas que faltan tras un abono en partes; la hoja abre en Partes con ese número (I06). */
     remainingParts: Int? = null,
     rentable: Boolean = false,
-    onStartRental: (Int, Instant?) -> Unit = { _, _ -> },
+    onStartRental: (Int, Instant?, Int?, String?) -> Unit = { _, _, _, _ -> },
+    rentalDraft: RentalDraft? = null,
+    onRentalDraftChange: ((Int?, Int, String) -> Unit)? = null,
     rentalDurations: List<Int> = DefaultRentalDurations,
+    rentalDurationsFailed: Boolean = false,
+    onRetryDurations: (() -> Unit)? = null,
+    rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     /** Tomar un pedido para esta mesa; null cuando no aplica. */
     onTakeOrder: (() -> Unit)? = null,
     /** La hoja vive en su propia ventana: el aviso de la pantalla queda debajo y no se ve. */
@@ -1721,6 +1792,8 @@ private fun WaiterTableSheet(
                             initialPeople = remainingParts,
                             initialSplit = if (remainingParts != null) SplitMode.PARTS else SplitMode.ALL,
                             showsHeader = false,
+                            // R34: el sondeo trae la cuenta cada 5 s; la selección dura lo que dura la sesión.
+                            selectionKey = spaceDetail?.session?.id ?: table.space.id,
                         )
                     }
                 } else {
@@ -1732,7 +1805,9 @@ private fun WaiterTableSheet(
                                 .verticalScroll(rememberScrollState())
                                 .padding(horizontal = 22.dp)
                                 .padding(bottom = 36.dp)
-                                .animateContentSize(),
+                                .animateContentSize(
+                                    if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+                                ),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         val readyHere = table.orders.count { it.state == OrderState.READY }
@@ -1811,7 +1886,7 @@ private fun WaiterTableSheet(
                             ) {
                                 Column(modifier = Modifier.padding(14.dp)) {
                                     Text(
-                                        "#${rejected.folio} · ${rejected.byLabel} lo rechazó",
+                                        "#${rejected.folio} · ${rejected.byLabel} lo ${rejected.verb}",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
                                         color = colors.textPrimary,
@@ -1896,14 +1971,20 @@ private fun WaiterTableSheet(
                             onDismissCollection = onDismissCollection,
                             rentable = rentable,
                             onRent = onStartRental,
+                            rentalDraft = rentalDraft,
+                            onRentalDraftChange = onRentalDraftChange,
                             onStartCollect = { collecting = true },
                             pricePerHour = table.availability?.pricePerHour,
                             hasReadyOrders = table.orders.any { it.state == OrderState.READY },
                             ordersInCourse = table.orders.size,
                             rentalDurations = rentalDurations,
+                            rentalDurationsFailed = rentalDurationsFailed,
+                            onRetryDurations = onRetryDurations,
+                            rentalMaxPlayers = rentalMaxPlayers,
                             canCharge = canChargeAndDeliver,
                             showOrders = false,
                             onTakeOrder = onTakeOrder?.takeIf { !readOnly },
+                            nextReservation = table.availability,
                         )
                         if (accountHasOrders && table.orders.isNotEmpty()) {
                             // Cobrar antes de entregar se vale, pero que no pase sin darse cuenta.
@@ -1914,7 +1995,7 @@ private fun WaiterTableSheet(
                                 } else {
                                     "Ojo: $count pedidos de esta cuenta todavía no se entregan."
                                 },
-                                color = Yolk,
+                                color = colors.amberInk,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.5.sp,
                                 textAlign = TextAlign.Center,
@@ -1971,7 +2052,9 @@ internal fun splitByStation(
                 SummaryLine(1, text)
             }
         }
-    val (counter, kitchen) = lines.partition { stations[it.name.lowercase()] == PreparationStation.CASHIER }
+    // R8: «ninguna» (sin preparación) también se recoge en Caja; solo lo desconocido o de Cocina espera a Cocina.
+    val (counter, kitchen) =
+        lines.partition { line -> stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN } }
     return StationSplit(counter = counter, kitchen = kitchen)
 }
 
@@ -2119,7 +2202,13 @@ internal fun WaiterSheetOrderRow(
         remember(order.itemsSummary, stations) {
             splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
         }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).animateContentSize()) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .animateContentSize(if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow)),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -2414,7 +2503,7 @@ private fun WaiterCallCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .animateContentSize(),
+                .animateContentSize(if (reducedMotion()) snap() else spring(stiffness = Spring.StiffnessMediumLow)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -2527,4 +2616,26 @@ private fun CallButton(
             fontSize = 16.sp,
         )
     }
+}
+
+/**
+ * El manual del tablero de mesas. Caja entra a Mesas desde su pantalla y ve el Manual de Caja (#18): sus guías, solo
+ * para leer (aquí no están los botones de su pantalla para practicar), más las de mesas contadas para Caja.
+ */
+internal fun tablesBoardAssistantGuides(role: OperationalRole): List<OperationalAssistantGuide> {
+    val waiter = waiterAssistantGuides()
+    if (role != OperationalRole.CASHIER) return waiter
+    val cashier =
+        cashierAssistantGuides(
+            readyOrderId = null,
+            readyOrderFolio = null,
+            firstProductId = null,
+            cashSessionOpen = null,
+            canCreateProduct = false,
+        ).map { it.copy(available = false) }
+    val tables =
+        waiter
+            .filter { it.id == "atender-llamada" || it.id == "entregar-mesa" }
+            .map { it.copy(id = "caja-${it.id}", role = OperationalRole.CASHIER) }
+    return cashier + tables
 }

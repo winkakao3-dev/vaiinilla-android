@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
@@ -35,6 +36,7 @@ class RemoteCatalogRepository(
             .get("estado-operativo")
             .mapCatching { parser.parseOperationalStatus(it) }
             .mapApiErrors()
+            .onSuccess { Venue.update(it.businessType) }
 
     override fun createProduct(
         draft: CatalogProductDraft,

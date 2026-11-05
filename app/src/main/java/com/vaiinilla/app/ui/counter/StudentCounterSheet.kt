@@ -52,6 +52,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -117,6 +119,8 @@ data class StudentCounterActions(
     val onLinkNfc: (String) -> Unit = {},
     val onSettleOffline: (com.vaiinilla.app.domain.counter.OfflineStudentPurchase) -> Unit = {},
     val onNoticeShown: () -> Unit = {},
+    /** Mientras la ficha de ese alumno está abierta, la mantiene al día (si su tutor le pone PIN, por ejemplo). */
+    val onWatchSelected: suspend (userId: String) -> Unit = {},
 )
 
 fun StudentCounterViewModel.actions(): StudentCounterActions =
@@ -135,6 +139,7 @@ fun StudentCounterViewModel.actions(): StudentCounterActions =
         onLinkNfc = ::linkNfcCard,
         onSettleOffline = offline::dismiss,
         onNoticeShown = ::consumeNotice,
+        onWatchSelected = ::watchSelected,
     )
 
 /** Caja con un alumno que no trae teléfono: se busca por nombre o matrícula, o se lee su credencial. */
@@ -153,6 +158,8 @@ fun StudentCounterSheet(
     var scanning by remember { mutableStateOf(false) }
     var linkingNfc by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
+    val nfcStatus = rememberNfcStatus()
+    val context = LocalContext.current
     LaunchedEffect(state.notice) {
         state.notice?.let {
             toast = it
@@ -165,6 +172,9 @@ fun StudentCounterSheet(
             toast = null
         }
     }
+    // Con la ficha abierta se vuelve a pedir de vez en cuando: el PIN recién puesto aparece sin reabrirla.
+    val watchedId = state.selected?.userId
+    LaunchedEffect(watchedId) { watchedId?.let { actions.onWatchSelected(it) } }
     // Con la hoja abierta, acercar la tarjeta del alumno lo abre; en su credencial, la liga.
     NfcCardReaderEffect(enabled = !scanning) { uid ->
         if (linkingNfc) {
@@ -190,7 +200,17 @@ fun StudentCounterSheet(
                 actions = actions,
                 onScan = { scanning = true },
                 linkingNfc = linkingNfc,
-                onLinkNfcChange = { linkingNfc = it },
+                onLinkNfcChange = { wanted ->
+                    // Sin NFC prendido el botón esperaba la tarjeta para siempre: se dice qué hacer.
+                    when {
+                        !wanted || nfcStatus == NfcStatus.ON -> linkingNfc = wanted
+                        nfcStatus == NfcStatus.OFF -> {
+                            toast = "Prende el NFC del teléfono y vuelve a intentar."
+                            openNfcSettings(context)
+                        }
+                        else -> toast = "Este teléfono no tiene NFC: usa la credencial QR."
+                    }
+                },
                 onClose = onDismiss,
             )
             ToastPill(
@@ -281,9 +301,23 @@ private fun SheetHeader(
     ) {
         if (onBack != null) RoundIcon(Icons.AutoMirrored.Outlined.ArrowBack, "Volver", colors, onBack)
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Black, fontSize = 22.sp, color = colors.textPrimary, maxLines = 1)
+            Text(
+                title,
+                fontWeight = FontWeight.Black,
+                fontSize = 22.sp,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             subtitle?.let {
-                Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary, maxLines = 1)
+                Text(
+                    it,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
         if (onClose != null) RoundIcon(Icons.Outlined.Close, "Cerrar", colors, onClose)
@@ -492,7 +526,13 @@ private fun StudentResultRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(card.identity, fontSize = 12.sp, color = colors.textSecondary, maxLines = 1)
+                Text(
+                    card.identity,
+                    fontSize = 12.sp,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Text(moneyLabel(card.balance), fontWeight = FontWeight.Black, fontSize = 16.sp, color = colors.textPrimary)
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
@@ -961,10 +1001,18 @@ private fun StudentChargeFooter(
     actions: StudentCounterActions,
 ) {
     val haptics = rememberVaiinillaHaptics()
+    val focusManager = LocalFocusManager.current
     val overBudget = total > card.spendableToday
     val phase = state.chargePhase
+    // Cada cobro que se manda estrena el campo del PIN: así no se queda lo dictado en el teclado (#14).
+    var pinGeneration by remember(card.userId) { mutableStateOf(0) }
     LaunchedEffect(phase) {
         if (phase is ChargePhase.Charged || phase == ChargePhase.Queued) haptics.success()
+        if (phase is ChargePhase.Charged || phase == ChargePhase.Queued || phase is ChargePhase.Failed) {
+            // El modelo ya borró el PIN; el teclado abierto guardaba su propio texto y lo volvía a escribir.
+            focusManager.clearFocus(force = true)
+            pinGeneration++
+        }
     }
     val note =
         when {
@@ -1006,12 +1054,14 @@ private fun StudentChargeFooter(
             )
         }
         if (card.requiresPin) {
-            StudentPinField(
-                pin = state.pin,
-                firstName = card.firstName,
-                colors = colors,
-                onChange = actions.onPinChange,
-            )
+            key(pinGeneration) {
+                StudentPinField(
+                    pin = state.pin,
+                    firstName = card.firstName,
+                    colors = colors,
+                    onChange = actions.onPinChange,
+                )
+            }
         }
         ActionPill(
             label = label,

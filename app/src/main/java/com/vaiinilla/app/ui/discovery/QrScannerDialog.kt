@@ -2,11 +2,7 @@ package com.vaiinilla.app.ui.discovery
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -61,6 +57,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +107,7 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.vaiinilla.app.core.permissions.openAppSettings
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -165,6 +163,7 @@ fun QrScannerDialog(
     /** Lo que se está haciendo, chico y arriba; el título baja a una línea bajo el visor (Doop C08). */
     topLabel: String? = null,
 ) {
+    RegisterQrConsumer(onPayload)
     val context = LocalContext.current
     var permissionGranted by remember {
         mutableStateOf(
@@ -285,7 +284,7 @@ fun QrScannerDialog(
                         onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                         modifier = Modifier.padding(top = 20.dp),
                     )
-                    TextButton(onClick = { context.startActivity(appSettingsIntent(context)) }) {
+                    TextButton(onClick = { openAppSettings(context) }) {
                         Text("Abrir ajustes", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                     alternative?.let { alt ->
@@ -301,10 +300,6 @@ fun QrScannerDialog(
         }
     }
 }
-
-private fun appSettingsIntent(context: Context): Intent =
-    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 @Composable
 @SuppressLint("UnsafeOptInUsageError")
@@ -483,6 +478,7 @@ internal fun QrScannerOverlay(
                 Box(
                     modifier =
                         Modifier
+                            .minimumInteractiveComponentSize()
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(ScannerChrome)
@@ -503,7 +499,7 @@ internal fun QrScannerOverlay(
                 if (torchAvailable) {
                     TorchPill(on = torchOn, onClick = onToggleTorch)
                 } else if (topLabel != null) {
-                    Spacer(Modifier.size(40.dp))
+                    Spacer(Modifier.size(48.dp))
                 }
             }
             if (topLabel == null) {
@@ -877,8 +873,10 @@ private fun DigitBox(
             pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 650f))
         }
     }
+    val reduced = reducedMotion()
     val caretAlpha =
-        if (current && focused) {
+        // Con movimiento reducido, el cursor se queda fijo.
+        if (current && focused && !reduced) {
             val blink = rememberInfiniteTransition(label = "caret")
             val value by blink.animateFloat(
                 initialValue = 1f,

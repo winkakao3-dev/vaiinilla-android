@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.SharedTableOrder
+import com.vaiinilla.app.domain.model.SharedTableRent
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.ui.components.ClientCap
@@ -71,6 +73,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.WaiterCallHost
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -93,6 +96,25 @@ internal fun tablePayLine(table: SharedTable): String {
         else -> "Tu parte + lo de " + claimed.dropLast(1).joinToString(", ") + " y " + claimed.last()
     }
 }
+
+/** «Renta de pista · pagada $300 (2 h) · 4 jugadores». */
+internal fun sharedRentLine(rent: SharedTableRent): String =
+    buildString {
+        append("Renta de ${Venue.court} · pagada ${tableMoney(rent.paid)}")
+        val minutes = rent.minutes
+        if (minutes > 0) {
+            append(" (")
+            append(
+                when {
+                    minutes % 60 == 0 -> "${minutes / 60} h"
+                    minutes > 60 -> "${minutes / 60} h ${minutes % 60}"
+                    else -> "$minutes min"
+                },
+            )
+            append(")")
+        }
+        rent.players?.let { append(" · $it ${if (it == 1) "jugador" else "jugadores"}") }
+    }
 
 private data class OtherRow(
     val alias: String,
@@ -124,12 +146,22 @@ fun SharedTablePage(
         Column(
             Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
         ) {
             TableHeader(table, busy, onLeave = { confirmingLeave = true }, modifier = Modifier.arrive(0))
             ShareTiles(table, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 22.dp).arrive(1))
+            table.rent?.let { rent ->
+                // U05: la renta ya se pagó al apartar; se ve aparte y no entra en lo que falta.
+                Text(
+                    sharedRentLine(rent),
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp).arrive(1),
+                )
+            }
             MyOrders(table, error.takeIf { errorFolio != null }, errorFolio, modifier = Modifier.arrive(2))
             OthersAtTable(table, busy, onClaim, error.takeIf { errorFolio != null }, errorFolio, modifier = Modifier.arrive(3))
             if (canCallWaiter) {
@@ -138,7 +170,7 @@ fun SharedTablePage(
             error?.takeIf { errorFolio == null }?.let {
                 Text(
                     it,
-                    color = colors.coral,
+                    color = colors.coralText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).semantics { liveRegion = LiveRegionMode.Polite },
@@ -247,7 +279,13 @@ private fun ShareTiles(
         ShareTile(
             "Toda ${SharedSpaceWords.of(table.spaceType).thePlace}",
             tableMoney(all.total),
-            if (all.paid.signum() > 0) "${tableMoney(all.paid)} ya pagado" else "Nada pagado aún",
+            when {
+                // R21: lo abonado ya está en caja aunque los pedidos sigan abiertos; se dice cuánto falta.
+                all.paidIn.signum() > 0 ->
+                    "${tableMoney(all.paid + all.paidIn)} pagado · faltan ${tableMoney(all.remaining)}"
+                all.paid.signum() > 0 -> "${tableMoney(all.paid)} ya pagado"
+                else -> "Nada pagado aún"
+            },
             Modifier.weight(1f),
         )
     }
@@ -397,7 +435,7 @@ private fun TableRow(
         error?.let {
             Text(
                 it,
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite },
@@ -416,7 +454,7 @@ private fun Initial(
         Modifier.size(34.dp).clip(CircleShape).background(fill).clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
-        Text(alias.trim().take(1).uppercase(), color = ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
+        Text(initialOf(alias), color = ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
     }
 }
 
@@ -431,7 +469,12 @@ private fun PaidTag() {
             .padding(horizontal = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text("Pagado", color = colors.accent, fontSize = 11.5.sp, fontWeight = FontWeight.ExtraBold)
+        Text(
+            "Pagado",
+            color = if (colors.isDark) colors.accent else colors.accentInk,
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+        )
     }
 }
 

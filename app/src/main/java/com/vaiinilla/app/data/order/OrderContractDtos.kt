@@ -16,9 +16,13 @@ data class CreateOrderRequestDto(
     @SerialName("espacio_id") val spaceId: Int?,
     @SerialName("notas_cocina") val kitchenNotes: String?,
     @SerialName("items") val items: List<CreateOrderItemDto>,
-    // Solo viaja cuando es true: los demás pedidos se envían exactamente igual que antes.
+    // Viaja siempre, true o false (contrato A): sin la clave el servidor infiere «pagar al final» y un
+    // «Pago en caja» elegido a propósito acababa en la cuenta del espacio.
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
+    @SerialName("pago_diferido") val payAtEnd: Boolean = false,
+    // Solo tras el 409 PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA, cuando el cliente confirma «Para llevar».
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    @SerialName("pago_diferido") val payAtEnd: Boolean? = null,
+    @SerialName("confirmar_para_llevar") val confirmTakeAway: Boolean? = null,
     // El backend lee `nombre_cliente` al crear; con `nombre_cliente_snapshot` el nombre se perdía.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("nombre_cliente") val customerName: String? = null,
@@ -33,6 +37,9 @@ data class CreateOrderRequestDto(
     @SerialName("al_recibir") val paysOnArrival: Boolean? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     @SerialName("con_anticipo") val withDeposit: Boolean? = null,
+    // «Pasa por él»: solo viaja cuando es true, para no cambiar los pedidos de siempre.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("recoge_en_barra") val pickUpAtBar: Boolean? = null,
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -227,11 +234,15 @@ data class OrderDetailDto(
     @SerialName("saldo_pendiente") val balanceDue: String? = null,
     @SerialName("motivo_cancelacion") val cancelReason: String? = null,
     @SerialName("cancelado_por_rol") val canceledByRole: String? = null,
+    /** `anticipo_sin_pagar`, `sin_respuesta_del_negocio`…; un servidor anterior no lo envía. */
+    @SerialName("motivo_cancelacion_codigo") val cancelReasonCode: String? = null,
     @SerialName("reserva") val reservation: OrderReservationDto? = null,
     @SerialName("llegada_en") val arrivedAt: String? = null,
     @SerialName("sesion_espacio_id") val tableSessionId: String? = null,
     /** El backend dispensa el QR para entregar este pedido (va a una cuenta abierta); uno anterior no lo envía. */
     @SerialName("entrega_sin_qr") val deliveryWithoutQr: Boolean = false,
+    /** «Pasa por él»; un servidor anterior no lo envía y lo lleva el mesero. */
+    @SerialName("recoge_en_barra") val pickUpAtBar: Boolean = false,
     /** Solo viene en pedidos de mostrador; un servidor anterior no lo envía. */
     @SerialName("nombre_cliente_snapshot") val customerName: String? = null,
     /** Con qué se cobró de verdad, `"mixto"` si hubo partes con métodos distintos; un servidor anterior no lo envía. */
@@ -242,6 +253,8 @@ data class OrderDetailDto(
     @SerialName("costo_envio") val deliveryFee: JsonPrimitive? = null,
     @SerialName("anticipo") val deposit: JsonPrimitive? = null,
     @SerialName("por_cobrar_al_entregar") val dueOnArrival: JsonPrimitive? = null,
+    /** Con qué se cobró en la puerta; null si aún no se cobra o un servidor anterior no lo envía (R39). */
+    @SerialName("cobrado_al_entregar") val collectedAtDoor: CollectedAtDoorDto? = null,
     @SerialName("codigo_entrega") val deliveryCode: JsonPrimitive? = null,
     @SerialName("repartidor_nombre") val courierName: String? = null,
     /** Plazos de un encargo (EQUIPO-53); un servidor anterior no los envía. */
@@ -255,6 +268,12 @@ data class OrderDetailDto(
 data class OfflineCaptureDto(
     @SerialName("capturado_en") val capturedAt: String? = null,
     @SerialName("folio_local") val localFolio: String? = null,
+)
+
+@Serializable
+data class CollectedAtDoorDto(
+    @SerialName("metodo") val method: String? = null,
+    @SerialName("en") val at: String? = null,
 )
 
 @Serializable

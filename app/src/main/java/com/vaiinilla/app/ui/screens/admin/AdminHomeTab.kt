@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.QrCode2
@@ -69,6 +70,8 @@ import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MIN
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
@@ -90,13 +93,35 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.coroutines.resume
 
-/** Un paso de "Para dejar lista tu tienda"; [section] es a dónde lleva tocarlo. */
+/**
+ * Un paso de "Para dejar lista tu tienda"; [section] es a dónde lleva tocarlo. Uno [optional] (domicilio, tarjeta)
+ * se ofrece pero no cuenta para que la tienda esté lista: un restaurante sin domicilio ni Stripe ya puede vender.
+ */
 internal data class AdminSetupStep(
     val title: String,
     val detail: String?,
     val done: Boolean,
     val section: AdminSection? = null,
+    val optional: Boolean = false,
+    /** Cómo se recuerda en el teléfono que el dueño dijo «No quiero» a este paso opcional. */
+    val key: String = title,
 )
+
+/**
+ * Quita los pasos opcionales que el dueño rechazó con «No quiero» y que siguen sin hacerse: ya no salen ni
+ * cuentan como pendientes. Si después los configura, vuelven como hechos.
+ */
+internal fun List<AdminSetupStep>.withoutDeclined(declined: Set<String>): List<AdminSetupStep> =
+    filterNot { it.optional && !it.done && it.key in declined }
+
+/** Lista cuando no falta ningún paso obligatorio. */
+internal fun List<AdminSetupStep>.storeReady(): Boolean = none { !it.done && !it.optional }
+
+/**
+ * Se ve mientras falte algo obligatorio. Antes también se quedaba con "sin ventas" en el periodo, y como el periodo
+ * es "Hoy", volvía cada mañana hasta la primera venta: lista la tienda, ya no estorba.
+ */
+internal fun showsStoreSetup(setup: List<AdminSetupStep>): Boolean = setup.isNotEmpty() && !setup.storeReady()
 
 /**
  * Inicio, como el lienzo de Doop (marcos 07 y 21 a 23): la foto del negocio con su nombre en grande, si recibe
@@ -113,6 +138,10 @@ internal fun AdminHomeTab(
     onOpenOrders: () -> Unit,
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit = {},
+    /** El asistente de configuración; null lo esconde. */
+    onOpenAssistant: (() -> Unit)? = null,
+    /** «No quiero» en un paso opcional; null lo esconde (solo lectura). */
+    onDeclineStep: ((AdminSetupStep) -> Unit)? = null,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
     val presentDialog = LocalAdminDialog.current
@@ -142,13 +171,20 @@ internal fun AdminHomeTab(
         }
         item(key = "tienda-lista") {
             AnimatedVisibility(
-                // Recién lista y sin ventas todavía, se queda a la vista con su botón (marco 07); después estorba.
-                visible = setup.isNotEmpty() && (setup.any { !it.done } || summary?.orders == 0),
+                visible = showsStoreSetup(setup),
                 enter =
                     fadeIn(spring(stiffness = 400f)) + expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)),
                 exit = fadeOut(spring(stiffness = 600f)) + shrinkVertically(spring(stiffness = 600f)),
             ) {
-                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer)
+                SetupChecklist(
+                    setup,
+                    colors,
+                    Modifier.adminRise(2),
+                    onOpenSection,
+                    onSeeAsCustomer,
+                    onOpenAssistant,
+                    onDeclineStep,
+                )
             }
         }
         item(key = "ventas-titulo") {
@@ -181,17 +217,19 @@ internal fun AdminHomeTab(
                     modifier = Modifier.adminRise(6),
                     onOpenOrders = onOpenOrders,
                 ) { account ->
-                    val amount = moneyLabel(account.total)
+                    // R3: se pide el motivo y se dice qué se pierde; lo abonado sí entró a la caja.
                     presentDialog(
                         AdminDialogRequest(
                             title = "¿Cerrar la cuenta de ${account.spaceName} sin cobrar?",
-                            message =
-                                "Los $amount no entran a la caja ni a las ventas. " +
-                                    "${account.spaceName} queda libre para otro cliente.",
+                            message = forcedCloseMessage(account),
                             confirm = "Cerrar sin cobrar",
-                        ) {
+                            fieldPlaceholder = "¿Por qué? (p. ej. se fue sin pagar)",
+                            accepts = { it.trim().length in FORCED_CLOSE_REASON_MIN..FORCED_CLOSE_REASON_MAX },
+                        ) { reason ->
                             suspendCancellableCoroutine { done ->
-                                actions.onCloseWithoutCharging(account, "") { ok -> if (done.isActive) done.resume(ok) }
+                                actions.onCloseWithoutCharging(account, reason) { ok ->
+                                    if (done.isActive) done.resume(ok)
+                                }
                             }
                         },
                     )
@@ -254,10 +292,15 @@ private fun SetupChecklist(
     modifier: Modifier,
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit,
+    onOpenAssistant: (() -> Unit)?,
+    onDeclineStep: ((AdminSetupStep) -> Unit)?,
 ) {
-    val ready = setup.none { !it.done }
+    val ready = setup.storeReady()
     Column(modifier) {
         AdminH2(if (ready) "Tu tienda está lista" else "Para dejar lista tu tienda", colors)
+        if (!ready && onOpenAssistant != null) {
+            AssistantEntryCard(colors, Modifier.padding(bottom = 10.dp), onOpenAssistant)
+        }
         AdminPanel(
             colors,
             padding =
@@ -290,7 +333,11 @@ private fun SetupChecklist(
                         }
                     },
                 ) {
-                    step.detail?.let { AdminRowValue(it, colors, muted = true) }
+                    if (step.optional && !step.done && onDeclineStep != null) {
+                        DeclineStepButton(step.title, colors) { onDeclineStep(step) }
+                    } else {
+                        step.detail?.let { AdminRowValue(it, colors, muted = true) }
+                    }
                 }
             }
         }
@@ -302,6 +349,36 @@ private fun SetupChecklist(
                 icon = Icons.Outlined.ShoppingCart,
                 onClick = onSeeAsCustomer,
             )
+        }
+    }
+}
+
+/** «No quiero» (marco 07c): el paso opcional se va de la lista y ya no cuenta como pendiente. */
+@Composable
+private fun DeclineStepButton(
+    title: String,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        Modifier
+            .heightIn(min = 44.dp)
+            .physicalPress(scale = PhysicalPressScale.Small) {
+                haptics.selection()
+                onClick()
+            }.semantics { contentDescription = "No quiero $title" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .height(30.dp)
+                .clip(RoundedCornerShape(50))
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(50))
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("No quiero", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, maxLines = 1)
         }
     }
 }
@@ -388,6 +465,8 @@ private fun SalesCard(
                 fontWeight = FontWeight.Black,
                 color = if (loading) colors.textMuted else colors.textPrimary,
                 maxLines = 1,
+                // Un monto nunca se trunca: se achica antes que cortarse.
+                autoSize = TextAutoSize.StepBased(minFontSize = 26.sp, maxFontSize = 50.sp),
             )
         }
         Text(
@@ -540,7 +619,7 @@ private fun DailySales(
         AdminPanel(colors) {
             Row(Modifier.fillMaxWidth()) {
                 Text(
-                    "Últimos ${days.size} días",
+                    if (days.size == 1) "Último día" else "Últimos ${days.size} días",
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textMuted,
@@ -636,6 +715,22 @@ private fun dayLabel(
     return text.replaceFirstChar { it.uppercase() }
 }
 
+/** R3: el texto del aviso de «Cerrar sin cobrar», con lo abonado y lo que falta. */
+internal fun forcedCloseMessage(account: AdminUnpaidAccount): String {
+    val paid = account.paid.toBigDecimalOrNull()?.signum() == 1
+    val lost = moneyLabel(account.remaining)
+    return buildString {
+        if (paid) {
+            append("Ya abonaron ${moneyLabel(account.paid)}: eso sí se queda en la caja. ")
+            append("Se pierden los $lost que faltan. ")
+        } else {
+            append("Los $lost no entran a la caja ni a las ventas. ")
+        }
+        append("Lo que no se pagó se cancela y sale de Cocina. ")
+        append("${account.spaceName} queda libre para otro cliente.")
+    }
+}
+
 @Composable
 private fun UnpaidBlock(
     unpaid: AdminUnpaidAccounts,
@@ -657,11 +752,15 @@ private fun UnpaidBlock(
                             listOfNotNull(
                                 adminOrdersText(account.orders),
                                 account.hours.takeIf { it > 0 }?.let { "hace $it h" },
+                                // R33: el monto de la derecha ya descuenta lo abonado.
+                                account.paid
+                                    .takeIf { it.toBigDecimalOrNull()?.signum() == 1 }
+                                    ?.let { "abonado ${moneyLabel(it)}" },
                                 "espacio liberado".takeIf { account.abandoned },
                             ).joinToString(" · "),
                         leading = { AdminIconBox(Icons.Outlined.QrCode2, colors) },
                     ) {
-                        AdminRowValue(moneyLabel(account.total), colors)
+                        AdminRowValue(moneyLabel(account.remaining), colors)
                     }
                     if (canClose && !account.abandoned) {
                         Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -673,6 +772,15 @@ private fun UnpaidBlock(
                             ) { onClose(account) }
                             AdminPrimaryButton("Cobrar", colors, Modifier.weight(1f), onClick = onOpenOrders)
                         }
+                    } else if (account.abandoned) {
+                        // R1: sin turno, la cobra Caja desde «Cuentas por cobrar» (el admin no cobra cuentas).
+                        Text(
+                            "Cóbrala en Caja › Cuentas por cobrar.",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textMuted,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
                     }
                 }
             }
@@ -681,11 +789,11 @@ private fun UnpaidBlock(
             when (unpaid.abandoned) {
                 0 -> "Una cuenta sin pagar se queda abierta hasta que Caja la cobra o tú la cierras."
                 1 -> "1 cuenta quedó sin pagar en un espacio ya liberado. Por cobrar en total: ${moneyLabel(
-                    unpaid.total,
+                    unpaid.remaining,
                 )}."
                 else ->
                     "${unpaid.abandoned} cuentas quedaron sin pagar en espacios ya liberados. " +
-                        "Por cobrar en total: ${moneyLabel(unpaid.total)}."
+                        "Por cobrar en total: ${moneyLabel(unpaid.remaining)}."
             },
             fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,

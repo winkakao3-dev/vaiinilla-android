@@ -35,13 +35,15 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         spaceId = spaceId,
         kitchenNotes = kitchenNotes.trim().takeIf { it.isNotEmpty() },
         items = items.map { it.toDto() },
-        payAtEnd = payAtEnd.takeIf { it },
+        payAtEnd = payAtEnd,
+        confirmTakeAway = confirmTakeAway.takeIf { it },
         customerName = customerName?.trim()?.takeIf { it.isNotEmpty() },
         delivery = delivery?.toDto(),
         deliveryDate = deliveryDate?.takeIf { it.isNotBlank() },
         deliverySlot = deliverySlot?.takeIf { it.isNotBlank() },
         paysOnArrival = paysOnArrival.takeIf { it },
         withDeposit = withDeposit.takeIf { it },
+        pickUpAtBar = pickUpAtBar.takeIf { it },
     )
 
 fun DeliveryAddress.toDto(): DeliveryDto =
@@ -103,12 +105,14 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 paymentPending = paymentPending,
                 cancelReason = cancelReason,
                 canceledByRole = canceledByRole,
+                cancelReasonCode = cancelReasonCode,
                 tableSessionId = tableSessionId,
                 deliveryWithoutQr = deliveryWithoutQr,
                 amountPaid = amountPaid,
                 balanceDue = balanceDue,
                 chargedMethod = chargedMethod?.takeIf { it.isNotBlank() },
                 paymentsByMethod = paymentsByMethod.map { PaymentPart(method = it.method, amount = it.amount) },
+                pickUpAtBar = pickUpAtBar,
             ),
         user =
             user?.let {
@@ -158,6 +162,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     fee = deliveryFee?.flexibleText(),
                     deposit = deposit?.flexibleText(),
                     dueOnArrival = dueOnArrival?.flexibleText(),
+                    collectedAtDoorMethod = collectedAtDoor?.method?.trim()?.takeIf { it.isNotEmpty() },
                     code = deliveryCode?.flexibleText(),
                     courierName = courierName?.trim()?.takeIf { it.isNotEmpty() },
                 )

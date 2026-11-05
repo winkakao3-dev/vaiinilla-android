@@ -45,6 +45,33 @@ class AdminContractTest {
         )
 
     @Test
+    fun `unpaid accounts read orders, paid and remaining, and the old count still parses`() {
+        val parsed =
+            json.parseUnpaidAccounts(
+                """
+                {"data":{"cuentas":[
+                  {"espacio":{"id":4,"nombre":"Pista 4","tipo":"pista"},"sesion_id":null,"abandonada":true,
+                   "pedidos":[{"id":"p1","folio":12,"total":"120.00","restante":"80.00"}],"num_pedidos":1,
+                   "total":"120.00","abonado":"40.00","restante":"80.00","horas":3},
+                  {"espacio":{"id":5,"nombre":"Mesa 5"},"pedidos":2,"total":"90.00","horas":0}
+                ],"total":"210.00","restante":"170.00","abandonadas":1}}
+                """.trimIndent(),
+            )
+        val first = parsed.accounts[0]
+        assertEquals(1, first.orders)
+        assertEquals("40.00", first.paid)
+        assertEquals("80.00", first.remaining)
+        assertNull(first.sessionId)
+        assertEquals("12", first.orderLines.single().folio)
+        assertEquals("80.00", first.orderLines.single().remaining)
+        val old = parsed.accounts[1]
+        assertEquals(2, old.orders)
+        assertEquals("90.00", old.remaining)
+        assertTrue(old.orderLines.isEmpty())
+        assertEquals("170.00", parsed.remaining)
+    }
+
+    @Test
     fun `money pads to two decimals and rejects malformed amounts`() {
         assertEquals("55.00", AdminProductRules.money("55"))
         assertEquals("12.50", AdminProductRules.money("12.5"))
@@ -139,6 +166,56 @@ class AdminContractTest {
         assertEquals(5, category.id)
     }
 
+    @Test
+    fun `lo archivado se recuerda tras reiniciar y desarchivar lo olvida`() {
+        val raw =
+            """{"data":{"id":7,"categoria_id":3,"estacion_preparacion":"caja","nombre":"Té viejo",
+            "tiempo_estimado_min":1,"precio_mostrador":"20.00","precio_digital":"20.00","disponible":true,
+            "archivado":true},"error":null,"meta":{}}"""
+        val store = MemoryArchivedProductsStore()
+        val repository =
+            RemoteAdminRepository(
+                RecordingClient(raw),
+                ContractResponseParser(),
+                OrderContractJson(),
+                archivedStore = store,
+            )
+        repository.setProductArchived(7, archived = true, idempotencyKey = "idem-arch").getOrThrow()
+
+        // Otra instancia con el mismo almacén: como la app tras un reinicio en frío.
+        val restarted =
+            RemoteAdminRepository(
+                RecordingClient(raw),
+                ContractResponseParser(),
+                OrderContractJson(),
+                archivedStore = store,
+            )
+        val remembered = restarted.archivedProducts().single()
+        assertEquals(7, remembered.id)
+        assertEquals("Té viejo", remembered.name)
+        assertTrue(remembered.archived)
+
+        restarted.setProductArchived(7, archived = false, idempotencyKey = "idem-desarch").getOrThrow()
+        assertTrue(restarted.archivedProducts().isEmpty())
+    }
+
+    private class MemoryArchivedProductsStore : ArchivedProductsStore {
+        private val products = linkedMapOf<Int, String>()
+
+        override fun readAll(): List<String> = products.values.toList()
+
+        override fun put(
+            productId: Int,
+            rawProduct: String,
+        ) {
+            products[productId] = rawProduct
+        }
+
+        override fun remove(productId: Int) {
+            products.remove(productId)
+        }
+    }
+
     private class RecordingClient(
         private val response: String,
     ) : VaiinillaApiClient {
@@ -188,5 +265,49 @@ class AdminContractTest {
             this.headers = headers
             return Result.success(response)
         }
+    }
+
+    @Test
+    fun `unpaid accounts show what is left after abonos (R33)`() {
+        val unpaid =
+            json.parseUnpaidAccounts(
+                """
+                {"data":{"cuentas":[
+                  {"espacio":{"id":4,"nombre":"Mesa 4"},"pedidos":2,"total":"300.00","horas":1,"abandonada":true,
+                   "abonado":"100.00","restante":"200.00"},
+                  {"espacio":{"id":9,"nombre":"Mesa 9"},"pedidos":1,"total":"80.00"}
+                 ],"total":"380.00","restante":"280.00","abandonadas":1}}
+                """.trimIndent(),
+            )
+
+        assertEquals("300.00", unpaid.accounts[0].total)
+        assertEquals("200.00", unpaid.accounts[0].remaining)
+        assertEquals("100.00", unpaid.accounts[0].paid)
+        // Un servidor anterior no manda restante: se queda el total.
+        assertEquals("80.00", unpaid.accounts[1].remaining)
+        assertEquals("0.00", unpaid.accounts[1].paid)
+        assertEquals("380.00", unpaid.total)
+        assertEquals("280.00", unpaid.remaining)
+    }
+
+    @Test
+    fun `unpaid accounts read the count in pedidos and the list in pedidos_detalle`() {
+        val unpaid =
+            json.parseUnpaidAccounts(
+                """
+                {"data":{"cuentas":[
+                  {"espacio":{"id":4,"nombre":"Mesa 4"},"pedidos":2,"total":"300.00",
+                   "pedidos_detalle":[{"id":"a","folio":"12","total":"200.00","restante":"150.00"},
+                                      {"id":"b","folio":"13","total":"100.00"}]}
+                 ],"total":"300.00"}}
+                """.trimIndent(),
+            )
+
+        val account = unpaid.accounts.single()
+        assertEquals(2, account.orders)
+        assertEquals(listOf("a", "b"), account.orderLines.map { it.id })
+        assertEquals("12", account.orderLines[0].folio)
+        assertEquals("150.00", account.orderLines[0].remaining)
+        assertEquals("100.00", account.orderLines[1].remaining)
     }
 }

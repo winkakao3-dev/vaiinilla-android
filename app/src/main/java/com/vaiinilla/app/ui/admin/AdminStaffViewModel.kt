@@ -4,6 +4,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.StaffInvitation
@@ -29,9 +31,16 @@ data class AdminStaffUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val memberships: List<StaffMembership> = emptyList(),
+    /** Los accesos no cargaron: se dice y se reintenta, en vez de decir que no hay nadie (en vivo, T07). */
+    val membershipsError: String? = null,
     val saving: Boolean = false,
     val notice: String? = null,
     val noticeIsError: Boolean = false,
+    /**
+     * Por qué no salió la última invitación. No se borra solo como los avisos: se queda en la hoja, con el correo y
+     * el rol escritos, hasta reintentar o cerrarla (en vivo, T07: un 500 del servidor no se veía).
+     */
+    val inviteError: String? = null,
 )
 
 /** Personal e invitaciones, como en la web. */
@@ -42,6 +51,9 @@ class AdminStaffViewModel
         private val repository: AdminStaffRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminStaffUiState())
+
+        /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
+        private val retryKeys = RetryKeys()
         val uiState: State<AdminStaffUiState> = _uiState
         private var noticeJob: Job? = null
         private var loadJob: Job? = null
@@ -58,9 +70,16 @@ class AdminStaffViewModel
         fun refresh() {
             load(append = false)
             viewModelScope.launch {
-                withContext(Dispatchers.IO) { repository.memberships() }.onSuccess {
-                    _uiState.value = _uiState.value.copy(memberships = it)
-                }
+                val result = withContext(Dispatchers.IO) { repository.memberships() }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { _uiState.value.copy(memberships = it, membershipsError = null) },
+                        onFailure = {
+                            _uiState.value.copy(
+                                membershipsError = it.toUserFacingMessage("No se pudo cargar quién tiene acceso."),
+                            )
+                        },
+                    )
             }
         }
 
@@ -109,10 +128,25 @@ class AdminStaffViewModel
             role: StaffRole,
             onDone: () -> Unit,
         ) {
-            val normalized = StaffRules.email(email) ?: return showNotice("Escribe un correo válido.", isError = true)
-            mutate("Invitación creada y correo enviado.", onDone) {
-                repository.invite(normalized, role, UUID.randomUUID().toString()).map { }
+            val normalized =
+                StaffRules.email(email)
+                    ?: return run { _uiState.value = _uiState.value.copy(inviteError = "Escribe un correo válido.") }
+            if (_uiState.value.saving) return
+            _uiState.value = _uiState.value.copy(inviteError = null)
+            mutate(
+                success = "Invitación creada y correo enviado.",
+                onDone = onDone,
+                onError = { error -> _uiState.value = _uiState.value.copy(inviteError = inviteErrorMessage(error)) },
+            ) {
+                retryKeys
+                    .withKey("invite", normalized, role) { key -> repository.invite(normalized, role, key) }
+                    .map { }
             }
+        }
+
+        /** Al cerrar la hoja de invitar, su error ya no aplica. */
+        fun clearInviteError() {
+            _uiState.value = _uiState.value.copy(inviteError = null)
         }
 
         fun resend(invitation: StaffInvitation) =
@@ -143,6 +177,7 @@ class AdminStaffViewModel
         private fun mutate(
             success: String,
             onDone: () -> Unit = {},
+            onError: ((Throwable) -> Unit)? = null,
             call: () -> Result<Unit>,
         ) {
             if (_uiState.value.saving) return
@@ -156,7 +191,9 @@ class AdminStaffViewModel
                         onDone()
                         refresh()
                     },
-                    onFailure = { showNotice(staffErrorMessage(it), isError = true) },
+                    onFailure = { error ->
+                        if (onError != null) onError(error) else showNotice(staffErrorMessage(error), isError = true)
+                    },
                 )
             }
         }
@@ -183,6 +220,18 @@ class AdminStaffViewModel
             const val NOTICE_MS = 3_500L
         }
     }
+
+/** Lo que dice la hoja de invitar cuando falla; un error del servidor dice que no salió el correo. */
+internal fun inviteErrorMessage(error: Throwable): String {
+    val serverDown =
+        generateSequence(error) { it.cause }.any { it is ApiClientException && it.httpStatus in 500..599 }
+    return if (serverDown) {
+        "No se pudo enviar la invitación: el servidor falló al mandar el correo. Tus datos siguen aquí; " +
+            "intenta de nuevo en unos minutos."
+    } else {
+        staffErrorMessage(error)
+    }
+}
 
 /** Los rechazos del backend dichos para quien administra. */
 internal fun staffErrorMessage(error: Throwable): String =

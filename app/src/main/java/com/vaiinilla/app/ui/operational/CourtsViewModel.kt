@@ -37,6 +37,7 @@ class CourtsViewModel
         private var pollingJob: Job? = null
         private var hasSession = false
         private var slug: String? = null
+        private var failedPolls = 0
 
         /**
          * Con el [slug] del lugar que se está mirando se lee su mapa público, con o sin sesión: el mapa del
@@ -47,7 +48,10 @@ class CourtsViewModel
             hasSession: Boolean,
             slug: String?,
         ) {
-            if (slug != this.slug) _uiState.value = CourtsUiState()
+            if (slug != this.slug) {
+                _uiState.value = CourtsUiState()
+                failedPolls = 0
+            }
             this.hasSession = hasSession
             this.slug = slug
             pollingJob?.cancel()
@@ -77,6 +81,7 @@ class CourtsViewModel
                 }
             result.fold(
                 onSuccess = { all ->
+                    failedPolls = 0
                     _uiState.value =
                         CourtsUiState(
                             courts =
@@ -85,8 +90,12 @@ class CourtsViewModel
                                     .sortedBy { it.space.name },
                         )
                 },
-                // Un fallo de una consulta no esconde las canchas que ya se veían.
-                onFailure = {},
+                // Un fallo suelto no esconde las canchas que ya se veían; si la red sigue caída, el mapa viejo
+                // diría "libre" a una cancha que ya se ocupó, así que se retira hasta que vuelva a responder.
+                onFailure = {
+                    failedPolls += 1
+                    if (failedPolls >= MAX_STALE_POLLS) _uiState.value = CourtsUiState()
+                },
             )
         }
 
@@ -97,6 +106,7 @@ class CourtsViewModel
 
         private companion object {
             const val POLL_INTERVAL_MS = 10_000L
+            const val MAX_STALE_POLLS = 3
             const val COURT_TYPE = "cancha"
         }
     }

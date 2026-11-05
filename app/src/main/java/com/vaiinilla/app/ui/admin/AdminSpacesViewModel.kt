@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
@@ -11,14 +12,18 @@ import com.vaiinilla.app.domain.admin.SpaceDraft
 import com.vaiinilla.app.domain.admin.SpacePatch
 import com.vaiinilla.app.domain.admin.SpaceRules
 import com.vaiinilla.app.domain.admin.SpaceType
+import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.AdminSpacesRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationException
 import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.ui.components.moneyLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,6 +56,9 @@ class AdminSpacesViewModel
         private val reservations: ReservationRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(AdminSpacesUiState())
+
+        /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
+        private val retryKeys = RetryKeys()
         val uiState: State<AdminSpacesUiState> = _uiState
         private var noticeJob: Job? = null
         private var scope: String? = null
@@ -103,7 +111,10 @@ class AdminSpacesViewModel
         ) {
             SpaceRules.nameProblem(name)?.let { return showNotice(it, isError = true) }
             mutate("${name.trim()} creado", onDone = onDone) {
-                repository.create(name, type, UUID.randomUUID().toString(), capacity).map { }
+                retryKeys
+                    .withKey("create", name.trim(), type, capacity) { key ->
+                        repository.create(name, type, key, capacity)
+                    }.map { }
             }
         }
 
@@ -121,7 +132,9 @@ class AdminSpacesViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        repository.createBatch(type, prefix, from!!, to!!, UUID.randomUUID().toString(), capacity)
+                        retryKeys.withKey("batch", type, prefix, from, to, capacity) { key ->
+                            repository.createBatch(type, prefix, from!!, to!!, key, capacity)
+                        }
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(
@@ -294,9 +307,35 @@ class AdminSpacesViewModel
         }
 
         fun cancelReservation(reservation: Reservation) =
-            mutate("Cancha liberada") {
+            mutate("${Venue.courtTitle} liberada") {
                 reservations.cancel(ReservationAccess.Account, reservation.id, UUID.randomUUID().toString()).map { }
             }
+
+        /**
+         * #28: cancela una renta ya pagada que no ha empezado, con el reembolso que decide el personal (de 0 a
+         * lo pagado) y su motivo. El servidor lo devuelve por la misma vía del pago.
+         */
+        fun refundReservation(
+            reservation: Reservation,
+            amount: String,
+            reason: String,
+            onDone: () -> Unit,
+        ) {
+            val wire = MoneyInput.toWire(amount) ?: return showNotice("Escribe cuánto se devuelve.", isError = true)
+            val motive = reason.trim()
+            if (motive.length !in 3..240) {
+                return showNotice("Escribe el motivo (de 3 a 240 letras).", isError = true)
+            }
+            mutate("Renta cancelada · se devuelven ${moneyLabel(wire)}", onDone = onDone) {
+                reservations
+                    .cancel(
+                        ReservationAccess.Account,
+                        reservation.id,
+                        UUID.randomUUID().toString(),
+                        refund = ReservationRefund(wire, motive),
+                    ).map { }
+            }
+        }
 
         private fun mutate(
             success: String,
@@ -362,6 +401,8 @@ internal fun spaceErrorMessage(error: Throwable): String {
         "RESERVATION_IN_PROGRESS" -> "La renta ya empezó: no se puede cancelar."
         "RESERVATION_EXPIRED" -> "El apartado ya venció."
         "RESERVATION_NOT_CANCELLABLE" -> "Esta reserva ya no se puede cancelar."
+        "REFUND_AMOUNT_EXCEEDS_PAID" -> "El reembolso supera lo que se pagó."
+        "REFUND_ALREADY_DONE" -> "Esta renta ya se reembolsó."
         else -> error.toUserFacingMessage("No se pudo guardar.")
     }
 }

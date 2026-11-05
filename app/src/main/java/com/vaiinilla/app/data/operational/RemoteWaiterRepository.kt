@@ -2,9 +2,12 @@ package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
@@ -26,6 +29,8 @@ class RemoteWaiterRepository(
     private val apiClient: VaiinillaApiClient,
     private val contractJson: WaiterContractJson,
     private val orderContractJson: OrderContractJson,
+    /** Sin cuenta, el cliente llama al mesero con la sesión del invitado. */
+    private val guestAccess: GuestClientAccess? = null,
 ) : WaiterRepository {
     private var boardEndpoint = true
     private var callsEnabled = true
@@ -70,6 +75,7 @@ class RemoteWaiterRepository(
                 callsEnabled = boardEndpoint || callsEnabled,
                 deliveryRequiresQr = policy.deliveryRequiresQr,
                 allowsPayAtEnd = policy.allowsPayAtEnd,
+                spaceDelivery = SpaceDelivery.fromWire(policy.spaceDelivery),
             )
         }.mapApiErrors()
 
@@ -105,7 +111,11 @@ class RemoteWaiterRepository(
                     .mapCatching(contractJson::parseStorePolicy)
                     .getOrThrow()
             }.getOrNull()
-        if (fetched != null) storePolicyCache = now to fetched
+        if (fetched != null) {
+            storePolicyCache = now to fetched
+            // Mesero y Caja no pasan por el catálogo: el tipo de negocio (pista o cancha) sale de aquí.
+            fetched.businessType?.let(Venue::update)
+        }
         return fetched ?: storePolicyCache?.second ?: DeliveryPolicyDto()
     }
 
@@ -261,40 +271,64 @@ class RemoteWaiterRepository(
             ).mapCatching(contractJson::parseAbono)
             .mapApiErrors()
 
-    override fun currentCall(espacioId: Int): Result<TableCall?> =
-        runCatching {
-            val calls =
-                apiClient
-                    .get("llamadas", mapOf("estado" to OPEN_CALL_QUERY))
-                    .mapCatching(contractJson::parseCalls)
-                    .getOrThrow()
+    override fun currentCall(espacioId: Int): Result<TableCall?> {
+        val guestSlug = guestAccess?.guestSlug()
+        // Un invitado que aún no dio su nombre no ha llamado a nadie.
+        if (guestSlug != null && guestAccess?.hasIdentity() != true) return Result.success(null)
+        return runCatching {
+            val query = mapOf("estado" to OPEN_CALL_QUERY)
+            val raw =
+                if (guestSlug == null) {
+                    apiClient.get("llamadas", query)
+                } else {
+                    requireNotNull(guestAccess).withBearer(guestSlug) { apiClient.getWithBearer(it, "llamadas", query) }
+                }
+            val calls = raw.mapCatching(contractJson::parseCalls).getOrThrow()
             calls.firstOrNull { it.space.id == espacioId }
         }.mapGuardUnavailable()
+    }
 
     override fun call(
         espacioId: Int,
         reason: CallReason,
         orderId: String?,
         idempotencyKey: String,
-    ): Result<TableCall> =
-        apiClient
-            .post(
-                path = "espacios/$espacioId/llamadas",
-                body = contractJson.encodeBuyerCall(reason, orderId),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
-            ).mapCatching(contractJson::parseCall)
-            .mapGuardUnavailable()
+    ): Result<TableCall> {
+        val path = "espacios/$espacioId/llamadas"
+        val body = contractJson.encodeBuyerCall(reason, orderId)
+        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val guestSlug = guestAccess?.guestSlug()
+        val raw =
+            when {
+                guestSlug == null -> apiClient.post(path, body, headers)
+                // Sin nombre todavía no está en la mesa: quien llama lo sienta (y lo da de alta) y reintenta.
+                guestAccess?.hasIdentity() != true ->
+                    Result.failure(ApiClientException(NOT_AT_TABLE, "Únete a la mesa para llamar al mesero.", 403))
+                else ->
+                    requireNotNull(guestAccess).withBearer(guestSlug) {
+                        apiClient.postWithBearer(it, path, body, headers)
+                    }
+            }
+        return raw.mapCatching(contractJson::parseCall).mapGuardUnavailable()
+    }
 
     override fun cancelCall(
         call: TableCall,
         idempotencyKey: String,
-    ): Result<TableCall> =
-        apiClient
-            .postWithoutBody(
-                path = "llamadas/${call.id}/cancelaciones",
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
-            ).mapCatching(contractJson::parseCall)
-            .mapGuardUnavailable()
+    ): Result<TableCall> {
+        val path = "llamadas/${call.id}/cancelaciones"
+        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val guestSlug = guestAccess?.guestSlug()
+        val raw =
+            if (guestSlug == null) {
+                apiClient.postWithoutBody(path = path, headers = headers)
+            } else {
+                requireNotNull(guestAccess).withBearer(guestSlug) {
+                    apiClient.postWithBearer(it, path, null, headers)
+                }
+            }
+        return raw.mapCatching(contractJson::parseCall).mapGuardUnavailable()
+    }
 
     /** La ruta no existe en ese servidor. Un 404 con código propio (SPACE_NOT_FOUND…) es un error que se muestra. */
     private fun isMissing(error: Throwable): Boolean {
@@ -338,6 +372,7 @@ class RemoteWaiterRepository(
 
     private companion object {
         const val OPEN_CALL_QUERY = "pendiente,en_camino"
+        const val NOT_AT_TABLE = "NO_ACTIVE_ORDER_IN_SPACE"
         const val POLICY_TTL_MS = 60_000L
     }
 }

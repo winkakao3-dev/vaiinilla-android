@@ -4,18 +4,22 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.localhub.LocalTicket
 import com.vaiinilla.app.domain.localhub.LocalTicketItem
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.CartLine
-import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationSlots
+import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.offline.OfflineStaffScope
@@ -35,10 +39,10 @@ import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.domain.repository.WaiterRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
+import com.vaiinilla.app.domain.usecase.KITCHEN_NOTES_MAX
 import com.vaiinilla.app.ui.order.CounterOrderKey
 import com.vaiinilla.app.ui.order.counterOrderKeyFor
 import com.vaiinilla.app.ui.order.createOrderFingerprint
-import com.vaiinilla.app.ui.screens.DefaultRentalDurations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +58,19 @@ import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
+/**
+ * Lo elegido para rentar un espacio (U04): vive aquí y no en el picker, porque la hoja de la pista sale de
+ * la composición mientras se cobra. Al cerrar el cobro sin cobrar, la duración y los jugadores regresan.
+ */
+data class RentalDraft(
+    val spaceId: Int,
+    val minutes: Int? = null,
+    /** Boliche: cuántos juegan; 0 = sin anotar. */
+    val players: Int = 0,
+    /** #27: a nombre de quién; vacío = sin nombre. */
+    val customerName: String = "",
+)
+
 data class WaiterUiState(
     val tables: List<BoardTable> = emptyList(),
     val callsEnabled: Boolean = true,
@@ -61,8 +78,15 @@ data class WaiterUiState(
     val acting: Boolean = false,
     /** El aviso actual es un error: se pinta con otro ícono para no parecer un éxito. */
     val toastIsError: Boolean = false,
-    /** Duraciones de renta que acepta el backend (`reservas/disponibilidad`). */
-    val rentalDurations: List<Int> = DefaultRentalDurations,
+    /**
+     * Duraciones de renta que acepta el backend (`reservas/disponibilidad`). Vacía mientras no llegan: con otras
+     * el backend responde 400, así que no se ofrecen unas supuestas (un boliche renta 1, 2 o 3 h, no turnos de pádel).
+     */
+    val rentalDurations: List<Int> = emptyList(),
+    /** No se pudieron leer las duraciones: el picker ofrece reintentar. */
+    val rentalDurationsFailed: Boolean = false,
+    /** R25: cuántos caben en el espacio abierto (`capacidad` de la disponibilidad); sin dato, el tope del servidor. */
+    val rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     val errorMessage: String? = null,
     val toastMessage: String? = null,
     val filterAttending: Boolean = false,
@@ -72,6 +96,10 @@ data class WaiterUiState(
     val allowsPayAtEnd: Boolean = false,
     /** Mesa a la que va el pedido que se está tomando; null = pedido de mostrador para Caja. */
     val counterOrderSpace: TableSpace? = null,
+    /** «Te lo llevamos», «Pasa por él» o ambas, para los pedidos de un espacio. */
+    val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
+    /** En Caja, con las dos formas: el cliente pidió en la barra y pasa por él (true) o se lo llevan. */
+    val counterPickUpAtBar: Boolean = false,
     /** Sesión, cuenta y estado del espacio abierto en la hoja; null si no hay ninguno. */
     val spaceDetail: SpaceSessionDetail? = null,
     val spaceDetailLoading: Boolean = false,
@@ -82,6 +110,8 @@ data class WaiterUiState(
     val remainingParts: Map<Int, Int> = emptyMap(),
     /** Renta de mostrador apartada esperando que se cobre en efectivo. */
     val pendingRental: Reservation? = null,
+    /** Lo elegido para rentar el espacio abierto; sobrevive a cerrar el cobro. */
+    val rentalDraft: RentalDraft? = null,
     /** Pedido de mostrador: hoja abierta, catálogo cargado y envío en curso. */
     val counterOrderOpen: Boolean = false,
     val counterCatalog: Catalog? = null,
@@ -92,6 +122,10 @@ data class WaiterUiState(
     val consecutiveBoardFailures: Int = 0,
     /** Pedidos tomados sin internet: por mandar y con problema (plan «Vaiinilla sin internet», fase 1). */
     val offlineOrders: OfflineStaffOrdersState = OfflineStaffOrdersState(),
+    /** Espacio cuya hoja está abierta. Una pantalla nueva (Admin › Pedidos › Mesas) la abre desde aquí (R18). */
+    val openSpaceId: Int? = null,
+    /** Lo que el admin lleva armado en «Pedir»: sobrevive a cambiar de pestaña (R17). */
+    val adminOrderDraft: StaffOrderDraft = StaffOrderDraft(),
 ) {
     /** Ya llegó al menos un tablero bueno. Las mesas solo entran con uno, así que también cuentan como prueba. */
     val boardLoaded: Boolean
@@ -100,6 +134,16 @@ data class WaiterUiState(
     val boardLink: WaiterBoardLink
         get() = waiterBoardLink(boardLoaded, consecutiveBoardFailures)
 }
+
+/**
+ * Pedido a medio armar del admin en «Pedir»: las líneas (por id de línea, ver [StaffOrderLines]), el nombre y a dónde
+ * va. Vive en el ViewModel para no perderse al ir a otra pestaña y volver (R17).
+ */
+data class StaffOrderDraft(
+    val lines: Map<Int, CartLine> = emptyMap(),
+    val name: String = "",
+    val space: TableSpace? = null,
+)
 
 @HiltViewModel
 class WaiterViewModel
@@ -123,7 +167,11 @@ class WaiterViewModel
         private var pollingJob: Job? = null
         private var boardJob: Job? = null
         private val pendingKeys = mutableMapOf<String, String>()
-        private var openSpaceId: Int? = null
+        private var openSpaceId: Int?
+            get() = _uiState.value.openSpaceId
+            set(value) {
+                if (_uiState.value.openSpaceId != value) _uiState.value = _uiState.value.copy(openSpaceId = value)
+            }
         private var knownCallIds: Set<String>? = null
         private var visible = false
         private var toastClearJob: Job? = null
@@ -142,6 +190,9 @@ class WaiterViewModel
             }
             offlineOrders.onAlreadyRegistered = { localFolio ->
                 viewModelScope.launch { showToast("El pedido $localFolio sí había llegado; ya está en la lista") }
+            }
+            offlineOrders.onCashNotRegistered = { localFolio, folio ->
+                viewModelScope.launch { showToast(cashNotRegisteredToast(localFolio, folio)) }
             }
         }
 
@@ -221,7 +272,10 @@ class WaiterViewModel
             val (space, rejected) = fresh.first()
             val reason = rejected.reason?.let { ": $it" }.orEmpty()
             val extra = if (fresh.size > 1) " (y ${fresh.size - 1} más)" else ""
-            showToast("${rejected.byLabel} rechazó el #${rejected.folio} de ${space.name}$reason$extra", isError = true)
+            showToast(
+                "${rejected.byLabel} ${rejected.verb} el #${rejected.folio} de ${space.name}$reason$extra",
+                isError = true,
+            )
         }
 
         private fun detectNewCalls(tables: List<BoardTable>) {
@@ -331,7 +385,17 @@ class WaiterViewModel
         /** Abre el detalle de un espacio: su sesión, su cuenta y su turno. */
         fun openSpace(spaceId: Int) {
             openSpaceId = spaceId
-            _uiState.value = _uiState.value.copy(spaceDetail = null, lastCollection = null, lastAbono = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    spaceDetail = null,
+                    lastCollection = null,
+                    lastAbono = null,
+                    // Cada espacio tiene su mínimo: no se muestran las del anterior mientras llegan las suyas.
+                    rentalDurations = emptyList(),
+                    rentalDurationsFailed = false,
+                    rentalMaxPlayers = ReservationSlots.MAX_PLAYERS,
+                    rentalDraft = _uiState.value.rentalDraft?.takeIf { it.spaceId == spaceId },
+                )
             loadSpaceDetail(spaceId, silent = false)
             loadRentalDurations()
             loadStationsCatalog()
@@ -341,31 +405,70 @@ class WaiterViewModel
         private fun loadStationsCatalog() {
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
-                val catalog = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
-                if (_uiState.value.counterCatalog == null) _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+                val catalog =
+                    withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
+                if (_uiState.value.counterCatalog ==
+                    null
+                ) {
+                    _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+                }
             }
         }
 
-        private var rentalDurationsLoaded = false
-
-        /** Una vez por sesión: el backend dice qué duraciones se pueden rentar (otras responden 400). */
-        private fun loadRentalDurations() {
-            if (rentalDurationsLoaded) return
-            rentalDurationsLoaded = true
+        /**
+         * Cada vez que se abre un espacio: el backend dice qué duraciones se pueden rentar (otras responden 400) y
+         * el dueño puede cambiarlas en cualquier momento. Mientras llegan se conservan las últimas conocidas.
+         */
+        fun loadRentalDurations() {
+            val spaceId = openSpaceId
             viewModelScope.launch {
                 val day = withContext(Dispatchers.IO) { reservationRepository.day(null, ReservationAccess.Account) }
                 day
-                    .onSuccess { court ->
-                        if (court.durations.isNotEmpty()) {
-                            _uiState.value = _uiState.value.copy(rentalDurations = court.durations)
-                        }
-                    }.onFailure { rentalDurationsLoaded = false }
+                    .onSuccess { day ->
+                        if (openSpaceId != spaceId) return@onSuccess
+                        // Las del espacio abierto respetan su mínimo; el backend rechaza las demás.
+                        val court = day.courts.firstOrNull { it.id == spaceId }
+                        val durations = court?.durations?.takeIf { it.isNotEmpty() } ?: day.durations.sorted()
+                        val maxPlayers = court?.maxPlayers ?: ReservationSlots.MAX_PLAYERS
+                        _uiState.value =
+                            _uiState.value.copy(
+                                rentalDurations = durations,
+                                rentalDurationsFailed = durations.isEmpty(),
+                                rentalMaxPlayers = maxPlayers,
+                                // R25: lo anotado antes no pasa de lo que cabe en esta pista.
+                                rentalDraft =
+                                    _uiState.value.rentalDraft?.let { draft ->
+                                        draft.copy(players = draft.players.coerceAtMost(maxPlayers))
+                                    },
+                            )
+                    }.onFailure {
+                        _uiState.value = _uiState.value.copy(rentalDurationsFailed = true)
+                    }
             }
         }
 
         fun closeSpace() {
             openSpaceId = null
-            _uiState.value = _uiState.value.copy(spaceDetail = null, spaceDetailLoading = false)
+            _uiState.value = _uiState.value.copy(spaceDetail = null, spaceDetailLoading = false, rentalDraft = null)
+        }
+
+        /** U04: guarda lo elegido en el picker de la renta del espacio. */
+        fun updateRentalDraft(
+            spaceId: Int,
+            minutes: Int?,
+            players: Int,
+            customerName: String,
+        ) {
+            _uiState.value =
+                _uiState.value.copy(
+                    rentalDraft =
+                        RentalDraft(
+                            spaceId = spaceId,
+                            minutes = minutes,
+                            players = players.coerceIn(0, _uiState.value.rentalMaxPlayers),
+                            customerName = customerName,
+                        ),
+                )
         }
 
         fun dismissCollection() {
@@ -397,7 +500,9 @@ class WaiterViewModel
             spaceId: Int,
             durationMinutes: Int?,
         ) = runSpaceAction(spaceId, "Turno abierto") {
-            waiterRepository.openSession(spaceId, durationMinutes, UUID.randomUUID().toString())
+            waiterRepository
+                .openSession(spaceId, durationMinutes, keyFor("open-turn", spaceId, durationMinutes))
+                .onSuccess { forgetKey("open-turn", spaceId, durationMinutes) }
         }
 
         fun extendTurn(
@@ -409,7 +514,9 @@ class WaiterViewModel
                     ?.session
                     ?.version
             runSpaceAction(spaceId, "+$minutes min") {
-                waiterRepository.extendSession(spaceId, minutes, version, UUID.randomUUID().toString())
+                waiterRepository
+                    .extendSession(spaceId, minutes, version, keyFor("extend-turn", spaceId, minutes, version))
+                    .onSuccess { forgetKey("extend-turn", spaceId, minutes, version) }
             }
         }
 
@@ -420,8 +527,14 @@ class WaiterViewModel
         fun openTableOrder(space: TableSpace) = openOrderSheet(space)
 
         private fun openOrderSheet(space: TableSpace?) {
+            // Cada pedido arranca en «Te lo llevamos»: un «Pasa por él» del anterior no se hereda (R38).
             _uiState.value =
-                _uiState.value.copy(counterOrderOpen = true, counterOrderError = null, counterOrderSpace = space)
+                _uiState.value.copy(
+                    counterOrderOpen = true,
+                    counterOrderError = null,
+                    counterOrderSpace = space,
+                    counterPickUpAtBar = false,
+                )
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
@@ -437,7 +550,56 @@ class WaiterViewModel
         fun closeCounterOrder() {
             if (_uiState.value.counterOrderSending) return
             _uiState.value =
-                _uiState.value.copy(counterOrderOpen = false, counterOrderError = null, counterOrderSpace = null)
+                _uiState.value.copy(
+                    counterOrderOpen = false,
+                    counterOrderError = null,
+                    counterOrderSpace = null,
+                    counterPickUpAtBar = false,
+                )
+        }
+
+        /** En Caja: «Pasa por él» (true) o «Te lo llevamos» (false) para el pedido de un espacio. */
+        fun updateCounterPickUpAtBar(pickUpAtBar: Boolean) {
+            _uiState.value = _uiState.value.copy(counterPickUpAtBar = pickUpAtBar)
+        }
+
+        /** Admin › «Pedir» al entrar: vuelve a abrir el pedido hacia donde iba el borrador (mostrador o su mesa). */
+        fun openAdminOrder() = openOrderSheet(_uiState.value.adminOrderDraft.space)
+
+        /** Admin › «Pedir»: cambia a dónde va el pedido sin tocar lo armado. */
+        fun pickAdminOrderTarget(space: TableSpace?) {
+            _uiState.value =
+                _uiState.value.copy(adminOrderDraft = _uiState.value.adminOrderDraft.copy(space = space))
+            openOrderSheet(space)
+        }
+
+        fun updateAdminOrderDraft(
+            lines: Map<Int, CartLine>,
+            name: String,
+        ) {
+            _uiState.value =
+                _uiState.value.copy(
+                    adminOrderDraft = _uiState.value.adminOrderDraft.copy(lines = lines, name = name),
+                )
+        }
+
+        /**
+         * Admin › «Pedir» al salir de la pestaña: cierra la hoja compartida (si no, el tablero de Mesas la abriría)
+         * pero el borrador y su destino se quedan para cuando vuelva (R17).
+         */
+        fun parkAdminOrder() = closeCounterOrder()
+
+        /** Manda el borrador del admin; al salir bien se limpia y el siguiente arranca en mostrador. */
+        fun submitAdminOrder() {
+            val draft = _uiState.value.adminOrderDraft
+            if (draft.lines.isEmpty()) return
+            if (_uiState.value.counterOrderSpace?.id != draft.space?.id) openOrderSheet(draft.space)
+            submitCounterOrder(
+                lines = draft.lines.values.toList(),
+                customerName = draft.name,
+                // La pestaña, si se ve, vuelve a abrir el mostrador sola al ver la hoja cerrada.
+                onSent = { _uiState.value = _uiState.value.copy(adminOrderDraft = StaffOrderDraft()) },
+            )
         }
 
         /**
@@ -450,6 +612,8 @@ class WaiterViewModel
             cashier: CashierContext? = null,
             /** Caja eligió cobrarlo ya: recibe el id para abrir su cobro (G03). */
             onCreated: ((orderId: String) -> Unit)? = null,
+            /** Además del aviso: el admin limpia su borrador (R17). */
+            onSent: (() -> Unit)? = null,
         ) {
             if (_uiState.value.counterOrderSending) return
             val space = _uiState.value.counterOrderSpace
@@ -463,14 +627,23 @@ class WaiterViewModel
                     payAtEnd = toAccount,
                     origin = OrderOrigin.MOSTRADOR,
                     customerName = customerName,
-                )
+                ).let { built ->
+                    // R24: cada línea lleva su nota en `notas`; el resumen de `notas_cocina` se corta al límite del
+                    // servidor para que muchas notas no hagan rechazar el pedido.
+                    built.copy(
+                        kitchenNotes = built.kitchenNotes.take(KITCHEN_NOTES_MAX),
+                        pickUpAtBar =
+                            space != null &&
+                                _uiState.value.spaceDelivery.pickUpAtBar(_uiState.value.counterPickUpAtBar),
+                    )
+                }
             val key =
                 counterOrderKeyFor(counterOrderKey, createOrderFingerprint(request)) {
                     UUID.randomUUID().toString()
                 }
             counterOrderKey = key
             if (!offlineOrders.hasInternet()) {
-                keepOffline(request, key.key, lines, space, cashier, toAccount)
+                keepOffline(request, key.key, lines, space, cashier, toAccount, onSent)
                 return
             }
             _uiState.value = _uiState.value.copy(counterOrderSending = true, counterOrderError = null)
@@ -485,7 +658,9 @@ class WaiterViewModel
                                 counterOrderOpen = false,
                                 counterOrderError = null,
                                 counterOrderSpace = null,
+                                counterPickUpAtBar = false,
                             )
+                        onSent?.invoke()
                         if (onCreated != null) {
                             onCreated(created.summary.id)
                         } else {
@@ -494,7 +669,7 @@ class WaiterViewModel
                     },
                     onFailure = { error ->
                         if (OfflineStaffOrderRules.shouldKeepOffline(error)) {
-                            keepOffline(request, key.key, lines, space, cashier, toAccount)
+                            keepOffline(request, key.key, lines, space, cashier, toAccount, onSent)
                         } else {
                             _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
                         }
@@ -514,6 +689,8 @@ class WaiterViewModel
             space: TableSpace?,
             cashier: CashierContext?,
             toAccount: Boolean,
+            /** Guardado en la cola cuenta como enviado: el admin limpia su borrador (R17). */
+            onSent: (() -> Unit)? = null,
         ) {
             val saved =
                 offlineOrders.enqueue(
@@ -522,8 +699,9 @@ class WaiterViewModel
                     roleInitial = if (cashier != null) 'C' else 'M',
                     placeLabel = space?.name ?: "Mostrador",
                     summary = offlineSummary(lines),
-                    // Caja cobra el efectivo en el momento (el aviso se lo pide): el pedido llega cobrado.
-                    collectNow = cashier != null && !toAccount,
+                    // Caja cobra el efectivo en el momento (el aviso se lo pide): el pedido llega cobrado. Con la caja
+                    // cerrada no: al volver la red no habría turno donde registrar ese efectivo.
+                    collectNow = collectsOfflineNow(cashier, toAccount),
                 )
             if (saved == null) {
                 _uiState.value =
@@ -534,9 +712,19 @@ class WaiterViewModel
             localHub.sendTicket(localTicketOf(saved, lines, takenBy = if (cashier != null) "Caja" else "Mesero"))
             counterOrderKey = null
             _uiState.value =
-                _uiState.value.copy(counterOrderOpen = false, counterOrderError = null, counterOrderSpace = null)
+                _uiState.value.copy(
+                    counterOrderOpen = false,
+                    counterOrderError = null,
+                    counterOrderSpace = null,
+                    // R38: el siguiente pedido arranca en «Te lo llevamos», como tras un envío con red.
+                    counterPickUpAtBar = false,
+                )
+            onSent?.invoke()
             showToast(offlineOrderToast(saved.localFolio, space?.name, toAccount, cashier))
         }
+
+        /** Manda ya lo pendiente sin tocar lo apartado (antes de cerrar la caja). */
+        fun sendOfflineOrdersNow() = offlineOrders.launchFlush()
 
         /** Manda ya lo guardado sin conexión, también lo apartado por un rechazo (tocó «Reintentar»). */
         fun retryOfflineOrders() = offlineOrders.retryAll()
@@ -551,8 +739,11 @@ class WaiterViewModel
             spaceId: Int,
             minutes: Int,
             start: Instant?,
+            players: Int? = null,
+            customerName: String? = null,
         ) {
             if (!beginAction()) return
+            val name = customerName?.trim()?.takeIf { it.isNotEmpty() }
             viewModelScope.launch {
                 val result =
                     actionCall {
@@ -561,14 +752,103 @@ class WaiterViewModel
                             courtId = spaceId,
                             start = start,
                             durationMinutes = minutes,
-                            customerName = null,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            customerName = name,
+                            idempotencyKey = keyFor("rent", spaceId, start, minutes, players, name),
+                            players = players,
                         )
                     }
+                result.onSuccess { forgetKey("rent", spaceId, start, minutes, players, name) }
                 result.fold(
                     onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
-                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
+                    onFailure = { error ->
+                        refreshCapacityAfter(error)
+                        showToast(error.toUserFacingMessage(), isError = true)
+                    },
                 )
+            }
+        }
+
+        /** R25: el dueño cambió la capacidad de la pista: se vuelve a leer para limitar el selector. */
+        private fun refreshCapacityAfter(error: Throwable) {
+            val overCapacity =
+                generateSequence(error) { it.cause }.any {
+                    (it as? ApiClientException)?.code == "PLAYERS_OVER_CAPACITY"
+                }
+            if (overCapacity) loadRentalDurations()
+        }
+
+        /**
+         * U04: cambia la duración o los jugadores de la renta apartada sin salir del cobro. El servidor no edita
+         * un apartado, así que se suelta y se vuelve a apartar, como `changePendingDuration` del cliente. Si soltar
+         * sale bien pero volver a apartar no, lo elegido regresa a la hoja de la pista para reintentar.
+         */
+        fun changePendingRental(
+            minutes: Int,
+            players: Int?,
+        ) {
+            val current = _uiState.value.pendingRental ?: return
+            val wantedPlayers = players?.takeIf { it > 0 }
+            if (minutes == current.durationMinutes && wantedPlayers == current.players) return
+            if (!beginAction()) return
+            val draft = _uiState.value.rentalDraft?.takeIf { it.spaceId == current.courtId }
+            val name = draft?.customerName?.trim()?.takeIf { it.isNotEmpty() } ?: current.customerName
+            // Una renovación empieza al terminar el turno; una renta "ahora" se vuelve a pedir desde ahora.
+            val start = current.start.takeIf { it.isAfter(Instant.now()) }
+            val cancelKey = keyFor("cancelar-renta", current.id)
+            val createKey = keyFor("rent-change", current.id, minutes, wantedPlayers)
+            var released = false
+            viewModelScope.launch {
+                val result =
+                    actionCall {
+                        reservationRepository
+                            .cancel(
+                                access = ReservationAccess.Account,
+                                reservationId = current.id,
+                                idempotencyKey = cancelKey,
+                            ).mapCatching {
+                                released = true
+                                reservationRepository
+                                    .create(
+                                        access = ReservationAccess.Account,
+                                        courtId = current.courtId,
+                                        start = start,
+                                        durationMinutes = minutes,
+                                        customerName = name,
+                                        idempotencyKey = createKey,
+                                        players = wantedPlayers,
+                                    ).getOrThrow()
+                            }
+                    }
+                if (released) forgetKey("cancelar-renta", current.id)
+                result.fold(
+                    onSuccess = { reservation ->
+                        forgetKey("rent-change", current.id, minutes, wantedPlayers)
+                        _uiState.value =
+                            _uiState.value.copy(
+                                pendingRental = reservation,
+                                rentalDraft =
+                                    (draft ?: RentalDraft(current.courtId))
+                                        .copy(minutes = minutes, players = wantedPlayers ?: 0),
+                            )
+                    },
+                    onFailure = { error ->
+                        refreshCapacityAfter(error)
+                        if (released) {
+                            // El horario anterior ya se soltó: se regresa a la hoja con lo nuevo para reintentar.
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    pendingRental = null,
+                                    rentalDraft =
+                                        (draft ?: RentalDraft(current.courtId))
+                                            .copy(minutes = minutes, players = wantedPlayers ?: 0),
+                                )
+                            showToast("No se pudo volver a apartar: ${error.toUserFacingMessage()}", isError = true)
+                        } else {
+                            showToast("No se pudo cambiar la renta: ${error.toUserFacingMessage()}", isError = true)
+                        }
+                    },
+                )
+                if (released) refresh()
             }
         }
 
@@ -584,18 +864,20 @@ class WaiterViewModel
                             reservationId = reservation.id,
                             method = ReservationPaymentMethod.CASH,
                             cashReceived = received,
-                            idempotencyKey = UUID.randomUUID().toString(),
+                            idempotencyKey = keyFor("pay-rental", reservation.id, received),
                         )
                     }
+                result.onSuccess { forgetKey("pay-rental", reservation.id, received) }
                 result.fold(
                     onSuccess = { payment ->
-                        _uiState.value = _uiState.value.copy(pendingRental = null)
+                        // Cobrada: lo elegido ya no hace falta.
+                        _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = null)
                         val change =
                             payment.cashChange
                                 ?.takeIf { it != "0.00" }
                                 ?.let { " · cambio $$it" }
                                 .orEmpty()
-                        showToast("Cancha rentada$change")
+                        showToast("${Venue.courtTitle} rentada$change")
                     },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
@@ -604,10 +886,21 @@ class WaiterViewModel
             }
         }
 
-        /** Se cerró el cobro sin cobrar: se libera el horario apartado. */
-        fun cancelPendingRental() {
+        /**
+         * Se cerró el cobro sin cobrar: se libera el horario apartado y lo elegido (duración y jugadores)
+         * regresa a la hoja de la pista para corregirlo (U04). [players] son los que se tocaron en el cobro y
+         * aún no se mandaban (R16): no se pierden al cerrar.
+         */
+        fun cancelPendingRental(players: Int? = null) {
             val reservation = _uiState.value.pendingRental ?: return
-            _uiState.value = _uiState.value.copy(pendingRental = null)
+            val kept = _uiState.value.rentalDraft?.takeIf { it.spaceId == reservation.courtId }
+            val draft =
+                (kept ?: RentalDraft(reservation.courtId))
+                    .copy(
+                        minutes = reservation.durationMinutes,
+                        players = (players ?: reservation.players ?: 0).coerceIn(0, _uiState.value.rentalMaxPlayers),
+                    )
+            _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = draft)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -821,6 +1114,7 @@ class WaiterViewModel
             // La cola vive lo que la app; esta pantalla ya no recibe sus avisos.
             offlineOrders.onSent = null
             offlineOrders.onAlreadyRegistered = null
+            offlineOrders.onCashNotRegistered = null
             pollingJob?.cancel()
             boardJob?.cancel()
             super.onCleared()
@@ -861,6 +1155,7 @@ internal fun WaiterUiState.withBoard(
         callsEnabled = board.callsEnabled,
         deliveryRequiresQr = board.deliveryRequiresQr,
         allowsPayAtEnd = board.allowsPayAtEnd,
+        spaceDelivery = board.spaceDelivery,
         loading = false,
         errorMessage = null,
         lastBoardRefreshAt = receivedAt,
@@ -938,11 +1233,28 @@ internal fun offlineOrderToast(
 ): String {
     val label = if (spaceName == null) "Pedido $localFolio" else "Pedido $localFolio de $spaceName"
     return when {
-        cashier != null -> "Sin internet: $label guardado. Cóbralo en efectivo; se registra solo al volver la red."
+        cashier != null && collectsOfflineNow(cashier, toAccount) ->
+            "Sin internet: $label guardado. Cóbralo en efectivo; se registra solo al volver la red."
+        cashier != null && !toAccount ->
+            "Sin internet: $label guardado. La caja está cerrada: no lo cobres ahora; cóbralo al abrirla."
+        cashier != null -> "Sin internet: $label guardado. Avísale a cocina; se manda solo al volver la red."
         toAccount -> "Sin internet: $label guardado. Avísale a cocina; se manda solo al volver la red."
         else -> "Sin internet: $label guardado. Llévalo a Caja; se manda solo al volver la red."
     }
 }
+
+/** Caja cobra ya el pedido guardado sin internet solo si no va a la cuenta y no se sabe que la caja esté cerrada. */
+internal fun collectsOfflineNow(
+    cashier: CashierContext?,
+    toAccount: Boolean,
+): Boolean = cashier != null && !toAccount && cashier.cashOpen != false
+
+internal fun cashNotRegisteredToast(
+    localFolio: String,
+    folio: Int,
+): String =
+    "Atención: el pedido $localFolio quedó como #$folio, pero el efectivo que cobraste no se registró. " +
+        "Cóbralo en la lista de Caja."
 
 internal fun counterOrderToast(
     folio: Int,

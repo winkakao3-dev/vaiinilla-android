@@ -26,7 +26,11 @@ object OfflineOrderBody {
                 put("capturado_en", JsonPrimitive(capturedAt.toString()))
                 put("folio_local", JsonPrimitive(localFolio))
             }
-        val withCapture = original + ("sin_conexion" to capture)
+        // Contrato A: `pago_diferido` va siempre explícito; sin él, el servidor podría suponer la cuenta de la mesa.
+        // `recoge_en_barra` y lo demás viajan tal cual los armó el pedido con red.
+        val explicitPayAtEnd =
+            if (original.containsKey("pago_diferido")) original else original + ("pago_diferido" to JsonPrimitive(false))
+        val withCapture = explicitPayAtEnd + ("sin_conexion" to capture)
         // Caja ya recibió el efectivo: el pedido llega cobrado y entra al corte de su turno.
         val collected = if (collectNow) withCapture + ("cobrar_ahora" to JsonPrimitive(true)) else withCapture
         return JsonObject(collected).toString()

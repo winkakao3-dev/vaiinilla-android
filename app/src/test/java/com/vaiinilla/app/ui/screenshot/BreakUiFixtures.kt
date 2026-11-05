@@ -6,6 +6,7 @@ import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.guardianship.ChildGuardian
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentControls
+import com.vaiinilla.app.domain.guardianship.GuardianshipState
 import com.vaiinilla.app.domain.guardianship.MyGuardianControls
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -452,7 +453,7 @@ internal object BreakUiFixtures {
         hasOwnAccount = index % 2 == 0,
         balance = balance?.let(::BigDecimal),
         controls = if (awaiting) null else DependentControls(lowBalanceAlert = low?.let(::BigDecimal)),
-        isAwaitingSchool = awaiting,
+        schoolState = if (awaiting) GuardianshipState.PENDING else GuardianshipState.APPROVED,
         isPrincipal = principal,
         guardians = guardians,
         needsConsent = consent,

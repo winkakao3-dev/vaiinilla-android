@@ -5,10 +5,10 @@ import com.vaiinilla.app.data.admin.AdminContractJson
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.school.SchoolAdminJson.JoinCodeChange
 import com.vaiinilla.app.domain.admin.AdminProductInput
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.model.PreparationStation
-import com.vaiinilla.app.domain.school.RefundMethod
 import com.vaiinilla.app.domain.school.RosterStudent
-import com.vaiinilla.app.domain.school.StudentRequestKind
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.int

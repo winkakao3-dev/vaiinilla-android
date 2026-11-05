@@ -1,5 +1,7 @@
 package com.vaiinilla.app.domain.school
 
+import com.vaiinilla.app.domain.guardianship.RefundMethod
+import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.DayOfWeek
@@ -222,31 +224,6 @@ object SchoolRosterParser {
                 else -> ','
             }
         return line.split(separator).map { it.trim() }
-    }
-}
-
-enum class StudentRequestKind(
-    val wire: String,
-) {
-    REFUND("devolucion"),
-    DATA_REMOVAL("baja_datos"),
-    ;
-
-    companion object {
-        fun fromWire(wire: String): StudentRequestKind? = entries.firstOrNull { it.wire == wire }
-    }
-}
-
-enum class RefundMethod(
-    val wire: String,
-    val label: String,
-) {
-    CASH("efectivo", "En efectivo"),
-    TRANSFER("transferencia", "Por transferencia"),
-    ;
-
-    companion object {
-        fun fromWire(wire: String?): RefundMethod? = entries.firstOrNull { it.wire == wire }
     }
 }
 

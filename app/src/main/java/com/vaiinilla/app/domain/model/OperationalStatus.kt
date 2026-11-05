@@ -17,10 +17,14 @@ data class OperationalStatus(
     val deliveryRequiresQr: Boolean = true,
     /** Si es true, el cliente puede pedir en un espacio y pagar al final. */
     val allowsPayAtEnd: Boolean = false,
+    /** «Te lo llevamos», «Pasa por él» o ambas, para pedidos en mesa o lugar. */
+    val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
     /** Si es true, el dueño activó la tarjeta en su panel y Stripe ya le permite cobrar. */
     val acceptsCard: Boolean = false,
     /** Si es false, el dueño apagó los pagos con saldo: el servidor rechaza `metodo_pago: saldo`. */
     val allowsBalance: Boolean = true,
+    /** Si es false, el cliente no puede elegir «Pago en caja»: POST /pedidos responde CASH_AT_REGISTER_NOT_ALLOWED. */
+    val allowsCashAtRegister: Boolean = true,
     /** Lo que el dueño dice que es el negocio (`drive_thru`, `restaurante`, `padel`…). */
     val businessType: String = "cafeteria",
     /** Franjas en las que se reciben pedidos; vacía = sin límite. */
@@ -31,6 +35,8 @@ data class OperationalStatus(
     val isSchool: Boolean = false,
     /** El cliente ya dio el código de la escuela: puede agregar o vincular hijos. */
     val isParentUnlocked: Boolean = true,
+    /** Si es false, Cocina no puede empezar un pedido por cobrar: el servidor lo rechaza hasta que Caja cobre. */
+    val kitchenPreparesUnpaid: Boolean = true,
     /**
      * Para la administración: Caja o Cocina latieron en los últimos 2 min. `cashierOnline` y `kitchenOnline`
      * miran 15 s y deciden la operación degradada; con el teléfono bloqueado salían «Sin conexión» enseguida.

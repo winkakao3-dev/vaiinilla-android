@@ -5,11 +5,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.vaiinilla.app.ui.components.WalletUnavailableScreen
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
-import com.vaiinilla.app.ui.wallet.WalletUiState
 
 @Composable
 fun WalletAddMoneyScreen(
-    walletState: WalletUiState,
     initialMethod: String = "card",
     onBack: () -> Unit,
     onCreditBalance: (Int) -> Unit,
@@ -26,7 +24,7 @@ fun WalletAddMoneyScreen(
 @Composable
 private fun WalletAddMoneyScreenLightPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Light) {
-        WalletAddMoneyScreen(walletState = WalletUiState(), onBack = {}, onCreditBalance = {})
+        WalletAddMoneyScreen(onBack = {}, onCreditBalance = {})
     }
 }
 
@@ -34,6 +32,6 @@ private fun WalletAddMoneyScreenLightPreview() {
 @Composable
 private fun WalletAddMoneyScreenDarkPreview() {
     VaiinillaTheme(themeMode = VaiinillaThemeMode.Dark) {
-        WalletAddMoneyScreen(walletState = WalletUiState(), onBack = {}, onCreditBalance = {})
+        WalletAddMoneyScreen(onBack = {}, onCreditBalance = {})
     }
 }

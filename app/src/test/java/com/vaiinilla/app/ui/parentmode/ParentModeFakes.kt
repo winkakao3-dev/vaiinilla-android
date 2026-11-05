@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.guardianship.DependentContextGrant
 import com.vaiinilla.app.domain.guardianship.DependentControls
 import com.vaiinilla.app.domain.guardianship.GuardianLinkCode
 import com.vaiinilla.app.domain.guardianship.GuardianshipRepository
+import com.vaiinilla.app.domain.guardianship.GuardianshipState
 import com.vaiinilla.app.domain.guardianship.MenuCalendar
 import com.vaiinilla.app.domain.guardianship.MyGuardianControls
 import com.vaiinilla.app.domain.guardianship.PrivacyNotice
@@ -219,7 +220,7 @@ internal object ParentFixtures {
             hasOwnAccount = false,
             balance = null,
             controls = null,
-            isAwaitingSchool = true,
+            schoolState = GuardianshipState.PENDING,
         )
 
     val wallet =

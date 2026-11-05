@@ -5,6 +5,7 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.domain.guardianship.ChildRestriction
 import com.vaiinilla.app.domain.guardianship.DependentContextGrant
 import com.vaiinilla.app.domain.guardianship.DependentControls
+import com.vaiinilla.app.domain.guardianship.GuardianshipState
 import com.vaiinilla.app.domain.guardianship.PlannedItem
 import com.vaiinilla.app.domain.guardianship.RefundMethod
 import com.vaiinilla.app.domain.guardianship.ScheduledDayOrder
@@ -30,6 +31,35 @@ class GuardianshipContractTest {
     private val json = GuardianshipJson()
 
     private fun envelope(data: String) = """{"data":$data,"meta":{"page":null},"error":null}"""
+
+    @Test
+    fun rejectedOrUnknownGuardianshipIsNotTreatedAsApproved() {
+        val cases = listOf("rechazada" to GuardianshipState.REJECTED, "suspendida" to GuardianshipState.UNKNOWN)
+        for ((wire, expected) in cases) {
+            val raw =
+                envelope(
+                    """[{"usuario_id":"u1","nombre":"Tilin Ramírez","grupo":"3B","foto_url":null,"matricula":"A100",
+                    "tiene_cuenta":false,"estado":"$wire","saldo":"40.00","controles":null}]""",
+                )
+            val child = json.parseDependents(raw).single()
+            assertEquals(expected, child.schoolState)
+            assertTrue(child.isAwaitingSchool)
+            assertNull(child.balance)
+        }
+    }
+
+    @Test
+    fun guardianshipWithoutStateFromAnOlderServerIsApproved() {
+        val raw =
+            envelope(
+                """[{"usuario_id":"u1","nombre":"Tilin Ramírez","grupo":"3B","foto_url":null,"matricula":"A100",
+                "tiene_cuenta":false,"saldo":"40.00","controles":null}]""",
+            )
+        val child = json.parseDependents(raw).single()
+        assertEquals(GuardianshipState.APPROVED, child.schoolState)
+        assertFalse(child.isAwaitingSchool)
+        assertEquals(BigDecimal("40.00"), child.balance)
+    }
 
     @Test
     fun pendingChildKeepsBalanceAndControlsAsNullNotZero() {

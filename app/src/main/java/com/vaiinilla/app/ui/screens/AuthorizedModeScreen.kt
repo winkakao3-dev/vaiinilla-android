@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -151,6 +152,9 @@ fun AuthorizedModeScreen(
     onSelectMode: (AuthorizedMode) -> Unit,
     onSignOut: () -> Unit = {},
     onRetry: () -> Unit = {},
+    isPlatformAuthority: Boolean = false,
+    onOpenPlatform: () -> Unit = {},
+    onContinueAsClient: () -> Unit = {},
 ) {
     var confirmingSignOut by remember { mutableStateOf(false) }
     if (confirmingSignOut) {
@@ -173,9 +177,10 @@ fun AuthorizedModeScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    // L01: las barras van antes del scroll; si no, al desplazarse el contenido pasa bajo la de estado.
                     .statusBarsPadding()
                     .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(bottom = 28.dp),
         ) {
             if (onBack != null) {
@@ -219,13 +224,36 @@ fun AuthorizedModeScreen(
                     )
                 }
 
+                if (isPlatformAuthority) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .padding(top = 20.dp)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(colors.accent)
+                                .clickable(role = Role.Button, onClick = onOpenPlatform)
+                                .padding(18.dp),
+                    ) {
+                        Text("Plataforma", color = colors.accentInk, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                        Text(
+                            "Crea tiendas y asígnales su administrador. No pertenece a ningún negocio.",
+                            color = colors.accentInk,
+                            fontSize = 13.5.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 5.dp),
+                        )
+                    }
+                }
+
                 if (state.loading && staffModes.isEmpty()) {
                     SkeletonBlock(
                         modifier = Modifier.padding(top = 22.dp).fillMaxWidth().height(120.dp),
                         corner = 22.dp,
                     )
                 }
-                if (!state.loading && staffModes.isEmpty() && state.errorMessage == null) {
+                if (!state.loading && staffModes.isEmpty() && state.errorMessage == null && !isPlatformAuthority) {
                     EmptyState(
                         icon = Icons.Outlined.VpnKey,
                         title = "Sin modos de personal",
@@ -358,10 +386,8 @@ fun AuthorizedModeScreen(
                 }
 
                 // Sin acceso de cliente no hay a dónde volver: antes este botón cerraba la sesión sin avisar.
-                if (clientMode != null) {
-                    Box(Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp)) { SectionCaption("Cliente") }
-                    ClientModeCard(onClick = { onSelectMode(clientMode) })
-                }
+                Box(Modifier.padding(start = 4.dp, top = 24.dp, bottom = 10.dp)) { SectionCaption("Cliente") }
+                ClientModeCard(onClick = { clientMode?.let(onSelectMode) ?: onContinueAsClient() })
                 Box(
                     modifier =
                         Modifier
@@ -431,10 +457,11 @@ private fun CurrentModeCard(
             Text(
                 mode.role.label,
                 color = colors.ink,
-                fontSize = 17.sp,
                 fontWeight = FontWeight.Black,
-                softWrap = false,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // L01: con letra grande «Administración» se cortaba; se encoge antes de cortarse.
+                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 17.sp, stepSize = 0.5.sp),
                 modifier = Modifier.padding(top = 2.dp),
             )
             Text(
@@ -578,8 +605,10 @@ private fun BusinessModesCard(
                 }
             }
         }
-        // Cuatro roles no caben a lo ancho de un teléfono angosto con "Administración": van de dos en dos.
-        val perRow = if (business.modes.size == 4) 2 else 3
+        // Cuatro roles no caben a lo ancho de un teléfono angosto con "Administración": van de dos en dos. Con letra
+        // grande ni así: uno por renglón, para que «Administración» no se corte (L01).
+        val fontScale = LocalDensity.current.fontScale
+        val perRow = modeButtonsPerRow(business.modes.size, fontScale)
         business.modes.chunked(perRow).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -598,6 +627,17 @@ private fun BusinessModesCard(
         }
     }
 }
+
+/** Cuántos botones de rol van por renglón: con letra grande, uno por renglón. */
+internal fun modeButtonsPerRow(
+    count: Int,
+    fontScale: Float,
+): Int =
+    when {
+        fontScale >= 1.2f -> 1
+        count == 4 -> 2
+        else -> 3
+    }
 
 private fun businessNote(business: ModeBusiness): String? =
     when {
@@ -727,11 +767,14 @@ private fun Modifier.pressClickable(
 @Composable
 private fun Modifier.modeArrive(index: Int): Modifier {
     val reduce = reducedMotion()
-    val progress = remember { Animatable(if (reduce) 1f else 0f) }
+    // rememberSaveable, como adminRise: la entrada sale una vez y no se repite al volver a componer.
+    var shown by rememberSaveable { mutableStateOf(reduce) }
+    val progress = remember { Animatable(if (shown) 1f else 0f) }
     LaunchedEffect(Unit) {
-        if (!reduce) {
+        if (!shown) {
             delay(index * 45L)
             progress.animateTo(1f, spring(dampingRatio = 0.85f, stiffness = 320f))
+            shown = true
         }
     }
     return graphicsLayer {

@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.counter.CounterScope
@@ -114,6 +115,9 @@ class StudentCounterViewModel
         val offlineState: StateFlow<OfflineCounterState> = offline.state
 
         private var chargeKey = UUID.randomUUID().toString()
+
+        /** Entregar o ligar credencial: el reintento tras perder la respuesta reusa la llave. */
+        private val retryKeys = RetryKeys()
         private var searchJob: Job? = null
 
         private var state: StudentCounterUiState
@@ -254,6 +258,27 @@ class StudentCounterViewModel
             state = state.copy(selected = null, scannedCredential = null, pin = "", credential = null)
         }
 
+        private fun markRequiresPin(userId: String) {
+            val mark: (StudentCard) -> StudentCard = { if (it.userId == userId) it.copy(requiresPin = true) else it }
+            state =
+                state.copy(
+                    selected = state.selected?.let(mark),
+                    results = state.results.map(mark),
+                )
+        }
+
+        /**
+         * Mientras la ficha está abierta se vuelve a pedir cada [SELECTED_REFRESH_MS]: si su tutor le pone PIN (o se
+         * lo quita), el campo aparece o se va sin reabrirla. Termina al cerrar la hoja.
+         */
+        suspend fun watchSelected(userId: String) {
+            while (state.selected?.userId == userId) {
+                delay(SELECTED_REFRESH_MS)
+                if (state.selected?.userId != userId) return
+                if (state.chargePhase != ChargePhase.Charging) refreshSelected()
+            }
+        }
+
         fun updatePin(typed: String) {
             state = state.copy(pin = typed.filter { it in '0'..'9' }.take(4))
         }
@@ -355,6 +380,8 @@ class StudentCounterViewModel
                                 pin = "",
                                 chargePhase = ChargePhase.Failed(StudentCounterMessages.chargeFailure(error)),
                             )
+                        // Su tutor le puso PIN con la ficha abierta: el campo aparece sin reabrirla (en vivo).
+                        if (StudentCounterMessages.isPinRequired(error)) markRequiresPin(student.userId)
                     }
                 }
             }
@@ -405,7 +432,9 @@ class StudentCounterViewModel
             work.launch {
                 val result =
                     withContext(io) {
-                        repository.deliver(order.id, order.version, credential, UUID.randomUUID().toString())
+                        retryKeys.withKey("deliver", order.id, order.version) { key ->
+                            repository.deliver(order.id, order.version, credential, key)
+                        }
                     }
                 state =
                     result.fold(
@@ -440,7 +469,9 @@ class StudentCounterViewModel
             work.launch {
                 val result =
                     withContext(io) {
-                        repository.assignCredential(student.userId, kind, nfcUid, UUID.randomUUID().toString())
+                        retryKeys.withKey("credential", student.userId, kind, nfcUid) { key ->
+                            repository.assignCredential(student.userId, kind, nfcUid, key)
+                        }
                     }
                 state =
                     result.fold(
@@ -470,5 +501,6 @@ class StudentCounterViewModel
 
         private companion object {
             const val SEARCH_DEBOUNCE_MS = 320L
+            const val SELECTED_REFRESH_MS = 15_000L
         }
     }

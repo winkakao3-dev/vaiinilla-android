@@ -41,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -124,6 +125,7 @@ internal fun ParentPage(
                 modifier =
                     Modifier
                         .padding(start = 16.dp, top = 8.dp)
+                        .minimumInteractiveComponentSize()
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(colors.cardInner)
@@ -644,7 +646,7 @@ internal fun PrivacyNoticeText(
         notice.paragraphs.forEach { Text(it, color = colors.textPrimary, fontSize = 14.sp, lineHeight = 20.sp) }
         if (notice.isDraft) {
             Text(
-                "Borrador en revisión legal · versión ${notice.version}",
+                "Versión ${notice.version}",
                 color = colors.textSecondary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,

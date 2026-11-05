@@ -2,8 +2,10 @@ package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.needsPickupQr
@@ -49,7 +51,7 @@ private fun homeDeliveryHint(order: OrderDetail): String? =
             order.homeDelivery?.code?.let { "Va en camino. Al recibirlo, dicta el código $it." }
                 ?: "Tu pedido va en camino."
         OrderState.DELIVERED -> "Pedido entregado."
-        else -> null
+        OrderState.CANCELED, OrderState.NOT_PICKED_UP, OrderState.EXPIRED -> null
     }
 
 private fun OrderDetail.spaceName(): String = summary.space?.name?.takeIf { it.isNotBlank() } ?: "tu espacio"
@@ -59,12 +61,54 @@ internal fun pickupTitle(
     now: Instant = Instant.now(),
 ): String {
     courtMoment(order, now)?.let { return it.title }
+    pickupRejectionTitle(order)?.let { return it }
     return when (order.summary.state) {
         OrderState.PENDING_PAYMENT -> if (order.cashPending()) "Por pagar" else "Pedido recibido"
         OrderState.PAID -> if (order.isHomeDelivery()) "Aceptado" else "Pedido recibido"
         OrderState.PREPARING -> "Preparando"
-        OrderState.READY -> "¡Listo!"
-        else -> order.summary.state.label
+        // Listo desde antes del día en que se recoge (sin franja nace listo): no es «¡Listo!» todavía (P08).
+        OrderState.READY -> {
+            val today = now.atZone(BusinessTime.zone).toLocalDate()
+            if (order.beforePickupDay(today)) "Apartado" else "¡Listo!"
+        }
+        OrderState.AWAITING_ACCEPTANCE,
+        OrderState.ON_THE_WAY,
+        OrderState.DELIVERED,
+        OrderState.CANCELED,
+        OrderState.NOT_PICKED_UP,
+        OrderState.EXPIRED,
+        -> order.summary.state.label
+    }
+}
+
+/** Lo que Cocina o Caja quitaron de un pedido que se sigue haciendo (P10). */
+private fun OrderDetail.rejectedWhileMaking(): List<OrderItem> =
+    if (summary.state == OrderState.PAID || summary.state == OrderState.PREPARING) {
+        items.filter { it.rejection != null }
+    } else {
+        emptyList()
+    }
+
+/** Con un producto quitado el título deja de decir «Pedido recibido»: el cliente ve el cambio sin abrir nada (P10). */
+private fun pickupRejectionTitle(order: OrderDetail): String? {
+    val rejected = order.rejectedWhileMaking()
+    return when {
+        rejected.isEmpty() -> null
+        rejected.size == 1 -> "Uno no se pudo"
+        else -> "${rejected.size} no se pudieron"
+    }
+}
+
+/** Qué se quitó y por qué; `null` si no se quitó nada. Va antes que la pista de siempre (P10). */
+internal fun pickupRejectionHint(order: OrderDetail): String? {
+    val rejected = order.rejectedWhileMaking()
+    val first = rejected.firstOrNull() ?: return null
+    if (rejected.size > 1) return "${rejected.size} productos no se pudieron hacer. Lo demás sigue."
+    val reason = first.rejection?.reason?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
+    return if (reason != null) {
+        "${first.productName} no se pudo: $reason. Lo demás sigue."
+    } else {
+        "${first.productName} no se pudo hacer. Lo demás sigue."
     }
 }
 
@@ -90,14 +134,16 @@ internal fun pickupHint(
                     now.atZone(zone).toLocalDate(),
                 )
             }
-            CourtMoment.PLAYING -> "Te quedan $minutes min en ${order.rentalCourtName ?: "tu cancha"}."
-            CourtMoment.LAST_MINUTES -> "Quedan $minutes min: los reflectores ya bajaron."
+            CourtMoment.PLAYING -> "Te quedan $minutes min en ${order.rentalCourtName ?: "tu ${Venue.court}"}."
+            CourtMoment.LAST_MINUTES ->
+                if (Venue.isBowling) "Quedan $minutes min de pista." else "Quedan $minutes min: los reflectores ya bajaron."
             CourtMoment.DONE -> "Gracias por jugar."
         }
     }
     if (order.isHomeDelivery()) homeDeliveryHint(order)?.let { return it }
     val state = order.summary.state
-    val toSpace = order.summary.destination == OrderDestination.IN_SPACE
+    // «Pasa por él» se pide desde el lugar, pero se recoge en la barra: no se lo llevan.
+    val toSpace = order.summary.destination == OrderDestination.IN_SPACE && !order.summary.pickUpAtBar
     return when {
         // El código de efectivo solo vive en el dispositivo donde se hizo el pedido: en otro, el folio basta.
         order.cashPending() ->
@@ -106,7 +152,8 @@ internal fun pickupHint(
             } else {
                 "Muestra tu código en Caja para pagar."
             }
-        toSpace && state == OrderState.READY -> "Ya va en camino a ${order.spaceName()}."
+        // Listo no es entregado: el mesero lo recoge y lo lleva; «ya está» se dice hasta que lo entrega.
+        toSpace && state == OrderState.READY -> "Está listo. En un momento te lo llevan a ${order.spaceName()}."
         toSpace && (state == OrderState.PAID || state == OrderState.PREPARING) -> "Te lo llevan a ${order.spaceName()}."
         state == OrderState.PENDING_PAYMENT -> "Estamos confirmando tu pago."
         state == OrderState.PAID -> "Cocina recibió la comanda."
@@ -125,6 +172,7 @@ internal fun pickupHint(
 
 internal fun pickupCodeHint(order: OrderDetail): String =
     when {
+        order.summary.pickUpAtBar -> "Pasa a la barra por él y muéstralo en Caja."
         order.summary.destination == OrderDestination.IN_SPACE ->
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este."
         order.cashPending() -> "Muéstralo en Caja para pagar."
@@ -143,15 +191,15 @@ internal fun pickupCodeUseful(
         (order.cashPending() || order.needsPickupQr(deliveryRequiresQr))
 
 /**
- * El código se abre solo cuando hay que enseñarlo: listo para recoger en barra, o pago en efectivo
- * pendiente. En mesa o cancha lo lleva el mesero, así que no se abre solo.
+ * El código se abre solo cuando hay que enseñarlo: listo para recoger en barra (para llevar o «Pasa por él»
+ * desde un espacio), o pago en efectivo pendiente. En mesa o cancha lo lleva el mesero, así que no se abre solo.
  */
 internal fun shouldAutoRevealPickupCode(
     order: OrderDetail,
     hasCode: Boolean,
 ): Boolean =
     hasCode &&
-        order.summary.destination != OrderDestination.IN_SPACE &&
+        (order.summary.destination != OrderDestination.IN_SPACE || order.summary.pickUpAtBar) &&
         (order.summary.state == OrderState.READY || order.cashPending())
 
 /**
@@ -198,6 +246,7 @@ internal fun pickupPlace(order: OrderDetail): PickupPlace =
     when {
         order.reservation != null -> PickupPlace.COURT
         order.summary.destination == OrderDestination.IN_SPACE &&
+            !order.summary.pickUpAtBar &&
             spaceHasTables(order.summary.space?.type ?: "mesa") -> PickupPlace.TABLE
         order.summary.state == OrderState.PREPARING -> PickupPlace.KITCHEN
         else -> PickupPlace.STOREFRONT

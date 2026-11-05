@@ -28,8 +28,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,6 +109,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.WaiterCallHost
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.canAnnounceArrival
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -182,6 +185,8 @@ internal fun OrderJourneyPage(
     /** Pagar el encargo que ya aceptaron (D1b); null si no hay nada que pagar aquí. */
     onPay: (() -> Unit)? = null,
     paying: Boolean = false,
+    /** El tutor mirando el pedido de su hijo: sin botones para cancelar, pagar, llamar ni pedir ayuda (P08). */
+    readOnly: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -289,9 +294,9 @@ internal fun OrderJourneyPage(
             modifier
                 .fillMaxSize()
                 .background(colors.paper)
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
     ) {
         JourneyTopRow(
@@ -366,7 +371,7 @@ internal fun OrderJourneyPage(
             }
             AnimatedVisibility(
                 visible = showCode,
-                enter = fadeIn(spring(stiffness = 300f)) + scaleIn(spring(0.62f, 320f), initialScale = 0.85f),
+                enter = fadeIn(spring(stiffness = 300f)) + scaleIn(spring(0.62f, 320f), initialScale = 0.92f),
                 exit = fadeOut(spring(stiffness = 400f)) + scaleOut(spring(stiffness = 400f), targetScale = 0.92f),
             ) {
                 FolioCodeCard(order, matrix, colors)
@@ -381,7 +386,7 @@ internal fun OrderJourneyPage(
                     Modifier.arrive(4, key),
                 )
             }
-            if (home && state == OrderState.ON_THE_WAY) {
+            if (home && state == OrderState.ON_THE_WAY && !readOnly) {
                 order.homeDelivery?.dueOnArrival?.takeIf { order.homeDelivery.hasAmountDue }?.let { due ->
                     PayAtDoorCard(due, order.homeDelivery.deposit, colors, Modifier.arrive(5, key))
                     JourneyButton(
@@ -400,7 +405,7 @@ internal fun OrderJourneyPage(
                 ?.takeUnless { journeyMoneyBack(order) != null && it == cancellationMoneyNote(order) }
                 ?.let { DashedNote(it, colors, Modifier.arrive(5, key)) }
             guestNotice?.let { DashedNote(it, colors, Modifier.arrive(5, key)) }
-            if (arrival != null) {
+            if (arrival != null && !readOnly) {
                 ArrivedButton(arrival, colors, Modifier.arrive(5, key))
             } else if (journey == OrderJourney.DRIVE_THRU && order.arrivedAt != null && state != OrderState.DELIVERED) {
                 Text(
@@ -416,11 +421,9 @@ internal fun OrderJourneyPage(
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                 )
             }
-            JourneyActions(actions, colors, Modifier.arrive(6, key))
-            if (home &&
-                venue.whatsappUrl != null &&
-                state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)
-            ) {
+            if (!readOnly) JourneyActions(actions, colors, Modifier.arrive(6, key))
+            // Sin WhatsApp del negocio el enlace también sale (S06): la hoja dice qué pasa con el dinero en cada caso.
+            if (home && state in HelpStates && !readOnly) {
                 Text(
                     if (state ==
                         OrderState.ON_THE_WAY
@@ -450,6 +453,7 @@ internal fun OrderJourneyPage(
             order = order,
             venueName = venue.name,
             colors = colors,
+            canWrite = venue.whatsappUrl != null,
             onWrite = {
                 helpOpen = false
                 writeToVenue(it)
@@ -922,22 +926,31 @@ private fun FactRow(
     ) {
         Text(fact.label, color = colors.muted, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
+        // Lima y yema sobre el papel claro no se leen: lo que se gana o falta va en su pastilla.
+        val (pill, ink) =
+            when (fact.tone) {
+                FactTone.PLAIN -> Color.Transparent to colors.ink
+                FactTone.GOOD -> colors.accent to colors.accentInk
+                FactTone.DUE -> colors.yolk to FactDueInk
+            }
         Text(
             fact.value,
-            color =
-                when (fact.tone) {
-                    FactTone.PLAIN -> colors.ink
-                    FactTone.GOOD -> colors.accent
-                    FactTone.DUE -> colors.yolk
-                },
+            color = ink,
             fontSize = 14.5.sp,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(pill)
+                    .padding(horizontal = if (fact.tone == FactTone.PLAIN) 0.dp else 8.dp, vertical = 2.dp),
         )
     }
 }
+
+private val FactDueInk = Color(0xFF1D1E1C)
 
 @Composable
 private fun DashedNote(
@@ -981,10 +994,12 @@ private fun CancelQuote(
         modifier
             .padding(top = 14.dp)
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 18.dp, bottomEnd = 18.dp))
             .background(colors.paper2),
     ) {
-        Box(Modifier.width(3.dp).height(68.dp).background(colors.coral))
+        // La barra mide lo que la cita: con un motivo largo no termina antes que la tarjeta.
+        Box(Modifier.width(3.dp).fillMaxHeight().background(colors.coral))
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text("«$reason»", color = colors.ink, fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
             Text(
@@ -1166,7 +1181,7 @@ private fun CourierRow(
                 .background(colors.accent),
             contentAlignment = Alignment.Center,
         ) {
-            Text(name.trim().take(1).uppercase(), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(initialOf(name), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(12.dp))
         Column {
@@ -1331,7 +1346,7 @@ private fun DeliveredReceipt(
         }
         Text(
             "ENTREGADO",
-            color = colors.accent,
+            color = if (colors.isDark) colors.accent else colors.accentInk,
             fontSize = 11.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 2.2.sp,
@@ -1401,7 +1416,8 @@ private fun DeliveredReceipt(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("¿Qué tal estuvo?", color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Cada estrella toca en 48 dp (el ícono sigue de 34): juntas era fácil tocar la de al lado.
+            Row(Modifier.padding(top = 8.dp)) {
                 (1..5).forEach { star ->
                     Icon(
                         Icons.Rounded.Star,
@@ -1409,8 +1425,9 @@ private fun DeliveredReceipt(
                         tint = if (star <= stars) colors.yolk else colors.ink.copy(alpha = 0.15f),
                         modifier =
                             Modifier
-                                .size(34.dp)
-                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star },
+                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star }
+                                .size(48.dp)
+                                .padding(7.dp),
                     )
                 }
             }
@@ -1636,6 +1653,7 @@ private fun OrderHelpSheet(
     order: OrderDetail,
     venueName: String?,
     colors: VaiinillaColors,
+    canWrite: Boolean,
     onWrite: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1690,11 +1708,18 @@ private fun OrderHelpSheet(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .physicalPress(scale = PhysicalPressScale.Small) { onWrite("Pedido #$folio: $title.") }
-                        .clip(RoundedCornerShape(18.dp))
+                        .then(
+                            if (canWrite) {
+                                Modifier.physicalPress(scale = PhysicalPressScale.Small) {
+                                    onWrite("Pedido #$folio: $title.")
+                                }
+                            } else {
+                                Modifier
+                            },
+                        ).clip(RoundedCornerShape(18.dp))
                         .background(colors.paper2)
                         .padding(12.dp)
-                        .semantics(mergeDescendants = true) { role = Role.Button },
+                        .semantics(mergeDescendants = true) { if (canWrite) role = Role.Button },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -1706,9 +1731,39 @@ private fun OrderHelpSheet(
                         Text(title, color = colors.ink, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
                         Text(detail, color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.muted)
+                    if (canWrite) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = colors.muted,
+                        )
+                    }
                 }
+            }
+            if (!canWrite) {
+                Text(
+                    HELP_WITHOUT_WHATSAPP,
+                    color = colors.ink2,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }
 }
+
+/** Los estados en que el pedido a domicilio aún puede cambiar: «Algo cambió o necesito ayuda». */
+private val HelpStates =
+    setOf(
+        OrderState.AWAITING_ACCEPTANCE,
+        OrderState.PAID,
+        OrderState.PREPARING,
+        OrderState.READY,
+        OrderState.ON_THE_WAY,
+    )
+
+internal const val HELP_WITHOUT_WHATSAPP =
+    "Este negocio no dejó su WhatsApp en Vaiinilla: llámalo o escríbele por donde lo conoces. " +
+        "Mientras tanto tu pedido y tu dinero siguen igual."
+

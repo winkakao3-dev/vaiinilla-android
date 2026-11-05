@@ -160,3 +160,9 @@ private fun durationLabel(duration: Duration): String {
 /** Nombre de la cancha rentada, o `null` si el pedido no es renta. */
 val OrderDetail.rentalCourtName: String?
     get() = reservation?.space?.name
+
+/** Para Caja: «Renta de Pista 3», o «Renta» si el servidor no mandó el espacio de la reserva. */
+fun rentalChargeLabel(order: OrderDetail): String =
+    order.rentalCourtName
+        ?.takeIf { it.isNotBlank() }
+        ?.let { "Renta de $it" } ?: "Renta"

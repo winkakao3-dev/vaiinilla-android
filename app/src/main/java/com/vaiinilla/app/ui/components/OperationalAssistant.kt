@@ -104,8 +104,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.delay
+import java.text.Normalizer
 import kotlin.math.roundToInt
 
 const val ASSISTANT_ANCHOR_CASHIER_ORDER_CARD = "comanda-card"
@@ -369,6 +371,37 @@ fun rememberOperationalAssistantController(
     }
 }
 
+/**
+ * El buscador del manual: sin acentos ni mayúsculas, y busca cada palabra en el título, la sección y el
+ * texto de los pasos («cerrar» encuentra «¿Cómo cierro la caja…?» por su paso «Cerrar caja»; en vivo, L05).
+ */
+internal fun manualGuideMatches(
+    guide: OperationalAssistantGuide,
+    query: String,
+): Boolean {
+    val words = query.foldForManualSearch().split(' ').filter(String::isNotBlank)
+    if (words.isEmpty()) return true
+    val haystack =
+        buildList {
+            add(guide.title)
+            add(guide.section)
+            add(guide.completionMessage)
+            guide.demoSteps.forEach {
+                add(it.title)
+                add(it.body)
+            }
+            guide.steps.forEach { add(it.text) }
+        }.joinToString(" ").foldForManualSearch()
+    return words.all(haystack::contains)
+}
+
+private fun String.foldForManualSearch(): String =
+    Normalizer
+        .normalize(lowercase(), Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+        .trim()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OperationalAssistantHost(
@@ -389,12 +422,13 @@ fun OperationalAssistantHost(
         val step = controller.currentStep ?: return@LaunchedEffect
         val anchorId = step.anchorId
         if (anchorId != null) {
-            repeat(5) {
+            // Hasta 5 intentos mientras el ancla aparece; en cuanto se ve, se deja de buscar.
+            for (attempt in 1..5) {
                 val entry = registry.entry(anchorId)
                 if (entry != null) {
-                    runCatching { entry.bringIntoViewRequester.bringIntoView() }
+                    runCatchingCancellable { entry.bringIntoViewRequester.bringIntoView() }
                     delay(if (reduceMotion) 20 else 120)
-                    return@repeat
+                    break
                 }
                 delay(80)
             }
@@ -559,12 +593,7 @@ private fun AssistantSheetContent(
     }
 
     val normalizedQuery = query.trim()
-    val filteredGuides =
-        guides.filter { guide ->
-            normalizedQuery.isBlank() ||
-                guide.title.contains(normalizedQuery, ignoreCase = true) ||
-                guide.section.contains(normalizedQuery, ignoreCase = true)
-        }
+    val filteredGuides = guides.filter { guide -> manualGuideMatches(guide, normalizedQuery) }
 
     Column(modifier = modifier) {
         Row(
@@ -595,7 +624,7 @@ private fun AssistantSheetContent(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            IconButton(onClick = controller::closeSheet, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = controller::closeSheet) {
                 Icon(Icons.Outlined.Close, contentDescription = "Cerrar manual", tint = palette.muted)
             }
         }
@@ -686,7 +715,7 @@ private fun ManualGuideDetail(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = onClose) {
                 Icon(Icons.Outlined.Close, contentDescription = "Cerrar manual", tint = palette.muted)
             }
         }
@@ -929,7 +958,7 @@ private fun DemoQrScanner(
             )
         }
         Text(
-            if (error) "QR inválido · vuelve a enfocar" else "Coloca el QR del alumno dentro del marco",
+            if (error) "QR inválido · vuelve a enfocar" else "Coloca el QR del cliente dentro del marco",
             color = Color(0xFFF7F3E7),
             fontSize = 11.sp,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp),
@@ -1671,6 +1700,34 @@ fun cashierAssistantGuides(
             unavailableReason = "La caja ya está abierta o el estado todavía no está disponible.",
         ),
         OperationalAssistantGuide(
+            id = "cerrar-caja",
+            title = "¿Cómo cierro la caja al terminar el turno?",
+            role = OperationalRole.CASHIER,
+            section = "Turno",
+            icon = Icons.Outlined.Payments,
+            demoSteps =
+                listOf(
+                    OperationalManualDemoStep(
+                        "Cobra o cierra las cuentas abiertas",
+                        "Si quedan cuentas de mesas por cobrar, la caja no se puede cerrar: " +
+                            "cóbralas o ciérralas primero.",
+                        OperationalManualVisual.CASH_OPEN,
+                    ),
+                    OperationalManualDemoStep(
+                        "Abre tu menú y toca Cerrar caja",
+                        "Toca tu avatar arriba a la derecha y elige Cerrar caja (corte de caja).",
+                        OperationalManualVisual.CASH_OPEN,
+                    ),
+                    OperationalManualDemoStep(
+                        "Cuenta el efectivo y confirma",
+                        "Escribe el total que hay en el cajón o cuéntalo billete por billete y confirma. " +
+                            "La caja queda cerrada hasta el siguiente turno.",
+                        OperationalManualVisual.CASH_OPEN,
+                    ),
+                ),
+            completionMessage = "Caja cerrada",
+        ),
+        OperationalAssistantGuide(
             id = "estados-pedido",
             title = "¿Qué significan EN ESPERA, LISTO y ENTREGADO?",
             role = OperationalRole.CASHIER,
@@ -1685,7 +1742,7 @@ fun cashierAssistantGuides(
                     ),
                     OperationalManualDemoStep(
                         "LISTO significa que ya puede recogerse",
-                        "Cuando Cocina termina, el pedido pasa a LISTO. Este es el momento en que Caja puede escanear el QR del alumno.",
+                        "Cuando Cocina termina, el pedido pasa a LISTO. Este es el momento en que Caja puede escanear el QR del cliente.",
                         OperationalManualVisual.ORDER_STATES,
                     ),
                     OperationalManualDemoStep(
@@ -1699,7 +1756,7 @@ fun cashierAssistantGuides(
         ),
         OperationalAssistantGuide(
             id = "entregar-qr",
-            title = "¿Cómo entrego un pedido con el QR del alumno?",
+            title = "¿Cómo entrego un pedido con el QR del cliente?",
             role = OperationalRole.CASHIER,
             section = "Pedidos y entrega",
             icon = Icons.Outlined.QrCodeScanner,
@@ -1717,7 +1774,7 @@ fun cashierAssistantGuides(
                     ),
                     OperationalManualDemoStep(
                         "Escanea el QR del pedido",
-                        "Pide al alumno que muestre el QR de su pedido actual y mantenlo dentro del marco hasta que la app lo valide.",
+                        "Pide al cliente que muestre el QR de su pedido actual y mantenlo dentro del marco hasta que la app lo valide.",
                         OperationalManualVisual.QR_SCAN,
                     ),
                     OperationalManualDemoStep(
@@ -1730,7 +1787,7 @@ fun cashierAssistantGuides(
                 listOf(
                     OperationalAssistantStep(
                         anchorId = ASSISTANT_ANCHOR_QR_SCAN,
-                        text = "Toca Escanear QR y apunta la cámara al código del alumno.",
+                        text = "Toca Escanear QR y apunta la cámara al código del cliente.",
                         advance = AssistantAdvance.State("pedido-entregado:${readyOrderId.orEmpty()}"),
                     ),
                 ),
@@ -1757,7 +1814,7 @@ fun cashierAssistantGuides(
                         OperationalManualVisual.QR_TROUBLESHOOT,
                     ),
                     OperationalManualDemoStep(
-                        "Pide al alumno abrir su pedido actual",
+                        "Pide al cliente abrir su pedido actual",
                         "Que vuelva a la pantalla de su pedido y muestre el QR vigente. Después intenta el escaneo otra vez.",
                         OperationalManualVisual.QR_SCAN,
                     ),

@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.vaiinilla.app.domain.guardianship.Dependent
+import com.vaiinilla.app.domain.guardianship.GuardianshipState
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Rule
@@ -110,7 +111,12 @@ class AddChildFlowScreenshotTest {
 
     @Test
     fun l15_primera_recarga() {
-        val child = ParentFixtures.tilin.copy(isAwaitingSchool = false, balance = BigDecimal.ZERO, group = "3°B")
+        val child =
+            ParentFixtures.tilin.copy(
+                schoolState = GuardianshipState.APPROVED,
+                balance = BigDecimal.ZERO,
+                group = "3°B",
+            )
         show(SchoolGuardianship(child), startsWithSchoolCode = false)
         fillAndSubmit(child.name)
         waitForTag("added-child-reload")
@@ -120,7 +126,12 @@ class AddChildFlowScreenshotTest {
 
     @Test
     fun l16_esperando_a_la_escuela() {
-        val child = ParentFixtures.tilin.copy(isAwaitingSchool = true, group = "3°B", studentId = "A100")
+        val child =
+            ParentFixtures.tilin.copy(
+                schoolState = GuardianshipState.PENDING,
+                group = "3°B",
+                studentId = "A100",
+            )
         show(SchoolGuardianship(child), startsWithSchoolCode = false)
         fillAndSubmit(child.name)
         waitForTag("added-child-done")

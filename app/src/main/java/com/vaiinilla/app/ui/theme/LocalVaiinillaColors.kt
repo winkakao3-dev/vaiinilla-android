@@ -34,6 +34,12 @@ data class VaiinillaColors(
      * [paper] es transparente, así que no sirve como color de texto. Igual que `onInk` en iOS.
      */
     val onInk: Color get() = solidPaper ?: paper
+
+    /** Texto de aviso ámbar. En claro [yolk] da 1.2:1 sobre el papel; en oscuro se sigue leyendo bien. */
+    val amberInk: Color get() = if (isDark) yolk else AmberInkLight
+
+    /** Texto de error. En claro [coral] da 2.9:1 sobre el papel; en oscuro se sigue leyendo bien. */
+    val coralText: Color get() = if (isDark) coral else CoralTextLight
 }
 
 val LocalVaiinillaColors =

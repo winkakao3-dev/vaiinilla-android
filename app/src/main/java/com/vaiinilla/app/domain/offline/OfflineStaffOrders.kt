@@ -26,7 +26,17 @@ data class OfflineStaffOrder(
     val capturedAt: Instant,
     /** Por qué el servidor no lo aceptó. Ya no se reintenta solo: el personal toca Reintentar o lo resuelve. */
     val problem: String? = null,
-)
+    /** Caja ya recibió el efectivo (`cobrar_ahora`): hasta registrarse, ese dinero no está en ningún corte. */
+    val collectedCash: Boolean = false,
+    /**
+     * El pedido sí quedó con este folio, pero el cobro en efectivo no se registró («cobrado sin registrar»).
+     * Reenviarlo no lo arregla: Caja lo cobra en la lista y lo marca como resuelto.
+     */
+    val registeredFolio: Int? = null,
+) {
+    /** Cobrado sin internet, el pedido llegó pero el cobro no se aplicó. */
+    val collectedButNotRegistered: Boolean get() = collectedCash && registeredFolio != null
+}
 
 /** Lo que el teléfono guarda de un miembro del personal: sus pedidos por mandar y el consecutivo del día. */
 data class OfflineStaffOrdersSnapshot(
@@ -41,6 +51,16 @@ data class OfflineStaffOrdersSnapshot(
 
     val pending: List<OfflineStaffOrder> get() = orders.filter { it.problem == null }
     val problems: List<OfflineStaffOrder> get() = orders.filter { it.problem != null }
+}
+
+/** Lo que se le dice a Caja cuando el pedido llegó pero el efectivo que ya cobró no se registró. */
+fun cashNotRegisteredProblem(
+    folio: Int,
+    serverMessage: String?,
+): String {
+    val reason = serverMessage?.trim()?.takeIf { it.isNotEmpty() }?.let { " ($it)" }.orEmpty()
+    return "Cobrado sin registrar: quedó como #$folio pero el efectivo no entró a la caja$reason. " +
+        "Cóbralo en la lista de Caja para que entre al corte."
 }
 
 object OfflineStaffOrderRules {

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.MutationIdempotency
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
@@ -14,10 +15,13 @@ import com.vaiinilla.app.domain.admin.AdminProductRules
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MIN
+import com.vaiinilla.app.domain.admin.ForcedCloseResult
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.HomeOrderBoard
+import com.vaiinilla.app.domain.model.HomeOrderStep
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -33,6 +37,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.moneyLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,6 +77,15 @@ enum class AdminOrderFilter(
         if (this == ACTIVE && homeOrders) states + OrderState.AWAITING_ACCEPTANCE + OrderState.ON_THE_WAY else states
 }
 
+/** «Por aceptar»: lo que llegó en su consulta propia más lo que trajo la lista, sin repetir y del más viejo al nuevo. */
+internal fun awaitingAcceptance(
+    fetched: List<OrderDetail>,
+    listed: List<OrderDetail>,
+): List<OrderDetail> =
+    (fetched + listed)
+        .filter { it.summary.state == OrderState.AWAITING_ACCEPTANCE }
+        .distinctBy { it.summary.id }
+
 data class AdminUiState(
     val preset: AdminPeriodPreset = AdminPeriodPreset.TODAY,
     /** Periodo elegido a mano ("Personalizado"); manda sobre [preset]. */
@@ -106,6 +120,11 @@ data class AdminUiState(
     val ordersCursor: String? = null,
     val ordersLoading: Boolean = false,
     val ordersError: String? = null,
+    /**
+     * Los encargos que esperan respuesta, pedidos aparte (T02): «Activos» llega del más viejo al más nuevo de 30 en
+     * 30, y un encargo recién hecho quedaba fuera de la primera página detrás de los pendientes viejos.
+     */
+    val awaitingOrders: List<OrderDetail> = emptyList(),
     /** Repostería (CASA-09): de hoy a 15 días, y lo entregado que falta cobrar de los últimos 30. */
     val agenda: List<AgendaDay> = emptyList(),
     val owed: List<OrderDetail> = emptyList(),
@@ -137,6 +156,12 @@ class AdminViewModel
         private var noticeJob: Job? = null
         private var ordersJob: Job? = null
         private var visibleScope: String? = null
+
+        /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
+        private val retryKeys = RetryKeys()
+
+        /** Se pidió la agenda mientras otra lectura seguía en curso: al terminar se vuelve a leer. */
+        private var agendaStale = false
 
         /** [scope] es la membresía activa: si cambió de negocio, no se muestran ni un momento los datos del anterior. */
         fun onVisible(scope: String) {
@@ -184,11 +209,20 @@ class AdminViewModel
             viewModelScope.launch {
                 val status = withContext(Dispatchers.IO) { catalogRepository.getOperationalStatus() }
                 val unpaid = withContext(Dispatchers.IO) { adminRepository.unpaidAccounts() }
+                val tookHomeOrders = _uiState.value.takesHomeOrders
                 _uiState.value =
                     _uiState.value.copy(
                         operationalStatus = status.getOrNull() ?: _uiState.value.operationalStatus,
                         unpaid = unpaid.getOrNull() ?: _uiState.value.unpaid,
                     )
+                // Al entrar, «Activos» se pidió antes de saber si el negocio toma encargos y salió sin los que esperan
+                // respuesta ni los que van en camino (T02): se vuelve a pedir con ellos.
+                if (!tookHomeOrders &&
+                    _uiState.value.takesHomeOrders &&
+                    _uiState.value.orderFilter == AdminOrderFilter.ACTIVE
+                ) {
+                    refreshOrders()
+                }
             }
         }
 
@@ -220,20 +254,25 @@ class AdminViewModel
         /** "Cerrar sin cobrar": el cliente se fue sin pagar y la cuenta se cierra sin cobro. */
         fun closeWithoutCharging(
             account: AdminUnpaidAccount,
-            note: String,
+            reason: String,
             onDone: (Boolean) -> Unit,
         ) {
             if (_uiState.value.saving) return onDone(false)
+            val motivo = reason.trim()
+            // Contrato D: el servidor pide de 3 a 240 letras; el diálogo no deja confirmar con menos.
+            if (motivo.length < FORCED_CLOSE_REASON_MIN) return onDone(false)
             _uiState.value = _uiState.value.copy(saving = true)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        spacesRepository.closeWithoutCharging(account.spaceId, note, UUID.randomUUID().toString())
+                        retryKeys.withKey("close-unpaid", account.spaceId, motivo) { key ->
+                            spacesRepository.closeWithoutCharging(account.spaceId, motivo, key)
+                        }
                     }
                 _uiState.value = _uiState.value.copy(saving = false)
                 result.fold(
-                    onSuccess = {
-                        showNotice("Cuenta de ${account.spaceName} cerrada sin cobrar", isError = false)
+                    onSuccess = { closed ->
+                        showNotice(forcedCloseNotice(account.spaceName, closed), isError = false)
                         onDone(true)
                         refreshHome()
                     },
@@ -260,7 +299,8 @@ class AdminViewModel
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 cashExpected = cashSessionRepository.expectedCash,
                                 cashOpenedAt = it?.openedAt,
-                                cashLastClose = cashSessionRepository.lastClose ?: _uiState.value.cashLastClose,
+                                cashLastClose =
+                                    mergeLastClose(cashSessionRepository.lastClose, _uiState.value.cashLastClose),
                                 cashLoaded = true,
                                 cashCheckFailed = false,
                             )
@@ -306,7 +346,9 @@ class AdminViewModel
             val amount =
                 AdminProductRules.money(initialAmount)
                     ?: return showNotice("Escribe el fondo inicial, por ejemplo 500.", isError = true)
-            cashCall("Caja abierta", onDone) { cashSessionRepository.openSession(amount, UUID.randomUUID().toString()) }
+            cashCall("Caja abierta", onDone) {
+                retryKeys.withKey("open-cash", amount) { key -> cashSessionRepository.openSession(amount, key) }
+            }
         }
 
         fun closeCash(
@@ -334,7 +376,11 @@ class AdminViewModel
                         )
                     onDone()
                 },
-            ) { cashSessionRepository.closeSession(sessionId, amount, UUID.randomUUID().toString()) }
+            ) {
+                retryKeys.withKey("close-cash", sessionId, amount) { key ->
+                    cashSessionRepository.closeSession(sessionId, amount, key)
+                }
+            }
         }
 
         private fun cashCall(
@@ -375,13 +421,18 @@ class AdminViewModel
         fun refreshCatalog() {
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
+                val remembered = withContext(Dispatchers.IO) { adminRepository.archivedProducts() }
                 _uiState.value =
                     result.fold(
                         onSuccess = { loaded ->
                             val (archived, active) = loaded.products.partition(Product::archived)
                             val activeIds = active.map(Product::id).toSet()
+                            // Si volvió al menú desde otro lado, ya no es archivado.
+                            remembered.filter { it.id in activeIds }.forEach { adminRepository.forgetArchived(it.id) }
+                            // `GET catalogo` no trae los archivados: tras reiniciar salen de lo que se recordó (T03).
                             val known =
-                                (_uiState.value.archivedProducts.filter { it.id !in activeIds } + archived)
+                                (remembered + _uiState.value.archivedProducts + archived)
+                                    .filter { it.id !in activeIds }
                                     .associateBy(Product::id)
                                     .values
                                     .toList()
@@ -407,7 +458,9 @@ class AdminViewModel
             if (input.name.isBlank()) return showNotice("Escribe el nombre de la categoría.", isError = true)
             mutate(success = if (id == null) "Categoría creada" else "Categoría guardada", onDone = onDone) {
                 if (id == null) {
-                    adminRepository.createCategory(input, UUID.randomUUID().toString()).map { }
+                    retryKeys
+                        .withKey("create-category", input) { key -> adminRepository.createCategory(input, key) }
+                        .map { }
                 } else {
                     adminRepository.updateCategory(id, input, UUID.randomUUID().toString()).map { }
                 }
@@ -432,7 +485,9 @@ class AdminViewModel
                 val saved =
                     withContext(Dispatchers.IO) {
                         if (id == null) {
-                            adminRepository.createProduct(ready, UUID.randomUUID().toString())
+                            retryKeys.withKey("create-product", ready) { key ->
+                                adminRepository.createProduct(ready, key)
+                            }
                         } else {
                             adminRepository.updateProduct(id, ready, UUID.randomUUID().toString())
                         }
@@ -539,8 +594,40 @@ class AdminViewModel
                                 )
                             },
                         )
-                    if (filter == AdminOrderFilter.ACTIVE && !append) loadDeliveredToday()
+                    if (filter == AdminOrderFilter.ACTIVE && !append) {
+                        loadAwaiting()
+                        loadDeliveredToday()
+                    }
                 }
+        }
+
+        /**
+         * Con Pedidos abierto, cada ~15 s (o al llegar un push de pedido) se vuelve a leer sin girar la rueda: un
+         * encargo nuevo no salía en «Por aceptar» hasta reabrir la app. Solo la primera página, y solo si no se
+         * cargaron más; así no se pierde lo que la persona ya bajó.
+         */
+        fun pollOrders() {
+            val current = _uiState.value
+            if (current.orderFilter != AdminOrderFilter.ACTIVE || current.ordersLoading || current.saving) return
+            if (ordersJob?.isActive == true) return
+            ordersJob =
+                viewModelScope.launch {
+                    loadAwaiting()
+                    if (_uiState.value.ordersCursor != null) return@launch
+                    val states = AdminOrderFilter.ACTIVE.states(_uiState.value.takesHomeOrders)
+                    val page = withContext(Dispatchers.IO) { adminRepository.orders(states, null) }.getOrNull()
+                    if (page == null || _uiState.value.orderFilter != AdminOrderFilter.ACTIVE) return@launch
+                    if (_uiState.value.ordersLoading) return@launch
+                    _uiState.value = _uiState.value.copy(orders = page.orders, ordersCursor = page.cursor)
+                }
+        }
+
+        private suspend fun loadAwaiting() {
+            val page =
+                withContext(Dispatchers.IO) {
+                    adminRepository.orders(setOf(OrderState.AWAITING_ACCEPTANCE), null)
+                }.getOrNull() ?: return
+            _uiState.value = _uiState.value.copy(awaitingOrders = page.orders)
         }
 
         private suspend fun loadDeliveredToday() {
@@ -556,9 +643,17 @@ class AdminViewModel
                 _uiState.value.copy(deliveredToday = page.orders.filter { it.summary.operationalDate == today })
         }
 
-        /** Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. */
+        /**
+         * Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. Si ya hay una lectura en
+         * curso, se vuelve a leer al terminar: «Entregar y cobrar» pedía la agenda tras entregar y otra vez tras cobrar,
+         * la segunda se perdía y «Me deben» seguía con el pedido ya cobrado (13).
+         */
         fun refreshAgenda() {
-            if (_uiState.value.agendaLoading) return
+            if (_uiState.value.agendaLoading) {
+                agendaStale = true
+                return
+            }
+            agendaStale = false
             val today = java.time.LocalDate.now(BusinessTime.zone)
             _uiState.value = _uiState.value.copy(agendaLoading = true, agendaError = null)
             viewModelScope.launch {
@@ -582,6 +677,7 @@ class AdminViewModel
                             )
                         },
                     )
+                if (agendaStale) refreshAgenda()
             }
         }
 
@@ -609,6 +705,14 @@ class AdminViewModel
                                         } else {
                                             it
                                         }
+                                    },
+                                awaitingOrders =
+                                    _uiState.value.awaitingOrders.filter { it.summary.id != updated.summary.id },
+                                // Ya cobrado sale de «Me deben» sin esperar a la agenda.
+                                owed =
+                                    _uiState.value.owed.filter {
+                                        it.summary.id != updated.summary.id ||
+                                            HomeOrderBoard.step(updated) == HomeOrderStep.COLLECT
                                     },
                             )
                         showNotice(doneMessage(action), isError = false)
@@ -676,9 +780,45 @@ class AdminViewModel
         }
     }
 
+/**
+ * El cierre del servidor gana, pero si es el mismo que este dispositivo acaba de hacer
+ * (mismo monto contado) conserva el «Cerró: Tú».
+ */
+internal fun mergeLastClose(
+    server: CashLastClose?,
+    local: CashLastClose?,
+): CashLastClose? {
+    if (server == null) return local
+    if (local == null || !local.closedByMe) return server
+    val sameCount =
+        server.counted.toBigDecimalOrNull()?.let { counted ->
+            local.counted.toBigDecimalOrNull()?.compareTo(counted) == 0
+        } == true
+    return if (sameCount) server.copy(closedByMe = true) else server
+}
+
 /** Una foto ya preparada para subir. */
 class AdminImage(
     val bytes: ByteArray,
     val filename: String,
     val mimeType: String,
 )
+
+/** R3: lo que dejó «Cerrar sin cobrar», en una línea: cuánto se perdió, cuánto abonado sí entró y qué salió de Cocina. */
+internal fun forcedCloseNotice(
+    spaceName: String,
+    closed: ForcedCloseResult,
+): String {
+    val lost = closed.lost.toBigDecimalOrNull()?.signum() == 1
+    val paid = closed.paid.toBigDecimalOrNull()?.signum() == 1
+    return buildList {
+        add("$spaceName cerrada sin cobrar")
+        if (lost) add("se perdieron ${moneyLabel(closed.lost)}")
+        if (paid) add("lo abonado (${moneyLabel(closed.paid)}) sí entró a la caja")
+        when (closed.cancelled) {
+            0 -> Unit
+            1 -> add("1 pedido cancelado")
+            else -> add("${closed.cancelled} pedidos cancelados")
+        }
+    }.joinToString(" · ")
+}

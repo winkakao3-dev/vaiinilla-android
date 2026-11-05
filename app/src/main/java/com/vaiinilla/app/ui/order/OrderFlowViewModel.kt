@@ -15,6 +15,7 @@ import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.guest.LastOrderedPlaceStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
@@ -30,18 +31,23 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
@@ -59,8 +65,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -87,6 +96,9 @@ class OrderFlowViewModel
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
         private val orderRepository: OrderRepository,
         private val lastOrderedPlaces: LastOrderedPlaceStore,
+        private val sharedTables: SharedTableRepository,
+        /** Solo para leer la regla de cashback (`GET wallets/reglas-cashback`, que el cliente también puede leer). */
+        private val cashbackRules: AdminStoreRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -101,6 +113,7 @@ class OrderFlowViewModel
         private var pendingStripeRetryIdempotencyKey: String? = null
         private var activeCartStorageKey: String? = null
         private var guestVenueLoadJob: Job? = null
+        private var rentedCourtCheckJob: Job? = null
         private var cartReconcileJob: Job? = null
         private val activeJobs = mutableSetOf<Job>()
         private var stripeConfirmationJob: Job? = null
@@ -135,6 +148,9 @@ class OrderFlowViewModel
                 activeJobs.toList().forEach(Job::cancel)
                 activeJobs.clear()
                 guestVenueLoadJob = null
+                // La revisión de la pista rentada era del negocio anterior.
+                rentedCourtCheckJob?.cancel()
+                rentedCourtCheckJob = null
                 // La llave persistida de crear pedido se conserva: si el POST ya salió y la respuesta se perdió al
                 // cambiar de lugar, volver y reintentar debe devolver ese pedido y no crear otro (PAGO-09). El
                 // servidor la acota por establecimiento y la app la vence a las 24 h.
@@ -205,10 +221,19 @@ class OrderFlowViewModel
                     searchQuery = if (switchingEstablishment) "" else previous.searchQuery,
                     // El estado operativo es del negocio: el de antes diría si el nuevo es escuela (F19).
                     operationalStatus = if (switchingEstablishment) null else previous.operationalStatus,
+                    // La pista rentada también: la Pastelería mostraba «En la cancha · Pista 3» del Boliche (#10).
+                    rentedCourt = if (switchingEstablishment) null else previous.rentedCourt,
                 )
             guestSessionStore.saveVenue(venue)
             guestVenueLoadJob =
                 launchTracked {
+                    // Con cuenta, el JWT sigue siendo del negocio anterior hasta cambiarlo: el estado, la pista
+                    // rentada y la mesa compartida salían de allá hasta reiniciar la app (en vivo, #10). Un JWT de
+                    // personal no se cambia: la Caja abierta en otro negocio lo sigue usando.
+                    val clientToken = sessionStore.readAccessToken()?.let(JwtContextScope::isClientToken) == true
+                    if (guestSlugFor(venue) == null && clientToken && tokenIsForOtherVenue(venue)) {
+                        withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                    }
                     val (resolvedVenue, catalogResult) =
                         withContext(Dispatchers.IO) {
                             loadGuestCatalogWithVenueRefresh(venue)
@@ -239,8 +264,11 @@ class OrderFlowViewModel
                     // Public guest discovery is valid without identity. Operational status is
                     // authenticated, so its failure must not hide a catalog that loaded correctly.
                     // Load it right away: without it the cart cannot offer "Pagar al final".
+                    // Si el contexto no se pudo cambiar, lo que responda el servidor es del otro negocio: nada.
+                    val ownContext =
+                        guestSlugFor(resolvedVenue) != null || !tokenIsForOtherVenue(resolvedVenue)
                     val status =
-                        withContext(Dispatchers.IO) { fetchOperationalStatus() }.getOrNull()
+                        if (ownContext) withContext(Dispatchers.IO) { fetchOperationalStatus() }.getOrNull() else null
                     val guestEntryRequired =
                         withContext(Dispatchers.IO) {
                             guestSlugFor(resolvedVenue) != null && !guestSession.hasIdentity()
@@ -259,6 +287,9 @@ class OrderFlowViewModel
                             operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                            // Al entrar el destino acaba de quedar en «Para llevar»: la cancha se ofrece de entrada.
+                            checkoutDestination =
+                                destinationWithRentedCourt(_uiState.value, rentedCourt, offerAsDefault = true),
                             cartLines = nextCart,
                             unavailableCartKeys = unavailableKeys,
                             cartNotice = droppedCartLinesNotice(droppedFromSavedCart) ?: _uiState.value.cartNotice,
@@ -270,11 +301,18 @@ class OrderFlowViewModel
                 }
         }
 
-        private fun loadGuestCatalogWithVenueRefresh(
+        private suspend fun loadGuestCatalogWithVenueRefresh(
             venue: GuestVenueContext,
         ): Pair<GuestVenueContext, Result<Catalog>> {
-            val initial = discoveryRepository.getGuestCatalog(venue.establishment.slug)
-            if (initial.isSuccess) return venue to initial
+            // La ficha guardada del lugar puede ser vieja: si la tienda dejó el asistente solo para el personal, la
+            // píldora del carrito seguía con la chispa (en vivo, Y03). Se relee junto con el menú.
+            val (initial, published) =
+                coroutineScope {
+                    val catalog = async { discoveryRepository.getGuestCatalog(venue.establishment.slug) }
+                    val establishment = async { discoveryRepository.getEstablishment(venue.establishment.slug) }
+                    catalog.await() to establishment.await().getOrNull()
+                }
+            if (initial.isSuccess) return withPublishedMetadata(venue, published) to initial
 
             val freshEstablishment = findEstablishmentById(venue.establishment.id) ?: return venue to initial
             if (freshEstablishment == venue.establishment) return venue to initial
@@ -282,6 +320,17 @@ class OrderFlowViewModel
             val refreshedVenue = venue.copy(establishment = freshEstablishment)
             guestSessionStore.refreshSelectedVenueMetadata(freshEstablishment)
             return refreshedVenue to discoveryRepository.getGuestCatalog(freshEstablishment.slug)
+        }
+
+        /** La ficha recién leída del mismo negocio reemplaza a la guardada (asistente, tipo, pago al final…). */
+        private fun withPublishedMetadata(
+            venue: GuestVenueContext,
+            published: PublicEstablishment?,
+        ): GuestVenueContext {
+            val fresh =
+                published?.takeIf { it.id == venue.establishment.id && it != venue.establishment } ?: return venue
+            guestSessionStore.refreshSelectedVenueMetadata(fresh)
+            return venue.copy(establishment = fresh)
         }
 
         private fun findEstablishmentById(establishmentId: String): PublicEstablishment? {
@@ -328,7 +377,35 @@ class OrderFlowViewModel
                         operationalStatus = statusResult.getOrNull(),
                         errorMessage = errorMessage,
                     )
+                refreshCashbackRule(venueId = null)
             }
+        }
+
+        /**
+         * Al abrir el carrito se lee la regla de cashback aunque no haya lugar de invitado: antes solo se leía al
+         * tocar Pagar o al recargar el menú, y el carrito no decía nada aunque la hoja de pago sí (24).
+         */
+        fun refreshCashbackForCart() {
+            val venueId =
+                _uiState.value.guestVenue
+                    ?.establishment
+                    ?.id
+            launchTracked { refreshCashbackRule(venueId) }
+        }
+
+        /**
+         * El carrito y la hoja de pago dicen cuánto cashback deja el pedido (24). Sin regla, sin permiso (invitado) o
+         * sin red no se menciona. [venueId] evita guardar la regla de un negocio que ya se dejó.
+         */
+        private suspend fun refreshCashbackRule(venueId: String?) {
+            // Una falla (sin red, token aún no listo) no borra la regla que ya se tenía de este negocio.
+            val rule = withContext(Dispatchers.IO) { cashbackRules.cashbackRule() }.getOrElse { return }
+            val currentVenue =
+                _uiState.value.guestVenue
+                    ?.establishment
+                    ?.id
+            if (venueId != null && currentVenue != venueId) return
+            _uiState.value = _uiState.value.copy(cashbackRule = rule?.takeIf { it.active })
         }
 
         /**
@@ -375,6 +452,9 @@ class OrderFlowViewModel
 
         /** Como [requiresStudentAuth], salvo la compra sin cuenta: ese invitado no necesita cuenta. */
         fun requiresAccountAuth(): Boolean = requiresStudentAuth() && !isGuestCheckout()
+
+        /** El nombre del invitado (el que dio al entrar o el que va escribiendo); vacío si aún no hay. */
+        fun guestDisplayName(): String = guestSession.storedName() ?: _uiState.value.guestName
 
         fun updateGuestName(name: String) {
             _uiState.value = _uiState.value.copy(guestName = name, createOrderError = null)
@@ -433,6 +513,7 @@ class OrderFlowViewModel
                     return@launchTracked
                 }
                 _uiState.value = _uiState.value.copy(operationalStatus = status)
+                refreshCashbackRule(venueId = venue.establishment.id)
             }
             reconcileCartWithCatalog()
         }
@@ -492,6 +573,12 @@ class OrderFlowViewModel
                 JwtContextScope.isClientToken(token)
         }
 
+        /** Hay un JWT y dice ser de otro negocio (uno sin el claim se da por bueno, como en [hasClientContextFor]). */
+        private fun tokenIsForOtherVenue(venue: GuestVenueContext): Boolean {
+            val token = sessionStore.readAccessToken()
+            return !token.isNullOrBlank() && !JwtContextScope.isContextFor(token, venue.establishment.id)
+        }
+
         private fun fetchOperationalStatus(): Result<OperationalStatus> {
             val slug = guestSlugFor(_uiState.value.guestVenue) ?: return getOperationalStatus()
             return guestOrders.operationalStatus(slug)
@@ -523,12 +610,20 @@ class OrderFlowViewModel
         fun claimGuestOrders(onClaimed: () -> Unit = {}) {
             if (!guestOrders.hasIdentity()) return
             launchTracked {
-                val token = studentAuthRepository.getIdToken().getOrNull() ?: return@launchTracked
-                withContext(Dispatchers.IO) { guestOrders.claim(token) }.onSuccess {
-                    // Ya reclamado (la llave del invitado se borró): el pedido de invitado que seguía en pantalla
-                    // no es de esta cuenta y no se queda (EQUIPO-28). Primero se reclama, después se limpia.
-                    clearCreatedOrder()
-                    onClaimed()
+                // Con red inestable un solo intento dejaba los pedidos de invitado fuera de la cuenta hasta el
+                // siguiente arranque: se reintenta unas veces con espera creciente.
+                for (attempt in 0 until CLAIM_ATTEMPTS) {
+                    if (attempt > 0) delay(CLAIM_RETRY_BASE_MS shl (attempt - 1))
+                    if (!guestOrders.hasIdentity()) return@launchTracked
+                    val token = studentAuthRepository.getIdToken().getOrNull() ?: continue
+                    val claimed = withContext(Dispatchers.IO) { guestOrders.claim(token) }
+                    if (claimed.isSuccess) {
+                        // Ya reclamado (la llave del invitado se borró): el pedido de invitado que seguía en
+                        // pantalla no es de esta cuenta y no se queda (EQUIPO-28). Primero se reclama, luego se limpia.
+                        clearCreatedOrder()
+                        onClaimed()
+                        return@launchTracked
+                    }
                 }
             }
         }
@@ -551,6 +646,8 @@ class OrderFlowViewModel
         fun clearForSessionTermination() {
             activeJobs.toList().forEach(Job::cancel)
             activeJobs.clear()
+            rentedCourtCheckJob?.cancel()
+            rentedCourtCheckJob = null
             pendingIdempotencyKey = null
             pendingStripeRetryIdempotencyKey = null
             guestVenueLoadJob?.cancel()
@@ -720,6 +817,84 @@ class OrderFlowViewModel
             }
         }
 
+        /**
+         * El pedido que armó el asistente: sus líneas entran al carrito como si se agregaran a mano. Cada pedido
+         * del asistente es el pedido completo, así que primero se quita lo que puso el anterior ([replacing]) y no
+         * se suma dos veces. Regresa los nombres que no entraron (ya no hay, piden elegir opciones en la ficha o el
+         * carrito está lleno).
+         */
+        fun addAssistantLines(
+            lines: List<AssistantOrderLine>,
+            replacing: List<AssistantOrderLine> = emptyList(),
+        ): List<String> {
+            val state = _uiState.value
+            if (state.creatingOrder) return lines.map { it.product.name }
+            val products = state.catalog?.products.orEmpty().associateBy { it.id }
+            var cart = state.cartLines
+            for (old in replacing) {
+                val product = products[old.product.productId] ?: continue
+                val key = assistantCartLine(product, old).key
+                cart =
+                    cart.mapNotNull {
+                        when {
+                            it.key != key -> it
+                            it.quantity > old.quantity -> it.copy(quantity = it.quantity - old.quantity)
+                            else -> null
+                        }
+                    }
+            }
+            val skipped = mutableListOf<String>()
+            for (line in lines) {
+                val product = products[line.product.productId]
+                if (product == null || !product.available || product.archived || product.blockReason != null ||
+                    MenuFeed.needsChoice(product)
+                ) {
+                    skipped += line.product.name
+                    continue
+                }
+                val candidate = assistantCartLine(product, line)
+                val existing = cart.firstOrNull { it.key == candidate.key }
+                cart =
+                    when {
+                        existing == null && cart.size >= MenuFeed.MAX_LINES -> {
+                            skipped += line.product.name
+                            cart
+                        }
+                        existing == null -> cart + candidate
+                        existing.quantity + candidate.quantity > MenuFeed.MAX_LINE_QUANTITY -> {
+                            skipped += line.product.name
+                            cart
+                        }
+                        else ->
+                            cart.map {
+                                val sum = it.quantity + candidate.quantity
+                                if (it.key == candidate.key) it.copy(quantity = sum) else it
+                            }
+                    }
+            }
+            if (cart != state.cartLines) {
+                pendingIdempotencyKey = null
+                _uiState.value =
+                    state.copy(
+                        cartLines = cart,
+                        unavailableCartKeys = state.unavailableCartKeys.stillIn(cart),
+                        createOrderError = null,
+                    )
+                persistCurrentCartIfNeeded()
+            }
+            return skipped
+        }
+
+        private fun assistantCartLine(
+            product: Product,
+            line: AssistantOrderLine,
+        ) = CartLine(
+            product = product,
+            quantity = line.quantity.coerceIn(1, MenuFeed.MAX_LINE_QUANTITY),
+            selectedOptionIds = emptySet(),
+            notes = line.note?.trim().orEmpty().take(CART_LINE_NOTE_MAX),
+        )
+
         /** El "−" del menú deslizable: uno menos del platillo. */
         fun quickRemoveProduct(productId: Int) {
             val state = _uiState.value
@@ -808,6 +983,21 @@ class OrderFlowViewModel
                 )
         }
 
+        /**
+         * La calle que escribe la persona cuando el mapa solo resolvió el código postal o la colonia. Es el mismo
+         * punto, así que se quedan las coordenadas y la cotización (editDeliveryAddress las borraría).
+         */
+        fun editDeliveryStreet(address: String) {
+            val current = _uiState.value.homeCheckout
+            if (current.address.address == address) return
+            pendingIdempotencyKey = null
+            _uiState.value =
+                _uiState.value.copy(
+                    homeCheckout = current.copy(address = current.address.copy(address = address)),
+                    createOrderError = null,
+                )
+        }
+
         fun selectDeliveryDate(date: String) {
             val current = _uiState.value.homeCheckout
             if (current.deliveryDate == date) return
@@ -818,7 +1008,7 @@ class OrderFlowViewModel
 
         fun selectHomePayment(payment: HomePayment) {
             val state = _uiState.value
-            if (state.homeCheckout.payment == payment || payment !in state.homePayments) return
+            if (state.effectiveHomePayment == payment || payment !in state.homePayments) return
             pendingIdempotencyKey = null
             _uiState.value =
                 state.copy(homeCheckout = state.homeCheckout.copy(payment = payment), createOrderError = null)
@@ -882,9 +1072,11 @@ class OrderFlowViewModel
 
         fun updateCheckoutDestination(destination: OrderDestination) {
             if (destination == OrderDestination.HOME_DELIVERY && !_uiState.value.canDeliverHome) return
+            // El destino en espacio vale con el QR de una mesa o con la cancha rentada y en curso: el carrito
+            // ofrece «En tu pista» con cualquiera de los dos (auditoría R9).
             if (
                 destination == OrderDestination.IN_SPACE &&
-                _uiState.value.guestVenue?.space == null
+                _uiState.value.checkoutSpaces.isEmpty()
             ) {
                 _uiState.value =
                     _uiState.value.copy(
@@ -919,6 +1111,12 @@ class OrderFlowViewModel
                     checkoutPayAtEnd = false,
                     createOrderError = null,
                 )
+        }
+
+        /** «Pasa por él» (true) o «Te lo llevamos» (false), cuando el negocio ofrece las dos. */
+        fun updateCheckoutPickUpAtBar(pickUpAtBar: Boolean) {
+            pendingIdempotencyKey = null
+            _uiState.value = _uiState.value.copy(checkoutPickUpAtBar = pickUpAtBar, createOrderError = null)
         }
 
         /** Pagar al final: efectivo, sumado a la cuenta del espacio y cobrado al irse. */
@@ -1047,8 +1245,11 @@ class OrderFlowViewModel
                         // Lo de domicilio y encargos solo viaja cuando se usa.
                         deliveryDate = current.homeCheckout.deliveryDate.takeIf { current.asksForDeliveryDate },
                         delivery = current.homeCheckout.address.takeIf { home },
-                        paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
-                        withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
+                        paysOnArrival = home && current.effectiveHomePayment == HomePayment.ON_ARRIVAL,
+                        withDeposit = home && current.effectiveHomePayment == HomePayment.DEPOSIT,
+                        pickUpAtBar = !home && current.pickUpAtBarForOrder,
+                        confirmTakeAway =
+                            current.takeAwayConfirmed && current.checkoutDestination == OrderDestination.TAKE_AWAY,
                     )
                 // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
                 // respondería con un 400 sin explicación (COMPRA-18).
@@ -1076,11 +1277,30 @@ class OrderFlowViewModel
                 val guestSlug = guestSlugFor(current.guestVenue)
                 val result =
                     withContext(Dispatchers.IO) {
-                        if (guestSlug != null) {
-                            guestOrders.create(guestSlug, request, idempotencyKey)
-                        } else {
-                            createRemoteOrder(request, idempotencyKey)
-                        }
+                        // Con el QR de la mesa y a la cuenta: si aún no está sentado ahí, se sienta y reintenta. Con
+                        // cuenta o sin ella (el repositorio de la mesa usa la sesión del invitado cuando toca).
+                        val qrToken =
+                            current.guestVenue
+                                ?.space
+                                ?.takeIf { request.payAtEnd && it.id == current.checkoutSpaceId }
+                                ?.qrToken
+                        val name =
+                            if (guestSlug != null) {
+                                guestSession.storedName() ?: current.guestName
+                            } else {
+                                studentAuthRepository.peekSession()?.displayName.orEmpty()
+                            }
+                        createSeatingAtTableIfNeeded(
+                            create = {
+                                if (guestSlug != null) {
+                                    guestOrders.create(guestSlug, request, idempotencyKey)
+                                } else {
+                                    createRemoteOrder(request, idempotencyKey)
+                                }
+                            },
+                            aliases = payAtEndSeatAliases(name),
+                            join = qrToken?.let { token -> { alias: String -> sharedTables.join(token, alias) } },
+                        )
                     }
                 result.fold(
                     onSuccess = { created ->
@@ -1125,6 +1345,8 @@ class OrderFlowViewModel
                                     ),
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
+                                takeAwayWithSeatPrompt = null,
+                                takeAwayConfirmed = false,
                                 cartNotice = null,
                                 unavailableCartKeys = emptySet(),
                             )
@@ -1133,6 +1355,19 @@ class OrderFlowViewModel
                     },
                     onFailure = { error ->
                         val code = (error as? OrderRepositoryException)?.code
+                        // Tiene lugar en una mesa o pista: se le pregunta si de verdad lo quiere para llevar y,
+                        // si confirma, el pedido se reenvía con `confirmar_para_llevar` (R15).
+                        if (code == TAKE_AWAY_WITH_ACTIVE_SEAT) {
+                            pendingIdempotencyKey = null
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    creatingOrder = false,
+                                    createOrderError = null,
+                                    takeAwayConfirmed = false,
+                                    takeAwayWithSeatPrompt = takeAwayWithSeatMessage(current),
+                                )
+                            return@fold
+                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
@@ -1147,6 +1382,33 @@ class OrderFlowViewModel
                         if (code == PRODUCT_UNAVAILABLE) reconcileCartWithCatalog()
                     },
                 )
+            }
+        }
+
+        /** El cliente confirma «Para llevar» aunque tenga lugar en una mesa o pista: se reenvía el pedido. */
+        fun confirmTakeAwayWithSeat() {
+            if (_uiState.value.takeAwayWithSeatPrompt == null) return
+            _uiState.value =
+                _uiState.value.copy(
+                    takeAwayWithSeatPrompt = null,
+                    takeAwayConfirmed = true,
+                    createOrderError = null,
+                )
+            submitOrder()
+        }
+
+        /** No lo quiere para llevar: se queda en el carrito para cambiar el destino. */
+        fun dismissTakeAwayWithSeat() {
+            _uiState.value = _uiState.value.copy(takeAwayWithSeatPrompt = null, takeAwayConfirmed = false)
+        }
+
+        private fun takeAwayWithSeatMessage(state: OrderFlowUiState): String {
+            val place = state.checkoutSpaces.firstOrNull()?.name
+            return if (place != null) {
+                "Tienes lugar en $place. Si lo pides para llevar, no te lo llevan ahí. ¿Lo pides para llevar?"
+            } else {
+                "Tienes lugar en una mesa o pista. Si lo pides para llevar, no te lo llevan ahí. " +
+                    "¿Lo pides para llevar?"
             }
         }
 
@@ -1190,26 +1452,87 @@ class OrderFlowViewModel
             }
         }
 
-        private suspend fun loadRentedCourt(): PublicSpace? =
-            withContext(Dispatchers.IO) { reservationRepository.list(access = ReservationAccess.Account) }
-                .getOrNull()
+        private suspend fun loadRentedCourt(): PublicSpace? {
+            val reservations =
+                withContext(Dispatchers.IO) { reservationRepository.list(access = ReservationAccess.Account) }
+                    .getOrNull()
+            scheduleRentedCourtCheck(reservations)
+            return reservations
                 ?.firstOrNull { it.state == ReservationState.IN_PROGRESS }
-                ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: "Cancha", type = "cancha") }
+                ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: Venue.courtTitle, type = "cancha") }
+        }
 
         /**
-         * Tras pagar una renta, la cancha pasa a "en curso" en la siguiente consulta de reservas:
-         * se vuelve a leer para ofrecerla como destino sin recargar el lugar.
+         * La renta pagada que empieza en unos minutos, o la que está en curso y termina, cambia el lugar del cliente
+         * sin que nadie recargue: se vuelve a leer justo al empezar o al acabar (en vivo: pagó la pista desde la
+         * Mesa 1 y la app lo dejaba en la mesa).
+         */
+        private fun scheduleRentedCourtCheck(reservations: List<Reservation>?) {
+            rentedCourtCheckJob?.cancel()
+            rentedCourtCheckJob = null
+            val now = Instant.now()
+            val next =
+                reservations
+                    .orEmpty()
+                    .mapNotNull {
+                        when (it.state) {
+                            ReservationState.CONFIRMED -> it.start
+                            ReservationState.IN_PROGRESS -> it.end
+                            else -> null
+                        }
+                    }.filter { it.isAfter(now) && Duration.between(now, it) <= RENTED_COURT_CHECK_HORIZON }
+                    .minOrNull() ?: return
+            val wait = Duration.between(now, next).toMillis() + RENTED_COURT_CHECK_SLACK_MS
+            rentedCourtCheckJob =
+                viewModelScope.launch {
+                    delay(wait)
+                    refreshRentedCourt()
+                }
+        }
+
+        /**
+         * Tras pagar una renta, la cancha pasa a "en curso" en la siguiente consulta de reservas: se vuelve a leer
+         * y se vuelve el lugar del cliente (el del QR queda como segunda opción en el carrito).
          */
         fun refreshRentedCourt() {
             // Sin estado operativo (invitado) no hay cancha rentada que ofrecer.
             if (_uiState.value.operationalStatus == null) return
             launchTracked {
                 val rentedCourt = loadRentedCourt()
+                val current = _uiState.value
+                // Solo una pista nueva cambia el destino elegido: si el cliente volvió a escoger su mesa, se respeta.
+                val courtChanged = rentedCourt?.id != current.rentedCourt?.id
                 _uiState.value =
-                    _uiState.value.copy(
+                    current.copy(
                         rentedCourt = rentedCourt,
-                        selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                        selectedSpaceId =
+                            if (courtChanged && rentedCourt != null) rentedCourt.id else current.selectedSpaceId,
+                        checkoutDestination =
+                            if (courtChanged && rentedCourt != null) {
+                                OrderDestination.IN_SPACE
+                            } else {
+                                destinationWithRentedCourt(current, rentedCourt)
+                            },
                     )
+            }
+        }
+
+        /**
+         * Sin QR de mesa, la cancha rentada que acaba de aparecer se ofrece de entrada como destino; si la renta
+         * ya no está en curso y no hay otro espacio, el pedido vuelve a «Para llevar» (auditoría R9).
+         */
+        private fun destinationWithRentedCourt(
+            current: OrderFlowUiState,
+            rentedCourt: PublicSpace?,
+            offerAsDefault: Boolean = false,
+        ): OrderDestination {
+            if (current.guestVenue?.space != null) return current.checkoutDestination
+            return when {
+                rentedCourt != null && (offerAsDefault || current.rentedCourt == null) &&
+                    current.checkoutDestination == OrderDestination.TAKE_AWAY -> OrderDestination.IN_SPACE
+                rentedCourt == null && current.checkoutDestination == OrderDestination.IN_SPACE ->
+                    OrderDestination.TAKE_AWAY
+                else -> current.checkoutDestination
             }
         }
 
@@ -1564,7 +1887,9 @@ class OrderFlowViewModel
             if (order.summary.paymentMethod != PaymentMethod.STRIPE || _uiState.value.retryingStripePayment) return
             val paymentStatus = order.payment?.status
             val phaseBeforeRetry = _uiState.value.stripePaymentPhase
-            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry)) return
+            if (!canRetryStripePayment(paymentStatus, phaseBeforeRetry, orderClosed = order.summary.state.isClosed)) {
+                return
+            }
 
             val key =
                 resolveIdempotencyKey(
@@ -1702,6 +2027,10 @@ class OrderFlowViewModel
             if (unlockPendingOrder) {
                 guestSessionStore.clearPendingStripeConfirmationOrderId(requireNotNull(order).summary.id)
             }
+            // Si lo cobrado era una renta, la pista ya puede estar en curso: el cliente pasa a ella.
+            if (phase == StripePaymentPhase.CONFIRMED && current.stripePaymentPhase != StripePaymentPhase.CONFIRMED) {
+                refreshRentedCourt()
+            }
             val shouldCelebrateStripe =
                 phase == StripePaymentPhase.CONFIRMED &&
                     order != null &&
@@ -1828,7 +2157,16 @@ class OrderFlowViewModel
         private companion object {
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
             const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
+            const val TAKE_AWAY_WITH_ACTIVE_SEAT = "PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA"
+            const val CLAIM_ATTEMPTS = 3
+            const val CLAIM_RETRY_BASE_MS = 2_000L
             const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
+
+            /** Solo se espera a la renta de hoy: una de mañana se revisa al volver a entrar. */
+            val RENTED_COURT_CHECK_HORIZON: Duration = Duration.ofHours(12)
+
+            /** Unos segundos después de la hora, para que el servidor ya la diga «en curso» o «terminada». */
+            const val RENTED_COURT_CHECK_SLACK_MS = 5_000L
         }
     }
 

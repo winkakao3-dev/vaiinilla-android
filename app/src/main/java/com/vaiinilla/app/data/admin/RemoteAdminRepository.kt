@@ -21,6 +21,7 @@ class RemoteAdminRepository(
     private val catalogParser: ContractResponseParser,
     private val orderJson: OrderContractJson,
     private val json: AdminContractJson = AdminContractJson(),
+    private val archivedStore: ArchivedProductsStore? = null,
 ) : AdminRepository {
     override fun summary(period: AdminPeriod): Result<AdminSummary> =
         apiClient
@@ -107,8 +108,21 @@ class RemoteAdminRepository(
                 "catalogo/productos/$id/${if (archived) "archivar" else "desarchivar"}",
                 "{}",
                 mapOf("Idempotency-Key" to idempotencyKey),
-            ).map { }
+            ).onSuccess { raw ->
+                if (archived) archivedStore?.put(id, raw) else archivedStore?.remove(id)
+            }.map { }
             .mapApiErrors()
+
+    override fun archivedProducts(): List<Product> =
+        archivedStore
+            ?.readAll()
+            .orEmpty()
+            .mapNotNull { raw -> runCatching { catalogParser.parseProduct(raw) }.getOrNull() }
+            .map { it.copy(archived = true) }
+
+    override fun forgetArchived(id: Int) {
+        archivedStore?.remove(id)
+    }
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(

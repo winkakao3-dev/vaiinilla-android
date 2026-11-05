@@ -54,6 +54,10 @@ data class CreateOrderRequest(
     val paysOnArrival: Boolean = false,
     /** Con tarjeta: se cobra el anticipo y el resto en la puerta. */
     val withDeposit: Boolean = false,
+    /** «Pasa por él»: en un espacio, el cliente lo recoge en la barra en lugar de que se lo lleven. */
+    val pickUpAtBar: Boolean = false,
+    /** «Para llevar» confirmado aunque el cliente tenga una silla activa en una mesa o pista (R15). */
+    val confirmTakeAway: Boolean = false,
 )
 
 /** A dónde se lleva un pedido, como lo escribe el cliente. */
@@ -64,14 +68,22 @@ data class DeliveryAddress(
     val latitude: Double? = null,
     val longitude: Double? = null,
 ) {
+    /** La calle con número; vacío si el mapa solo dio el código postal, la colonia o el punto. */
+    val street: String
+        get() = AddressStreet.street(address)
+
     /** Lo mínimo para que el negocio llegue y avise: calle y número, y un teléfono de 10 dígitos. */
     val problem: String?
         get() =
             when {
-                address.trim().length < 8 -> "Escribe la calle, el número y la colonia."
-                phone.count(Char::isDigit) != 10 -> "Escribe un teléfono de 10 dígitos para que te avisen."
-                else -> null
+                address.isBlank() -> "Escribe la calle, el número y la colonia."
+                street.isEmpty() -> "Escribe la calle y el número de tu casa."
+                else -> phoneProblem
             }
+
+    /** El teléfono, aparte, para decirlo junto a su campo y no solo al fondo del carrito. */
+    val phoneProblem: String?
+        get() = "Escribe un teléfono de 10 dígitos para que te avisen.".takeIf { phone.count(Char::isDigit) != 10 }
 }
 
 /** Lo de un pedido a domicilio que el cliente y el negocio necesitan ver. */
@@ -81,6 +93,8 @@ data class OrderHomeDelivery(
     val deposit: String? = null,
     /** Lo que se cobra en la puerta; "0.00" si ya está pagado. */
     val dueOnArrival: String? = null,
+    /** Con qué se cobró en la puerta (`efectivo`, `terminal`, `transferencia`…); null si aún no. */
+    val collectedAtDoorMethod: String? = null,
     /** Los 4 dígitos que el cliente dicta al recibir: solo le llegan a él y desde `en_camino`. */
     val code: String? = null,
     /** Quien lo lleva. El servidor aún no lo manda: sin nombre se dice «quien te lo lleve». */
@@ -149,12 +163,29 @@ data class CreateOrderItem(
 data class CreatedOrder(
     val order: OrderDetail,
     val stripeSession: StripePaymentSession? = null,
+    /** Lo que dijo el servidor del cobro en efectivo pedido con `cobrar_ahora`; null si no lo mandó. */
+    val cashCollection: CreationCashCollection? = null,
 ) {
     val summary: OrderSummary
         get() = order.summary
     val pickupToken: String?
         get() = order.pickupToken
+
+    /**
+     * Caja pidió cobrarlo al crearlo (`cobrar_ahora`) y el cobro no entró a ninguna caja: el servidor lo dice con
+     * `cobro.aplicado = false` (o `estado: pendiente`); uno anterior sin `cobro` lo deja ver con el pedido por cobrar.
+     */
+    val cashCollectionNotApplied: Boolean
+        get() = cashCollection?.applied == false ||
+            (cashCollection == null && summary.state == OrderState.PENDING_PAYMENT)
 }
+
+/** `cobro` de `POST /pedidos` con `cobrar_ahora`: si el efectivo quedó registrado en la caja abierta. */
+data class CreationCashCollection(
+    val applied: Boolean,
+    val code: String? = null,
+    val message: String? = null,
+)
 
 data class OrderDetail(
     val summary: OrderSummary,
@@ -254,13 +285,7 @@ val OrderDetail.amountDueOnAcceptance: String
 fun OrderDetail.isStripePaymentConfirmedByBackend(): Boolean =
     summary.paymentMethod == PaymentMethod.STRIPE &&
         payment?.status == StripePaymentStatus.CONFIRMED &&
-        summary.state in
-        setOf(
-            OrderState.PAID,
-            OrderState.PREPARING,
-            OrderState.READY,
-            OrderState.DELIVERED,
-        )
+        summary.state.isPaidOrLater
 
 data class OrderSummary(
     val id: String,
@@ -284,6 +309,8 @@ data class OrderSummary(
     /** Motivo que indicó quien canceló o rechazó el pedido; solo si está cancelado. */
     val cancelReason: String? = null,
     val canceledByRole: String? = null,
+    /** Código del motivo de cancelación (`anticipo_sin_pagar`…); distingue quién dejó pasar el plazo (R29). */
+    val cancelReasonCode: String? = null,
     /** Sesión de mesa a la que pertenece el pedido; `null` si va para llevar o no tiene sesión. */
     val tableSessionId: String? = null,
     /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */
@@ -303,6 +330,8 @@ data class OrderSummary(
     val chargedMethod: String? = null,
     /** Lo cobrado con cada método (`pagos_por_metodo`). */
     val paymentsByMethod: List<PaymentPart> = emptyList(),
+    /** «Pasa por él» (`recoge_en_barra`): el cliente lo recoge en la barra y Caja lo entrega. */
+    val pickUpAtBar: Boolean = false,
 )
 
 /** Una parte del cobro: `metodo` como lo manda el servidor y su monto. */
@@ -522,6 +551,10 @@ enum class OrderState(
 
     val isTerminalWithoutDelivery: Boolean
         get() = this == CANCELED || this == NOT_PICKED_UP || this == EXPIRED
+
+    /** Ya se cobró y el pedido sigue su camino: cobrado, preparando, listo o entregado. */
+    val isPaidOrLater: Boolean
+        get() = this == PAID || this == PREPARING || this == READY || this == DELIVERED
 
     /** Ya no hay nada que seguir ni recoger: entregado o terminado sin entrega. */
     val isClosed: Boolean

@@ -68,6 +68,15 @@ class StaffSyncTest {
     }
 
     @Test
+    fun `client list does not roll back an order already newer here`() {
+        val current = listOf(order("a", version = 5))
+
+        val result = keepNewerVersions(current, listOf(order("a", version = 4), order("b")))
+
+        assertEquals(listOf(5, 1), result.map { it.summary.version })
+    }
+
+    @Test
     fun `merge adds and updates without removing`() {
         val result = mergeOrders(listOf(order("a", version = 1)), listOf(order("a", version = 2), order("b")))
 
