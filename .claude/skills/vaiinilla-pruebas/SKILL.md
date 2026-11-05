@@ -89,7 +89,7 @@ Antes de reportar un bug, abre los archivos de las 4 capas involucradas (backend
 
 Entrega una tabla o lista accionable. Cada hallazgo lleva:
 
-1. `[ID / Severidad]` y el recorrido afectado. Severidad: `Bloquea`, `Grave` o `Detalle`, como en la hoja.
+1. `[ID / Severidad]` y el recorrido afectado. Severidad: `Bloquea`, `Alta`, `Media` o `Baja`.
 2. La traza exacta: `Archivo:Línea` donde nace el error -> `Archivo:Línea` donde explota en UI.
 3. La causa raíz en una oración y el parche de código exacto para corregirlo sin romper flujos existentes. El parche se propone y no se aplica, salvo que el usuario lo pida. Si el arreglo es del backend, dilo: va en una rama con PR hacia `develop`.
 4. Si se solicita, el test de integración en JVM (abajo).
