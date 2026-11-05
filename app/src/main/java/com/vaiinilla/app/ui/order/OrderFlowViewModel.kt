@@ -291,11 +291,18 @@ class OrderFlowViewModel
                 }
         }
 
-        private fun loadGuestCatalogWithVenueRefresh(
+        private suspend fun loadGuestCatalogWithVenueRefresh(
             venue: GuestVenueContext,
         ): Pair<GuestVenueContext, Result<Catalog>> {
-            val initial = discoveryRepository.getGuestCatalog(venue.establishment.slug)
-            if (initial.isSuccess) return venue to initial
+            // La ficha guardada del lugar puede ser vieja: si la tienda dejó el asistente solo para el personal, la
+            // píldora del carrito seguía con la chispa (en vivo, Y03). Se relee junto con el menú.
+            val (initial, published) =
+                coroutineScope {
+                    val catalog = async { discoveryRepository.getGuestCatalog(venue.establishment.slug) }
+                    val establishment = async { discoveryRepository.getEstablishment(venue.establishment.slug) }
+                    catalog.await() to establishment.await().getOrNull()
+                }
+            if (initial.isSuccess) return withPublishedMetadata(venue, published) to initial
 
             val freshEstablishment = findEstablishmentById(venue.establishment.id) ?: return venue to initial
             if (freshEstablishment == venue.establishment) return venue to initial
@@ -303,6 +310,17 @@ class OrderFlowViewModel
             val refreshedVenue = venue.copy(establishment = freshEstablishment)
             guestSessionStore.refreshSelectedVenueMetadata(freshEstablishment)
             return refreshedVenue to discoveryRepository.getGuestCatalog(freshEstablishment.slug)
+        }
+
+        /** La ficha recién leída del mismo negocio reemplaza a la guardada (asistente, tipo, pago al final…). */
+        private fun withPublishedMetadata(
+            venue: GuestVenueContext,
+            published: PublicEstablishment?,
+        ): GuestVenueContext {
+            val fresh =
+                published?.takeIf { it.id == venue.establishment.id && it != venue.establishment } ?: return venue
+            guestSessionStore.refreshSelectedVenueMetadata(fresh)
+            return venue.copy(establishment = fresh)
         }
 
         private fun findEstablishmentById(establishmentId: String): PublicEstablishment? {

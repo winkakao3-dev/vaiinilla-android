@@ -652,6 +652,13 @@ fun AppNavHost(
             else -> StoreEntranceOutcome.WAITING
         }
 
+    // Con carrito en otro lugar se pregunta antes de entrar, por cualquier camino (búsqueda, código, QR o
+    // enlace): la puerta se quita para que «Cambiar» se vea de inmediato. Con el código de mesa la puerta
+    // seguía tapando la pantalla y regresaba a Dónde pedir sin ofrecer el cambio (en vivo, #9).
+    LaunchedEffect(discoveryState.pendingSwitch) {
+        if (discoveryState.pendingSwitch != null) entrance = null
+    }
+
     fun startEntrance(code: String?) {
         entranceEntered = false
         entranceTimedOut = false
