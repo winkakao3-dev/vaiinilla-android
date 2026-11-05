@@ -51,4 +51,7 @@ object Routes {
 
     /** Caja también cobra la cuenta de una mesa o cancha: abre el mismo tablero que el mesero. */
     const val CASHIER_ACCOUNTS = "cashier_accounts"
+
+    /** R1: «Cuentas por cobrar» de Caja, también las de turnos ya cerrados; a donde lleva el cierre bloqueado. */
+    const val CASHIER_UNPAID = "cashier_unpaid"
 }

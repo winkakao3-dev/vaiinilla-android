@@ -180,6 +180,8 @@ fun CashierOperationalScreen(
     onCashChangeNoticed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
     onOpenAccounts: (() -> Unit)? = null,
+    /** R1: «Ver cuentas por cobrar» del cierre bloqueado abre esta lista; sin ella, el tablero de mesas. */
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
     restrictedMode: RestrictedMode? = null,
     onToggleProductAvailable: (productId: Int, available: Boolean) -> Unit = { _, _ -> },
     onCreateCashierProduct: (CatalogProductDraft, ByteArray?, String?, String?, (String?) -> Unit) -> Unit =
@@ -969,7 +971,7 @@ fun CashierOperationalScreen(
                 colors = colors,
                 onDismiss = onDismissCloseCash,
                 onConfirm = onCloseCash,
-                onOpenAccounts = onOpenAccounts,
+                onOpenAccounts = onOpenUnpaidAccounts ?: onOpenAccounts,
                 expectedCash = state.expectedCash,
                 openingAmount = state.cashOpeningAmount,
                 countState = closeCount,

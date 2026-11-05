@@ -92,6 +92,7 @@ import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
 import com.vaiinilla.app.ui.operational.CashierContext
+import com.vaiinilla.app.ui.operational.CashierUnpaidViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
@@ -119,6 +120,7 @@ import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.CashierRefundsEntry
+import com.vaiinilla.app.ui.screens.CashierUnpaidAccountsScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.CounterOrderSheet
 import com.vaiinilla.app.ui.screens.DiscoveryScreen
@@ -205,6 +207,7 @@ fun AppNavHost(
     val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
     val adminSchoolViewModel: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel = viewModel()
     val waiterViewModel: WaiterViewModel = viewModel()
+    val cashierUnpaidViewModel: CashierUnpaidViewModel = viewModel()
     val courtsViewModel: CourtsViewModel = viewModel()
     val reservationsViewModel: ReservationsViewModel = viewModel()
     val sharedTableViewModel: SharedTableViewModel = viewModel()
@@ -2252,6 +2255,10 @@ fun AppNavHost(
                                 null
                             },
                         onOpenAccounts = { navController.navigate(Routes.CASHIER_ACCOUNTS) { launchSingleTop = true } },
+                        // R1: el cierre bloqueado lleva a la lista que lo bloquea, no al tablero del mesero.
+                        onOpenUnpaidAccounts = {
+                            navController.navigate(Routes.CASHIER_UNPAID) { launchSingleTop = true }
+                        },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         onToggleProductAvailable = operationalViewModel::setProductAvailable,
                         onCreateCashierProduct = { draft, bytes, filename, mime, onSuccess ->
@@ -2542,6 +2549,28 @@ fun AppNavHost(
                         photoUrl = storeState.images.photoUrl,
                         logoUrl = storeState.images.logoUrl,
                         onChangeMode = returnToModes(navController, operationalViewModel),
+                    )
+                }
+            }
+
+            composable(Routes.CASHIER_UNPAID) {
+                val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
+                LaunchedEffect(authorizedCashier) {
+                    if (!authorizedCashier) {
+                        returnToModes(navController, operationalViewModel)()
+                    }
+                }
+                if (authorizedCashier) {
+                    OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    LaunchedEffect(Unit) { cashierUnpaidViewModel.refresh() }
+                    CashierUnpaidAccountsScreen(
+                        state = cashierUnpaidViewModel.uiState.value,
+                        colors = rememberOperationalColors(),
+                        onBack = { navController.popBackStack() },
+                        onRefresh = cashierUnpaidViewModel::refresh,
+                        onCharge = cashierUnpaidViewModel::charge,
+                        onDismissCollected = cashierUnpaidViewModel::dismissCollected,
+                        onClearChargeError = cashierUnpaidViewModel::clearChargeError,
                     )
                 }
             }
