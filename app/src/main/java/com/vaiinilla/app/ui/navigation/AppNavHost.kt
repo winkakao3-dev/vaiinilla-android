@@ -1426,15 +1426,20 @@ fun AppNavHost(
             composable(Routes.ORDER_ASSISTANT) {
                 val venue = orderState.guestVenue
                 val table = sharedTableViewModel.uiState.value.table
-                val assistantSpaceId =
+                val assistantSignedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout()
+                val assistantPlaceId =
                     menuWaiterSpaceId(
                         guestSpaceId = venue?.space?.id,
                         sharedTableSpaceId = table?.spaceId,
-                        signedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout(),
+                        signedIn = assistantSignedIn,
                     )
-                LaunchedEffect(venue?.establishment?.id, assistantSpaceId) {
+                // Quien rentó una pista en la app también llama al mesero desde el asistente (#18).
+                val rentedCourt = orderState.rentedCourt
+                val assistantSpaceId = assistantPlaceId ?: rentedCourt?.id?.takeIf { assistantSignedIn }
+                // La plática se reinicia con el lugar del QR o la mesa, no cuando llega la pista rentada.
+                LaunchedEffect(venue?.establishment?.id, assistantPlaceId) {
                     val establishmentId = venue?.establishment?.id
-                    assistantViewModel.onVisible("$establishmentId:$assistantSpaceId", establishmentId)
+                    assistantViewModel.onVisible("$establishmentId:$assistantPlaceId", establishmentId)
                 }
                 val prepare: suspend () -> Unit = { orderFlowViewModel.ensureClientContext() }
                 CustomerAssistantScreen(
@@ -1442,7 +1447,10 @@ fun AppNavHost(
                     venueName = venue?.establishment?.name,
                     place =
                         venue?.space?.let { SpaceCopy.named(it.type, it.name) }
-                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
+                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) }
+                            ?: rentedCourt
+                                ?.takeIf { assistantSpaceId == it.id }
+                                ?.let { SpaceCopy.named(it.type, it.name) },
                     customerName =
                         (studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName())
                             .takeIf { it.isNotBlank() }
