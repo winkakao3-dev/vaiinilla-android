@@ -1803,7 +1803,7 @@ private fun WaiterTableSheet(
                             ) {
                                 Column(modifier = Modifier.padding(14.dp)) {
                                     Text(
-                                        "#${rejected.folio} · ${rejected.byLabel} lo rechazó",
+                                        "#${rejected.folio} · ${rejected.byLabel} lo ${rejected.verb}",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
                                         color = colors.textPrimary,

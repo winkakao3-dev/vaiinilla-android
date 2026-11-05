@@ -248,10 +248,23 @@ data class RejectedOrder(
     val id: String,
     val folio: Int,
     val reason: String?,
-    /** `cocina` o `cajero`. */
+    /** Quién lo canceló: `cocina`, `cajero`, `admin`, `cliente` o null (el sistema, p. ej. una reserva cancelada). */
     val byRole: String?,
 ) {
-    val byLabel: String get() = if (byRole == "cajero") "Caja" else "Cocina"
+    /** Cada rol con su nombre: antes todo lo que no era Caja se anunciaba como Cocina (R28). */
+    val byLabel: String
+        get() =
+            when (byRole) {
+                "cajero" -> "Caja"
+                "cocina" -> "Cocina"
+                "admin" -> "Administración"
+                "cliente" -> "El cliente"
+                else -> "El sistema"
+            }
+
+    /** El personal lo «rechazó»; el cliente o el sistema lo «canceló». */
+    val verb: String
+        get() = if (byRole == "cajero" || byRole == "cocina" || byRole == "admin") "rechazó" else "canceló"
 }
 
 data class WaiterBoard(

@@ -197,7 +197,10 @@ class WaiterViewModel
             val (space, rejected) = fresh.first()
             val reason = rejected.reason?.let { ": $it" }.orEmpty()
             val extra = if (fresh.size > 1) " (y ${fresh.size - 1} más)" else ""
-            showToast("${rejected.byLabel} rechazó el #${rejected.folio} de ${space.name}$reason$extra", isError = true)
+            showToast(
+                "${rejected.byLabel} ${rejected.verb} el #${rejected.folio} de ${space.name}$reason$extra",
+                isError = true,
+            )
         }
 
         private fun detectNewCalls(tables: List<BoardTable>) {
