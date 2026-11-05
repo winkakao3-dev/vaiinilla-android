@@ -45,12 +45,15 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +89,8 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.WaiterUiState
+import com.vaiinilla.app.ui.parentmode.ParentConfirmDialog
+import kotlinx.coroutines.launch
 
 internal const val CUSTOMER_NAME_MAX = 120
 internal const val COUNTER_LINE_QUANTITY_MAX = 20
@@ -171,7 +176,29 @@ internal fun CounterOrderSheet(
     var buscar by remember { mutableStateOf("") }
     var lineas by remember { mutableStateOf<Map<Int, CartLine>>(emptyMap()) }
     var categoria by remember { mutableStateOf<Int?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Con productos armados, deslizar, «atrás» o la X no tiran el pedido: primero se pregunta.
+    var confirmarDescarte by remember { mutableStateOf(false) }
+    val hayPedido by rememberUpdatedState(lineas.isNotEmpty())
+    val confirmChange =
+        remember {
+            { target: SheetValue ->
+                val puedeOcultar = target != SheetValue.Hidden || !hayPedido
+                if (!puedeOcultar) confirmarDescarte = true
+                puedeOcultar
+            }
+        }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = confirmChange)
+    val scope = rememberCoroutineScope()
+
+    fun pedirCerrar() {
+        if (lineas.isEmpty()) {
+            onDismiss()
+        } else {
+            confirmarDescarte = true
+            // Si «atrás» alcanzó a bajar la hoja, que vuelva a subir detrás de la pregunta.
+            scope.launch { sheetState.show() }
+        }
+    }
     val catalogo = state.counterCatalog
     val categorias = counterOrderCategories(catalogo)
     // Lo agotado se queda a la vista, en gris y sin tocar, para que el cajero lo diga en vez de buscarlo (C03).
@@ -211,7 +238,7 @@ internal fun CounterOrderSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { pedirCerrar() },
         sheetState = sheetState,
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
@@ -227,7 +254,7 @@ internal fun CounterOrderSheet(
                             .size(44.dp)
                             .clip(CircleShape)
                             .background(colors.cardBackground)
-                            .clickable { onDismiss() },
+                            .clickable { pedirCerrar() },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -442,6 +469,19 @@ internal fun CounterOrderSheet(
                 }
             }
         }
+    }
+    if (confirmarDescarte) {
+        val piezas = lineas.values.sumOf { it.quantity }
+        ParentConfirmDialog(
+            title = "¿Descartar el pedido?",
+            message =
+                (if (piezas == 1) "Llevas 1 producto" else "Llevas $piezas productos") +
+                    ". Si cierras ahora, se borra lo que armaste.",
+            confirmLabel = "Descartar pedido",
+            destructive = true,
+            onConfirm = onDismiss,
+            onDismiss = { confirmarDescarte = false },
+        )
     }
 }
 
