@@ -206,6 +206,7 @@ fun AppNavHost(
     val adminViewModel: AdminViewModel = viewModel()
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
     val adminInventoryViewModel: com.vaiinilla.app.ui.admin.AdminInventoryViewModel = viewModel()
+    val adminCashCutViewModel: com.vaiinilla.app.ui.admin.AdminCashCutViewModel = viewModel()
     val adminStoreViewModel: AdminStoreViewModel = viewModel()
     val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
     val adminSchoolViewModel: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel = viewModel()
@@ -2410,6 +2411,18 @@ fun AppNavHost(
                     )
                     CashierOperationalScreen(
                         state = operationalState,
+                        cashCutContent = { onClose ->
+                            val cutScope = authorizedAccessState.activeContext?.membershipId.orEmpty()
+                            androidx.compose.runtime.LaunchedEffect(cutScope) {
+                                adminCashCutViewModel.onVisible(cutScope)
+                            }
+                            com.vaiinilla.app.ui.screens.admin.AdminCashCutSection(
+                                viewModel = adminCashCutViewModel,
+                                colors = com.vaiinilla.app.ui.screens.rememberOperationalColors(),
+                                onBack = onClose,
+                                showReport = false,
+                            )
+                        },
                         openSearchRequest = cashierSearchRequests,
                         onBack = returnToModes(navController, operationalViewModel),
                         onOpenCashSession = operationalViewModel::openCashRegister,
@@ -2657,6 +2670,7 @@ fun AppNavHost(
                             AdminSectionsHost(
                                 staff = adminStaffViewModel,
                                 inventory = adminInventoryViewModel,
+                                cashCut = adminCashCutViewModel,
                                 store = adminStoreViewModel,
                                 spaces = adminSpacesViewModel,
                                 cash =

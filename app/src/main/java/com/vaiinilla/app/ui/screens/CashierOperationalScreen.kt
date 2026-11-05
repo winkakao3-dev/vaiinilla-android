@@ -200,6 +200,8 @@ fun CashierOperationalScreen(
     orderTablesError: String? = null,
     onRefreshOrderTables: () -> Unit = {},
     onNewTableOrder: ((TableSpace) -> Unit)? = null,
+    /** Doop CR5: el corte de caja del día y de cada turno, a pantalla completa; null lo oculta del menú. */
+    cashCutContent: (@Composable (onClose: () -> Unit) -> Unit)? = null,
     /** Mesas y canchas con cuenta sin cobrar; null mientras no se sabe. */
     pendingSpaces: Int? = null,
     /** Caja de una escuela: la fila Alumnos (padres e hijos); null fuera de una escuela. */
@@ -225,6 +227,7 @@ fun CashierOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     var addProductSheetOpen by remember { mutableStateOf(false) }
     var cashDrawerOpen by remember { mutableStateOf(false) }
+    var cashCutOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
     var tick by remember { mutableIntStateOf(0) }
@@ -457,6 +460,13 @@ fun CashierOperationalScreen(
                                     }
                                 } else {
                                     null
+                                },
+                            onOpenCashCut =
+                                cashCutContent?.let {
+                                    {
+                                        haptics.selection()
+                                        cashCutOpen = true
+                                    }
                                 },
                         )
                     }
@@ -962,6 +972,24 @@ fun CashierOperationalScreen(
         }
         if (cashDrawerOpen) {
             CashDrawerSheet(expectedCash = state.expectedCash, colors = colors, onDismiss = { cashDrawerOpen = false })
+        }
+        if (cashCutOpen && cashCutContent != null) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { cashCutOpen = false },
+                properties =
+                    androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        decorFitsSystemWindows = false,
+                    ),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(colors.background)
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
+                ) { cashCutContent { cashCutOpen = false } }
+            }
         }
         state.closeCash?.let { closeState ->
             CashCloseSheet(
