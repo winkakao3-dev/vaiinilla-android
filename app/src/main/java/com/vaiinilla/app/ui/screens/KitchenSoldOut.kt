@@ -233,6 +233,7 @@ private fun KitchenSoldOutRow(
                 when {
                     !on -> "Agotado · no sale en el menú"
                     product.preparationStation == PreparationStation.KITCHEN -> "Lo hace Cocina"
+                    product.preparationStation == PreparationStation.NONE -> "Sin preparación · lo entrega Caja"
                     else -> "Lo entrega Caja"
                 },
                 fontSize = 12.5.sp,

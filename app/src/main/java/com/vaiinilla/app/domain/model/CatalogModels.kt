@@ -74,6 +74,9 @@ enum class PreparationStation(
 ) {
     KITCHEN("cocina"),
     CASHIER("caja"),
+
+    /** R8: ya está hecho (refresco cerrado, papitas): no pasa por Cocina ni por Barra. */
+    NONE("ninguna"),
     ;
 
     companion object {

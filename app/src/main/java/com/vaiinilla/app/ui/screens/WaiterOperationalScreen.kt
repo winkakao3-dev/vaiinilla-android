@@ -1963,7 +1963,9 @@ internal fun splitByStation(
                 SummaryLine(1, text)
             }
         }
-    val (counter, kitchen) = lines.partition { stations[it.name.lowercase()] == PreparationStation.CASHIER }
+    // R8: «ninguna» (sin preparación) también se recoge en Caja; solo lo desconocido o de Cocina espera a Cocina.
+    val (counter, kitchen) =
+        lines.partition { line -> stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN } }
     return StationSplit(counter = counter, kitchen = kitchen)
 }
 

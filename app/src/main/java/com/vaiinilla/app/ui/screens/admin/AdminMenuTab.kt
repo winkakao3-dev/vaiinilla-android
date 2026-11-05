@@ -1380,6 +1380,7 @@ private fun CategoryChips(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StationChips(
     station: PreparationStation,
@@ -1387,8 +1388,8 @@ private fun StationChips(
     colors: OperationalColors,
     onSelect: (PreparationStation) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(PreparationStation.KITCHEN, PreparationStation.CASHIER).forEach { option ->
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(PreparationStation.KITCHEN, PreparationStation.CASHIER, PreparationStation.NONE).forEach { option ->
             ChipButton(label = stationLabel(option), enabled = !saving, colors = colors, selected = option == station) {
                 onSelect(option)
             }
@@ -1653,6 +1654,7 @@ private fun stationLabel(station: PreparationStation): String =
     when (station) {
         PreparationStation.CASHIER -> "Barra"
         PreparationStation.KITCHEN -> "Cocina"
+        PreparationStation.NONE -> "Sin preparación"
     }
 
 /** Deja dígitos y un separador con hasta dos decimales; la coma del teclado cuenta como punto. */
