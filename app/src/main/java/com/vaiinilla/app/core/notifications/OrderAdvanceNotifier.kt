@@ -16,6 +16,7 @@ import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.repository.CallReason
 
 /**
  * Posts local notifications when a client order advances through the tracking flow.
@@ -39,6 +40,7 @@ object OrderAdvanceNotifier {
     private const val ACCEPTED_AWAITING_PAYMENT_TEXT = "El negocio aceptó tu pedido. Págalo para confirmarlo."
     private const val STAFF_MODES_REQUEST_CODE = 710_300
     private const val PLAIN_LAUNCH_REQUEST_CODE = 710_301
+    private const val WAITER_CALL_REQUEST_CODE = 710_302
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -127,7 +129,7 @@ object OrderAdvanceNotifier {
         return runCatching { manager.activeNotifications.any { it.id == id } }.getOrDefault(false)
     }
 
-    /** Aviso a meseros: una mesa llamó. Tocar la notificación cae en la consola de personal. */
+    /** Aviso a meseros: una mesa llamó y por qué. Tocar la notificación abre el tablero del mesero (K02). */
     @SuppressLint("MissingPermission")
     fun notifyTableCall(
         context: Context,
@@ -146,8 +148,10 @@ object OrderAdvanceNotifier {
                 .setSmallIcon(R.drawable.ic_order_notification)
                 .setContentTitle(title)
                 .setContentText(text)
+                // El motivo es lo que el mesero necesita: completo aunque el sistema recorte la línea.
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setAutoCancel(true)
-                .setContentIntent(staffModesLaunchIntent(context, noticeId))
+                .setContentIntent(waiterCallLaunchIntent(context, noticeId))
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
@@ -192,12 +196,9 @@ object OrderAdvanceNotifier {
             "Ya terminó. Cobra la cuenta y libera el espacio."
         }
 
+    /** El motivo como lo ve el mesero en su tablero; «cuenta» también (antes caía en «Necesita atención», K02). */
     internal fun tableCallText(reason: String?): String =
-        when (reason) {
-            "utensilios" -> "Pide cubiertos o servilletas"
-            "problema" -> "Algo está mal con su pedido"
-            else -> "Necesita atención"
-        }
+        CallReason.entries.firstOrNull { it.wireValue == reason }?.staffLabel ?: CallReason.ATENCION.staffLabel
 
     /** Aviso al cliente: el mesero que atiende su llamada va en camino. */
     @SuppressLint("MissingPermission")
@@ -326,6 +327,22 @@ object OrderAdvanceNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+    /** Una llamada de mesa: la app abre el tablero del mesero, donde se ve la llamada con su motivo. */
+    private fun waiterCallLaunchIntent(
+        context: Context,
+        noticeId: String?,
+    ): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            noticeId?.hashCode() ?: WAITER_CALL_REQUEST_CODE,
+            Intent(context, MainActivity::class.java)
+                .setAction("${context.packageName}.staff.waiter_call")
+                .putExtra(EXTRA_NOTIFICATION_TARGET, OrderNotificationTarget.WAITER_CALL.wireValue)
+                .withNoticeId(noticeId)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
     private fun plainLaunchIntent(
         context: Context,
         noticeId: String?,
@@ -356,7 +373,12 @@ object OrderAdvanceNotifier {
             OrderState.PENDING_PAYMENT -> "Caja espera tu pago."
             // A domicilio puede pagarse al recibir: «Pago confirmado» no siempre es cierto (igual que el backend).
             OrderState.PAID ->
-                if (homeDelivery) "El negocio recibió tu pedido." else "Pago confirmado. Cocina recibió tu comanda."
+                when {
+                    homeDelivery -> "El negocio recibió tu pedido."
+                    // En un lugar puede ir a la cuenta, que nace cobrada sin pagarse: no se promete un pago (K01).
+                    inSpace -> "Cocina recibió tu comanda."
+                    else -> "Pago confirmado. Cocina recibió tu comanda."
+                }
             OrderState.PREPARING -> "Tu comida se está preparando."
             OrderState.READY ->
                 when {

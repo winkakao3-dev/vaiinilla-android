@@ -124,4 +124,31 @@ class OrderNotificationRoutingTest {
             )
         }
     }
+
+    @Test
+    fun `a table call opens the waiter board where its reason shows`() {
+        // K02: «Mesa te llama» no se queda en Modos, que no dice el motivo.
+        assertEquals(
+            WaiterCallAction.OPEN_WAITER,
+            resolveWaiterCallAction(OperationalRole.WAITER, accessLoading = true, waiterModes = 1),
+        )
+        assertEquals(WaiterCallAction.WAIT, resolveWaiterCallAction(null, accessLoading = true, waiterModes = 1))
+        assertEquals(
+            WaiterCallAction.ACTIVATE_WAITER,
+            resolveWaiterCallAction(null, accessLoading = false, waiterModes = 1),
+        )
+        assertEquals(
+            WaiterCallAction.ACTIVATE_WAITER,
+            resolveWaiterCallAction(OperationalRole.CLIENT, accessLoading = false, waiterModes = 1),
+        )
+        // Con dos negocios de mesero, o en Caja a media tarea, se elige en Modos.
+        assertEquals(
+            WaiterCallAction.OPEN_STAFF_MODES,
+            resolveWaiterCallAction(null, accessLoading = false, waiterModes = 2),
+        )
+        assertEquals(
+            WaiterCallAction.OPEN_STAFF_MODES,
+            resolveWaiterCallAction(OperationalRole.CASHIER, accessLoading = false, waiterModes = 1),
+        )
+    }
 }
