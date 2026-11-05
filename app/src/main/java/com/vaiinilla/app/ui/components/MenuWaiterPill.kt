@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,11 +112,15 @@ fun MenuWaiterLayer(
     place: String? = null,
     /** El asistente de pedidos, junto a «Mesero»; null si no está disponible. */
     onOpenAssistant: (() -> Unit)? = null,
+    /** Sin cuenta y sin nombre: la hoja lo pide antes de sentarlo en la mesa. */
+    onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
     val state =
         remember(spaceId) {
-            MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable)
+            MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable, onJoinAs)
         }
+    // Al dar su nombre el invitado deja de necesitarlo: se cambia sin recrear el estado ni cortar la llamada.
+    SideEffect { state.onJoinAs = onJoinAs }
     MenuWaiterLayer(
         state = state,
         visible = visible,

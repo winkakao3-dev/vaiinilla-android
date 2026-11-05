@@ -417,7 +417,16 @@ private fun adminSetupSteps(
                                 com.vaiinilla.app.domain.admin.InvitationState.ACCEPTED,
                             )
                     }
-            add(AdminSetupStep("Cocina invitada", null, done = invited, section = AdminSection.STAFF))
+            // Opcional: hay negocios sin cocina, y si no, la tarjeta volvía cada vez que faltaba (revisión, 4 nov).
+            add(
+                AdminSetupStep(
+                    "Cocina invitada",
+                    null,
+                    done = invited,
+                    section = AdminSection.STAFF,
+                    optional = true,
+                ),
+            )
         }
         state.live?.cashOpen?.let { open ->
             add(
@@ -430,6 +439,8 @@ private fun adminSetupSteps(
                     },
                     done = open,
                     section = AdminSection.CASH,
+                    // La caja se cierra cada noche: si contara, la tarjeta volvía todas las mañanas.
+                    optional = true,
                 ),
             )
         }
