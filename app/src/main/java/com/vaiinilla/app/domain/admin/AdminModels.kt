@@ -62,6 +62,7 @@ data class AdminCount(
 /** Cuentas de mesas y canchas que siguen sin pagar. */
 data class AdminUnpaidAccounts(
     val accounts: List<AdminUnpaidAccount>,
+    /** Lo que falta cobrar de todas (`restante`): sin lo ya abonado. */
     val total: String,
     val abandoned: Int,
 )
@@ -70,10 +71,13 @@ data class AdminUnpaidAccount(
     val spaceId: Int,
     val spaceName: String,
     val orders: Int,
+    /** R33: lo que falta cobrar (`restante`); lo abonado ya está en la caja. */
     val total: String,
     val hours: Int,
     /** El espacio ya se liberó y la cuenta sigue sin pagar: alguien se fue sin pagar. */
     val abandoned: Boolean,
+    /** R33: lo ya abonado de la cuenta (dividir por monto o partes). */
+    val paidIn: String = "0.00",
 )
 
 /** Una página del historial de pedidos; [cursor] trae la siguiente. */

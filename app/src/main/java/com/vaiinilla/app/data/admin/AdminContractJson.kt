@@ -70,12 +70,14 @@ class AdminContractJson {
                         spaceId = it.espacio.id,
                         spaceName = it.espacio.nombre,
                         orders = it.pedidos,
-                        total = it.total,
+                        // R33: lo abonado ya entró a la caja; «Por cobrar» es lo que falta.
+                        total = it.restante ?: it.total,
                         hours = it.horas,
                         abandoned = it.abandonada,
+                        paidIn = it.abonado ?: "0.00",
                     )
                 },
-            total = data.total,
+            total = data.restante ?: data.total,
             abandoned = data.abandonadas,
         )
     }
@@ -212,6 +214,8 @@ private data class UnpaidAccountsDto(
     val cuentas: List<UnpaidAccountDto> = emptyList(),
     val total: String = "0.00",
     val abandonadas: Int = 0,
+    /** R33: sin lo abonado; un servidor anterior no lo manda. */
+    val restante: String? = null,
 )
 
 @Serializable
@@ -221,6 +225,9 @@ private data class UnpaidAccountDto(
     val total: String,
     val horas: Int = 0,
     val abandonada: Boolean = false,
+    /** R33: abonos sin liquidar y lo que falta; un servidor anterior no los manda. */
+    val abonado: String? = null,
+    val restante: String? = null,
 )
 
 @Serializable
