@@ -678,6 +678,25 @@ internal fun schoolWeek(today: LocalDate): List<LocalDate> {
     return (0L..4L).map(monday::plusDays)
 }
 
+/**
+ * «Se recoge el jueves 24 a las 12:00» bajo lo apartado de un hijo (P08). Antes solo había hora si el pedido traía
+ * franja, y sin franja el tutor no veía cuándo se recoge.
+ */
+internal fun guardianPickupLine(
+    dayLabel: String,
+    slot: String?,
+): String {
+    val day =
+        when (dayLabel) {
+            "Hoy" -> "hoy"
+            "Mañana" -> "mañana"
+            else -> "el ${dayLabel.lowercase()}"
+        }
+    val start = slot?.substringBefore("-")?.trim()
+    val hour = if (start.isNullOrEmpty()) "" else " a las $start"
+    return "Se recoge $day$hour"
+}
+
 @Composable
 private fun ScheduledRow(
     order: ScheduledOrder,
@@ -690,7 +709,7 @@ private fun ScheduledRow(
     val date = order.deliveryDate.orEmpty()
     val dayLabel = SchoolCalendar.longLabel(date, today.toString())
     val title = if (date == today.toString()) "Hoy: ${order.summary}" else "$dayLabel: ${order.summary}"
-    val pickup = order.deliverySlot?.substringBefore("-")?.let { "Recoge a las $it · " }.orEmpty()
+    val pickup = guardianPickupLine(dayLabel, order.deliverySlot) + " · "
     Row(modifier = Modifier.padding(start = 4.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
             Text(

@@ -375,11 +375,24 @@ class OrderFlowViewModel
         }
 
         /**
+         * Al abrir el carrito se lee la regla de cashback aunque no haya lugar de invitado: antes solo se leía al
+         * tocar Pagar o al recargar el menú, y el carrito no decía nada aunque la hoja de pago sí (24).
+         */
+        fun refreshCashbackForCart() {
+            val venueId =
+                _uiState.value.guestVenue
+                    ?.establishment
+                    ?.id
+            launchTracked { refreshCashbackRule(venueId) }
+        }
+
+        /**
          * El carrito y la hoja de pago dicen cuánto cashback deja el pedido (24). Sin regla, sin permiso (invitado) o
-         * sin red queda `null` y no se menciona. [venueId] evita guardar la regla de un negocio que ya se dejó.
+         * sin red no se menciona. [venueId] evita guardar la regla de un negocio que ya se dejó.
          */
         private suspend fun refreshCashbackRule(venueId: String?) {
-            val rule = withContext(Dispatchers.IO) { cashbackRules.cashbackRule() }.getOrNull()
+            // Una falla (sin red, token aún no listo) no borra la regla que ya se tenía de este negocio.
+            val rule = withContext(Dispatchers.IO) { cashbackRules.cashbackRule() }.getOrElse { return }
             val currentVenue =
                 _uiState.value.guestVenue
                     ?.establishment

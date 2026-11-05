@@ -2150,7 +2150,10 @@ fun AppNavHost(
             }
             composable(Routes.CART) {
                 val guestAuthRequired = orderFlowViewModel.requiresAccountAuth()
-                LaunchedEffect(Unit) { orderFlowViewModel.refreshOperationalStatusForCheckout() }
+                LaunchedEffect(Unit) {
+                    orderFlowViewModel.refreshOperationalStatusForCheckout()
+                    orderFlowViewModel.refreshCashbackForCart()
+                }
                 CompositionLocalProvider(LocalVenueArt provides venueArt) {
                     CartScreen(
                         state = orderState,
