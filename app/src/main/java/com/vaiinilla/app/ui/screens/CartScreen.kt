@@ -270,7 +270,15 @@ fun CartScreen(
         val last = listState.layoutInfo.totalItemsCount - 1
         if (last >= 0) listState.animateScrollToItem(last)
     }
-    val heroGone by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    // L01: la barra se tapa en cuanto el fondo de la foto llega a ella, no hasta que la foto sale de la lista;
+    // si no, lo que sigue a la foto pasaba bajo la barra de estado (con letra grande, mucho más).
+    val statusBarPx = WindowInsets.statusBars.getTop(density)
+    val heroPx = with(density) { (if (state.cartLines.isNotEmpty()) 380.dp else 400.dp).roundToPx() }
+    val heroGone by remember(statusBarPx, heroPx) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset >= heroPx - statusBarPx
+        }
+    }
     val notesFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val hasLines = state.cartLines.isNotEmpty()
@@ -661,7 +669,7 @@ fun CartScreen(
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
                 .graphicsLayer { alpha = if (heroGone) 1f else 0f }
-                .background(colors.paper.copy(alpha = 0.92f)),
+                .background(colors.paper),
         )
     }
 }

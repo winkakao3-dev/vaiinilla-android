@@ -170,10 +170,14 @@ class OperationalViewModel
         fun setRole(role: OperationalRole) {
             val establishmentId = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
             val establishmentChanged = isOtherEstablishment(roleEstablishmentId, establishmentId)
+            val previousEstablishmentId = roleEstablishmentId
             if (establishmentId != null) roleEstablishmentId = establishmentId
             // Caja de otro negocio con el mismo rol: los pedidos y el aviso «Renta … cobrada» eran del anterior.
             val roleChanged = _uiState.value.role != role || establishmentChanged
+            val previousState = _uiState.value
             if (roleChanged) {
+                // De Caja a cliente y de vuelta, sin pasar por Modos: también se recuerda lo último de Caja.
+                snapshotStaffState(previousEstablishmentId)
                 roleGeneration += 1
                 lastUpdatedSince = null
                 walletSearchJob?.cancel()
@@ -211,6 +215,12 @@ class OperationalViewModel
                     cashDrawer = CashDrawerUi(),
                     cashChangeNotice = if (establishmentChanged) null else _uiState.value.cashChangeNotice,
                 )
+            // Con el mismo rol se conserva lo último conocido mientras se vuelve a pedir: borrarlo dejaba Caja en
+            // «Revisando la caja» y quitaba «Cerrar caja» del menú hasta que contestara el servidor (en vivo, USAGI).
+            val known = if (roleChanged) takeStaffSnapshot(role, roleEstablishmentId) else previousState
+            if (known != null && role != OperationalRole.CLIENT && role != OperationalRole.ADMIN) {
+                _uiState.value = _uiState.value.keepKnownStaffState(known, restoreOrders = roleChanged)
+            }
             pendingWalletReload = null
             if (role == OperationalRole.CASHIER) surfaceDeferredCashierNotice()
             // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
@@ -245,7 +255,15 @@ class OperationalViewModel
                 )
         }
 
+        /**
+         * Lo último que se supo de un rol de personal al soltarlo. Volver al mismo rol y negocio poco después (Atrás
+         * a Por cobrar, reabrir el modo) arranca con esto en vez de «Revisando la caja» y «Cargando pedidos», y sin
+         * perder «Cerrar caja»; la primera carga trae la lista completa y la concilia.
+         */
+        private var lastStaffState: StaffStateSnapshot? = null
+
         fun clearRole() {
+            snapshotStaffState()
             roleGeneration += 1
             pollingJob?.cancel()
             pollingJob = null
@@ -263,6 +281,32 @@ class OperationalViewModel
             errorClearJob = null
             UnreadableOrders.clear()
             _uiState.value = OperationalUiState()
+        }
+
+        private fun snapshotStaffState(establishmentId: String? = roleEstablishmentId) {
+            val current = _uiState.value
+            val role = current.role ?: return
+            if (role == OperationalRole.CLIENT || role == OperationalRole.ADMIN) return
+            // Solo lo que de verdad se cargó: un estado a medias no ahorra nada.
+            if (current.lastRefreshOk != true && current.cashSessionOpen == null) return
+            lastStaffState =
+                StaffStateSnapshot(
+                    role = role,
+                    establishmentId = establishmentId,
+                    takenAtMs = System.currentTimeMillis(),
+                    state = current,
+                )
+        }
+
+        /** La foto del mismo rol y negocio, si es reciente; se usa una sola vez. */
+        private fun takeStaffSnapshot(
+            role: OperationalRole,
+            establishmentId: String?,
+        ): OperationalUiState? {
+            val snapshot = lastStaffState ?: return null
+            if (!snapshot.matches(role, establishmentId, System.currentTimeMillis())) return null
+            lastStaffState = null
+            return snapshot.state
         }
 
         fun selectOrder(orderId: String?) {

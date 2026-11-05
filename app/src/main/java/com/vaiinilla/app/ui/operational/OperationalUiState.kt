@@ -169,3 +169,53 @@ internal fun unsyncedOfflineCashNotice(count: Int): String =
         "Hay $count pedidos cobrados sin internet que aún no se registran. Espera a que se manden (o resuélvelos " +
             "en «Pedidos guardados») antes de cerrar: ese efectivo todavía no cuenta en la caja."
     }
+
+/** Lo último que se supo de un rol de personal en un negocio, al soltarlo. */
+internal data class StaffStateSnapshot(
+    val role: OperationalRole,
+    val establishmentId: String?,
+    val takenAtMs: Long,
+    val state: OperationalUiState,
+) {
+    /** Sirve para volver al mismo rol en el mismo negocio poco después; más tarde la foto ya no se parece. */
+    fun matches(
+        role: OperationalRole,
+        establishmentId: String?,
+        nowMs: Long,
+    ): Boolean =
+        role == this.role &&
+            establishmentId == this.establishmentId &&
+            nowMs - takenAtMs in 0..STAFF_SNAPSHOT_TTL_MS
+
+    companion object {
+        const val STAFF_SNAPSHOT_TTL_MS = 5 * 60 * 1_000L
+    }
+}
+
+/**
+ * Pasa a este estado (recién puesto el rol) lo último conocido de [known]: la caja abierta o cerrada, su fondo, el
+ * catálogo y, con [restoreOrders], la fila. Así Caja no vuelve a «Revisando la caja» ni a «Cargando pedidos» y el
+ * menú conserva «Cerrar caja» mientras se vuelve a pedir; el servidor corrige lo que haya cambiado.
+ */
+internal fun OperationalUiState.keepKnownStaffState(
+    known: OperationalUiState,
+    restoreOrders: Boolean,
+): OperationalUiState =
+    copy(
+        cashSessionOpen = cashSessionOpen ?: known.cashSessionOpen,
+        suggestedCashFloat = suggestedCashFloat ?: known.suggestedCashFloat,
+        expectedCash = expectedCash ?: known.expectedCash,
+        cashOpeningAmount = cashOpeningAmount ?: known.cashOpeningAmount,
+        cashOpenedAt = cashOpenedAt ?: known.cashOpenedAt,
+        catalog = catalog ?: known.catalog,
+        // Solo la última lectura del cajón: lo que estaba en curso (cargando, guardando) ya no lo está.
+        cashDrawer =
+            if (cashDrawer == CashDrawerUi()) {
+                known.cashDrawer.copy(loading = false, saving = false, saveError = null)
+            } else {
+                cashDrawer
+            },
+        orders = if (restoreOrders && orders.isEmpty()) known.orders else orders,
+        lastRefreshOk = if (restoreOrders && lastRefreshOk == null) known.lastRefreshOk else lastRefreshOk,
+        lastSyncedAt = lastSyncedAt ?: known.lastSyncedAt,
+    )
