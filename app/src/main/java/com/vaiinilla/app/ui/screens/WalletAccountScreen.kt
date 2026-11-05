@@ -34,7 +34,9 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.rounded.Person
@@ -57,6 +59,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
@@ -71,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.notifications.NotificationMute
 import com.vaiinilla.app.domain.guardianship.PersonNames
 import com.vaiinilla.app.ui.account.AccountDeletionStatus
 import com.vaiinilla.app.ui.account.AccountDeletionUiState
@@ -141,6 +145,8 @@ fun WalletAccountScreen(
     val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
     var qrOpen by remember { mutableStateOf(false) }
     var confirmingSignOut by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var clientMuted by remember { mutableStateOf(NotificationMute.isMuted(context, NotificationMute.Scope.CLIENT)) }
     if (confirmingSignOut) {
         SignOutConfirmDialog(onConfirm = onSignOut, onDismiss = { confirmingSignOut = false })
     }
@@ -214,6 +220,23 @@ fun WalletAccountScreen(
                 modifier = Modifier.arrive(index = 2),
             )
             ClientCard(modifier = Modifier.padding(top = 20.dp).arrive(index = 3)) {
+                // Naev (2026-11-05): apagar los avisos de pedidos, rentas e hijos en este teléfono.
+                AccountRow(
+                    title = if (clientMuted) "Prender notificaciones" else "Apagar notificaciones",
+                    subtitle =
+                        if (clientMuted) {
+                            "Apagadas: no te avisaremos de tus pedidos"
+                        } else {
+                            "Te avisamos cuando tu pedido avanza"
+                        },
+                    icon = if (clientMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.NotificationsActive,
+                    onClick = {
+                        haptics.click()
+                        clientMuted = !clientMuted
+                        NotificationMute.setMuted(context, NotificationMute.Scope.CLIENT, clientMuted)
+                    },
+                )
+                ClientCardDivider()
                 if (signedIn && onOpenNotices != null) {
                     AccountRow(
                         title = "Avisos recibidos",

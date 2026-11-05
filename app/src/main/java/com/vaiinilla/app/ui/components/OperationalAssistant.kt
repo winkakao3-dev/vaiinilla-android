@@ -958,7 +958,7 @@ private fun DemoQrScanner(
             )
         }
         Text(
-            if (error) "QR inválido · vuelve a enfocar" else "Coloca el QR del alumno dentro del marco",
+            if (error) "QR inválido · vuelve a enfocar" else "Coloca el QR del cliente dentro del marco",
             color = Color(0xFFF7F3E7),
             fontSize = 11.sp,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp),
@@ -1742,7 +1742,7 @@ fun cashierAssistantGuides(
                     ),
                     OperationalManualDemoStep(
                         "LISTO significa que ya puede recogerse",
-                        "Cuando Cocina termina, el pedido pasa a LISTO. Este es el momento en que Caja puede escanear el QR del alumno.",
+                        "Cuando Cocina termina, el pedido pasa a LISTO. Este es el momento en que Caja puede escanear el QR del cliente.",
                         OperationalManualVisual.ORDER_STATES,
                     ),
                     OperationalManualDemoStep(
@@ -1756,7 +1756,7 @@ fun cashierAssistantGuides(
         ),
         OperationalAssistantGuide(
             id = "entregar-qr",
-            title = "¿Cómo entrego un pedido con el QR del alumno?",
+            title = "¿Cómo entrego un pedido con el QR del cliente?",
             role = OperationalRole.CASHIER,
             section = "Pedidos y entrega",
             icon = Icons.Outlined.QrCodeScanner,
@@ -1774,7 +1774,7 @@ fun cashierAssistantGuides(
                     ),
                     OperationalManualDemoStep(
                         "Escanea el QR del pedido",
-                        "Pide al alumno que muestre el QR de su pedido actual y mantenlo dentro del marco hasta que la app lo valide.",
+                        "Pide al cliente que muestre el QR de su pedido actual y mantenlo dentro del marco hasta que la app lo valide.",
                         OperationalManualVisual.QR_SCAN,
                     ),
                     OperationalManualDemoStep(
@@ -1787,7 +1787,7 @@ fun cashierAssistantGuides(
                 listOf(
                     OperationalAssistantStep(
                         anchorId = ASSISTANT_ANCHOR_QR_SCAN,
-                        text = "Toca Escanear QR y apunta la cámara al código del alumno.",
+                        text = "Toca Escanear QR y apunta la cámara al código del cliente.",
                         advance = AssistantAdvance.State("pedido-entregado:${readyOrderId.orEmpty()}"),
                     ),
                 ),
@@ -1814,7 +1814,7 @@ fun cashierAssistantGuides(
                         OperationalManualVisual.QR_TROUBLESHOOT,
                     ),
                     OperationalManualDemoStep(
-                        "Pide al alumno abrir su pedido actual",
+                        "Pide al cliente abrir su pedido actual",
                         "Que vuelva a la pantalla de su pedido y muestre el QR vigente. Después intenta el escaneo otra vez.",
                         OperationalManualVisual.QR_SCAN,
                     ),
