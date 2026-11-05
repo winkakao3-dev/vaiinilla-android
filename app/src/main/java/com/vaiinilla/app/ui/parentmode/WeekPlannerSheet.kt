@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -872,6 +873,7 @@ private fun MiniStepper(
                 Box(
                     modifier =
                         Modifier
+                            .minimumInteractiveComponentSize()
                             .size(32.dp)
                             .physicalPress(scale = PhysicalPressScale.Small) {
                                 haptics.selection()

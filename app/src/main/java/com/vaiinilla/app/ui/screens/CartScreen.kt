@@ -68,6 +68,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -713,6 +714,7 @@ private fun PaymentMethodOverlay(
                 Box(
                     modifier =
                         Modifier
+                            .minimumInteractiveComponentSize()
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(colors.paper2)

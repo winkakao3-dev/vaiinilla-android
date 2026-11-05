@@ -1415,7 +1415,8 @@ private fun DeliveredReceipt(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("¿Qué tal estuvo?", color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Cada estrella toca en 48 dp (el ícono sigue de 34): juntas era fácil tocar la de al lado.
+            Row(Modifier.padding(top = 8.dp)) {
                 (1..5).forEach { star ->
                     Icon(
                         Icons.Rounded.Star,
@@ -1423,8 +1424,9 @@ private fun DeliveredReceipt(
                         tint = if (star <= stars) colors.yolk else colors.ink.copy(alpha = 0.15f),
                         modifier =
                             Modifier
-                                .size(34.dp)
-                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star },
+                                .physicalPress(scale = PhysicalPressScale.Small) { stars = star }
+                                .size(48.dp)
+                                .padding(7.dp),
                     )
                 }
             }
