@@ -140,6 +140,8 @@ fun WalletScreen(
     var heldBalance by remember { mutableStateOf<String?>(null) }
     val balance = remoteState.data?.wallet?.visibleBalance
     val shownBalance = heldBalance ?: balance
+    // Saldo congelado: se sigue viendo, pero no se recarga mientras el negocio no acepte pagos con saldo.
+    val frozen = remoteState.data?.wallet?.frozen == true
     val covered = codeOpen || reloadOpen || movementsOpen
     val latestOnCodeOpenChange by rememberUpdatedState(onCodeOpenChange)
     LaunchedEffect(covered) { latestOnCodeOpenChange(covered) }
@@ -235,7 +237,7 @@ fun WalletScreen(
                         )
                         WalletActions(
                             loading = remoteState.data == null && (remoteState.loading || remoteState.error == null),
-                            canRecharge = canRecharge,
+                            canRecharge = canRecharge && !frozen,
                             codeReady = matrix != null,
                             onReload = {
                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -243,9 +245,11 @@ fun WalletScreen(
                             },
                             onCode = openCode,
                         )
-                        if (remoteState.data != null && !canRecharge) {
-                            WalletNote("Este lugar ya no recibe recargas de saldo.")
-                        }
+                        walletRechargeNote(
+                            hasData = remoteState.data != null,
+                            canRecharge = canRecharge,
+                            frozen = frozen,
+                        )?.let { WalletNote(it) }
                         caretakerLine?.let { WalletNote(listOfNotNull(it, caretakerDetail?.replace('\n', ' ')).joinToString(". ")) }
                     }
                 }
@@ -729,6 +733,19 @@ private fun WalletScreenLightPreview() {
         WalletScreen(onMenu = {})
     }
 }
+
+/** Por qué no hay «Recargar»: saldo congelado o el negocio apagó las recargas; null si se puede. */
+internal fun walletRechargeNote(
+    hasData: Boolean,
+    canRecharge: Boolean,
+    frozen: Boolean,
+): String? =
+    when {
+        !hasData -> null
+        frozen -> "Tu saldo está congelado: este negocio no acepta pagos con saldo por ahora."
+        !canRecharge -> "Este lugar ya no recibe recargas de saldo."
+        else -> null
+    }
 
 @Preview(name = "Cartera · oscuro", showBackground = true, widthDp = 411, heightDp = 891)
 @Composable
