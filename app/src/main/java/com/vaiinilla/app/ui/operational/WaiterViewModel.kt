@@ -46,6 +46,19 @@ import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
+/**
+ * Lo elegido para rentar un espacio (U04): vive aquí y no en el picker, porque la hoja de la pista sale de
+ * la composición mientras se cobra. Al cerrar el cobro sin cobrar, la duración y los jugadores regresan.
+ */
+data class RentalDraft(
+    val spaceId: Int,
+    val minutes: Int? = null,
+    /** Boliche: cuántos juegan; 0 = sin anotar. */
+    val players: Int = 0,
+    /** #27: a nombre de quién; vacío = sin nombre. */
+    val customerName: String = "",
+)
+
 data class WaiterUiState(
     val tables: List<BoardTable> = emptyList(),
     val callsEnabled: Boolean = true,
@@ -79,6 +92,8 @@ data class WaiterUiState(
     val remainingParts: Map<Int, Int> = emptyMap(),
     /** Renta de mostrador apartada esperando que se cobre en efectivo. */
     val pendingRental: Reservation? = null,
+    /** Lo elegido para rentar el espacio abierto; sobrevive a cerrar el cobro. */
+    val rentalDraft: RentalDraft? = null,
     /** Pedido de mostrador: hoja abierta, catálogo cargado y envío en curso. */
     val counterOrderOpen: Boolean = false,
     val counterCatalog: Catalog? = null,
@@ -315,6 +330,7 @@ class WaiterViewModel
                     // Cada espacio tiene su mínimo: no se muestran las del anterior mientras llegan las suyas.
                     rentalDurations = emptyList(),
                     rentalDurationsFailed = false,
+                    rentalDraft = _uiState.value.rentalDraft?.takeIf { it.spaceId == spaceId },
                 )
             loadSpaceDetail(spaceId, silent = false)
             loadRentalDurations()
@@ -358,7 +374,20 @@ class WaiterViewModel
 
         fun closeSpace() {
             openSpaceId = null
-            _uiState.value = _uiState.value.copy(spaceDetail = null, spaceDetailLoading = false)
+            _uiState.value = _uiState.value.copy(spaceDetail = null, spaceDetailLoading = false, rentalDraft = null)
+        }
+
+        /** U04: guarda lo elegido en el picker de la renta del espacio. */
+        fun updateRentalDraft(
+            spaceId: Int,
+            minutes: Int?,
+            players: Int,
+            customerName: String,
+        ) {
+            _uiState.value =
+                _uiState.value.copy(
+                    rentalDraft = RentalDraft(spaceId, minutes, players.coerceIn(0, MAX_PLAYERS), customerName),
+                )
         }
 
         fun dismissCollection() {
@@ -497,8 +526,10 @@ class WaiterViewModel
             minutes: Int,
             start: Instant?,
             players: Int? = null,
+            customerName: String? = null,
         ) {
             if (!beginAction()) return
+            val name = customerName?.trim()?.takeIf { it.isNotEmpty() }
             viewModelScope.launch {
                 val result =
                     actionCall {
@@ -507,16 +538,90 @@ class WaiterViewModel
                             courtId = spaceId,
                             start = start,
                             durationMinutes = minutes,
-                            customerName = null,
-                            idempotencyKey = keyFor("rent", spaceId, start, minutes, players),
+                            customerName = name,
+                            idempotencyKey = keyFor("rent", spaceId, start, minutes, players, name),
                             players = players,
                         )
                     }
-                result.onSuccess { forgetKey("rent", spaceId, start, minutes, players) }
+                result.onSuccess { forgetKey("rent", spaceId, start, minutes, players, name) }
                 result.fold(
                     onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
+            }
+        }
+
+        /**
+         * U04: cambia la duración o los jugadores de la renta apartada sin salir del cobro. El servidor no edita
+         * un apartado, así que se suelta y se vuelve a apartar, como `changePendingDuration` del cliente. Si soltar
+         * sale bien pero volver a apartar no, lo elegido regresa a la hoja de la pista para reintentar.
+         */
+        fun changePendingRental(
+            minutes: Int,
+            players: Int?,
+        ) {
+            val current = _uiState.value.pendingRental ?: return
+            val wantedPlayers = players?.takeIf { it > 0 }
+            if (minutes == current.durationMinutes && wantedPlayers == current.players) return
+            if (!beginAction()) return
+            val draft = _uiState.value.rentalDraft?.takeIf { it.spaceId == current.courtId }
+            val name = draft?.customerName?.trim()?.takeIf { it.isNotEmpty() } ?: current.customerName
+            // Una renovación empieza al terminar el turno; una renta "ahora" se vuelve a pedir desde ahora.
+            val start = current.start.takeIf { it.isAfter(Instant.now()) }
+            val cancelKey = keyFor("cancelar-renta", current.id)
+            val createKey = keyFor("rent-change", current.id, minutes, wantedPlayers)
+            var released = false
+            viewModelScope.launch {
+                val result =
+                    actionCall {
+                        reservationRepository
+                            .cancel(
+                                access = ReservationAccess.Account,
+                                reservationId = current.id,
+                                idempotencyKey = cancelKey,
+                            ).mapCatching {
+                                released = true
+                                reservationRepository
+                                    .create(
+                                        access = ReservationAccess.Account,
+                                        courtId = current.courtId,
+                                        start = start,
+                                        durationMinutes = minutes,
+                                        customerName = name,
+                                        idempotencyKey = createKey,
+                                        players = wantedPlayers,
+                                    ).getOrThrow()
+                            }
+                    }
+                if (released) forgetKey("cancelar-renta", current.id)
+                result.fold(
+                    onSuccess = { reservation ->
+                        forgetKey("rent-change", current.id, minutes, wantedPlayers)
+                        _uiState.value =
+                            _uiState.value.copy(
+                                pendingRental = reservation,
+                                rentalDraft =
+                                    (draft ?: RentalDraft(current.courtId))
+                                        .copy(minutes = minutes, players = wantedPlayers ?: 0),
+                            )
+                    },
+                    onFailure = { error ->
+                        if (released) {
+                            // El horario anterior ya se soltó: se regresa a la hoja con lo nuevo para reintentar.
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    pendingRental = null,
+                                    rentalDraft =
+                                        (draft ?: RentalDraft(current.courtId))
+                                            .copy(minutes = minutes, players = wantedPlayers ?: 0),
+                                )
+                            showToast("No se pudo volver a apartar: ${error.toUserFacingMessage()}", isError = true)
+                        } else {
+                            showToast("No se pudo cambiar la renta: ${error.toUserFacingMessage()}", isError = true)
+                        }
+                    },
+                )
+                if (released) refresh()
             }
         }
 
@@ -538,7 +643,8 @@ class WaiterViewModel
                 result.onSuccess { forgetKey("pay-rental", reservation.id, received) }
                 result.fold(
                     onSuccess = { payment ->
-                        _uiState.value = _uiState.value.copy(pendingRental = null)
+                        // Cobrada: lo elegido ya no hace falta.
+                        _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = null)
                         val change =
                             payment.cashChange
                                 ?.takeIf { it != "0.00" }
@@ -553,10 +659,17 @@ class WaiterViewModel
             }
         }
 
-        /** Se cerró el cobro sin cobrar: se libera el horario apartado. */
+        /**
+         * Se cerró el cobro sin cobrar: se libera el horario apartado y lo elegido (duración y jugadores)
+         * regresa a la hoja de la pista para corregirlo (U04).
+         */
         fun cancelPendingRental() {
             val reservation = _uiState.value.pendingRental ?: return
-            _uiState.value = _uiState.value.copy(pendingRental = null)
+            val kept = _uiState.value.rentalDraft?.takeIf { it.spaceId == reservation.courtId }
+            val draft =
+                (kept ?: RentalDraft(reservation.courtId))
+                    .copy(minutes = reservation.durationMinutes, players = reservation.players ?: 0)
+            _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = draft)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -775,6 +888,9 @@ class WaiterViewModel
         private companion object {
             const val POLL_INTERVAL_MS = 5_000L
             const val TOAST_VISIBLE_MS = 4_200L
+
+            /** El servidor acepta de 1 a 30 jugadores. */
+            const val MAX_PLAYERS = 30
         }
     }
 

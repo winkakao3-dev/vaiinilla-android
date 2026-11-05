@@ -152,6 +152,7 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
@@ -187,8 +188,15 @@ fun WaiterOperationalScreen(
     /** Abonos por monto o partes iguales: el espacio y el abono. */
     onAbono: ((Int, AccountPaymentMethod, AbonoMode, String?, Int?, String?, String, String?) -> Unit)? = null,
     onDismissCollection: () -> Unit = {},
-    /** Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. */
-    onStartRental: (Int, Int, Instant?, Int?) -> Unit = { _, _, _, _ -> },
+    /**
+     * Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. Espacio,
+     * minutos, inicio, jugadores y a nombre de quién (#27).
+     */
+    onStartRental: (Int, Int, Instant?, Int?, String?) -> Unit = { _, _, _, _, _ -> },
+    /** U04: guarda lo elegido para rentar (espacio, minutos, jugadores, nombre) fuera de la hoja. */
+    onRentalDraftChange: (Int, Int?, Int, String) -> Unit = { _, _, _, _ -> },
+    /** U04: cambia la duración o los jugadores de la renta apartada desde el cobro. */
+    onChangeRental: (Int, Int?) -> Unit = { _, _ -> },
     /** Vuelve a pedir al servidor los tiempos de renta. */
     onRetryRentalDurations: () -> Unit = {},
     onConfirmRental: (String) -> Unit = {},
@@ -680,7 +688,13 @@ fun WaiterOperationalScreen(
             onOpenTurn = { onOpenTurn(open.space.id, it) },
             onExtendTurn = { onExtendTurn(open.space.id, it) },
             rentable = open.availability?.rentable == true,
-            onStartRental = { minutes, start, players -> onStartRental(open.space.id, minutes, start, players) },
+            onStartRental = { minutes, start, players, name ->
+                onStartRental(open.space.id, minutes, start, players, name)
+            },
+            rentalDraft = state.rentalDraft?.takeIf { it.spaceId == open.space.id },
+            onRentalDraftChange = { minutes, players, name ->
+                onRentalDraftChange(open.space.id, minutes, players, name)
+            },
             rentalDurations = state.rentalDurations,
             rentalDurationsFailed = state.rentalDurationsFailed,
             onRetryDurations = onRetryRentalDurations,
@@ -713,6 +727,8 @@ fun WaiterOperationalScreen(
             colors = colors,
             onDismiss = onCancelRental,
             onConfirm = onConfirmRental,
+            durations = state.rentalDurations,
+            onChange = onChangeRental,
         )
     }
 
@@ -1639,7 +1655,9 @@ private fun WaiterTableSheet(
     /** Personas que faltan tras un abono en partes; la hoja abre en Partes con ese número (I06). */
     remainingParts: Int? = null,
     rentable: Boolean = false,
-    onStartRental: (Int, Instant?, Int?) -> Unit = { _, _, _ -> },
+    onStartRental: (Int, Instant?, Int?, String?) -> Unit = { _, _, _, _ -> },
+    rentalDraft: RentalDraft? = null,
+    onRentalDraftChange: ((Int?, Int, String) -> Unit)? = null,
     rentalDurations: List<Int> = DefaultRentalDurations,
     rentalDurationsFailed: Boolean = false,
     onRetryDurations: (() -> Unit)? = null,
@@ -1903,6 +1921,8 @@ private fun WaiterTableSheet(
                             onDismissCollection = onDismissCollection,
                             rentable = rentable,
                             onRent = onStartRental,
+                            rentalDraft = rentalDraft,
+                            onRentalDraftChange = onRentalDraftChange,
                             onStartCollect = { collecting = true },
                             pricePerHour = table.availability?.pricePerHour,
                             hasReadyOrders = table.orders.any { it.state == OrderState.READY },

@@ -102,6 +102,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.turnFraction
+import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import kotlinx.coroutines.delay
@@ -316,8 +317,12 @@ internal fun WaiterSpaceSection(
     onDismissCollection: () -> Unit,
     /** Cancha con precio: se renta y se cobra en lugar de abrir o alargar el turno a mano. */
     rentable: Boolean = false,
-    /** `players`: en un boliche, cuántos juegan (null sin dato). */
-    onRent: (minutes: Int, start: Instant?, players: Int?) -> Unit = { _, _, _ -> },
+    /** `players`: en un boliche, cuántos juegan (null sin dato); `name`: a nombre de quién (#27). */
+    onRent: (minutes: Int, start: Instant?, players: Int?, name: String?) -> Unit = { _, _, _, _ -> },
+    /** U04: lo elegido para rentar este espacio, guardado en el ViewModel; null sin elegir. */
+    rentalDraft: RentalDraft? = null,
+    /** null: el picker guarda lo suyo y se pierde al cerrar (solo pruebas y capturas). */
+    onRentalDraftChange: ((minutes: Int?, players: Int, name: String) -> Unit)? = null,
     /** "Cobrar cuenta": la hoja que contiene la sección cambia al cobro. */
     onStartCollect: () -> Unit = {},
     /** Precio por hora del tablero: el detalle de la sesión no lo trae. */
@@ -483,7 +488,10 @@ internal fun WaiterSpaceSection(
                     enabled = enabled,
                     colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
-                    onConfirm = { minutes, players -> onRent(minutes, null, players) },
+                    draft = rentalDraft,
+                    onDraftChange = onRentalDraftChange,
+                    askName = true,
+                    onConfirm = { minutes, players, name -> onRent(minutes, null, players, name) },
                 )
             } else if (isCourt) {
                 Text(
@@ -674,7 +682,13 @@ internal fun WaiterSpaceSection(
                     colors = colors,
                     renewal = renewFrom != null,
                     primary = !hasPending,
-                    onConfirm = { minutes, players -> onRent(minutes, renewFrom, players) },
+                    draft = rentalDraft,
+                    onDraftChange = onRentalDraftChange,
+                    askName = true,
+                    // #27: alargar el turno conserva los jugadores y el nombre de la renta en curso.
+                    onConfirm = { minutes, players, name ->
+                        onRent(minutes, renewFrom, players ?: detail.rent?.players, name ?: detail.rent?.customerName)
+                    },
                 )
             } else if (isCourt || session.endsAt != null) {
                 CollectLabel(if (session.endsAt == null) "Iniciar turno" else "Alargar turno", colors)
@@ -1079,6 +1093,8 @@ internal fun CollectAccountContent(
     showsHeader: Boolean = true,
     /** Personas que faltan tras un abono en partes; null empieza en 2. */
     initialPeople: Int? = null,
+    /** Controles propios de quien abre la hoja (la renta: duración y jugadores), bajo el monto. */
+    headerExtra: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     var selected by remember(payable.map { it.id }) { mutableStateOf(payable.map { it.id }.toSet()) }
     val paidInAmount = paidIn.moneyOrZero()
@@ -1172,6 +1188,9 @@ internal fun CollectAccountContent(
                         color = colors.textPrimary,
                     )
                 }
+            }
+            if (headerExtra != null) {
+                Column(modifier = Modifier.arrive(1), content = headerExtra)
             }
             if (onAbono != null) {
                 if (paidInAmount.signum() > 0) {
@@ -1718,10 +1737,32 @@ internal fun RentalDurationPicker(
     primary: Boolean = true,
     durationsFailed: Boolean = false,
     onRetryDurations: (() -> Unit)? = null,
-    onConfirm: (minutes: Int, players: Int?) -> Unit,
+    /**
+     * U04: lo elegido vive en el ViewModel para que cerrar el cobro (o salir de la hoja) no lo borre.
+     * Con [onDraftChange] null el picker guarda lo suyo (pruebas y capturas).
+     */
+    draft: RentalDraft? = null,
+    onDraftChange: ((minutes: Int?, players: Int, name: String) -> Unit)? = null,
+    /** #27: Mesero y Caja anotan a nombre de quién va la renta (opcional). */
+    askName: Boolean = false,
+    onConfirm: (minutes: Int, players: Int?, name: String?) -> Unit,
 ) {
-    var chosen by remember(durations) { mutableStateOf<Int?>(null) }
-    var players by remember { mutableIntStateOf(0) }
+    var localMinutes by remember(durations) { mutableStateOf<Int?>(null) }
+    var localPlayers by remember { mutableIntStateOf(0) }
+    var localName by remember { mutableStateOf("") }
+    val hoisted = onDraftChange != null
+    val chosen = if (hoisted) draft?.minutes?.takeIf { it in durations } else localMinutes
+    val players = if (hoisted) draft?.players ?: 0 else localPlayers
+    val name = if (hoisted) draft?.customerName.orEmpty() else localName
+    val update: (Int?, Int, String) -> Unit = { m, p, n ->
+        if (onDraftChange != null) {
+            onDraftChange(m, p, n)
+        } else {
+            localMinutes = m
+            localPlayers = p
+            localName = n
+        }
+    }
     if (durations.isEmpty()) {
         // Sin las duraciones del servidor no se ofrece ninguna: una inventada termina en 400.
         Column(modifier = modifier.fillMaxWidth()) {
@@ -1747,9 +1788,21 @@ internal fun RentalDurationPicker(
     }
     // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos (0 = sin dato).
     val askPlayers = Venue.isBowling && !renewal
+    val showName = askName && !renewal
     Column(modifier = modifier.fillMaxWidth()) {
         if (askPlayers) {
-            PlayersStepper(players = players, enabled = enabled, colors = colors) { players = it }
+            PlayersStepper(players = players, enabled = enabled, colors = colors) { update(chosen, it, name) }
+        }
+        if (showName) {
+            OperationalField(
+                value = name,
+                onValueChange = { update(chosen, players, it.take(RENTAL_NAME_MAX)) },
+                label = "Nombre (opcional)",
+                colors = colors,
+                placeholder = "A nombre de quién",
+                enabled = enabled,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
         }
         Text(title, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = colors.textSecondary)
         Row(
@@ -1764,7 +1817,7 @@ internal fun RentalDurationPicker(
                     modifier = Modifier.weight(1f),
                     selected = chosen == minutes,
                     detail = rentalPrice(pricePerHour, minutes),
-                ) { chosen = minutes }
+                ) { update(minutes, players, name) }
             }
         }
         AnimatedVisibility(
@@ -1782,10 +1835,21 @@ internal fun RentalDurationPicker(
                 colors = colors,
                 primary = primary,
                 modifier = Modifier.padding(top = 12.dp),
-            ) { chosen?.let { onConfirm(it, players.takeIf { askPlayers && it > 0 }) } }
+            ) {
+                chosen?.let {
+                    onConfirm(
+                        it,
+                        players.takeIf { askPlayers && it > 0 },
+                        name.trim().takeIf { showName && it.isNotEmpty() },
+                    )
+                }
+            }
         }
     }
 }
+
+/** El backend admite `nombre_cliente` de hasta 120 caracteres. */
+private const val RENTAL_NAME_MAX = 120
 
 /** Jugadores de una pista de boliche: de 1 a 30, o sin dato. */
 @Composable
@@ -1816,7 +1880,11 @@ internal fun PlayersStepper(
 
 /**
  * Cobro en efectivo de una renta de mostrador: el total es lo que paga el cliente (el precio de la
- * app con efectivo), con los mismos atajos de billete y el cambio. Cerrar sin cobrar libera el horario.
+ * app con efectivo), con los mismos atajos de billete y el cambio. Cerrar sin cobrar libera el horario
+ * y lo elegido (duración y jugadores) regresa a la hoja de la pista.
+ *
+ * U04: aquí mismo se cambia la duración y, en un boliche, los jugadores: el servidor no edita un
+ * apartado, así que [onChange] lo suelta y vuelve a apartar (como el cliente en su hoja de pago).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1826,6 +1894,10 @@ internal fun RentalCollectSheet(
     colors: OperationalColors,
     onDismiss: () -> Unit,
     onConfirm: (received: String) -> Unit,
+    /** Duraciones que acepta el servidor; vacía oculta el cambio de duración. */
+    durations: List<Int> = emptyList(),
+    /** Vuelve a apartar con otra duración o jugadores; null no deja cambiarlos. */
+    onChange: ((minutes: Int, players: Int?) -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -1840,9 +1912,74 @@ internal fun RentalCollectSheet(
             confirming = confirming,
             colors = colors,
             title = "Rentar ${rental.courtName ?: Venue.court} · ${rentalLabel(rental.durationMinutes)}",
+            // #16: el servidor solo cobra la renta de mostrador en efectivo; la hoja lo dice en lugar de esconderlo.
             allowTerminal = false,
             allowTip = false,
             onConfirm = { _, received, _, _, _ -> received?.let(onConfirm) },
+            headerExtra = {
+                RentalCollectControls(
+                    rental = rental,
+                    durations = durations,
+                    enabled = !confirming,
+                    colors = colors,
+                    onChange = onChange,
+                )
+            },
+        )
+    }
+}
+
+/** Cuánto se espera tras el último toque de jugadores antes de volver a apartar. */
+private const val PLAYERS_SETTLE_MS = 700L
+
+/** Duración, jugadores y «Solo efectivo» de la hoja de cobro de la renta. */
+@Composable
+internal fun RentalCollectControls(
+    rental: Reservation,
+    durations: List<Int>,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onChange: ((minutes: Int, players: Int?) -> Unit)?,
+) {
+    // Cada cambio vuelve a apartar: los toques del stepper se juntan y se manda solo el último.
+    var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
+    if (onChange != null && Venue.isBowling) {
+        LaunchedEffect(rental.id, players) {
+            if (players == (rental.players ?: 0)) return@LaunchedEffect
+            delay(PLAYERS_SETTLE_MS)
+            onChange(rental.durationMinutes, players.takeIf { it > 0 })
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (onChange != null && durations.isNotEmpty()) {
+            // La apartada siempre sale, aunque el dueño haya quitado esa duración mientras tanto.
+            val options = (durations + rental.durationMinutes).distinct().sorted()
+            CollectLabel("Duración", colors)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                options.forEach { minutes ->
+                    ChipButton(
+                        label = rentalLabel(minutes),
+                        enabled = enabled,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = minutes == rental.durationMinutes,
+                    ) {
+                        if (minutes != rental.durationMinutes) onChange(minutes, players.takeIf { it > 0 })
+                    }
+                }
+            }
+        }
+        if (onChange != null && Venue.isBowling) {
+            PlayersStepper(players = players, enabled = enabled, colors = colors) { players = it }
+        }
+        Text(
+            "Solo efectivo: la renta no se cobra con terminal ni saldo.",
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textSecondary,
         )
     }
 }
