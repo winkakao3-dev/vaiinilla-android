@@ -440,7 +440,7 @@ private fun NameCard(
                     .semantics { contentDescription = "Tu nombre" },
         )
         error?.let {
-            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.coral)
+            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.coralText)
         }
         Text(
             "Al seguir aceptas los Términos y el Aviso de privacidad de Vaiinilla.",
@@ -485,7 +485,14 @@ private fun ProductRow(
             modifier = Modifier.size(62.dp).clip(RoundedCornerShape(14.dp)),
         )
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(card.name, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink, maxLines = 2)
+            Text(
+                card.name,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             val detail =
                 if (!card.available) {
                     "Agotado hoy"
@@ -547,12 +554,19 @@ private fun CourtRow(
             )
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(court.name, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink, maxLines = 2)
+            Text(
+                court.name,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(
                 courtAvailability(court),
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (court.freeNow) colors.accent else colors.muted,
+                color = if (court.freeNow) (if (colors.isDark) colors.accent else colors.accentInk) else colors.muted,
             )
             val detail =
                 listOfNotNull(
@@ -614,7 +628,12 @@ private fun OrderCard(
                     Column(Modifier.weight(1f)) {
                         Text(line.product.name, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = colors.ink)
                         line.note?.let {
-                            Text("Nota: $it", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.accent)
+                            Text(
+                                "Nota: $it",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (colors.isDark) colors.accent else colors.accentInk,
+                            )
                         }
                         if (line.product.needsOptions) {
                             Text("Elige sus opciones en el menú", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.muted)
@@ -634,7 +653,7 @@ private fun OrderCard(
                 "Ya no hay: ${order.unavailable.joinToString(", ")}",
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = colors.coral,
+                color = colors.coralText,
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -661,7 +680,13 @@ private fun OrderCard(
                 modifier = Modifier.padding(top = 4.dp),
             )
             note?.let {
-                Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.coral, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    it,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.coralText,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
             Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (done) {
