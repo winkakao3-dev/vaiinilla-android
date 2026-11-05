@@ -368,6 +368,9 @@ fun AppNavHost(
                     noticeId = noticeId,
                     acceptedAwaitingPayment = event.acceptedAwaitingPayment,
                     pickUpAtBar = event.pickUpAtBar,
+                    homeDelivery = event.homeDelivery,
+                    rental = event.rental,
+                    rentalSpaceName = event.rentalSpaceName,
                 )
             ReceivedNoticeLog.record(
                 context = appContext,

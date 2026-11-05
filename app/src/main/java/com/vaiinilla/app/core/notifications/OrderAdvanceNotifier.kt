@@ -241,18 +241,25 @@ object OrderAdvanceNotifier {
         noticeId: String? = null,
         acceptedAwaitingPayment: Boolean = false,
         pickUpAtBar: Boolean = false,
+        homeDelivery: Boolean = false,
+        rental: Boolean = false,
+        rentalSpaceName: String? = null,
     ): Shown {
-        val title = "Pedido #$folio"
+        // Una renta de cancha no se prepara ni se recoge: su aviso habla del horario, no del pedido.
+        val rentalText = if (rental) rentalMessageFor(newState, rentalSpaceName) else null
+        val title = if (rentalText != null) rentalTitle(rentalSpaceName) else "Pedido #$folio"
         val text =
-            if (acceptedAwaitingPayment) {
-                ACCEPTED_AWAITING_PAYMENT_TEXT
-            } else {
-                messageFor(
-                    newState,
-                    inSpace,
-                    spaceType,
-                    pickUpAtBar,
-                )
+            when {
+                acceptedAwaitingPayment -> ACCEPTED_AWAITING_PAYMENT_TEXT
+                rentalText != null -> rentalText
+                else ->
+                    messageFor(
+                        newState,
+                        inSpace,
+                        spaceType,
+                        pickUpAtBar,
+                        homeDelivery,
+                    )
             }
         if (!canPost(context)) return Shown(title, text, posted = false)
         ensureChannel(context)
@@ -343,16 +350,20 @@ object OrderAdvanceNotifier {
         inSpace: Boolean = false,
         spaceType: String? = null,
         pickUpAtBar: Boolean = false,
+        homeDelivery: Boolean = false,
     ): String =
         when (state) {
             OrderState.PENDING_PAYMENT -> "Caja espera tu pago."
-            OrderState.PAID -> "Pago confirmado. Cocina recibió tu comanda."
+            // A domicilio puede pagarse al recibir: «Pago confirmado» no siempre es cierto (igual que el backend).
+            OrderState.PAID ->
+                if (homeDelivery) "El negocio recibió tu pedido." else "Pago confirmado. Cocina recibió tu comanda."
             OrderState.PREPARING -> "Tu comida se está preparando."
             OrderState.READY ->
                 when {
                     // «Pasa por él»: el cliente pidió en su lugar pero lo recoge en la barra.
                     pickUpAtBar -> PICK_UP_AT_BAR_TEXT
                     inSpace -> SpaceCopy.readyInSpace(spaceType)
+                    homeDelivery -> "Tu pedido está listo para salir."
                     else -> "Tu pedido está listo. Recógelo en la barra."
                 }
             OrderState.DELIVERED -> "Pedido entregado. Buen provecho."
@@ -362,4 +373,24 @@ object OrderAdvanceNotifier {
             OrderState.AWAITING_ACCEPTANCE -> "El negocio está revisando tu encargo."
             OrderState.ON_THE_WAY -> "Tu pedido va en camino."
         }
+
+    private fun rentalTitle(spaceName: String?): String =
+        spaceName?.takeIf { it.isNotBlank() }?.let { "Renta de $it" } ?: "Tu renta"
+
+    /**
+     * Aviso de una renta de cancha (`renta`), como los textos del backend: solo se confirma el horario o se cae la
+     * renta. Para los demás estados `null` y se usa el texto del pedido.
+     */
+    internal fun rentalMessageFor(
+        state: OrderState,
+        spaceName: String?,
+    ): String? {
+        val name = spaceName?.takeIf { it.isNotBlank() }
+        return when (state) {
+            OrderState.DELIVERED -> name?.let { "Tu horario de $it está confirmado." } ?: "Tu horario está confirmado."
+            OrderState.CANCELED -> name?.let { "Se canceló tu renta de $it." } ?: "Se canceló tu renta."
+            OrderState.EXPIRED -> name?.let { "Tu renta de $it venció sin pagarse." } ?: "Tu renta venció sin pagarse."
+            else -> null
+        }
+    }
 }

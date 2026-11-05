@@ -428,6 +428,9 @@ class OperationalViewModel
                                 spaceType = order.summary.space?.type,
                                 acceptedAwaitingPayment = acceptedAwaitingPayment(before, after),
                                 pickUpAtBar = order.summary.pickUpAtBar,
+                                homeDelivery = order.summary.destination == OrderDestination.HOME_DELIVERY,
+                                rental = order.reservation != null,
+                                rentalSpaceName = order.reservation?.space?.name,
                             ),
                         )
                     }
@@ -1841,6 +1844,11 @@ data class OrderAdvance(
     val acceptedAwaitingPayment: Boolean = false,
     /** «Pasa por él»: listo dice que pase a la barra, no que va a su lugar. */
     val pickUpAtBar: Boolean = false,
+    /** A domicilio: listo dice que está por salir, no que se recoge en la barra. */
+    val homeDelivery: Boolean = false,
+    /** Renta de cancha: el aviso habla del horario confirmado, no de un pedido entregado. */
+    val rental: Boolean = false,
+    val rentalSpaceName: String? = null,
 )
 
 /**
