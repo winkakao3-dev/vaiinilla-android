@@ -262,7 +262,7 @@ class OrderFlowViewModel
                             operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
-                            // Al entrar al lugar el destino acaba de quedar en «Para llevar»: la cancha se ofrece de entrada.
+                            // Al entrar el destino acaba de quedar en «Para llevar»: la cancha se ofrece de entrada.
                             checkoutDestination =
                                 destinationWithRentedCourt(_uiState.value, rentedCourt, offerAsDefault = true),
                             cartLines = nextCart,
@@ -1234,7 +1234,8 @@ class OrderFlowViewModel
             return if (place != null) {
                 "Tienes lugar en $place. Si lo pides para llevar, no te lo llevan ahí. ¿Lo pides para llevar?"
             } else {
-                "Tienes lugar en una mesa o pista. Si lo pides para llevar, no te lo llevan ahí. ¿Lo pides para llevar?"
+                "Tienes lugar en una mesa o pista. Si lo pides para llevar, no te lo llevan ahí. " +
+                    "¿Lo pides para llevar?"
             }
         }
 

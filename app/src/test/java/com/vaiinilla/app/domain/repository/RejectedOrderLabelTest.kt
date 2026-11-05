@@ -3,7 +3,7 @@ package com.vaiinilla.app.domain.repository
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Quién canceló un pedido de la mesa, con su nombre (R28): el mesero no reclama a Cocina lo que canceló el cliente. */
+/** Quién canceló un pedido de la mesa (R28): el mesero no reclama a Cocina lo que canceló el cliente. */
 class RejectedOrderLabelTest {
     private fun rejected(role: String?) = RejectedOrder(id = "p1", folio = 7, reason = null, byRole = role)
 

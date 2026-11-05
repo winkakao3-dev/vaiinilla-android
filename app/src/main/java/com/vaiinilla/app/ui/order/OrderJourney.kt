@@ -815,7 +815,8 @@ internal fun journeyMoneyBackNote(order: OrderDetail): String? =
             order.summary.state == OrderState.CANCELED && order.depositDeadlineMissed() ->
                 "El negocio lo aceptó, pero el anticipo no se pagó a tiempo. Tu tarjeta no tuvo ningún cargo."
             order.summary.state == OrderState.CANCELED && order.neverCharged() ->
-                "El anticipo se paga cuando el negocio acepta. Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
+                "El anticipo se paga cuando el negocio acepta. " +
+                    "Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
             else -> null
         }
 
