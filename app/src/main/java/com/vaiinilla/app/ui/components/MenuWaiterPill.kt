@@ -409,15 +409,16 @@ private fun AssistantPill(onOpen: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
-        // L01: con letra grande quedaba en «Pre…»: se encoge y, si no, pasa a dos renglones entre palabras.
+        // L01: con letra grande quedaba en «Pre…» y, en dos renglones, partía «Pregún/tame»: un solo renglón que se encoge.
         Text(
             "Pregúntame qué pedir",
             color = colors.accentInk,
             fontWeight = FontWeight.Black,
             lineHeight = 17.sp,
-            maxLines = 2,
+            maxLines = 1,
+            softWrap = false,
             overflow = TextOverflow.Ellipsis,
-            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
             modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
         )
     }
