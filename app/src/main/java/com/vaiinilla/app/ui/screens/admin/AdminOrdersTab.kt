@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -61,6 +61,7 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.amberInk
 import com.vaiinilla.app.ui.theme.Yolk
 import java.time.Instant
 import java.time.LocalDate
@@ -395,7 +396,7 @@ private fun TableTile(
         when {
             table.call != null -> Triple("Te llaman", colors.coralText, true)
             table.orders.any { it.state == OrderState.READY } -> Triple("Listo para llevar", colors.accentInk, true)
-            owes -> Triple("${moneyLabel(unpaidTotal.orEmpty())} sin pagar", Yolk, true)
+            owes -> Triple("${moneyLabel(unpaidTotal.orEmpty())} sin pagar", colors.amberInk, true)
             table.orders.isNotEmpty() -> Triple("Preparando", colors.accentInk, false)
             table.availability?.state?.let { it != SpaceAvailabilityState.LIBRE } == true ->
                 Triple("Ocupada", colors.textSecondary, false)
@@ -406,7 +407,7 @@ private fun TableTile(
         Modifier
             .physicalPress(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = "${table.space.name}, $label" }
-            .width(78.dp)
+            .widthIn(min = 78.dp, max = 160.dp)
             .height(70.dp)
             .clip(shape)
             .background(colors.cardBackground)

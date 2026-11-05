@@ -156,7 +156,6 @@ import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -1906,7 +1905,7 @@ private fun WaiterTableSheet(
                                 } else {
                                     "Ojo: $count pedidos de esta cuenta todavía no se entregan."
                                 },
-                                color = Yolk,
+                                color = colors.amberInk,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.5.sp,
                                 textAlign = TextAlign.Center,

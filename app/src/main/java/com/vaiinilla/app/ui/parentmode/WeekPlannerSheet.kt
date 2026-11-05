@@ -471,7 +471,7 @@ internal fun WeekPlannerSheet(
                         )} y ${child.firstName} " +
                             "tiene ${compactMoney(balance)}. " +
                             if (onReload != null) "Recárgale sin salir de aquí." else "Recárgale primero.",
-                        color = vColors.yolk,
+                        color = vColors.amberInk,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         lineHeight = 18.sp,

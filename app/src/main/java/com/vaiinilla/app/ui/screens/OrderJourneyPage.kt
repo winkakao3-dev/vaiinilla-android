@@ -922,22 +922,31 @@ private fun FactRow(
     ) {
         Text(fact.label, color = colors.muted, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
+        // Lima y yema sobre el papel claro no se leen: lo que se gana o falta va en su pastilla.
+        val (pill, ink) =
+            when (fact.tone) {
+                FactTone.PLAIN -> Color.Transparent to colors.ink
+                FactTone.GOOD -> colors.accent to colors.accentInk
+                FactTone.DUE -> colors.yolk to FactDueInk
+            }
         Text(
             fact.value,
-            color =
-                when (fact.tone) {
-                    FactTone.PLAIN -> colors.ink
-                    FactTone.GOOD -> colors.accent
-                    FactTone.DUE -> colors.yolk
-                },
+            color = ink,
             fontSize = 14.5.sp,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(pill)
+                    .padding(horizontal = if (fact.tone == FactTone.PLAIN) 0.dp else 8.dp, vertical = 2.dp),
         )
     }
 }
+
+private val FactDueInk = Color(0xFF1D1E1C)
 
 @Composable
 private fun DashedNote(
