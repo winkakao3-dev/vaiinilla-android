@@ -33,6 +33,8 @@ data class OperationalStatus(
     val isSchool: Boolean = false,
     /** El cliente ya dio el código de la escuela: puede agregar o vincular hijos. */
     val isParentUnlocked: Boolean = true,
+    /** Si es false, Cocina no puede empezar un pedido por cobrar: el servidor lo rechaza hasta que Caja cobre. */
+    val kitchenPreparesUnpaid: Boolean = true,
     /**
      * Para la administración: Caja o Cocina latieron en los últimos 2 min. `cashierOnline` y `kitchenOnline`
      * miran 15 s y deciden la operación degradada; con el teléfono bloqueado salían «Sin conexión» enseguida.

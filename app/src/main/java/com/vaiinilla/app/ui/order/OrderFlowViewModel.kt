@@ -265,6 +265,9 @@ class OrderFlowViewModel
                             operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                            // Al entrar el destino acaba de quedar en «Para llevar»: la cancha se ofrece de entrada.
+                            checkoutDestination =
+                                destinationWithRentedCourt(_uiState.value, rentedCourt, offerAsDefault = true),
                             cartLines = nextCart,
                             unavailableCartKeys = unavailableKeys,
                             cartNotice = droppedCartLinesNotice(droppedFromSavedCart) ?: _uiState.value.cartNotice,
@@ -913,7 +916,7 @@ class OrderFlowViewModel
 
         fun selectHomePayment(payment: HomePayment) {
             val state = _uiState.value
-            if (state.homeCheckout.payment == payment || payment !in state.homePayments) return
+            if (state.effectiveHomePayment == payment || payment !in state.homePayments) return
             pendingIdempotencyKey = null
             _uiState.value =
                 state.copy(homeCheckout = state.homeCheckout.copy(payment = payment), createOrderError = null)
@@ -977,9 +980,11 @@ class OrderFlowViewModel
 
         fun updateCheckoutDestination(destination: OrderDestination) {
             if (destination == OrderDestination.HOME_DELIVERY && !_uiState.value.canDeliverHome) return
+            // El destino en espacio vale con el QR de una mesa o con la cancha rentada y en curso: el carrito
+            // ofrece «En tu pista» con cualquiera de los dos (auditoría R9).
             if (
                 destination == OrderDestination.IN_SPACE &&
-                _uiState.value.guestVenue?.space == null
+                _uiState.value.checkoutSpaces.isEmpty()
             ) {
                 _uiState.value =
                     _uiState.value.copy(
@@ -1148,9 +1153,11 @@ class OrderFlowViewModel
                         // Lo de domicilio y encargos solo viaja cuando se usa.
                         deliveryDate = current.homeCheckout.deliveryDate.takeIf { current.asksForDeliveryDate },
                         delivery = current.homeCheckout.address.takeIf { home },
-                        paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
-                        withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
+                        paysOnArrival = home && current.effectiveHomePayment == HomePayment.ON_ARRIVAL,
+                        withDeposit = home && current.effectiveHomePayment == HomePayment.DEPOSIT,
                         pickUpAtBar = !home && current.pickUpAtBarForOrder,
+                        confirmTakeAway =
+                            current.takeAwayConfirmed && current.checkoutDestination == OrderDestination.TAKE_AWAY,
                     )
                 // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
                 // respondería con un 400 sin explicación (COMPRA-18).
@@ -1246,6 +1253,8 @@ class OrderFlowViewModel
                                     ),
                                 purchaseCelebration = purchaseCelebration,
                                 createOrderError = null,
+                                takeAwayWithSeatPrompt = null,
+                                takeAwayConfirmed = false,
                                 cartNotice = null,
                                 unavailableCartKeys = emptySet(),
                             )
@@ -1254,6 +1263,19 @@ class OrderFlowViewModel
                     },
                     onFailure = { error ->
                         val code = (error as? OrderRepositoryException)?.code
+                        // Tiene lugar en una mesa o pista: se le pregunta si de verdad lo quiere para llevar y,
+                        // si confirma, el pedido se reenvía con `confirmar_para_llevar` (R15).
+                        if (code == TAKE_AWAY_WITH_ACTIVE_SEAT) {
+                            pendingIdempotencyKey = null
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    creatingOrder = false,
+                                    createOrderError = null,
+                                    takeAwayConfirmed = false,
+                                    takeAwayWithSeatPrompt = takeAwayWithSeatMessage(current),
+                                )
+                            return@fold
+                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
@@ -1268,6 +1290,33 @@ class OrderFlowViewModel
                         if (code == PRODUCT_UNAVAILABLE) reconcileCartWithCatalog()
                     },
                 )
+            }
+        }
+
+        /** El cliente confirma «Para llevar» aunque tenga lugar en una mesa o pista: se reenvía el pedido. */
+        fun confirmTakeAwayWithSeat() {
+            if (_uiState.value.takeAwayWithSeatPrompt == null) return
+            _uiState.value =
+                _uiState.value.copy(
+                    takeAwayWithSeatPrompt = null,
+                    takeAwayConfirmed = true,
+                    createOrderError = null,
+                )
+            submitOrder()
+        }
+
+        /** No lo quiere para llevar: se queda en el carrito para cambiar el destino. */
+        fun dismissTakeAwayWithSeat() {
+            _uiState.value = _uiState.value.copy(takeAwayWithSeatPrompt = null, takeAwayConfirmed = false)
+        }
+
+        private fun takeAwayWithSeatMessage(state: OrderFlowUiState): String {
+            val place = state.checkoutSpaces.firstOrNull()?.name
+            return if (place != null) {
+                "Tienes lugar en $place. Si lo pides para llevar, no te lo llevan ahí. ¿Lo pides para llevar?"
+            } else {
+                "Tienes lugar en una mesa o pista. Si lo pides para llevar, no te lo llevan ahí. " +
+                    "¿Lo pides para llevar?"
             }
         }
 
@@ -1330,7 +1379,27 @@ class OrderFlowViewModel
                     _uiState.value.copy(
                         rentedCourt = rentedCourt,
                         selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                        checkoutDestination = destinationWithRentedCourt(_uiState.value, rentedCourt),
                     )
+            }
+        }
+
+        /**
+         * Sin QR de mesa, la cancha rentada que acaba de aparecer se ofrece de entrada como destino; si la renta
+         * ya no está en curso y no hay otro espacio, el pedido vuelve a «Para llevar» (auditoría R9).
+         */
+        private fun destinationWithRentedCourt(
+            current: OrderFlowUiState,
+            rentedCourt: PublicSpace?,
+            offerAsDefault: Boolean = false,
+        ): OrderDestination {
+            if (current.guestVenue?.space != null) return current.checkoutDestination
+            return when {
+                rentedCourt != null && (offerAsDefault || current.rentedCourt == null) &&
+                    current.checkoutDestination == OrderDestination.TAKE_AWAY -> OrderDestination.IN_SPACE
+                rentedCourt == null && current.checkoutDestination == OrderDestination.IN_SPACE ->
+                    OrderDestination.TAKE_AWAY
+                else -> current.checkoutDestination
             }
         }
 
@@ -1951,6 +2020,7 @@ class OrderFlowViewModel
         private companion object {
             val catalogMemoryCache = ConcurrentHashMap<String, Catalog>()
             const val GUEST_CANNOT_USE_BALANCE = "GUEST_CANNOT_USE_BALANCE"
+            const val TAKE_AWAY_WITH_ACTIVE_SEAT = "PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA"
             const val CLAIM_ATTEMPTS = 3
             const val CLAIM_RETRY_BASE_MS = 2_000L
             const val PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"

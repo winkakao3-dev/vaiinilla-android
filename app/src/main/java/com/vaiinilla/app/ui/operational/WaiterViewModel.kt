@@ -247,7 +247,10 @@ class WaiterViewModel
             val (space, rejected) = fresh.first()
             val reason = rejected.reason?.let { ": $it" }.orEmpty()
             val extra = if (fresh.size > 1) " (y ${fresh.size - 1} más)" else ""
-            showToast("${rejected.byLabel} rechazó el #${rejected.folio} de ${space.name}$reason$extra", isError = true)
+            showToast(
+                "${rejected.byLabel} ${rejected.verb} el #${rejected.folio} de ${space.name}$reason$extra",
+                isError = true,
+            )
         }
 
         private fun detectNewCalls(tables: List<BoardTable>) {
@@ -472,8 +475,14 @@ class WaiterViewModel
         fun openTableOrder(space: TableSpace) = openOrderSheet(space)
 
         private fun openOrderSheet(space: TableSpace?) {
+            // Cada pedido arranca en «Te lo llevamos»: un «Pasa por él» del anterior no se hereda (R38).
             _uiState.value =
-                _uiState.value.copy(counterOrderOpen = true, counterOrderError = null, counterOrderSpace = space)
+                _uiState.value.copy(
+                    counterOrderOpen = true,
+                    counterOrderError = null,
+                    counterOrderSpace = space,
+                    counterPickUpAtBar = false,
+                )
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }

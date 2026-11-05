@@ -64,6 +64,7 @@ class ContractResponseParser
                 withinOrderWindow = envelope.data.withinOrderWindow,
                 isSchool = envelope.data.isSchool,
                 isParentUnlocked = envelope.data.isParentUnlocked,
+                kitchenPreparesUnpaid = envelope.data.kitchenPreparesUnpaid,
                 cashierConnected = envelope.data.cashierConnected,
                 kitchenConnected = envelope.data.kitchenConnected,
                 homeDelivery =

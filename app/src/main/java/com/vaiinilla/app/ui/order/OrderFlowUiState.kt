@@ -47,6 +47,13 @@ data class OrderFlowUiState(
     val checkoutPayAtEnd: Boolean = false,
     /** «Pasa por él»: lo que eligió el cliente cuando el negocio ofrece las dos formas. */
     val checkoutPickUpAtBar: Boolean = false,
+    /**
+     * El servidor pidió confirmar «Para llevar» porque el cliente tiene lugar en una mesa o pista
+     * (409 PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA): con texto se muestra la pregunta.
+     */
+    val takeAwayWithSeatPrompt: String? = null,
+    /** El cliente ya confirmó «Para llevar» con su silla activa: el pedido se reenvía con la confirmación. */
+    val takeAwayConfirmed: Boolean = false,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     /** Líneas del carrito que el menú vigente ya no permite pedir (agotadas o con opciones que cambiaron). */
@@ -218,9 +225,16 @@ val OrderFlowUiState.homePayments: List<HomePayment>
 val OrderFlowUiState.homeDeliveryFee: String?
     get() = homeDeliveryOffer?.takeIf { isHomeDelivery }?.let { HomeCheckoutRules.fee(homeCheckout, it) }
 
+/**
+ * La forma de pago a domicilio que vale: la elegida si el negocio la ofrece; si no (p. ej. sin tarjeta), la
+ * primera que ofrece. Null solo si no ofrece ninguna, y entonces no se puede pedir (auditoría R23).
+ */
+val OrderFlowUiState.effectiveHomePayment: HomePayment?
+    get() = homeCheckout.payment.takeIf { it in homePayments } ?: homePayments.firstOrNull()
+
 /** A domicilio la forma de pago se elige en el carrito, no en la hoja de pago. */
 val OrderFlowUiState.homePaymentMethod: PaymentMethod
-    get() = if (homeCheckout.payment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
+    get() = if (effectiveHomePayment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
 
 /** Lo que falta para poder pedir a domicilio o para otro día; null si nada. */
 val OrderFlowUiState.checkoutScheduleProblem: String?

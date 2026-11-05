@@ -121,10 +121,10 @@ private val timelineSteps =
             "Tu comida se está preparando."
         },
         TimelineStep(OrderState.READY, { _, _ -> "LISTO" }) { destination, _, _ ->
-            if (destination == OrderDestination.IN_SPACE) {
-                "El personal lo llevará a tu mesa."
-            } else {
-                "Recógelo en la barra."
+            when (destination) {
+                OrderDestination.IN_SPACE -> "El personal lo llevará a tu mesa."
+                OrderDestination.HOME_DELIVERY -> "Está listo para salir."
+                OrderDestination.TAKE_AWAY -> "Recógelo en la barra."
             }
         },
         TimelineStep(OrderState.DELIVERED, { _, _ -> "ENTREGADO" }) { _, _, _ ->
@@ -321,7 +321,7 @@ fun OrderTrackingCard(
                     ) {
                         Text(
                             text =
-                                (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
+                                (if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary))
                                     .uppercase(),
                             color = if (isReady) colors.accentInk else Color(0xFF171812),
                             fontSize = 8.sp,
@@ -354,7 +354,7 @@ fun OrderTrackingCard(
                 ) {
                     Text(
                         text =
-                            (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
+                            (if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary))
                                 .uppercase(),
                         color = if (isReady) colors.accentInk else Color(0xFF171812),
                         fontSize = 10.sp,

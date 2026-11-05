@@ -46,6 +46,8 @@ internal fun orderJourney(
     return when {
         order.reservation != null -> OrderJourney.COURT_RENTAL
         summary.destination == OrderDestination.HOME_DELIVERY -> OrderJourney.HOME_DELIVERY
+        // «Pasa por él» (`recoge_en_barra`): se pide desde el lugar pero se entrega en la barra.
+        summary.destination == OrderDestination.IN_SPACE && summary.pickUpAtBar -> OrderJourney.BAR
         summary.destination == OrderDestination.IN_SPACE ->
             when (summary.space?.type) {
                 "barra" -> OrderJourney.BAR
@@ -458,7 +460,7 @@ internal fun journeyNote(
         } -> "Si ya no quieres lo demás, avísale al negocio antes de que lo terminen."
         journey == OrderJourney.DRIVE_THRU && state != OrderState.READY ->
             "Si llegas y aún no está listo, espera cerca de la ventanilla: te lo dan en cuanto salga."
-        journey == OrderJourney.BAR -> "Si te mueves a una mesa, dile al mesero tu folio."
+        journey == OrderJourney.BAR && !order.summary.pickUpAtBar -> "Si te mueves a una mesa, dile al mesero tu folio."
         journey == OrderJourney.SEAT -> "Si te cambias de lugar, díselo a quien te lo lleve."
         journey == OrderJourney.COURT_FOOD -> "Esta compra va aparte de tu renta. La renta se paga en su propio pedido."
         journey == OrderJourney.SCHOOL && order.summary.paymentMethod == PaymentMethod.BALANCE ->
@@ -521,6 +523,8 @@ internal fun journeyCaption(
     val waiting = CaptionTone.WAITING
     val done = CaptionTone.DONE
     return when {
+        state == OrderState.CANCELED && order.depositDeadlineMissed() ->
+            JourneyCaption("Venció el plazo de pago", CaptionTone.PROBLEM)
         state == OrderState.CANCELED && order.neverCharged() ->
             JourneyCaption(
                 "No pudieron aceptarlo",
@@ -614,6 +618,7 @@ internal fun journeyHeadline(
     val rejected = order.rejectedItems()
     val word = order.itemWord(journey)
     return when {
+        state == OrderState.CANCELED && order.depositDeadlineMissed() -> "Se pasó el plazo para pagar tu $word."
         state == OrderState.CANCELED && order.neverCharged() -> "El negocio no pudo aceptar tu $word."
         state == OrderState.CANCELED ->
             if (order.summary.canceledByRole in setOf("cocina", "cajero", "admin")) {
@@ -807,11 +812,17 @@ internal fun journeyMoneyBack(order: OrderDetail): String? {
 /** El renglón bajo [journeyMoneyBack]. */
 internal fun journeyMoneyBackNote(order: OrderDetail): String? =
     cancellationMoneyNote(order)
-        ?: if (order.summary.state == OrderState.CANCELED && order.neverCharged()) {
-            "El anticipo se paga cuando el negocio acepta. Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
-        } else {
-            null
+        ?: when {
+            order.summary.state == OrderState.CANCELED && order.depositDeadlineMissed() ->
+                "El negocio lo aceptó, pero el anticipo no se pagó a tiempo. Tu tarjeta no tuvo ningún cargo."
+            order.summary.state == OrderState.CANCELED && order.neverCharged() ->
+                "El anticipo se paga cuando el negocio acepta. " +
+                    "Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
+            else -> null
         }
+
+/** El negocio aceptó el encargo, pero el cliente no pagó el anticipo a tiempo (R29): no fue un rechazo. */
+private fun OrderDetail.depositDeadlineMissed(): Boolean = summary.cancelReasonCode == "anticipo_sin_pagar"
 
 /** Un encargo con tarjeta que se canceló antes de pagarse: a la tarjeta nunca se le cobró (EQUIPO-53). */
 private fun OrderDetail.neverCharged(): Boolean =

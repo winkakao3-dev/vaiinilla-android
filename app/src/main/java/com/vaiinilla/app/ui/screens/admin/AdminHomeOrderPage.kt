@@ -67,6 +67,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.paymentWireLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -87,23 +88,29 @@ private val StepIcons =
         Icons.Outlined.Verified,
     )
 
-private fun stepIndex(state: OrderState): Int =
+/** La etapa en los puntos; null en un pedido que terminó sin entregarse (sin puntos, R26). */
+private fun stepIndex(state: OrderState): Int? =
     when (state) {
         OrderState.AWAITING_ACCEPTANCE -> 0
-        OrderState.PAID -> 1
+        OrderState.PENDING_PAYMENT, OrderState.PAID -> 1
         OrderState.PREPARING, OrderState.READY -> 2
         OrderState.ON_THE_WAY -> 3
-        else -> 4
+        OrderState.DELIVERED -> 4
+        OrderState.CANCELED, OrderState.EXPIRED, OrderState.NOT_PICKED_UP -> null
     }
 
 private fun stateTitle(state: OrderState): String =
     when (state) {
         OrderState.AWAITING_ACCEPTANCE -> "Por aceptar"
+        OrderState.PENDING_PAYMENT -> "Aceptado · falta su pago"
         OrderState.PAID -> "Aceptado"
         OrderState.PREPARING -> "Haciéndose"
         OrderState.READY -> "Listo para salir"
         OrderState.ON_THE_WAY -> "En camino"
-        else -> "Entregado"
+        OrderState.DELIVERED -> "Entregado"
+        OrderState.CANCELED -> "Cancelado"
+        OrderState.EXPIRED -> "Expirado"
+        OrderState.NOT_PICKED_UP -> "No recogido"
     }
 
 /** «Sáb 7 nov · 10:00–12:00», o null si el pedido no trae día. */
@@ -217,7 +224,7 @@ private fun OrderInProgress(
                 )
             }
         }
-        item(key = "etapas") { StepDots(stepIndex(order.summary.state), colors) }
+        stepIndex(order.summary.state)?.let { step -> item(key = "etapas") { StepDots(step, colors) } }
         error?.let { message -> item(key = "error") { AdminSheetError(message) } }
         if (home != null) {
             item(key = "direccion") {
@@ -493,7 +500,8 @@ private fun DeliveredAndPaid(
             .toBigDecimalOrNull()
             ?.minus(deposit?.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO)
             ?.takeIf { it.signum() > 0 && deposit != null }
-    val method = order.summary.chargedMethod?.lowercase()
+    // El método de la puerta, no el agregado del pedido: con anticipo y cobro en la puerta siempre es «mixto» (R39).
+    val method = home?.collectedAtDoorMethod?.let(::paymentWireLabel)
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
         contentPadding =

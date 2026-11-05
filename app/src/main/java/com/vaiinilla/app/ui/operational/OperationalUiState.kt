@@ -52,6 +52,11 @@ data class OperationalUiState(
     val actionNotice: String? = null,
     /** Hoja de cierre de caja; null mientras está cerrada. */
     val closeCash: CloseCashUi? = null,
+    /**
+     * Cocina: `cocina_prepara_sin_cobrar` del estado operativo. Con false, un pedido por cobrar no se puede
+     * empezar hasta que Caja lo cobre. Sin leerlo todavía vale true, como siempre (R14).
+     */
+    val kitchenPreparesUnpaid: Boolean = true,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }

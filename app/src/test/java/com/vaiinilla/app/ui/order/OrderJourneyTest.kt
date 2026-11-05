@@ -31,6 +31,23 @@ class OrderJourneyTest {
     }
 
     @Test
+    fun pickUpAtBarFollowsTheBarJourney() {
+        // «Pasa por él» desde una pista o una mesa: se entrega en la barra, no se lleva al lugar (Z01).
+        val court = atBar(order(OrderState.PREPARING, space = "cancha"))
+        assertEquals(OrderJourney.BAR, orderJourney(court))
+        assertEquals(OrderJourney.BAR, orderJourney(atBar(order(OrderState.PAID, space = "mesa"))))
+        assertEquals("Te lo entregan en la barra.", journeyHeadline(court, OrderJourney.BAR))
+        assertEquals(
+            "Está listo en la barra. Di tu folio 42.",
+            journeyHint(atBar(order(OrderState.READY, space = "cancha")), OrderJourney.BAR),
+        )
+        assertTrue(journeyFacts(court, OrderJourney.BAR).none { it.label == "Te lo llevan a" })
+        assertNull(journeyNote(court, OrderJourney.BAR))
+    }
+
+    private fun atBar(order: OrderDetail): OrderDetail = order.copy(summary = order.summary.copy(pickUpAtBar = true))
+
+    @Test
     fun stepsNameWhatHappensForEachType() {
         val bar = order(OrderState.PREPARING, space = "barra")
         assertEquals(listOf("Pagado", "Preparando", "Listo", "Entregado"), journeySteps(bar, OrderJourney.BAR))
@@ -140,6 +157,20 @@ class OrderJourneyTest {
         val unpaidPreorder = canceled.copy(answerBy = Instant.parse("2026-11-03T23:30:00Z"))
         assertEquals("No te cobramos nada", journeyMoneyBack(unpaidPreorder))
         assertTrue(journeyFacts(unpaidPreorder, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste el anticipo" })
+    }
+
+    @Test
+    fun aPreorderCanceledForAnUnpaidDepositSaysTheDeadlinePassed() {
+        val canceled = order(OrderState.CANCELED, PaymentMethod.STRIPE, home = true)
+        val noAnswer =
+            canceled.copy(
+                payBy = Instant.parse("2026-11-03T23:30:00Z"),
+                summary = canceled.summary.copy(cancelReasonCode = "sin_respuesta_del_negocio"),
+            )
+        assertEquals("No pudieron aceptarlo", journeyCaption(noAnswer, OrderJourney.HOME_DELIVERY).text)
+        val unpaid = noAnswer.copy(summary = noAnswer.summary.copy(cancelReasonCode = "anticipo_sin_pagar"))
+        assertEquals("Venció el plazo de pago", journeyCaption(unpaid, OrderJourney.HOME_DELIVERY).text)
+        assertTrue(journeyHeadline(unpaid, OrderJourney.HOME_DELIVERY).startsWith("Se pasó el plazo para pagar tu "))
     }
 
     private fun order(

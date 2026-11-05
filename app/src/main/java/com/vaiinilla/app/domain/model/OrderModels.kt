@@ -56,6 +56,8 @@ data class CreateOrderRequest(
     val withDeposit: Boolean = false,
     /** «Pasa por él»: en un espacio, el cliente lo recoge en la barra en lugar de que se lo lleven. */
     val pickUpAtBar: Boolean = false,
+    /** «Para llevar» confirmado aunque el cliente tenga una silla activa en una mesa o pista (R15). */
+    val confirmTakeAway: Boolean = false,
 )
 
 /** A dónde se lleva un pedido, como lo escribe el cliente. */
@@ -83,6 +85,8 @@ data class OrderHomeDelivery(
     val deposit: String? = null,
     /** Lo que se cobra en la puerta; "0.00" si ya está pagado. */
     val dueOnArrival: String? = null,
+    /** Con qué se cobró en la puerta (`efectivo`, `terminal`, `transferencia`…); null si aún no. */
+    val collectedAtDoorMethod: String? = null,
     /** Los 4 dígitos que el cliente dicta al recibir: solo le llegan a él y desde `en_camino`. */
     val code: String? = null,
     /** Quien lo lleva. El servidor aún no lo manda: sin nombre se dice «quien te lo lleve». */
@@ -280,6 +284,8 @@ data class OrderSummary(
     /** Motivo que indicó quien canceló o rechazó el pedido; solo si está cancelado. */
     val cancelReason: String? = null,
     val canceledByRole: String? = null,
+    /** Código del motivo de cancelación (`anticipo_sin_pagar`…); distingue quién dejó pasar el plazo (R29). */
+    val cancelReasonCode: String? = null,
     /** Sesión de mesa a la que pertenece el pedido; `null` si va para llevar o no tiene sesión. */
     val tableSessionId: String? = null,
     /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */

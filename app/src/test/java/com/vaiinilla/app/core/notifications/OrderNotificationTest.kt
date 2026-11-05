@@ -1,7 +1,9 @@
 package com.vaiinilla.app.core.notifications
 
+import com.vaiinilla.app.domain.model.OrderState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.Base64
 
@@ -100,5 +102,36 @@ class OrderNotificationTest {
             "Ya terminó. Cobra la cuenta y libera el espacio.",
             OrderAdvanceNotifier.turnEndingText(0),
         )
+    }
+
+    @Test
+    fun `ready push names the place, the bar or home delivery`() {
+        assertEquals(
+            "Tu pedido está listo. Ya va a tu cancha.",
+            OrderAdvanceNotifier.messageFor(OrderState.READY, inSpace = true, spaceType = "cancha"),
+        )
+        assertEquals(
+            OrderAdvanceNotifier.PICK_UP_AT_BAR_TEXT,
+            OrderAdvanceNotifier.messageFor(OrderState.READY, inSpace = true, spaceType = "cancha", pickUpAtBar = true),
+        )
+        assertEquals(
+            "Tu pedido está listo para salir.",
+            OrderAdvanceNotifier.messageFor(OrderState.READY, homeDelivery = true),
+        )
+        assertEquals("Tu pedido está listo. Recógelo en la barra.", OrderAdvanceNotifier.messageFor(OrderState.READY))
+    }
+
+    @Test
+    fun `rental push talks about the schedule, not a delivered order`() {
+        assertEquals(
+            "Tu horario de Pista 1 está confirmado.",
+            OrderAdvanceNotifier.rentalMessageFor(OrderState.DELIVERED, "Pista 1"),
+        )
+        assertEquals("Tu horario está confirmado.", OrderAdvanceNotifier.rentalMessageFor(OrderState.DELIVERED, " "))
+        assertEquals(
+            "Se canceló tu renta de Pista 1.",
+            OrderAdvanceNotifier.rentalMessageFor(OrderState.CANCELED, "Pista 1"),
+        )
+        assertNull(OrderAdvanceNotifier.rentalMessageFor(OrderState.PAID, "Pista 1"))
     }
 }

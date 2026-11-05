@@ -105,7 +105,8 @@ internal fun pickupHint(
     }
     if (order.isHomeDelivery()) homeDeliveryHint(order)?.let { return it }
     val state = order.summary.state
-    val toSpace = order.summary.destination == OrderDestination.IN_SPACE
+    // «Pasa por él» se pide desde el lugar, pero se recoge en la barra: no se lo llevan.
+    val toSpace = order.summary.destination == OrderDestination.IN_SPACE && !order.summary.pickUpAtBar
     return when {
         // El código de efectivo solo vive en el dispositivo donde se hizo el pedido: en otro, el folio basta.
         order.cashPending() ->
@@ -133,6 +134,7 @@ internal fun pickupHint(
 
 internal fun pickupCodeHint(order: OrderDetail): String =
     when {
+        order.summary.pickUpAtBar -> "Pasa a la barra por él y muéstralo en Caja."
         order.summary.destination == OrderDestination.IN_SPACE ->
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este."
         order.cashPending() -> "Muéstralo en Caja para pagar."
@@ -151,15 +153,15 @@ internal fun pickupCodeUseful(
         (order.cashPending() || order.needsPickupQr(deliveryRequiresQr))
 
 /**
- * El código se abre solo cuando hay que enseñarlo: listo para recoger en barra, o pago en efectivo
- * pendiente. En mesa o cancha lo lleva el mesero, así que no se abre solo.
+ * El código se abre solo cuando hay que enseñarlo: listo para recoger en barra (para llevar o «Pasa por él»
+ * desde un espacio), o pago en efectivo pendiente. En mesa o cancha lo lleva el mesero, así que no se abre solo.
  */
 internal fun shouldAutoRevealPickupCode(
     order: OrderDetail,
     hasCode: Boolean,
 ): Boolean =
     hasCode &&
-        order.summary.destination != OrderDestination.IN_SPACE &&
+        (order.summary.destination != OrderDestination.IN_SPACE || order.summary.pickUpAtBar) &&
         (order.summary.state == OrderState.READY || order.cashPending())
 
 /**
@@ -206,6 +208,7 @@ internal fun pickupPlace(order: OrderDetail): PickupPlace =
     when {
         order.reservation != null -> PickupPlace.COURT
         order.summary.destination == OrderDestination.IN_SPACE &&
+            !order.summary.pickUpAtBar &&
             spaceHasTables(order.summary.space?.type ?: "mesa") -> PickupPlace.TABLE
         order.summary.state == OrderState.PREPARING -> PickupPlace.KITCHEN
         else -> PickupPlace.STOREFRONT

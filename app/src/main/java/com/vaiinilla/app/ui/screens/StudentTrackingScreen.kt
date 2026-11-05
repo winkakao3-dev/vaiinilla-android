@@ -150,6 +150,7 @@ import com.vaiinilla.app.ui.order.callRetrySeconds
 import com.vaiinilla.app.ui.order.canCancelMenuCall
 import com.vaiinilla.app.ui.order.cancellationMoneyNote
 import com.vaiinilla.app.ui.order.orderCancellationNotice
+import com.vaiinilla.app.ui.order.spaceDelivery
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
 import com.vaiinilla.app.ui.theme.SeaGlassTone
@@ -319,6 +320,7 @@ fun StudentTrackingScreen(
                         onCurrentWaiterCall = onCurrentWaiterCall,
                         onCallWaiter = onCallWaiter,
                         onCancelWaiter = onCancelWaiter,
+                        spaceDelivery = orderState.spaceDelivery,
                     )
                 } else {
                     LazyColumn(

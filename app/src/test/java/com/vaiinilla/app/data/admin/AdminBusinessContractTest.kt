@@ -28,6 +28,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdminBusinessContractTest {
+    @Test
+    fun `el resumen de cartera nombra las recargas con tarjeta y las devoluciones de articulos`() {
+        assertEquals("Recargas con tarjeta", AdminBusinessJson.walletMovementLabel("recarga_stripe"))
+        assertEquals("Devoluciones de artículos", AdminBusinessJson.walletMovementLabel("devolucion_articulo"))
+    }
+
     private val json = AdminBusinessJson()
 
     private fun obj(raw: String) = Json.parseToJsonElement(raw).jsonObject

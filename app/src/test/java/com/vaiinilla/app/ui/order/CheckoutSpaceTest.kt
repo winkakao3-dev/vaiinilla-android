@@ -52,6 +52,19 @@ class CheckoutSpaceTest {
         assertNull(state(rented = cancha, destination = OrderDestination.TAKE_AWAY).checkoutSpaceId)
     }
 
+    @Test
+    fun `sin QR de mesa la cancha rentada basta para pedir en tu pista`() {
+        val s =
+            OrderFlowUiState(
+                guestVenue = GuestVenueContext(establishment = establishment(), space = null),
+                rentedCourt = cancha,
+                selectedSpaceId = cancha.id,
+                checkoutDestination = OrderDestination.IN_SPACE,
+            )
+        assertEquals(listOf(cancha), s.checkoutSpaces)
+        assertEquals(4, s.checkoutSpaceId)
+    }
+
     private fun establishment(): PublicEstablishment =
         PublicEstablishment(
             id = "est-1",

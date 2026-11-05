@@ -1298,6 +1298,7 @@ private fun OrderSummaryCard(
         Text(
             when {
                 order.reservation != null -> rentalScheduleLabel(order.reservation)
+                order.summary.pickUpAtBar -> "Pasa por él a la barra"
                 order.summary.destination == OrderDestination.IN_SPACE ->
                     "A ${order.summary.space?.name ?: "tu espacio"}"
                 order.summary.destination == OrderDestination.HOME_DELIVERY -> "A domicilio"
