@@ -285,7 +285,9 @@ fun ParentModeWalletHost(
                 onDismiss = { sheet = null },
                 onParentUnlocked = children::markParentUnlocked,
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
-                startsWithSchoolCode = children.children.isEmpty() && children.isParentUnlocked == false,
+                // F17: agregar o vincular a un hijo siempre empieza por el código de la escuela, aunque la
+                // membresía ya esté habilitada o ya cuide a otro hijo.
+                startsWithSchoolCode = true,
                 schoolName = schoolName,
                 onOpenChild = openAddedChild,
             )
