@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -12,6 +13,7 @@ import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
@@ -73,6 +75,8 @@ data class WaiterUiState(
     val rentalDurations: List<Int> = emptyList(),
     /** No se pudieron leer las duraciones: el picker ofrece reintentar. */
     val rentalDurationsFailed: Boolean = false,
+    /** R25: cuántos caben en el espacio abierto (`capacidad` de la disponibilidad); sin dato, el tope del servidor. */
+    val rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     val errorMessage: String? = null,
     val toastMessage: String? = null,
     val filterAttending: Boolean = false,
@@ -330,6 +334,7 @@ class WaiterViewModel
                     // Cada espacio tiene su mínimo: no se muestran las del anterior mientras llegan las suyas.
                     rentalDurations = emptyList(),
                     rentalDurationsFailed = false,
+                    rentalMaxPlayers = ReservationSlots.MAX_PLAYERS,
                     rentalDraft = _uiState.value.rentalDraft?.takeIf { it.spaceId == spaceId },
                 )
             loadSpaceDetail(spaceId, silent = false)
@@ -358,13 +363,19 @@ class WaiterViewModel
                     .onSuccess { day ->
                         if (openSpaceId != spaceId) return@onSuccess
                         // Las del espacio abierto respetan su mínimo; el backend rechaza las demás.
-                        val durations =
-                            day.courts.firstOrNull { it.id == spaceId }?.durations?.takeIf { it.isNotEmpty() }
-                                ?: day.durations.sorted()
+                        val court = day.courts.firstOrNull { it.id == spaceId }
+                        val durations = court?.durations?.takeIf { it.isNotEmpty() } ?: day.durations.sorted()
+                        val maxPlayers = court?.maxPlayers ?: ReservationSlots.MAX_PLAYERS
                         _uiState.value =
                             _uiState.value.copy(
                                 rentalDurations = durations,
                                 rentalDurationsFailed = durations.isEmpty(),
+                                rentalMaxPlayers = maxPlayers,
+                                // R25: lo anotado antes no pasa de lo que cabe en esta pista.
+                                rentalDraft =
+                                    _uiState.value.rentalDraft?.let { draft ->
+                                        draft.copy(players = draft.players.coerceAtMost(maxPlayers))
+                                    },
                             )
                     }.onFailure {
                         _uiState.value = _uiState.value.copy(rentalDurationsFailed = true)
@@ -386,7 +397,13 @@ class WaiterViewModel
         ) {
             _uiState.value =
                 _uiState.value.copy(
-                    rentalDraft = RentalDraft(spaceId, minutes, players.coerceIn(0, MAX_PLAYERS), customerName),
+                    rentalDraft =
+                        RentalDraft(
+                            spaceId = spaceId,
+                            minutes = minutes,
+                            players = players.coerceIn(0, _uiState.value.rentalMaxPlayers),
+                            customerName = customerName,
+                        ),
                 )
         }
 
@@ -546,9 +563,21 @@ class WaiterViewModel
                 result.onSuccess { forgetKey("rent", spaceId, start, minutes, players, name) }
                 result.fold(
                     onSuccess = { reservation -> _uiState.value = _uiState.value.copy(pendingRental = reservation) },
-                    onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
+                    onFailure = { error ->
+                        refreshCapacityAfter(error)
+                        showToast(error.toUserFacingMessage(), isError = true)
+                    },
                 )
             }
+        }
+
+        /** R25: el dueño cambió la capacidad de la pista: se vuelve a leer para limitar el selector. */
+        private fun refreshCapacityAfter(error: Throwable) {
+            val overCapacity =
+                generateSequence(error) { it.cause }.any {
+                    (it as? ApiClientException)?.code == "PLAYERS_OVER_CAPACITY"
+                }
+            if (overCapacity) loadRentalDurations()
         }
 
         /**
@@ -606,6 +635,7 @@ class WaiterViewModel
                             )
                     },
                     onFailure = { error ->
+                        refreshCapacityAfter(error)
                         if (released) {
                             // El horario anterior ya se soltó: se regresa a la hoja con lo nuevo para reintentar.
                             _uiState.value =
@@ -661,14 +691,18 @@ class WaiterViewModel
 
         /**
          * Se cerró el cobro sin cobrar: se libera el horario apartado y lo elegido (duración y jugadores)
-         * regresa a la hoja de la pista para corregirlo (U04).
+         * regresa a la hoja de la pista para corregirlo (U04). [players] son los que se tocaron en el cobro y
+         * aún no se mandaban (R16): no se pierden al cerrar.
          */
-        fun cancelPendingRental() {
+        fun cancelPendingRental(players: Int? = null) {
             val reservation = _uiState.value.pendingRental ?: return
             val kept = _uiState.value.rentalDraft?.takeIf { it.spaceId == reservation.courtId }
             val draft =
                 (kept ?: RentalDraft(reservation.courtId))
-                    .copy(minutes = reservation.durationMinutes, players = reservation.players ?: 0)
+                    .copy(
+                        minutes = reservation.durationMinutes,
+                        players = (players ?: reservation.players ?: 0).coerceIn(0, _uiState.value.rentalMaxPlayers),
+                    )
             _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = draft)
             viewModelScope.launch {
                 val result =
@@ -888,9 +922,6 @@ class WaiterViewModel
         private companion object {
             const val POLL_INTERVAL_MS = 5_000L
             const val TOAST_VISIBLE_MS = 4_200L
-
-            /** El servidor acepta de 1 a 30 jugadores. */
-            const val MAX_PLAYERS = 30
         }
     }
 

@@ -64,7 +64,13 @@ data class CourtSchedule(
     val profile: CourtProfile = CourtProfile(),
     /** Duraciones que se pueden rentar en este espacio (respeta su mínimo); vacía con un servidor anterior. */
     val durations: List<Int> = emptyList(),
-)
+    /** R25: cuántos caben en el espacio; null = sin tope propio (el servidor usa [ReservationSlots.MAX_PLAYERS]). */
+    val capacity: Int? = null,
+) {
+    /** Tope de jugadores que acepta el servidor para este espacio. */
+    val maxPlayers: Int
+        get() = capacity ?: ReservationSlots.MAX_PLAYERS
+}
 
 /** Horario reservable de un día y lo ocupado de cada cancha. */
 data class CourtDay(
@@ -152,6 +158,9 @@ enum class ReservationShift(
  * Sin Android para poder probarlas.
  */
 object ReservationSlots {
+    /** Jugadores de una renta cuando el espacio no tiene capacidad propia (contrato C del backend). */
+    const val MAX_PLAYERS = 30
+
     /** Mismos cortes que la PWA: 06–11 mañana, 12–18 tarde, el resto noche. */
     fun shiftOf(
         start: Instant,

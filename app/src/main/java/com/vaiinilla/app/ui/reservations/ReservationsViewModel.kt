@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -65,8 +66,14 @@ data class ReservationsUiState(
     val selectedCourt: CourtSchedule?
         get() = day?.courts?.firstOrNull { it.id == selectedCourtId }
 
+    /** R11: en un boliche la renta pide cuántos juegan (1 a la capacidad de la pista). */
+    val playersReady: Boolean
+        get() = !Venue.isBowling || players in 1..(selectedCourt?.maxPlayers ?: ReservationSlots.MAX_PLAYERS)
+
     val canReserve: Boolean
-        get() = selectedCourt != null && selectedDuration != null && (rentNow || selectedStart != null) && !working
+        get() =
+            selectedCourt != null && selectedDuration != null && (rentNow || selectedStart != null) &&
+                playersReady && !working
 }
 
 /**
@@ -217,10 +224,16 @@ class ReservationsViewModel
                     selectedStart = null,
                     rentNow = false,
                     selectedDuration = null,
+                    // R25: otra pista puede tener otra capacidad.
+                    players = _uiState.value.players.coerceAtMost(maxPlayersFor(courtId)),
                 )
         }
 
-        /** "Rentar ahora": aparta desde ya con el tiempo más corto que cabe; en la hoja de pago se cambia. */
+        /**
+         * "Rentar ahora": aparta desde ya con el tiempo más corto que cabe; en la hoja de pago se cambia. En un
+         * boliche sin jugadores anotados primero se pregunta cuántos juegan (R11): el resumen de la pista
+         * muestra el selector y «Apartar» aparta desde ahora.
+         */
         fun rentNow() {
             val state = _uiState.value
             val day = state.day ?: return
@@ -232,7 +245,7 @@ class ReservationsViewModel
                     selectedStart = null,
                     selectedDuration = durations.firstOrNull(),
                 )
-            reserve()
+            if (_uiState.value.playersReady) reserve()
         }
 
         fun selectStart(start: Instant) {
@@ -253,8 +266,16 @@ class ReservationsViewModel
         }
 
         fun selectPlayers(players: Int) {
-            _uiState.value = _uiState.value.copy(players = players.coerceIn(0, 30))
+            val max = maxPlayersFor(_uiState.value.selectedCourtId)
+            _uiState.value = _uiState.value.copy(players = players.coerceIn(0, max))
         }
+
+        /** R25: cuántos caben en la pista según la disponibilidad; sin dato, el tope del servidor. */
+        private fun maxPlayersFor(courtId: Int?): Int =
+            _uiState.value.day
+                ?.courts
+                ?.firstOrNull { it.id == courtId }
+                ?.maxPlayers ?: ReservationSlots.MAX_PLAYERS
 
         fun dismissMessages() {
             _uiState.value = _uiState.value.copy(error = null, notice = null)
@@ -310,7 +331,13 @@ class ReservationsViewModel
         /** Retoma el pago de una reserva que sigue apartada. */
         fun resumePayment(reservation: Reservation) {
             if (reservation.state != ReservationState.PENDING_PAYMENT) return
-            _uiState.value = _uiState.value.copy(pending = reservation, pendingStartsNow = false, error = null)
+            // R10: un «Rentar ahora» retomado ya empezó; se recuerda para volver a apartarlo desde ahora.
+            _uiState.value =
+                _uiState.value.copy(
+                    pending = reservation,
+                    pendingStartsNow = !reservation.start.isAfter(Instant.now()),
+                    error = null,
+                )
         }
 
         fun dismissPayment() {
@@ -332,7 +359,8 @@ class ReservationsViewModel
          */
         fun changePendingPlayers(players: Int) {
             val reservation = _uiState.value.pending ?: return
-            changePending(reservation.durationMinutes, players.coerceIn(0, 30).takeIf { it > 0 })
+            val wanted = players.coerceIn(0, maxPlayersFor(reservation.courtId))
+            changePending(reservation.durationMinutes, wanted.takeIf { it > 0 })
         }
 
         private fun changePending(
@@ -344,6 +372,9 @@ class ReservationsViewModel
             if (state.working || (minutes == reservation.durationMinutes && players == reservation.players)) return
             val access = reservationAccess ?: return
             _uiState.value = state.copy(working = true, error = null)
+            // R10: como Mesero y Caja, un inicio que ya pasó (o fuera de bloque, el de un «Rentar ahora») se vuelve
+            // a pedir desde ahora; el servidor rechaza esos inicios.
+            val start = reservation.start.takeIf { !state.pendingStartsNow && startsOnFutureSlot(it) }
             viewModelScope.launch {
                 val released =
                     withContext(Dispatchers.IO) {
@@ -358,7 +389,7 @@ class ReservationsViewModel
                         repository.create(
                             access = access,
                             courtId = reservation.courtId,
-                            start = if (state.pendingStartsNow) null else reservation.start,
+                            start = start,
                             durationMinutes = minutes,
                             customerName = null,
                             idempotencyKey = UUID.randomUUID().toString(),
@@ -367,7 +398,10 @@ class ReservationsViewModel
                         )
                     }
                 held.fold(
-                    onSuccess = { next -> _uiState.value = _uiState.value.copy(working = false, pending = next) },
+                    onSuccess = { next ->
+                        _uiState.value =
+                            _uiState.value.copy(working = false, pending = next, pendingStartsNow = start == null)
+                    },
                     onFailure = { error ->
                         _uiState.value =
                             _uiState.value.copy(
@@ -380,6 +414,15 @@ class ReservationsViewModel
                 )
                 refresh()
             }
+        }
+
+        /** R10: el servidor solo aparta inicios futuros que caen en bloque; los demás se piden desde ahora. */
+        private fun startsOnFutureSlot(start: Instant): Boolean {
+            if (!start.isAfter(Instant.now())) return false
+            val day = _uiState.value.day ?: return true
+            val blockSeconds = day.blockMinutes.toLong() * 60
+            if (blockSeconds <= 0) return true
+            return Math.floorMod(Duration.between(day.opensAt, start).seconds, blockSeconds) == 0L
         }
 
         fun pay(method: ReservationPaymentMethod) {

@@ -408,8 +408,9 @@ private fun CourtCard(
     val start =
         when {
             !selected -> null
-            // "Rentar ahora" aparta de una vez: el tiempo se elige en la hoja de pago.
-            state.rentNow -> null
+            // "Rentar ahora" aparta de una vez: el tiempo se elige en la hoja de pago. En un boliche el resumen se
+            // abre desde ahora para preguntar cuántos juegan antes de apartar (R11).
+            state.rentNow -> day.now.takeIf { Venue.isBowling && state.pending == null }
             else -> state.selectedStart
         }
     var zoomed by remember(court.id) { mutableStateOf(false) }
@@ -507,7 +508,7 @@ private fun CourtCard(
             )
         }
         if (start != null) {
-            Column(modifier = Modifier.arrive(0, key = start)) {
+            Column(modifier = Modifier.arrive(0, key = if (state.rentNow) RENT_NOW_KEY else start)) {
                 DurationRow(
                     available = ReservationSlots.availableDurations(day, court, start),
                     all = ReservationSlots.durationsFor(day, court),
@@ -924,11 +925,23 @@ private fun Summary(
             modifier = Modifier.padding(top = 10.dp),
         )
         if (Venue.isBowling) {
-            PlayersRow(players = state.players, enabled = !state.working, onChange = onSelectPlayers, colors = colors)
+            PlayersRow(
+                players = state.players,
+                enabled = !state.working,
+                onChange = onSelectPlayers,
+                colors = colors,
+                max = court.maxPlayers,
+            )
         }
         Spacer(Modifier.height(16.dp))
         EditorialAccentButton(
-            text = if (state.working) "Apartando…" else "Apartar ${Venue.court}",
+            text =
+                when {
+                    state.working -> "Apartando…"
+                    // R11: en un boliche no se aparta sin saber cuántos juegan.
+                    Venue.isBowling && state.players == 0 -> "Anota cuántos juegan"
+                    else -> "Apartar ${Venue.court}"
+                },
             onClick = onReserve,
             enabled = state.canReserve,
         )
@@ -940,6 +953,9 @@ const val RESERVATION_PAY_TAG = "reservation-pay"
 /** Cuánto se espera tras el último toque de jugadores antes de volver a apartar. */
 private const val PLAYERS_SETTLE_MS = 700L
 
+/** Llave de la animación del resumen de «Rentar ahora»: su inicio (la hora del servidor) cambia en cada sondeo. */
+private const val RENT_NOW_KEY = "rentar-ahora"
+
 /** Boliche: cuántos juegan en la pista, para tenerla lista con sus zapatos. */
 @Composable
 private fun PlayersRow(
@@ -947,6 +963,10 @@ private fun PlayersRow(
     enabled: Boolean,
     onChange: (Int) -> Unit,
     colors: VaiinillaColors,
+    /** R25: la capacidad de la pista; el «+» se apaga al llegar. */
+    max: Int = ReservationSlots.MAX_PLAYERS,
+    /** R11: con un apartado ya hecho no se regresa a «Sin anotar». */
+    min: Int = 0,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
@@ -963,7 +983,7 @@ private fun PlayersRow(
             )
         }
         listOf("−" to players - 1, "+" to players + 1).forEach { (label, next) ->
-            val active = enabled && next in 0..30
+            val active = enabled && next in min..max
             Box(
                 modifier =
                     Modifier
@@ -1006,6 +1026,8 @@ internal fun ReservationPaymentContent(
     val askPlayers = Venue.isBowling && onChangePlayers != null
     var players by remember(reservation.id) { mutableIntStateOf(reservation.players ?: 0) }
     val playersDirty = askPlayers && players != (reservation.players ?: 0)
+    // R11: un apartado sin jugadores (de antes de pedirlos) no se paga ni se cambia hasta anotarlos.
+    val playersMissing = askPlayers && players == 0
     // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
     LaunchedEffect(working) { if (!working) players = reservation.players ?: 0 }
     if (askPlayers) {
@@ -1096,7 +1118,7 @@ internal fun ReservationPaymentContent(
             priceFor = { minutes ->
                 if (minutes == held) heldPrice else hourPrice?.let { ReservationSlots.amountFor(it, minutes) }
             },
-            enabled = !working && !expired && !playersDirty,
+            enabled = !working && !expired && !playersDirty && !playersMissing,
             onSelect = { minutes ->
                 if (minutes != held) {
                     requested = minutes
@@ -1114,6 +1136,8 @@ internal fun ReservationPaymentContent(
                     enabled = !working && !expired,
                     onChange = { players = it },
                     colors = colors,
+                    max = court?.maxPlayers ?: ReservationSlots.MAX_PLAYERS,
+                    min = 1,
                 )
             }
         }
@@ -1164,11 +1188,12 @@ internal fun ReservationPaymentContent(
                 when {
                     changing || playersDirty -> "Apartando…"
                     working -> "Pagando…"
+                    playersMissing -> "Anota cuántos juegan"
                     method == ReservationPaymentMethod.CASH -> "Pagar ${moneyLabel(heldPrice)} en caja"
                     else -> "Pagar ${moneyLabel(heldPrice)}"
                 },
             onClick = { onPay(method) },
-            enabled = !working && !expired && !playersDirty,
+            enabled = !working && !expired && !playersDirty && !playersMissing,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 22.dp).testTag(RESERVATION_PAY_TAG),
         )
     }

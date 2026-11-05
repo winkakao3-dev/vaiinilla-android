@@ -117,6 +117,7 @@ import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -200,7 +201,8 @@ fun WaiterOperationalScreen(
     /** Vuelve a pedir al servidor los tiempos de renta. */
     onRetryRentalDurations: () -> Unit = {},
     onConfirmRental: (String) -> Unit = {},
-    onCancelRental: () -> Unit = {},
+    /** R16: con los jugadores tocados en el cobro que aún no se mandaban. */
+    onCancelRental: (Int?) -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     /** Pedido de mostrador a nombre de un cliente que no usa la app; se cobra en efectivo en Caja. */
     onOpenCounterOrder: () -> Unit = {},
@@ -698,6 +700,7 @@ fun WaiterOperationalScreen(
             rentalDurations = state.rentalDurations,
             rentalDurationsFailed = state.rentalDurationsFailed,
             onRetryDurations = onRetryRentalDurations,
+            rentalMaxPlayers = state.rentalMaxPlayers,
             onTakeOrder = {
                 openTableId = null
                 onCloseSpace()
@@ -729,6 +732,7 @@ fun WaiterOperationalScreen(
             onConfirm = onConfirmRental,
             durations = state.rentalDurations,
             onChange = onChangeRental,
+            maxPlayers = state.rentalMaxPlayers,
         )
     }
 
@@ -1661,6 +1665,7 @@ private fun WaiterTableSheet(
     rentalDurations: List<Int> = DefaultRentalDurations,
     rentalDurationsFailed: Boolean = false,
     onRetryDurations: (() -> Unit)? = null,
+    rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     /** Tomar un pedido para esta mesa; null cuando no aplica. */
     onTakeOrder: (() -> Unit)? = null,
     /** La hoja vive en su propia ventana: el aviso de la pantalla queda debajo y no se ve. */
@@ -1932,6 +1937,7 @@ private fun WaiterTableSheet(
                             rentalDurations = rentalDurations,
                             rentalDurationsFailed = rentalDurationsFailed,
                             onRetryDurations = onRetryDurations,
+                            rentalMaxPlayers = rentalMaxPlayers,
                             canCharge = canChargeAndDeliver,
                             showOrders = false,
                             onTakeOrder = onTakeOrder?.takeIf { !readOnly },

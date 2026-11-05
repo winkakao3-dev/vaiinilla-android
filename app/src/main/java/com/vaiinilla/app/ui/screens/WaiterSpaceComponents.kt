@@ -335,6 +335,8 @@ internal fun WaiterSpaceSection(
     rentalDurations: List<Int> = DefaultRentalDurations,
     rentalDurationsFailed: Boolean = false,
     onRetryDurations: (() -> Unit)? = null,
+    /** R25: cuántos caben en la pista, para el selector de jugadores. */
+    rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     /** Administración ve la cuenta pero no la cobra: el backend le niega /sesion/cobros y /abonos. */
     canCharge: Boolean = true,
     /** La hoja ya lista los pedidos de la cuenta arriba: aquí solo van el total y las acciones. */
@@ -491,6 +493,7 @@ internal fun WaiterSpaceSection(
                     draft = rentalDraft,
                     onDraftChange = onRentalDraftChange,
                     askName = true,
+                    maxPlayers = rentalMaxPlayers,
                     onConfirm = { minutes, players, name -> onRent(minutes, null, players, name) },
                 )
             } else if (isCourt) {
@@ -685,6 +688,7 @@ internal fun WaiterSpaceSection(
                     draft = rentalDraft,
                     onDraftChange = onRentalDraftChange,
                     askName = true,
+                    maxPlayers = rentalMaxPlayers,
                     // #27: alargar el turno conserva los jugadores y el nombre de la renta en curso.
                     onConfirm = { minutes, players, name ->
                         onRent(minutes, renewFrom, players ?: detail.rent?.players, name ?: detail.rent?.customerName)
@@ -1756,6 +1760,8 @@ internal fun RentalDurationPicker(
     onDraftChange: ((minutes: Int?, players: Int, name: String) -> Unit)? = null,
     /** #27: Mesero y Caja anotan a nombre de quién va la renta (opcional). */
     askName: Boolean = false,
+    /** R25: cuántos caben en la pista (`capacidad` de la disponibilidad). */
+    maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     onConfirm: (minutes: Int, players: Int?, name: String?) -> Unit,
 ) {
     var localMinutes by remember(durations) { mutableStateOf<Int?>(null) }
@@ -1797,12 +1803,16 @@ internal fun RentalDurationPicker(
         }
         return
     }
-    // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos (0 = sin dato).
+    // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos. R11: es obligatorio (el
+    // servidor responde PLAYERS_REQUIRED sin ellos); la renovación conserva los del turno.
     val askPlayers = Venue.isBowling && !renewal
+    val playersMissing = askPlayers && players == 0
     val showName = askName && !renewal
     Column(modifier = modifier.fillMaxWidth()) {
         if (askPlayers) {
-            PlayersStepper(players = players, enabled = enabled, colors = colors) { update(chosen, it, name) }
+            PlayersStepper(players = players, enabled = enabled, colors = colors, max = maxPlayers) {
+                update(chosen, it, name)
+            }
         }
         if (showName) {
             OperationalField(
@@ -1840,8 +1850,8 @@ internal fun RentalDurationPicker(
             var shown by remember { mutableIntStateOf(durations.firstOrNull() ?: 0) }
             chosen?.let { shown = it }
             ActionPill(
-                label = rentalActionLabel(verb, shown, pricePerHour),
-                enabled = enabled,
+                label = if (playersMissing) "Anota cuántos juegan" else rentalActionLabel(verb, shown, pricePerHour),
+                enabled = enabled && !playersMissing,
                 loading = false,
                 colors = colors,
                 primary = primary,
@@ -1862,12 +1872,16 @@ internal fun RentalDurationPicker(
 /** El backend admite `nombre_cliente` de hasta 120 caracteres. */
 private const val RENTAL_NAME_MAX = 120
 
-/** Jugadores de una pista de boliche: de 1 a 30, o sin dato. */
+/** Jugadores de una pista de boliche: de 1 a la capacidad de la pista (30 sin capacidad), o sin anotar. */
 @Composable
 internal fun PlayersStepper(
     players: Int,
     enabled: Boolean,
     colors: OperationalColors,
+    /** R25: la capacidad de la pista. */
+    max: Int = ReservationSlots.MAX_PLAYERS,
+    /** R11: con la renta ya apartada no se regresa a «Sin anotar». */
+    min: Int = 0,
     onChange: (Int) -> Unit,
 ) {
     Row(
@@ -1884,8 +1898,8 @@ internal fun PlayersStepper(
                 color = colors.textPrimary,
             )
         }
-        ChipButton(label = "−", enabled = enabled && players > 0, colors = colors) { onChange(players - 1) }
-        ChipButton(label = "+", enabled = enabled && players < 30, colors = colors) { onChange(players + 1) }
+        ChipButton(label = "−", enabled = enabled && players > min, colors = colors) { onChange(players - 1) }
+        ChipButton(label = "+", enabled = enabled && players < max, colors = colors) { onChange(players + 1) }
     }
 }
 
@@ -1903,16 +1917,28 @@ internal fun RentalCollectSheet(
     rental: Reservation,
     confirming: Boolean,
     colors: OperationalColors,
-    onDismiss: () -> Unit,
+    /** R16: lleva los jugadores tocados que aún no se mandaban (null si no hay) para que no se pierdan. */
+    onDismiss: (pendingPlayers: Int?) -> Unit,
     onConfirm: (received: String) -> Unit,
     /** Duraciones que acepta el servidor; vacía oculta el cambio de duración. */
     durations: List<Int> = emptyList(),
     /** Vuelve a apartar con otra duración o jugadores; null no deja cambiarlos. */
     onChange: ((minutes: Int, players: Int?) -> Unit)? = null,
+    /** R25: cuántos caben en la pista. */
+    maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // R16: el borrador de jugadores vive aquí, no en los controles, para que «Cobrar» y cerrar lo vean.
+    var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
+    // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
+    LaunchedEffect(confirming) { if (!confirming) players = rental.players ?: 0 }
+    val askPlayers = onChange != null && Venue.isBowling
+    val playersDirty = askPlayers && players != (rental.players ?: 0)
+    // R11: una renovación (empieza al terminar el turno) hereda los jugadores; la renta de ahora los pide.
+    val renewal = remember(rental.id) { rental.start.isAfter(Instant.now()) }
+    val playersMissing = askPlayers && !renewal && players == 0
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { onDismiss(players.takeIf { playersDirty }) },
         sheetState = sheetState,
         containerColor = colors.background,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
@@ -1927,6 +1953,13 @@ internal fun RentalCollectSheet(
             allowTerminal = false,
             allowTip = false,
             onConfirm = { _, received, _, _, _ -> received?.let(onConfirm) },
+            // R16: con jugadores sin mandar se cobraría la renta vieja: «Cobrar» espera a que se vuelva a apartar.
+            blockedReason =
+                when {
+                    playersDirty -> "Apartando…"
+                    playersMissing -> "Anota cuántos juegan"
+                    else -> null
+                },
             headerExtra = {
                 RentalCollectControls(
                     rental = rental,
@@ -1934,6 +1967,10 @@ internal fun RentalCollectSheet(
                     enabled = !confirming,
                     colors = colors,
                     onChange = onChange,
+                    players = players,
+                    onPlayers = { players = it },
+                    maxPlayers = maxPlayers,
+                    minPlayers = if (renewal) 0 else 1,
                 )
             },
         )
@@ -1951,11 +1988,13 @@ internal fun RentalCollectControls(
     enabled: Boolean,
     colors: OperationalColors,
     onChange: ((minutes: Int, players: Int?) -> Unit)?,
+    /** R16: el borrador de jugadores lo guarda la hoja de cobro. */
+    players: Int,
+    onPlayers: (Int) -> Unit,
+    maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
+    minPlayers: Int = 0,
 ) {
     // Cada cambio vuelve a apartar: los toques del stepper se juntan y se manda solo el último.
-    var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
-    // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
-    LaunchedEffect(enabled) { if (enabled) players = rental.players ?: 0 }
     if (onChange != null && Venue.isBowling) {
         LaunchedEffect(rental.id, players) {
             if (players == (rental.players ?: 0)) return@LaunchedEffect
@@ -1975,7 +2014,8 @@ internal fun RentalCollectControls(
                 options.forEach { minutes ->
                     ChipButton(
                         label = rentalLabel(minutes),
-                        enabled = enabled,
+                        // R11: sin jugadores, volver a apartar con otro tiempo lo rechazaría el servidor.
+                        enabled = enabled && !(Venue.isBowling && minPlayers > 0 && players == 0),
                         colors = colors,
                         modifier = Modifier.weight(1f),
                         selected = minutes == rental.durationMinutes,
@@ -1986,7 +2026,14 @@ internal fun RentalCollectControls(
             }
         }
         if (onChange != null && Venue.isBowling) {
-            PlayersStepper(players = players, enabled = enabled, colors = colors) { players = it }
+            PlayersStepper(
+                players = players,
+                enabled = enabled,
+                colors = colors,
+                max = maxPlayers,
+                min = minPlayers,
+                onChange = onPlayers,
+            )
         }
         Text(
             "Solo efectivo: la renta no se cobra con terminal ni saldo.",

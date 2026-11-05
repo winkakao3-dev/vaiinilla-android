@@ -15,6 +15,7 @@ import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,6 +23,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -47,6 +49,7 @@ class ReservationDurationChangeTest {
 
     @After
     fun tearDown() {
+        Venue.update(null)
         Dispatchers.resetMain()
     }
 
@@ -117,6 +120,41 @@ class ReservationDurationChangeTest {
         assertEquals(0, viewModel.uiState.value.players)
     }
 
+    @Test
+    fun `a resumed rent-now hold is held again from now (R10)`() {
+        val viewModel = loadedViewModel()
+        // «Mis reservas» › «Retomar pago»: su inicio (el minuto en que se apartó) ya pasó y no cae en bloque.
+        val held = reservation("r-9", 60, ReservationState.PENDING_PAYMENT).copy(start = now.plusSeconds(420))
+        viewModel.resumePayment(held)
+        assertTrue(viewModel.uiState.value.pendingStartsNow)
+
+        viewModel.changePendingDuration(90)
+        waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        viewModel.onHidden()
+
+        assertEquals(listOf("cancel r-9", "create ahora 90"), calls)
+    }
+
+    @Test
+    fun `bowling asks for players before renting now and caps them at the lane capacity (R11, R25)`() {
+        Venue.update(Venue.BOWLING)
+        val viewModel = loadedViewModel()
+
+        viewModel.rentNow()
+        // Sin jugadores no se aparta: el resumen los pide primero.
+        assertTrue(viewModel.uiState.value.rentNow)
+        assertFalse(viewModel.uiState.value.canReserve)
+        assertTrue(calls.isEmpty())
+
+        viewModel.selectPlayers(10)
+        assertEquals(6, viewModel.uiState.value.players)
+        viewModel.reserve()
+        waitFor { viewModel.uiState.value.pending }
+        viewModel.onHidden()
+
+        assertEquals(listOf("create ahora 60 j6"), calls)
+    }
+
     private fun loadedViewModel(): ReservationsViewModel {
         val context: Context = ApplicationProvider.getApplicationContext()
         val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
@@ -185,6 +223,7 @@ class ReservationDurationChangeTest {
                                 customerPricePerHour = CustomerPrice(card = "350.00", cashOrBalance = "350.00"),
                                 rentable = true,
                                 busy = emptyList(),
+                                capacity = 6,
                             ),
                         ),
                 ),
