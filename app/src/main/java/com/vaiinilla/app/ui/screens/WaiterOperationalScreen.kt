@@ -151,6 +151,7 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
@@ -1599,7 +1600,9 @@ private fun waiterSince(iso: String): String {
             "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
         }
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        else -> "hace ${ms / 86_400_000} d"
+        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
+        // Después de una semana, la fecha: «hace 340 d» no dice nada.
+        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 

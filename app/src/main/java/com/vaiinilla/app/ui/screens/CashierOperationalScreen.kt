@@ -136,6 +136,7 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
@@ -1155,7 +1156,9 @@ private fun elapsedShort(
         ms < 60_000 -> "ahora"
         ms < 3_600_000 -> "hace ${ms / 60_000} min"
         ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        else -> "hace ${ms / 86_400_000} d"
+        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
+        // Después de una semana, la fecha: «hace 340 d» no dice nada.
+        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 
