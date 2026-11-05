@@ -1697,6 +1697,7 @@ fun AppNavHost(
                             reservationsViewModel.onVisible(
                                 guestSlug = reservationsVenueSlug,
                                 hasAccount = reservationsHasAccount,
+                                cameThroughQr = orderState.guestVenue?.space != null,
                             )
                         }
                     },
