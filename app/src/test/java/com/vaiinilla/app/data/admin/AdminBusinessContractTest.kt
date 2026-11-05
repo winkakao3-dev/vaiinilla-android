@@ -95,6 +95,49 @@ class AdminBusinessContractTest {
     }
 
     @Test
+    fun `fondo, telefono y pausa sin internet solo viajan si el servidor los trae`() {
+        val config =
+            json.parseStoreConfig(
+                """
+                {"data":{"tipo":"boliche","fondo_sugerido":"500.00","telefono_contacto":null,
+                  "pausa_sin_conexion":true}}
+                """.trimIndent(),
+            )
+        assertEquals("500.00", config.suggestedFloat)
+        assertEquals("", config.contactPhone)
+        assertEquals(true, config.pauseWhenOffline)
+        val edited =
+            config.flow().copy(suggestedFloat = "1,000", contactPhone = "55 1234-5678", pauseWhenOffline = false)
+        val body = obj(json.encodeFlow(edited))
+        assertEquals("1000.00", body["fondo_sugerido"]!!.jsonPrimitive.content)
+        assertEquals("5512345678", body["telefono_contacto"]!!.jsonPrimitive.content)
+        assertEquals("false", body["pausa_sin_conexion"]!!.jsonPrimitive.content)
+        // Vacíos se borran con null.
+        val cleared = obj(json.encodeFlow(config.flow().copy(suggestedFloat = " ", contactPhone = "")))
+        assertEquals(JsonNull, cleared["fondo_sugerido"])
+        assertEquals(JsonNull, cleared["telefono_contacto"])
+
+        // Un servidor que no los conoce no los recibe.
+        val old = json.parseStoreConfig("""{"data":{"tipo":"cafeteria"}}""")
+        assertNull(old.suggestedFloat)
+        assertNull(old.contactPhone)
+        assertNull(old.pauseWhenOffline)
+        val oldBody = obj(json.encodeFlow(old.flow()))
+        assertFalse("fondo_sugerido" in oldBody)
+        assertFalse("telefono_contacto" in oldBody)
+        assertFalse("pausa_sin_conexion" in oldBody)
+    }
+
+    @Test
+    fun `el flujo no se guarda con un fondo o un telefono que el servidor rechazaria`() {
+        val flow = StoreFlow("cafeteria", true, false, true, 5, emptyList())
+        assertNull(StoreRules.problem(flow.copy(suggestedFloat = "", contactPhone = "")))
+        assertNotNull(StoreRules.problem(flow.copy(suggestedFloat = "quinientos")))
+        assertNotNull(StoreRules.problem(flow.copy(contactPhone = "123")))
+        assertNull(StoreRules.problem(flow.copy(contactPhone = "+52 (55) 1234-5678")))
+    }
+
+    @Test
     fun `order windows reject overlaps, including across midnight`() {
         assertNull(StoreRules.windowsProblem(listOf(OrderWindow("12:00", "15:00"), OrderWindow("18:00", "20:00"))))
         assertNotNull(StoreRules.windowsProblem(listOf(OrderWindow("12:00", "15:00"), OrderWindow("14:00", "16:00"))))

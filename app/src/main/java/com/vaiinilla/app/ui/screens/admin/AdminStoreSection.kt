@@ -1416,6 +1416,64 @@ private fun FlowForm(
                 }
             }
         }
+        // Solo si el servidor los conoce (vienen en la configuración, aunque sea vacíos).
+        val pause = flow.pauseWhenOffline
+        if (pause != null) {
+            AdminPanel(
+                colors,
+                Modifier.padding(top = 18.dp),
+                padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+            ) {
+                AdminToggleRow(
+                    title = "Pausar si se va el internet",
+                    checked = pause,
+                    colors = colors,
+                    onChange = { flow = flow.copy(pauseWhenOffline = it) },
+                    detail = "Si Caja y el personal pierden la conexión, se pausan los pedidos por QR y las reservas",
+                    enabled = enabled,
+                )
+            }
+        }
+        val fund = flow.suggestedFloat
+        val phone = flow.contactPhone
+        if (fund != null || phone != null) {
+            StoreQuestion("Caja y contacto", colors, Modifier.padding(top = 18.dp))
+            AdminPanel(colors) {
+                if (fund != null) {
+                    AdminTextField(
+                        label = "Fondo sugerido para abrir caja",
+                        value = fund,
+                        onValueChange = { flow = flow.copy(suggestedFloat = it.take(12)) },
+                        colors = colors,
+                        placeholder = "500",
+                        keyboardType = KeyboardType.Decimal,
+                        enabled = enabled,
+                        prefix = "$",
+                    )
+                    Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
+                        AdminHint(
+                            "Caja lo ve ya escrito al abrir el turno. Déjalo vacío si cambia cada día.",
+                            colors,
+                        )
+                    }
+                }
+                if (phone != null) {
+                    AdminTextField(
+                        label = "Teléfono de contacto",
+                        value = phone,
+                        onValueChange = { flow = flow.copy(contactPhone = it.take(20)) },
+                        colors = colors,
+                        modifier = if (fund != null) Modifier.padding(top = 14.dp) else Modifier,
+                        placeholder = "55 1234 5678",
+                        keyboardType = KeyboardType.Phone,
+                        enabled = enabled,
+                    )
+                    Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
+                        AdminHint("Aparece en tu ficha pública para que tus clientes te llamen.", colors)
+                    }
+                }
+            }
+        }
         val problem = StoreRules.problem(flow)
         if (flow != saved) {
             Box(Modifier.padding(top = 12.dp)) { AdminSheetError(problem) }

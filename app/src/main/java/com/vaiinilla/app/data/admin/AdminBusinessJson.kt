@@ -2,9 +2,9 @@ package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
 import com.vaiinilla.app.domain.admin.ForcedCloseResult
-import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationsPage
@@ -31,7 +31,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -88,13 +90,26 @@ class AdminBusinessJson {
 
     // region Flujo de mi tienda
 
-    fun parseStoreConfig(raw: String): StoreConfig =
-        json
-            .decodeFromString<BizEnvelope<StoreConfigDto>>(raw)
-            .data
-            .toDomain()
-            // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de aquí.
-            .also { Venue.update(it.typeWire) }
+    fun parseStoreConfig(raw: String): StoreConfig {
+        val config = json.decodeFromString<BizEnvelope<StoreConfigDto>>(raw).data.toDomain()
+        // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de aquí.
+        Venue.update(config.typeWire)
+        // Fondo, teléfono y pausa sin internet solo se editan (y se mandan) si el servidor trae la clave, aunque
+        // venga en null: un servidor anterior rechazaría el flujo completo por una clave que no conoce.
+        val data = (json.parseToJsonElement(raw) as? JsonObject)?.get("data") as? JsonObject ?: return config
+        return config.copy(
+            suggestedFloat = data.presentText("fondo_sugerido"),
+            contactPhone = data.presentText("telefono_contacto"),
+            pauseWhenOffline =
+                data["pausa_sin_conexion"]?.let { (it as? JsonPrimitive)?.booleanOrNull ?: false },
+        )
+    }
+
+    /** El texto de [key]: "" si llega en null, null si el servidor no la manda. */
+    private fun JsonObject.presentText(key: String): String? {
+        if (key !in this) return null
+        return (this[key] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+    }
 
     fun encodeFlow(flow: StoreFlow): String =
         buildJsonObject {
@@ -107,6 +122,9 @@ class AdminBusinessJson {
             // Solo si el servidor lo conoce: uno anterior rechaza la clave.
             flow.spaceDelivery?.let { put("entrega_en_espacio", it.wire) }
             flow.assistantMode?.let { put("asistente_modo", it.wire) }
+            flow.pauseWhenOffline?.let { put("pausa_sin_conexion", it) }
+            flow.suggestedFloat?.let { put("fondo_sugerido", HomeBusinessRules.money(it).orNull()) }
+            flow.contactPhone?.let { put("telefono_contacto", StoreRules.phone(it).orNull()) }
             put(
                 "franjas_pedido",
                 buildJsonArray {
