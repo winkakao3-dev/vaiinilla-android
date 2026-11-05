@@ -13,6 +13,10 @@ val LimeSoft = Color(0xFFD7EF8B)
 val AccentInk = Color(0xFF1D250C)
 val Coral = Color(0xFFF15B55)
 val Yolk = Color(0xFFFFD15B)
+
+// Tintas para texto sobre papel claro: Yolk (1.2:1) y Coral (2.9:1) no se leen ahí.
+val AmberInkLight = Color(0xFF945700) // 4.64:1 sobre CreamDeep, 5.13:1 sobre Cream
+val CoralTextLight = Color(0xFFB8332D) // 4.73:1 sobre CreamDeep, 5.24:1 sobre Cream
 val White = Color(0xFFFFFFFF)
 val Line = Color(0x1F171817)
 
