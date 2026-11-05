@@ -89,8 +89,8 @@ import com.vaiinilla.app.domain.admin.StoreTemplate
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeStep
 import com.vaiinilla.app.domain.admin.stripeStep
-import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.AssistantMode
+import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
