@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.compactMoney
@@ -87,6 +89,9 @@ import java.math.BigDecimal
 
 private const val CHILD_NOTICE_RETRY_MS = 1_500L
 private const val UNATTENDED_NOTICE_TTL_MS = 20_000L
+
+/** Cada cuánto se vuelve a leer «Mis hijos» con la cartera a la vista. */
+private const val CHILDREN_REFRESH_MS = 30_000L
 
 /** Lo que el host del Modo Padre tiene abierto encima de la cartera. */
 private enum class ParentSheetKind { ADD, CONSENT, LINK_CODE }
@@ -163,6 +168,17 @@ fun ParentModeWalletHost(
     // La escuela aprueba o rechaza desde otro lado y no hay aviso: al volver a la app se vuelve a preguntar.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (children.hasLoaded) scope.launch { children.load() }
+    }
+    // Con la cartera abierta tampoco llega aviso cuando la escuela aprueba o un tutor cambia algo: «Mis hijos» se
+    // quedaba igual hasta reiniciar (en vivo, #12). Se vuelve a leer cada tanto, solo con la app a la vista.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(CHILDREN_REFRESH_MS)
+                if (children.hasLoaded) children.load()
+            }
+        }
     }
 
     // Aviso de un hijo: su ficha, ya en su escuela. Si ya no es su tutor, se queda en Cartera.

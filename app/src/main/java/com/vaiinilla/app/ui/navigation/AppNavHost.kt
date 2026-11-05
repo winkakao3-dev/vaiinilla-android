@@ -313,6 +313,13 @@ fun AppNavHost(
     LaunchedEffect(orderState.guestVenue?.establishment?.id) {
         sharedTableViewModel.bindVenue(orderState.guestVenue?.establishment?.id)
     }
+    // «Mis hijos» es de la escuela que se mira: al pasar a otra, los de la anterior no se quedan en Cartera (#12).
+    var childrenVenueId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(orderState.guestVenue?.establishment?.id) {
+        val id = orderState.guestVenue?.establishment?.id ?: return@LaunchedEffect
+        if (childrenVenueId != null && childrenVenueId != id) childrenViewModel.state.reset()
+        childrenVenueId = id
+    }
 
     // Warm product imagery as soon as catalog data exists, before cards enter composition.
     LaunchedEffect(orderState.catalog) {

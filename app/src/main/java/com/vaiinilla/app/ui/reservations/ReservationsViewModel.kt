@@ -103,6 +103,12 @@ class ReservationsViewModel
         /** Cuenta con sesión, o invitado en [guestSlug] si no la hay. Null = no hay negocio que rentar. */
         private var reservationAccess: ReservationAccess? = null
 
+        /** El negocio que se mira: con cuenta el acceso es el mismo en todos, así que se compara aparte. */
+        private var venueSlug: String? = null
+
+        /** El aviso de que no cargó el día: se quita cuando un sondeo sí carga (antes se quedaba pegado). */
+        private var loadError: String? = null
+
         /** [hasAccount]: hay sesión de cliente. Si no, se renta como invitado en [guestSlug]. */
         fun onVisible(
             guestSlug: String?,
@@ -117,6 +123,12 @@ class ReservationsViewModel
                     guestSlug != null -> ReservationAccess.Guest(guestSlug)
                     else -> null
                 }
+            if (venueSlug != null && guestSlug != null && guestSlug != venueSlug) {
+                // Otro negocio con la misma cuenta: su día, sus pistas y sus reservas no son de este (en vivo, #12).
+                loadError = null
+                _uiState.value = ReservationsUiState(guestName = _uiState.value.guestName)
+            }
+            if (guestSlug != null) venueSlug = guestSlug
             if (next != reservationAccess) {
                 // Otra identidad: lo que se mostró de la anterior (sus reservas, su pago) ya no aplica.
                 reservationAccess = next
@@ -551,6 +563,14 @@ class ReservationsViewModel
             // se descarta para no pintarlo bajo la fecha nueva (FLOW-16).
             val dateStillSelected = current.selectedDate == requestedDate
             val day = dayResult.getOrNull()?.takeIf { dateStillSelected }
+            val dayError =
+                dayResult.exceptionOrNull()?.takeIf { dateStillSelected }?.let {
+                    "No pudimos cargar las ${Venue.courts}. ${it.userMessage()}"
+                }
+            // Un sondeo que sí cargó quita el aviso de carga de antes; el de una acción (apartar, pagar) se queda.
+            val keptError = current.error?.takeUnless { day != null && it == loadError }
+            if (day != null) loadError = null
+            if (keptError == null && dayError != null) loadError = dayError
             val courtId =
                 current.selectedCourtId?.takeIf { id -> day?.courts?.any { it.id == id } == true }
                     ?: day?.courts?.firstOrNull { it.rentable }?.id
@@ -568,11 +588,7 @@ class ReservationsViewModel
                             val court = day?.courts?.firstOrNull { it.id == courtId }
                             day == null || court == null || ReservationSlots.isStartAvailable(day, court, start)
                         },
-                    error =
-                        current.error
-                            ?: dayResult.exceptionOrNull()?.takeIf { dateStillSelected }?.let {
-                                "No pudimos cargar las ${Venue.courts}. ${it.userMessage()}"
-                            },
+                    error = keptError ?: dayError,
                 )
         }
 

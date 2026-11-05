@@ -57,6 +57,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceDraft
@@ -77,6 +80,7 @@ import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.prepareProductImage
+import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 
 private sealed interface SpacesSheet {
@@ -166,7 +170,18 @@ internal fun AdminSpacesSection(
                     }
                 }
             }
-            SpacesPage.Reservations ->
+            SpacesPage.Reservations -> {
+                // Las reservas llegan de los clientes sin aviso: con la página abierta se vuelven a leer cada tanto
+                // (y al volver a la app); antes solo se veían al reiniciar (en vivo, #12).
+                val lifecycleOwner = LocalLifecycleOwner.current
+                LaunchedEffect(lifecycleOwner) {
+                    lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        while (true) {
+                            viewModel.refresh()
+                            delay(RESERVATIONS_REFRESH_MS)
+                        }
+                    }
+                }
                 AdminSectionPage(
                     title = "Reservas",
                     colors = colors,
@@ -189,6 +204,7 @@ internal fun AdminSpacesSection(
                     item { AdminH2("Horario de reservas", colors) }
                     item { ScheduleCard(state.schedule, colors, enabled, viewModel::saveSchedule) }
                 }
+            }
             null ->
                 SpacesList(
                     state,
@@ -1379,3 +1395,6 @@ private fun reservationLabel(state: ReservationState): String =
 
 /** "Mesa 2" antes que "Mesa 10": los números se comparan como números. */
 private fun naturalKey(name: String): String = name.replace(Regex("\\d+")) { it.value.padStart(8, '0') }.lowercase()
+
+/** Cada cuánto se vuelven a leer las reservas con su página abierta. */
+private const val RESERVATIONS_REFRESH_MS = 15_000L
