@@ -54,6 +54,7 @@ import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.rentalChargeLabel
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -341,10 +342,17 @@ class OperationalViewModel
                                 incoming = orders,
                             )
                         }
+                        // El pedido abierto que la lista ya no trae no se suelta: se pide por su id, así su página
+                        // sigue al servidor (una renta cobrada en Caja dejaba de verse en «Por pagar»; en vivo, D03).
+                        val keptSelected =
+                            _uiState.value.selectedOrder
+                                ?.takeIf { role == OperationalRole.CLIENT }
+                                ?.takeIf { selected -> orders.none { it.summary.id == selected.summary.id } }
                         // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
                         val merged =
                             when {
-                                role == OperationalRole.CLIENT -> keepNewerVersions(_uiState.value.orders, orders)
+                                role == OperationalRole.CLIENT ->
+                                    keepNewerVersions(_uiState.value.orders, orders) + listOfNotNull(keptSelected)
                                 fullSync -> reconcileOrders(_uiState.value.orders, orders)
                                 else -> mergeOrders(_uiState.value.orders, orders)
                             }
@@ -385,6 +393,7 @@ class OperationalViewModel
                                 errorMessage =
                                     _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                             )
+                        keptSelected?.takeUnless { it.summary.state.isClosed }?.let { refreshOrder(it.summary.id) }
                     },
                     onFailure = { error ->
                         mutationErrorVisible = false
@@ -1047,7 +1056,11 @@ class OperationalViewModel
                         return@launch
                     }
                     result
-                        .onSuccess { receipt ->
+                        .map { receipt ->
+                            // La respuesta del cobro trae la reserva; si no, se conserva la que ya se veía.
+                            val reservation = receipt.order.reservation ?: freshest?.reservation
+                            receipt.copy(order = receipt.order.copy(reservation = reservation))
+                        }.onSuccess { receipt ->
                             val updated =
                                 _uiState.value.orders
                                     .filterNot { it.summary.id == receipt.order.summary.id } + receipt.order
@@ -1848,14 +1861,22 @@ internal fun staffMutationMessage(error: Throwable): String {
     }
 }
 
-/** Lo que Caja dice al cobrar: el folio y el cambio, que el cajero necesita mientras cuenta el efectivo. */
+/**
+ * Lo que Caja dice al cobrar: el folio y el cambio, que el cajero necesita mientras cuenta el efectivo. Una renta
+ * no es un pedido: «Renta de Pista 3 cobrada» (en vivo, D03).
+ */
 internal fun cashCollectionNotice(receipt: CashCollectionResult): String {
     val change = runCatching { Money.parse(receipt.change) }.getOrNull()
-    val folio = receipt.order.summary.folio
+    val what =
+        if (receipt.order.reservation != null) {
+            "${rentalChargeLabel(receipt.order)} cobrada"
+        } else {
+            "Pedido #${receipt.order.summary.folio} cobrado"
+        }
     return if (change != null && change > BigDecimal.ZERO) {
-        "Pedido #$folio cobrado · Cambio: ${moneyLabel(receipt.change)}"
+        "$what · Cambio: ${moneyLabel(receipt.change)}"
     } else {
-        "Pedido #$folio cobrado · Sin cambio"
+        "$what · Sin cambio"
     }
 }
 

@@ -2326,10 +2326,15 @@ fun AppNavHost(
                 val selectedOrder = operationalState.selectedOrder
                 // El pedido recién creado es una foto; el seleccionado se refresca con el polling y trae el estado
                 // actual (preparando, listo…). Si es el mismo pedido, gana el fresco sin perder el código local.
+                // Aunque algo suelte la selección, la copia del sondeo sigue siendo la vigente: una renta que Caja
+                // cobró ya no se queda en «Por pagar» con la foto de cuando se apartó (en vivo, D03).
                 val refreshedCreated =
                     orderState.createdOrder?.let { created ->
-                        selectedOrder
-                            ?.takeIf { it.summary.id == created.summary.id }
+                        val polled =
+                            selectedOrder?.takeIf { it.summary.id == created.summary.id }
+                                ?: operationalState.orders.firstOrNull { it.summary.id == created.summary.id }
+                        polled
+                            ?.takeIf { it.summary.version >= created.summary.version }
                             ?.let { fresh -> fresh.copy(pickupToken = fresh.pickupToken ?: created.pickupToken) }
                             ?: created
                     }

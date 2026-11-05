@@ -138,6 +138,7 @@ import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.components.rentalChargeLabel
 import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.OperationalUiState
@@ -1149,16 +1150,21 @@ internal fun arrivalSuffix(order: OrderDetail): String =
 
 private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-/** El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. */
+/**
+ * El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. Una renta no se lleva: es «Renta de
+ * Pista 3» (en vivo, D03).
+ */
 internal fun cashierPlaceLabel(order: OrderDetail): String =
-    if (order.summary.destination.name == "TAKE_AWAY") {
-        "Para llevar"
-    } else {
-        SpaceCopy.staffDestination(order.summary.destination, order.summary.space, order.summary.pickUpAtBar)
+    when {
+        order.reservation != null -> rentalChargeLabel(order)
+        order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
+        else -> SpaceCopy.staffDestination(order.summary.destination, order.summary.space, order.summary.pickUpAtBar)
     }
 
 // Una venta de mostrador no tiene cliente: el servidor manda «Mostrador» como nombre y eso ya dice de dónde viene.
-private fun isCounterSale(order: OrderDetail): Boolean = staffCustomerName(order).equals("Mostrador", ignoreCase = true)
+// Una renta apartada en Caja también puede llegar a nombre de «Mostrador», pero se dice como renta.
+private fun isCounterSale(order: OrderDetail): Boolean =
+    order.reservation == null && staffCustomerName(order).equals("Mostrador", ignoreCase = true)
 
 /** «Mostrador» o el lugar del pedido, para la hoja de cobro. */
 internal fun cashierOrderOrigin(order: OrderDetail): String =
