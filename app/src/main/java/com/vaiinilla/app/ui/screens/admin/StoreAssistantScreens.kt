@@ -220,7 +220,8 @@ internal fun StoreWelcome(
                         )
                     }
                 }
-            }            Text(
+            }
+            Text(
                 "Puedes cambiar todo después en Negocio › Flujo de mi tienda",
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
