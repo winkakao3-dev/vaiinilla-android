@@ -152,7 +152,8 @@ internal fun pickupHint(
             } else {
                 "Muestra tu código en Caja para pagar."
             }
-        toSpace && state == OrderState.READY -> "Ya va en camino a ${order.spaceName()}."
+        // Listo no es entregado: el mesero lo recoge y lo lleva; «ya está» se dice hasta que lo entrega.
+        toSpace && state == OrderState.READY -> "Está listo. En un momento te lo llevan a ${order.spaceName()}."
         toSpace && (state == OrderState.PAID || state == OrderState.PREPARING) -> "Te lo llevan a ${order.spaceName()}."
         state == OrderState.PENDING_PAYMENT -> "Estamos confirmando tu pago."
         state == OrderState.PAID -> "Cocina recibió la comanda."

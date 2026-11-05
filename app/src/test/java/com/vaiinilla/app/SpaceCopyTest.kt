@@ -78,7 +78,9 @@ class SpaceCopyTest {
         assertEquals("Pagas en caja y te lo llevamos a tu mesa", SpaceCopy.payAtCashierHint("mesa"))
         assertEquals("Pagas en caja y te lo llevamos a tu cancha", SpaceCopy.payAtCashierHint("cancha"))
         assertEquals("Tu pedido está listo. Te lo entregamos en la barra.", SpaceCopy.readyInSpace("barra"))
-        assertEquals("Tu pedido está listo. Ya va a tu mesa.", SpaceCopy.readyInSpace(null))
+        assertEquals("Tu pedido está listo. En un momento te lo llevan a tu mesa.", SpaceCopy.readyInSpace(null))
+        assertEquals("Ya está en tu mesa. Buen provecho.", SpaceCopy.deliveredInSpace("mesa"))
+        assertEquals("Pedido entregado. Buen provecho.", SpaceCopy.deliveredInSpace("barra"))
     }
 
     @Test

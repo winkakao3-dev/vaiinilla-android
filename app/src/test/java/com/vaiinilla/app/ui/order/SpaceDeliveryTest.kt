@@ -58,10 +58,10 @@ class SpaceDeliveryTest {
     }
 
     @Test
-    fun `ready at a table says on the way or come to the bar`() {
+    fun `ready at a table says ready or come to the bar`() {
         val inSpace = OrderDestination.IN_SPACE
         assertEquals(
-            "EN CAMINO",
+            "LISTO",
             trackingStepTitle(OrderState.READY, PaymentMethod.CASH, null, false, inSpace, pickUpAtBar = false),
         )
         assertEquals(
