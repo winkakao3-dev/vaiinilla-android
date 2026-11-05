@@ -35,6 +35,14 @@ class AddressStreetTest {
     }
 
     @Test
+    fun aMissingPhoneIsSaidApart() {
+        val noPhone = DeliveryAddress("Aldama 1408, Centro", phone = "614")
+        assertEquals("Escribe un teléfono de 10 dígitos para que te avisen.", noPhone.phoneProblem)
+        assertEquals(noPhone.phoneProblem, noPhone.problem)
+        assertNull(noPhone.copy(phone = "6140000000").phoneProblem)
+    }
+
+    @Test
     fun aFullAddressIsUnchanged() {
         val full = DeliveryAddress("Aldama 1408, Centro", phone = "6140000000")
         assertEquals("Aldama 1408", full.street)

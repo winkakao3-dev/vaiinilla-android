@@ -78,9 +78,12 @@ data class DeliveryAddress(
             when {
                 address.isBlank() -> "Escribe la calle, el número y la colonia."
                 street.isEmpty() -> "Escribe la calle y el número de tu casa."
-                phone.count(Char::isDigit) != 10 -> "Escribe un teléfono de 10 dígitos para que te avisen."
-                else -> null
+                else -> phoneProblem
             }
+
+    /** El teléfono, aparte, para decirlo junto a su campo y no solo al fondo del carrito. */
+    val phoneProblem: String?
+        get() = "Escribe un teléfono de 10 dígitos para que te avisen.".takeIf { phone.count(Char::isDigit) != 10 }
 }
 
 /** Lo de un pedido a domicilio que el cliente y el negocio necesitan ver. */

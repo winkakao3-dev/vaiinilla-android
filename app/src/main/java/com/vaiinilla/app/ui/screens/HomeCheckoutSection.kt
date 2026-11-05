@@ -193,6 +193,10 @@ internal fun HomeDeliverySection(
             colors = colors,
             keyboardType = KeyboardType.Phone,
         )
+        // Como la calle: el aviso va junto al campo, no solo al fondo del carrito, una vez elegido el punto.
+        address.phoneProblem?.takeIf { address.point() != null }?.let { problem ->
+            FieldProblem(problem, colors)
+        }
         if (state.homePayments.isNotEmpty()) {
             CartSectionHead(title = "¿Cómo pagas?", meta = null)
             state.homePayments.forEach { payment ->
@@ -259,14 +263,23 @@ private fun HomeStreetField(
         colors = colors,
     )
     if (address.street.isEmpty()) {
-        Text(
-            "El mapa solo encontró la zona. Escribe tu calle y número para poder pagar.",
-            color = colors.coral,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 18.sp,
-        )
+        FieldProblem("El mapa solo encontró la zona. Escribe tu calle y número para poder pagar.", colors)
     }
+}
+
+/** Lo que le falta a un campo de la entrega, en coral justo debajo de él. */
+@Composable
+private fun FieldProblem(
+    text: String,
+    colors: VaiinillaColors,
+) {
+    Text(
+        text,
+        color = colors.coral,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = 18.sp,
+    )
 }
 
 private const val STREET_MAX = 80
