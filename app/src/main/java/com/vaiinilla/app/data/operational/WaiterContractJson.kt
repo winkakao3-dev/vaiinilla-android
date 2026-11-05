@@ -224,6 +224,16 @@ data class SpaceAccountDto(
     /** Abonos sin liquidar; un servidor anterior no los envía. */
     val abonado: Double = 0.0,
     val restante: Double? = null,
+    /** I07: los pedidos de cada persona de la mesa compartida; un servidor anterior no los envía. */
+    val grupos: List<AccountGroupDto> = emptyList(),
+)
+
+/** Un grupo de `cuenta.grupos`: el alias de la persona y sus pedidos; sin participante es "Pedido general". */
+@Serializable
+data class AccountGroupDto(
+    val etiqueta: String? = null,
+    @SerialName("participante_id") val participantId: JsonPrimitive? = null,
+    val pedidos: List<String> = emptyList(),
 )
 
 @Serializable
@@ -398,7 +408,7 @@ fun SpaceAvailabilityDto.toDomain(): SpaceAvailability =
         nextReservationCustomer = nextReservation?.customerName?.takeIf { it.isNotBlank() },
     )
 
-fun AccountOrderDto.toDomain(): AccountOrder =
+fun AccountOrderDto.toDomain(owner: String? = null): AccountOrder =
     AccountOrder(
         id = id,
         folio = folio,
@@ -410,6 +420,7 @@ fun AccountOrderDto.toDomain(): AccountOrder =
         pending = pending,
         payer = pagara,
         due = restante.moneyOrNull() ?: total.toMoney(),
+        owner = owner,
     )
 
 /** Un monto que el servidor manda como número o como texto decimal ("12.50"); null o ilegible = sin dato. */
@@ -422,9 +433,17 @@ private fun JsonPrimitive?.moneyOrNull(): String? =
         ?.setScale(2, RoundingMode.HALF_UP)
         ?.toPlainString()
 
-fun SpaceAccountDto.toDomain(): SpaceAccount =
-    SpaceAccount(
-        orders = pedidos.map { it.toDomain() },
+fun SpaceAccountDto.toDomain(): SpaceAccount {
+    // Solo los grupos de una persona de la mesa: "Persona N" y "Pedido general" no tienen participante.
+    val owners =
+        grupos
+            .filter { group -> group.participantId != null && group.participantId !is JsonNull }
+            .flatMap { group ->
+                val alias = group.etiqueta?.trim()?.takeIf { it.isNotEmpty() }
+                group.pedidos.map { id -> id to alias }
+            }.toMap()
+    return SpaceAccount(
+        orders = pedidos.map { it.toDomain(owner = owners[it.id]) },
         total = total.toMoney(),
         pending = pendiente.toMoney(),
         paid = pagado.toMoney(),
@@ -432,6 +451,7 @@ fun SpaceAccountDto.toDomain(): SpaceAccount =
         paidIn = abonado.toMoney(),
         remaining = (restante ?: (pendiente - abonado)).toMoney(),
     )
+}
 
 fun SpaceSessionDetailDto.toDomain(): SpaceSessionDetail =
     SpaceSessionDetail(

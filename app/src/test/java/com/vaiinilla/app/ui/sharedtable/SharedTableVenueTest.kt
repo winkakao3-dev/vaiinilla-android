@@ -10,7 +10,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.math.BigDecimal
@@ -54,6 +56,21 @@ class SharedTableVenueTest {
         assertEquals(7, vm.uiState.value.errorFolio)
         assertEquals("Ese pedido ya está pagado", vm.uiState.value.error)
         assertEquals(1, repository.currentCalls)
+    }
+
+    @Test
+    fun `al pasar de Mis pedidos a la mesa la que se va no apaga la consulta de la que llega`() {
+        val vm = SharedTableViewModel(FakeRepository())
+        vm.onVisible(SHARED_TABLE_WATCHER_ORDERS)
+        // Navegar: la mesa arranca antes de que Mis pedidos se detenga (C05).
+        vm.onVisible(SHARED_TABLE_WATCHER_PAGE)
+        vm.onHidden(SHARED_TABLE_WATCHER_ORDERS)
+        // Al salir de la composición se vuelve a avisar: no cuenta dos veces.
+        vm.onHidden(SHARED_TABLE_WATCHER_ORDERS)
+        assertTrue(vm.polling)
+
+        vm.onHidden(SHARED_TABLE_WATCHER_PAGE)
+        assertFalse(vm.polling)
     }
 
     private fun waitUntil(condition: () -> Boolean) {

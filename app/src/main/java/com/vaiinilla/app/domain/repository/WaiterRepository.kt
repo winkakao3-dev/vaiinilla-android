@@ -176,7 +176,13 @@ data class AccountOrder(
      * total esperado. Un servidor anterior no lo manda y se usa el total.
      */
     val due: String = total,
-)
+    /** I07: alias de quien lo pidió en la mesa compartida (su grupo en la cuenta); null sin grupo. */
+    val owner: String? = null,
+) {
+    /** De quién es la parte: quien dijo "esto lo pago yo" o, si nadie, quien lo pidió. */
+    val partOf: String?
+        get() = payer ?: owner
+}
 
 data class SpaceAccount(
     val orders: List<AccountOrder>,
