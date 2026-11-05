@@ -223,6 +223,9 @@ fun CartScreen(
     onConfirmTakeAwayWithSeat: () -> Unit = {},
     onDismissTakeAwayWithSeat: () -> Unit = {},
 ) {
+    // El teclado: la ventana se encoge en vez de desplazarse; si no, el sistema sube toda la pantalla y además
+    // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
+    com.vaiinilla.app.ui.components.ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val density = LocalDensity.current

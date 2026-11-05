@@ -121,6 +121,9 @@ fun CustomerAssistantScreen(
     /** Los productos que están en el carrito: su tarjeta sale con ✓ aunque se hayan agregado desde el menú. */
     cartProductIds: Set<Int> = emptySet(),
 ) {
+    // El teclado: la ventana se encoge en vez de desplazarse; si no, el sistema sube toda la pantalla y además
+    // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
+    com.vaiinilla.app.ui.components.ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
