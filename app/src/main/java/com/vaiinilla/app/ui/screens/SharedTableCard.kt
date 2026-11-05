@@ -173,7 +173,9 @@ internal fun tableSummaryLine(table: SharedTable): String {
     val share = table.myShare
     val people = table.participants.size
     return when {
-        share.total.signum() == 0 -> (if (people <= 1) "Solo tú" else "$people personas") + " · sin pedidos aún"
+        // «Sin pedidos» es de la mesa, no de tu parte: con pedidos de otros ya los hay (en vivo, C05).
+        table.totals.total.signum() == 0 -> (if (people <= 1) "Solo tú" else "$people personas") + " · sin pedidos aún"
+        share.total.signum() == 0 -> "Tú no has pedido · la mesa lleva ${tableMoney(table.totals.total)}"
         share.pending.signum() == 0 -> "Tu parte ya está pagada"
         else -> "Tu parte por pagar · ${tableMoney(share.pending)}"
     }
