@@ -140,6 +140,7 @@ import com.vaiinilla.app.domain.repository.tableState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.NumberTicker
+import com.vaiinilla.app.ui.components.OperationalAssistantGuide
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.ToastPill
@@ -147,6 +148,7 @@ import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.cashierAssistantGuides
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -224,6 +226,8 @@ fun WaiterOperationalScreen(
     /** Quién usa el tablero: el mesero, o Caja cuando entra a cobrar cuentas. */
     kicker: String = "MESERO",
     roleChip: String = "MS",
+    /** De quién es el manual del orbe: Caja, cuando entra a Mesas desde su pantalla, ve el suyo (#18). */
+    assistantRole: OperationalRole = OperationalRole.WAITER,
     /** Dentro de Pedidos de Administración: sin encabezado propio (lo pone esa pantalla) y con "Para llevar". */
     embedded: Boolean = false,
     /** Cobrar la cuenta y entregar son de Mesero y Caja: el backend se los niega a Administración. */
@@ -246,7 +250,7 @@ fun WaiterOperationalScreen(
     var kindFilter by remember { mutableStateOf<String?>(null) }
     var choosingScan by remember { mutableStateOf(false) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
-    val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.WAITER)
+    val assistantController = rememberOperationalAssistantController(assistantUserKey, assistantRole)
     val assistantFocusRequester = remember { FocusRequester() }
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
     val assistantPalette =
@@ -675,8 +679,8 @@ fun WaiterOperationalScreen(
             OperationalAssistantHost(
                 controller = assistantController,
                 registry = assistantRegistry,
-                guides = remember { waiterAssistantGuides() },
-                manualTitle = "Manual de Mesero",
+                guides = remember(assistantRole) { tablesBoardAssistantGuides(assistantRole) },
+                manualTitle = if (assistantRole == OperationalRole.CASHIER) "Manual de Caja" else "Manual de Mesero",
                 palette = assistantPalette,
                 buttonFocusRequester = assistantFocusRequester,
                 modifier = Modifier.fillMaxSize(),
@@ -2610,4 +2614,26 @@ private fun CallButton(
             fontSize = 16.sp,
         )
     }
+}
+
+/**
+ * El manual del tablero de mesas. Caja entra a Mesas desde su pantalla y ve el Manual de Caja (#18): sus guías, solo
+ * para leer (aquí no están los botones de su pantalla para practicar), más las de mesas contadas para Caja.
+ */
+internal fun tablesBoardAssistantGuides(role: OperationalRole): List<OperationalAssistantGuide> {
+    val waiter = waiterAssistantGuides()
+    if (role != OperationalRole.CASHIER) return waiter
+    val cashier =
+        cashierAssistantGuides(
+            readyOrderId = null,
+            readyOrderFolio = null,
+            firstProductId = null,
+            cashSessionOpen = null,
+            canCreateProduct = false,
+        ).map { it.copy(available = false) }
+    val tables =
+        waiter
+            .filter { it.id == "atender-llamada" || it.id == "entregar-mesa" }
+            .map { it.copy(id = "caja-${it.id}", role = OperationalRole.CASHIER) }
+    return cashier + tables
 }

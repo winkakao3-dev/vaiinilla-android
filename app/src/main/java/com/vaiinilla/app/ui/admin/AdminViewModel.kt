@@ -76,6 +76,15 @@ enum class AdminOrderFilter(
         if (this == ACTIVE && homeOrders) states + OrderState.AWAITING_ACCEPTANCE + OrderState.ON_THE_WAY else states
 }
 
+/** «Por aceptar»: lo que llegó en su consulta propia más lo que trajo la lista, sin repetir y del más viejo al nuevo. */
+internal fun awaitingAcceptance(
+    fetched: List<OrderDetail>,
+    listed: List<OrderDetail>,
+): List<OrderDetail> =
+    (fetched + listed)
+        .filter { it.summary.state == OrderState.AWAITING_ACCEPTANCE }
+        .distinctBy { it.summary.id }
+
 data class AdminUiState(
     val preset: AdminPeriodPreset = AdminPeriodPreset.TODAY,
     /** Periodo elegido a mano ("Personalizado"); manda sobre [preset]. */
@@ -110,6 +119,11 @@ data class AdminUiState(
     val ordersCursor: String? = null,
     val ordersLoading: Boolean = false,
     val ordersError: String? = null,
+    /**
+     * Los encargos que esperan respuesta, pedidos aparte (T02): «Activos» llega del más viejo al más nuevo de 30 en
+     * 30, y un encargo recién hecho quedaba fuera de la primera página detrás de los pendientes viejos.
+     */
+    val awaitingOrders: List<OrderDetail> = emptyList(),
     /** Repostería (CASA-09): de hoy a 15 días, y lo entregado que falta cobrar de los últimos 30. */
     val agenda: List<AgendaDay> = emptyList(),
     val owed: List<OrderDetail> = emptyList(),
@@ -191,11 +205,20 @@ class AdminViewModel
             viewModelScope.launch {
                 val status = withContext(Dispatchers.IO) { catalogRepository.getOperationalStatus() }
                 val unpaid = withContext(Dispatchers.IO) { adminRepository.unpaidAccounts() }
+                val tookHomeOrders = _uiState.value.takesHomeOrders
                 _uiState.value =
                     _uiState.value.copy(
                         operationalStatus = status.getOrNull() ?: _uiState.value.operationalStatus,
                         unpaid = unpaid.getOrNull() ?: _uiState.value.unpaid,
                     )
+                // Al entrar, «Activos» se pidió antes de saber si el negocio toma encargos y salió sin los que esperan
+                // respuesta ni los que van en camino (T02): se vuelve a pedir con ellos.
+                if (!tookHomeOrders &&
+                    _uiState.value.takesHomeOrders &&
+                    _uiState.value.orderFilter == AdminOrderFilter.ACTIVE
+                ) {
+                    refreshOrders()
+                }
             }
         }
 
@@ -567,8 +590,19 @@ class AdminViewModel
                                 )
                             },
                         )
-                    if (filter == AdminOrderFilter.ACTIVE && !append) loadDeliveredToday()
+                    if (filter == AdminOrderFilter.ACTIVE && !append) {
+                        loadAwaiting()
+                        loadDeliveredToday()
+                    }
                 }
+        }
+
+        private suspend fun loadAwaiting() {
+            val page =
+                withContext(Dispatchers.IO) {
+                    adminRepository.orders(setOf(OrderState.AWAITING_ACCEPTANCE), null)
+                }.getOrNull() ?: return
+            _uiState.value = _uiState.value.copy(awaitingOrders = page.orders)
         }
 
         private suspend fun loadDeliveredToday() {
@@ -638,6 +672,8 @@ class AdminViewModel
                                             it
                                         }
                                     },
+                                awaitingOrders =
+                                    _uiState.value.awaitingOrders.filter { it.summary.id != updated.summary.id },
                             )
                         showNotice(doneMessage(action), isError = false)
                         onDone(updated)

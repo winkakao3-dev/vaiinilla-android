@@ -837,6 +837,10 @@ internal fun journeyMoneyBackNote(order: OrderDetail): String? =
         ?: when {
             order.summary.state == OrderState.CANCELED && order.depositDeadlineMissed() ->
                 "El negocio lo aceptó, pero el anticipo no se pagó a tiempo. Tu tarjeta no tuvo ningún cargo."
+            order.summary.state == OrderState.CANCELED &&
+                order.neverCharged() &&
+                order.summary.paymentMethod == PaymentMethod.CASH ->
+                "Ibas a pagar al recibirlo. Como no se aceptó, no pagas nada."
             order.summary.state == OrderState.CANCELED && order.neverCharged() ->
                 "El anticipo se paga cuando el negocio acepta. " +
                     "Como no se llegó a pagar, tu tarjeta no tuvo ningún cargo."
@@ -846,9 +850,16 @@ internal fun journeyMoneyBackNote(order: OrderDetail): String? =
 /** El negocio aceptó el encargo, pero el cliente no pagó el anticipo a tiempo (R29): no fue un rechazo. */
 private fun OrderDetail.depositDeadlineMissed(): Boolean = summary.cancelReasonCode == "anticipo_sin_pagar"
 
-/** Un encargo con tarjeta que se canceló antes de pagarse: a la tarjeta nunca se le cobró (EQUIPO-53). */
+/**
+ * Un encargo que se canceló sin cobrarse nada: con tarjeta, antes de pagarse (EQUIPO-53); en efectivo al recibir, el
+ * que pasó por «Por aceptar» y nunca se cobró en la puerta (S04). Decía «Pagaste en efectivo» sin haber pagado.
+ */
 private fun OrderDetail.neverCharged(): Boolean =
-    summary.paymentMethod == PaymentMethod.STRIPE && payment == null && (answerBy != null || payBy != null)
+    when (summary.paymentMethod) {
+        PaymentMethod.STRIPE -> payment == null && (answerBy != null || payBy != null)
+        PaymentMethod.CASH -> !summary.payAtEnd && answerBy != null && homeDelivery?.collectedAtDoorMethod == null
+        PaymentMethod.BALANCE -> false
+    }
 
 /** Los 4 dígitos que el cliente dicta al recibir un pedido a domicilio, cuando ya va en camino. */
 internal fun journeyDeliveryCode(order: OrderDetail): String? =

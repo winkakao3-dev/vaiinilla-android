@@ -420,10 +420,8 @@ internal fun OrderJourneyPage(
                 )
             }
             JourneyActions(actions, colors, Modifier.arrive(6, key))
-            if (home &&
-                venue.whatsappUrl != null &&
-                state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)
-            ) {
+            // Sin WhatsApp del negocio el enlace también sale (S06): la hoja dice qué pasa con el dinero en cada caso.
+            if (home && state in HelpStates) {
                 Text(
                     if (state ==
                         OrderState.ON_THE_WAY
@@ -453,6 +451,7 @@ internal fun OrderJourneyPage(
             order = order,
             venueName = venue.name,
             colors = colors,
+            canWrite = venue.whatsappUrl != null,
             onWrite = {
                 helpOpen = false
                 writeToVenue(it)
@@ -1652,6 +1651,7 @@ private fun OrderHelpSheet(
     order: OrderDetail,
     venueName: String?,
     colors: VaiinillaColors,
+    canWrite: Boolean,
     onWrite: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1706,11 +1706,18 @@ private fun OrderHelpSheet(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .physicalPress(scale = PhysicalPressScale.Small) { onWrite("Pedido #$folio: $title.") }
-                        .clip(RoundedCornerShape(18.dp))
+                        .then(
+                            if (canWrite) {
+                                Modifier.physicalPress(scale = PhysicalPressScale.Small) {
+                                    onWrite("Pedido #$folio: $title.")
+                                }
+                            } else {
+                                Modifier
+                            },
+                        ).clip(RoundedCornerShape(18.dp))
                         .background(colors.paper2)
                         .padding(12.dp)
-                        .semantics(mergeDescendants = true) { role = Role.Button },
+                        .semantics(mergeDescendants = true) { if (canWrite) role = Role.Button },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -1722,9 +1729,39 @@ private fun OrderHelpSheet(
                         Text(title, color = colors.ink, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
                         Text(detail, color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.muted)
+                    if (canWrite) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = colors.muted,
+                        )
+                    }
                 }
+            }
+            if (!canWrite) {
+                Text(
+                    HELP_WITHOUT_WHATSAPP,
+                    color = colors.ink2,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }
 }
+
+/** Los estados en que el pedido a domicilio aún puede cambiar: «Algo cambió o necesito ayuda». */
+private val HelpStates =
+    setOf(
+        OrderState.AWAITING_ACCEPTANCE,
+        OrderState.PAID,
+        OrderState.PREPARING,
+        OrderState.READY,
+        OrderState.ON_THE_WAY,
+    )
+
+internal const val HELP_WITHOUT_WHATSAPP =
+    "Este negocio no dejó su WhatsApp en Vaiinilla: llámalo o escríbele por donde lo conoces. " +
+        "Mientras tanto tu pedido y tu dinero siguen igual."
+

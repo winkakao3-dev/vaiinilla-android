@@ -3148,6 +3148,7 @@ fun AppNavHost(
                             authorizedAccessState.activeContext?.membershipId ?: "cashier-accounts",
                         kicker = "CAJA",
                         roleChip = "CJ",
+                        assistantRole = OperationalRole.CASHIER,
                     )
                 }
             }
