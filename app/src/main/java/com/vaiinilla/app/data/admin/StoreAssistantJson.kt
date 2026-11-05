@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.admin.AssistantInvite
 import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantProduct
+import com.vaiinilla.app.domain.admin.AssistantProductPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
 import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.AssistantSpaceGroup
@@ -154,11 +155,23 @@ class StoreAssistantJson(
                 ?.mapNotNull { (kind, id) -> (id as? JsonPrimitive)?.contentOrNull?.let { kind to it } }
                 ?.toMap()
                 .orEmpty()
+        // Fotos para productos que ya existen: [{producto_id, nombre, foto}] (algunas traen tipo 'foto_producto').
+        val productPhotos =
+            (proposal["fotos_productos"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val photo = item as? JsonObject ?: return@mapNotNull null
+                val type = photo.text("tipo")
+                if (type != null && type != "foto_producto") return@mapNotNull null
+                AssistantProductPhoto(
+                    productId = (photo["producto_id"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+                    name = photo.text("nombre") ?: "Producto",
+                    photoId = photo.text("foto") ?: return@mapNotNull null,
+                )
+            }
         val sectionReasons =
             SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
-        if (items.isEmpty() && spaces.isEmpty() && menu.isEmpty() && invites.isEmpty() && storePhotos.isEmpty()) {
-            return null
-        }
+        val nothing =
+            items.isEmpty() && spaces.isEmpty() && menu.isEmpty() && invites.isEmpty() && storePhotos.isEmpty()
+        if (nothing && productPhotos.isEmpty()) return null
         return AssistantProposal(
             patchBody = changes.takeIf { it.isNotEmpty() }?.toString(),
             changes = items,
@@ -166,6 +179,7 @@ class StoreAssistantJson(
             menu = menu,
             invites = invites,
             storePhotos = storePhotos,
+            productPhotos = productPhotos,
             sectionReasons = sectionReasons,
         )
     }
@@ -204,7 +218,7 @@ class StoreAssistantJson(
         }
 
     private companion object {
-        val SECTIONS = listOf("espacios", "menu", "personal", "fotos")
+        val SECTIONS = listOf("espacios", "menu", "personal", "fotos", "fotos_productos")
         const val DEFAULT_PREP_MINUTES = 10
     }
 }

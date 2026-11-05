@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.admin.AssistantPartialFailure
@@ -69,8 +70,12 @@ data class StoreAssistantState(
     val remainingMessages: Int = Int.MAX_VALUE,
     /** Las fotos que el dueño mandó en el chat, por id ("foto1"…); se suben al aceptar. */
     val photos: Map<String, AssistantPhoto> = emptyMap(),
-    /** La foto elegida que se manda con el siguiente mensaje. */
-    val pendingPhotoId: String? = null,
+    /** Las fotos elegidas que se mandan con el siguiente mensaje, en el orden en que se eligieron. */
+    val pendingPhotoIds: List<String> = emptyList(),
+    /** Si el error de [error] se arregla con "Reintentar" (no cuando el mensaje fue demasiado largo). */
+    val retryable: Boolean = true,
+    /** El texto que el servidor rechazó por largo: vuelve al campo para que el dueño lo parta. */
+    val draftToRestore: String? = null,
     /** Llave base de la propuesta actual: reintentar con la misma no duplica nada. */
     val proposalKey: String? = null,
     /** Pasos de la propuesta que ya quedaron guardados (por índice), para reintentar solo lo que faltó. */
@@ -82,6 +87,14 @@ data class StoreAssistantState(
 ) {
     val canSend: Boolean get() = !thinking && !applying && remainingMessages > 1
     val canAddPhoto: Boolean get() = canSend && photos.size < ASSISTANT_MAX_PHOTOS
+
+    /** Cuántas fotos más caben en esta plática. */
+    val photosLeft: Int get() = (ASSISTANT_MAX_PHOTOS - photos.size).coerceAtLeast(0)
+
+    /** Letras que caben en el siguiente mensaje: las marcas de las fotos pendientes también cuentan. */
+    val lettersLeftForText: Int get() = STORE_ASSISTANT_MAX_LETTERS - photoTags.length
+
+    internal val photoTags: String get() = pendingPhotoIds.joinToString("") { " [$it]" }
 }
 
 /** Flujo de mi tienda, pagos con tarjeta y cashback: la configuración del negocio. */
@@ -223,58 +236,90 @@ class AdminStoreViewModel
             if (current.messages.isEmpty() && !current.thinking) askAssistant(emptyList())
         }
 
-        fun sendToAssistant(text: String) {
+        /**
+         * Manda el mensaje con todas las fotos pendientes ("[foto1] [foto2]"). Nunca se recorta: si pasa del tope,
+         * no se manda y se avisa (la pantalla ya lo enseña con el contador).
+         */
+        fun sendToAssistant(text: String): Boolean {
             val current = _assistant.value
-            val photo = current.pendingPhotoId?.let { " [$it]" }.orEmpty()
-            val clean = (text.trim().take(ASSISTANT_MAX_LETTERS - photo.length) + photo).trim()
-            if (clean.isEmpty() || !current.canSend) return
+            val clean = (text.trim() + current.photoTags).trim()
+            if (clean.isEmpty() || !current.canSend) return false
+            if (clean.length > STORE_ASSISTANT_MAX_LETTERS) {
+                _assistant.value =
+                    current.copy(error = tooLongMessage(), retryable = false)
+                return false
+            }
             val messages = current.messages + AssistantMessage(fromOwner = true, text = clean)
             _assistant.value =
-                current.copy(messages = messages, options = emptyList(), error = null, pendingPhotoId = null)
+                current.copy(
+                    messages = messages,
+                    options = emptyList(),
+                    error = null,
+                    retryable = true,
+                    pendingPhotoIds = emptyList(),
+                )
             askAssistant(messages)
+            return true
         }
 
-        /** Una foto elegida en el chat: queda lista para mandarse con el siguiente mensaje. */
+        /** Una foto elegida en el chat: se suma a las que se mandan con el siguiente mensaje. */
         fun addAssistantPhoto(
             image: AssistantUpload,
             logo: AssistantUpload,
         ) {
             val current = _assistant.value
             if (!current.canAddPhoto) return
-            current.pendingPhotoId?.let { removeAssistantPhoto() }
-            val now = _assistant.value
-            val id = "foto${(
-                now.photos.keys
-                    .mapNotNull {
-                        it
-                            .removePrefix(
-                                "foto",
-                            ).toIntOrNull()
-                    }.maxOrNull() ?: 0
-            ) + 1}"
+            val next =
+                (current.photos.keys.mapNotNull { it.removePrefix("foto").toIntOrNull() }.maxOrNull() ?: 0) + 1
+            val id = "foto$next"
             _assistant.value =
-                now.copy(
-                    photos = now.photos + (id to AssistantPhoto(id, image, logo)),
-                    pendingPhotoId = id,
+                current.copy(
+                    photos = current.photos + (id to AssistantPhoto(id, image, logo)),
+                    pendingPhotoIds = current.pendingPhotoIds + id,
                     error = null,
+                    retryable = true,
                 )
         }
 
-        /** Quita la foto que aún no se manda. */
-        fun removeAssistantPhoto() {
+        /** Quita una de las fotos que aún no se mandan. */
+        fun removeAssistantPhoto(id: String) {
             val current = _assistant.value
-            val id = current.pendingPhotoId ?: return
-            _assistant.value = current.copy(photos = current.photos - id, pendingPhotoId = null)
+            if (id !in current.pendingPhotoIds) return
+            _assistant.value =
+                current.copy(photos = current.photos - id, pendingPhotoIds = current.pendingPhotoIds - id)
+        }
+
+        /** El dueño eligió más fotos de las que caben: se agregan las primeras y se avisa. */
+        fun tooManyPhotos(left: Int) {
+            _assistant.value =
+                _assistant.value.copy(
+                    error =
+                        if (left <= 0) {
+                            "Ya no caben más fotos en esta plática."
+                        } else {
+                            "Solo cabían $left ${if (left == 1) "foto" else "fotos"} más; se agregaron esas."
+                        },
+                    retryable = false,
+                )
+        }
+
+        /** La pantalla ya puso de vuelta en el campo el texto que se rechazó por largo. */
+        fun draftRestored() {
+            _assistant.value = _assistant.value.copy(draftToRestore = null)
         }
 
         fun photoPreparationFailed() {
-            _assistant.value = _assistant.value.copy(error = "No se pudo preparar la foto. Prueba otra de hasta 16 MB.")
+            _assistant.value =
+                _assistant.value.copy(
+                    error = "No se pudo preparar la foto. Prueba otra de hasta 16 MB.",
+                    retryable = false,
+                )
         }
 
         /** Vuelve a pedir la respuesta que falló. */
         fun retryAssistant() {
             val current = _assistant.value
-            if (current.thinking) return
+            if (current.thinking || !current.retryable) return
             if (current.messages.isEmpty() || current.messages.last().fromOwner) askAssistant(current.messages)
         }
 
@@ -351,11 +396,11 @@ class AdminStoreViewModel
         }
 
         private fun askAssistant(messages: List<AssistantMessage>) {
-            _assistant.value = _assistant.value.copy(thinking = true, error = null)
+            _assistant.value = _assistant.value.copy(thinking = true, error = null, retryable = true)
             viewModelScope.launch {
-                val photoIds =
-                    _assistant.value.photos.keys
-                        .toList()
+                // Solo las fotos que ya van en algún mensaje; las que siguen pendientes aún no se mandan.
+                val pending = _assistant.value.pendingPhotoIds.toSet()
+                val photoIds = _assistant.value.photos.keys.filter { it !in pending }
                 val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds) }
                 val current = _assistant.value
                 _assistant.value =
@@ -374,7 +419,28 @@ class AdminStoreViewModel
                                 remainingMessages = reply.remainingMessages,
                             )
                         },
-                        onFailure = { current.copy(thinking = false, error = assistantErrorMessage(it)) },
+                        onFailure = { error ->
+                            if (assistantInputTooLong(error)) {
+                                // El servidor no aceptó el mensaje por largo: se quita de la plática y vuelve al
+                                // campo con sus fotos, para mandarlo en partes. Reintentarlo igual no sirve.
+                                val last = messages.lastOrNull()?.takeIf { it.fromOwner }
+                                val photoIds = last?.let { m -> PHOTO_TAG.findAll(m.text).map { it.groupValues[1] } }
+                                current.copy(
+                                    thinking = false,
+                                    messages = if (last != null) messages.dropLast(1) else messages,
+                                    pendingPhotoIds =
+                                        (current.pendingPhotoIds + photoIds.orEmpty())
+                                            .distinct()
+                                            .filter { it in current.photos },
+                                    draftToRestore =
+                                        last?.text?.replace(PHOTO_TAG, "")?.replace(Regex(" {2,}"), " ")?.trim(),
+                                    error = assistantErrorMessage(error),
+                                    retryable = false,
+                                )
+                            } else {
+                                current.copy(thinking = false, error = assistantErrorMessage(error), retryable = true)
+                            }
+                        },
                     )
             }
         }
@@ -558,7 +624,26 @@ class AdminStoreViewModel
         }
     }
 
+/** El servidor rechazó lo que se mandó por largo o por pesado (mensaje con más letras de las que acepta, 413). */
+internal fun assistantInputTooLong(error: Throwable): Boolean {
+    val code = (error as? CatalogRepositoryException)?.code
+    return code in INPUT_TOO_LONG_CODES ||
+        (error.cause as? ApiClientException)?.httpStatus == HTTP_PAYLOAD_TOO_LARGE ||
+        // Servidores que aún no tienen el código propio: "Cada mensaje puede tener hasta N letras."
+        (code == "VALIDATION_ERROR" && error.message.orEmpty().contains("letras"))
+}
+
+private fun tooLongMessage(): String =
+    "Tu mensaje pasa de $STORE_ASSISTANT_MAX_LETTERS letras. Mándalo en dos partes: primero una y luego la otra."
+
 internal fun assistantErrorMessage(error: Throwable): String =
+    when {
+        assistantInputTooLong(error) ->
+            "Tu mensaje es muy largo para el asistente. Quedó otra vez en el campo: mándalo en dos partes."
+        else -> assistantReplyErrorMessage(error)
+    }
+
+private fun assistantReplyErrorMessage(error: Throwable): String =
     when ((error as? CatalogRepositoryException)?.code) {
         "ASSISTANT_UNAVAILABLE" -> "El asistente no está disponible ahorita. Puedes configurar tu tienda paso a paso."
         "ASSISTANT_CONVERSATION_TOO_LONG" -> "La plática ya está muy larga. Revisa la propuesta o empieza de nuevo."
@@ -568,7 +653,11 @@ internal fun assistantErrorMessage(error: Throwable): String =
         else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
     }
 
-private const val ASSISTANT_MAX_LETTERS = 2000
+/** Letras por mensaje del dueño, igual que `MAX_LETRAS_MENSAJE` del servidor (cabe un menú completo pegado). */
+const val STORE_ASSISTANT_MAX_LETTERS = 6000
+private const val HTTP_PAYLOAD_TOO_LARGE = 413
+private val INPUT_TOO_LONG_CODES = setOf("ASSISTANT_MESSAGE_TOO_LONG", "PAYLOAD_TOO_LARGE", "HTTP_413")
+private val PHOTO_TAG = Regex("""\[(foto\d+)]""")
 private const val ASSISTANT_MAX_PHOTOS = 20
 private val ALREADY_INVITED = setOf("INVITATION_PENDING_EXISTS", "MEMBERSHIP_ROLE_EXISTS")
 

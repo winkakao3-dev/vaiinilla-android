@@ -545,7 +545,7 @@ class HttpVaiinillaApiClient
             const val CONNECT_TIMEOUT_MS = 15_000
             const val READ_TIMEOUT_MS = 20_000
             const val MULTIPART_READ_TIMEOUT_MS = 60_000
-            const val SLOW_READ_TIMEOUT_MS = 55_000
+            const val SLOW_READ_TIMEOUT_MS = 60_000
             // Los asistentes esperan al modelo (hasta 25-40 s y a veces un reintento).
             val SLOW_PATHS = listOf("establecimiento/asistente", "asistente-cliente")
         }

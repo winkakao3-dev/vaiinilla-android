@@ -209,6 +209,23 @@ class RemoteAdminStoreRepository(
                         .mapApiErrors()
                 }
             }
+            is AssistantStep.ProductPhoto -> {
+                val photo = photos[step.photo.photoId]
+                if (photo == null) {
+                    Result.failure(IllegalStateException("La foto ya no está en el teléfono."))
+                } else {
+                    apiClient
+                        .putMultipart(
+                            "catalogo/productos/${step.photo.productId}/imagen",
+                            "imagen",
+                            photo.image.filename,
+                            photo.image.mimeType,
+                            photo.image.bytes,
+                            key(idempotencyKey),
+                        ).map { }
+                        .mapApiErrors()
+                }
+            }
             is AssistantStep.Invite ->
                 apiClient
                     .post(

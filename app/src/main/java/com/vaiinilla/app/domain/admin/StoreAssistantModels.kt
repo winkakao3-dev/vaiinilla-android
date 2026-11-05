@@ -41,6 +41,16 @@ data class AssistantCategory(
     val products: List<AssistantProduct>,
 )
 
+/**
+ * Una foto del chat para un producto que la tienda ya tiene ([productId]); [name] es su nombre para
+ * enseñarlo en la revisión. Se sube con `PUT catalogo/productos/{id}/imagen`.
+ */
+data class AssistantProductPhoto(
+    val productId: Long,
+    val name: String,
+    val photoId: String,
+)
+
 /** Una invitación al personal. */
 data class AssistantInvite(
     val email: String,
@@ -59,6 +69,7 @@ data class AssistantProposal(
     val menu: List<AssistantCategory> = emptyList(),
     val invites: List<AssistantInvite> = emptyList(),
     val storePhotos: Map<String, String> = emptyMap(),
+    val productPhotos: List<AssistantProductPhoto> = emptyList(),
     val sectionReasons: Map<String, String> = emptyMap(),
 ) {
     val productCount: Int get() = menu.sumOf { it.products.size }
@@ -108,6 +119,12 @@ sealed interface AssistantStep {
         override val label = if (kind == "logo") "Logo" else "Foto del local"
     }
 
+    data class ProductPhoto(
+        val photo: AssistantProductPhoto,
+    ) : AssistantStep {
+        override val label = "Foto de ${photo.name}"
+    }
+
     data class Invite(
         val invite: AssistantInvite,
     ) : AssistantStep {
@@ -121,6 +138,7 @@ fun AssistantProposal.steps(): List<AssistantStep> =
         patchBody?.let { add(AssistantStep.Settings(it, changes.associate { c -> c.field to c.title })) }
         spaces.forEach { add(AssistantStep.Spaces(it)) }
         menu.forEach { add(AssistantStep.Menu(it)) }
+        productPhotos.forEach { add(AssistantStep.ProductPhoto(it)) }
         storePhotos.forEach { (kind, id) -> add(AssistantStep.StorePhoto(kind, id)) }
         invites.forEach { add(AssistantStep.Invite(it)) }
     }

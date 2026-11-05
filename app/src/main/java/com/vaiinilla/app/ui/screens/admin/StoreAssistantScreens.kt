@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -290,6 +291,13 @@ private fun AssistantChat(
     onClose: () -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
+    // Lo que el servidor rechazó por largo vuelve al campo para mandarlo en partes.
+    LaunchedEffect(state.draftToRestore) {
+        state.draftToRestore?.let {
+            if (draft.isBlank()) draft = it
+            viewModel.draftRestored()
+        }
+    }
     val list = rememberLazyListState()
     val rows = state.messages.size + 2
     LaunchedEffect(state.messages.size, state.thinking, state.error, state.proposal) {
@@ -340,13 +348,15 @@ private fun AssistantChat(
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textSecondary,
                             )
-                            Box(Modifier.padding(top = 8.dp)) {
-                                AdminFilterChip(
-                                    "Reintentar",
-                                    selected = false,
-                                    colors = colors,
-                                    onClick = viewModel::retryAssistant,
-                                )
+                            if (state.retryable) {
+                                Box(Modifier.padding(top = 8.dp)) {
+                                    AdminFilterChip(
+                                        "Reintentar",
+                                        selected = false,
+                                        colors = colors,
+                                        onClick = viewModel::retryAssistant,
+                                    )
+                                }
                             }
                         }
                     state.options.isNotEmpty() ->
@@ -383,21 +393,26 @@ private fun AssistantChat(
         }
         val context = LocalContext.current
         val picker =
-            rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-                if (uri == null) return@rememberLauncherForActivityResult
-                val image = runCatching { prepareProductImage(context, uri) }.getOrNull()
-                val logo = runCatching { prepareStoreLogo(context, uri) }.getOrNull()
-                if (image == null || logo == null) {
-                    viewModel.photoPreparationFailed()
-                } else {
-                    viewModel.addAssistantPhoto(image.toUpload(), logo.toUpload())
+            rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+                if (uris.isEmpty()) return@rememberLauncherForActivityResult
+                // Varias fotos a la vez: todas van con el siguiente mensaje, hasta las que quepan.
+                val left = viewModel.assistant.value.photosLeft
+                uris.take(left).forEach { uri ->
+                    val image = runCatching { prepareProductImage(context, uri) }.getOrNull()
+                    val logo = runCatching { prepareStoreLogo(context, uri) }.getOrNull()
+                    if (image == null || logo == null) {
+                        viewModel.photoPreparationFailed()
+                    } else {
+                        viewModel.addAssistantPhoto(image.toUpload(), logo.toUpload())
+                    }
                 }
+                if (uris.size > left) viewModel.tooManyPhotos(left)
             }
-        val hasPhoto = state.pendingPhotoId != null
+        val hasPhoto = state.pendingPhotoIds.isNotEmpty()
+        val tooLong = draft.trim().length > state.lettersLeftForText
         val send = {
-            if (state.canSend && (draft.isNotBlank() || hasPhoto)) {
-                viewModel.sendToAssistant(draft)
-                draft = ""
+            if (state.canSend && !tooLong && (draft.isNotBlank() || hasPhoto)) {
+                if (viewModel.sendToAssistant(draft)) draft = ""
             }
         }
         if (!state.canSend && !state.thinking && !state.applying) {
@@ -409,22 +424,37 @@ private fun AssistantChat(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
         }
-        state.pendingPhotoId?.let { id ->
-            Row(
-                Modifier.padding(start = 16.dp, top = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PhotoThumb(state.photos[id], colors, size = 52)
+        if (hasPhoto) {
+            Column(Modifier.padding(top = 6.dp)) {
                 Text(
-                    "Se manda con tu mensaje. Dile qué es: tu logo, tu local o qué producto.",
+                    if (state.pendingPhotoIds.size == 1) {
+                        "Se manda con tu mensaje. Dile qué es: tu logo, tu local o qué producto."
+                    } else {
+                        "Se mandan ${state.pendingPhotoIds.size} fotos con tu mensaje. Dile qué es cada una, " +
+                            "en orden: tu logo, tu local o qué producto."
+                    },
                     fontSize = 12.5.sp,
                     lineHeight = 17.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textSecondary,
-                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp),
                 )
-                AdminRoundButton(Icons.Rounded.Close, "Quitar la foto", colors, viewModel::removeAssistantPhoto)
-                Spacer(Modifier.size(12.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.pendingPhotoIds.forEachIndexed { index, id ->
+                        PendingPhoto(
+                            photo = state.photos[id],
+                            position = index + 1,
+                            colors = colors,
+                            onRemove = { viewModel.removeAssistantPhoto(id) },
+                        )
+                    }
+                }
             }
         }
         Row(
@@ -451,7 +481,8 @@ private fun AssistantChat(
             }
             BasicTextField(
                 value = draft,
-                onValueChange = { draft = it.take(2000) },
+                // Sin recortar: si pasa del tope se avisa abajo y no se deja mandar.
+                onValueChange = { draft = it },
                 enabled = state.canSend,
                 textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                 cursorBrush = SolidColor(colors.textPrimary),
@@ -484,7 +515,7 @@ private fun AssistantChat(
                     }
                 },
             )
-            val canSend = state.canSend && (draft.isNotBlank() || hasPhoto)
+            val canSend = state.canSend && !tooLong && (draft.isNotBlank() || hasPhoto)
             Box(
                 Modifier
                     .size(50.dp)
@@ -501,6 +532,59 @@ private fun AssistantChat(
                     modifier = Modifier.size(22.dp),
                 )
             }
+        }
+        LetterCounter(draft.trim().length, state.lettersLeftForText, colors)
+    }
+}
+
+/** Cuenta de letras cuando el mensaje ya es largo; si pasa del tope, dice que se mande en partes. */
+@Composable
+private fun LetterCounter(
+    length: Int,
+    max: Int,
+    colors: OperationalColors,
+) {
+    if (length < max * COUNTER_FROM_PERCENT / 100) return
+    val over = length > max
+    Text(
+        if (over) {
+            "${formatLetters(length)} de ${formatLetters(max)} letras: es mucho para un mensaje. " +
+                "Mándalo en dos partes."
+        } else {
+            "${formatLetters(length)} de ${formatLetters(max)} letras"
+        },
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        fontWeight = if (over) FontWeight.ExtraBold else FontWeight.SemiBold,
+        color = if (over) colors.textPrimary else colors.textMuted,
+        textAlign = TextAlign.End,
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 10.dp),
+    )
+}
+
+private fun formatLetters(value: Int): String = "%,d".format(java.util.Locale.US, value)
+
+/** Una foto que se manda con el siguiente mensaje, con su número y una cruz para quitarla. */
+@Composable
+private fun PendingPhoto(
+    photo: AssistantPhoto?,
+    position: Int,
+    colors: OperationalColors,
+    onRemove: () -> Unit,
+) {
+    Box(Modifier.size(60.dp)) {
+        PhotoThumb(photo, colors, size = 56, modifier = Modifier.align(Alignment.BottomStart))
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(colors.textPrimary)
+                .clickable(onClick = onRemove)
+                .semantics { contentDescription = "Quitar la foto $position" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.Close, null, tint = colors.background, modifier = Modifier.size(14.dp))
         }
     }
 }
@@ -715,6 +799,28 @@ private fun AssistantReview(
                     }
                 }
             }
+            if (proposal.productPhotos.isNotEmpty()) {
+                item {
+                    ReviewSection(
+                        "Fotos de productos",
+                        colors,
+                        reasons["fotos_productos"] ?: "Se ponen a productos que ya tienes en el menú.",
+                    ) {
+                        proposal.productPhotos.forEach { productPhoto ->
+                            Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                PhotoThumb(state.photos[productPhoto.photoId], colors, size = 52)
+                                Text(
+                                    productPhoto.name,
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.padding(start = 12.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             if (proposal.storePhotos.isNotEmpty()) {
                 item {
                     ReviewSection("Fotos de tu tienda", colors, reasons["fotos"]) {
@@ -877,12 +983,14 @@ private fun PhotoThumb(
     }
 }
 
+private const val COUNTER_FROM_PERCENT = 80
+
 private val PHOTO_TOKEN = Regex("""\[(foto\d+)]""")
 
 private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, mimeType)
 
 private val AssistantProposal.itemCount: Int
-    get() = changes.size + spaces.size + productCount + storePhotos.size + invites.size
+    get() = changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size
 
 @Composable
 private fun ChangeRow(
