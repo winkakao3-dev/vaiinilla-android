@@ -390,6 +390,13 @@ val OrderFlowUiState.canPayWithCard: Boolean
 val OrderFlowUiState.canPayWithBalance: Boolean
     get() = operationalStatus?.allowsBalance != false
 
+/**
+ * ¿Se ofrece «Pago en caja»? No si el dueño lo apagó (`permite_pago_en_caja`); sin el dato (servidor anterior o
+ * estado sin cargar), sí. Pagar al final, a domicilio, la renta y el personal no dependen de esto.
+ */
+val OrderFlowUiState.canPayAtRegister: Boolean
+    get() = operationalStatus?.allowsCashAtRegister != false
+
 enum class StripePaymentPhase {
     IDLE,
     READY,

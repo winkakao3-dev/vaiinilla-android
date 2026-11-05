@@ -48,6 +48,8 @@ data class OperationalStatusDto(
     @SerialName("acepta_tarjeta") val acceptsCard: Boolean = false,
     /** Un servidor anterior no lo envía: el saldo se ofrece como antes. */
     @SerialName("permite_saldo") val allowsBalance: Boolean = true,
+    /** Un servidor anterior no lo envía: «Pago en caja» se ofrece como siempre. */
+    @SerialName("permite_pago_en_caja") val allowsCashAtRegister: Boolean = true,
     /** Un servidor anterior no lo envía: se toma como cafetería. */
     @SerialName("tipo") val businessType: String = "cafeteria",
     /** Un servidor anterior no lo envía: sin franjas. */

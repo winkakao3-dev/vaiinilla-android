@@ -160,6 +160,7 @@ object AssistantLabels {
             "entrega_en_espacio" -> "En mesa o lugar, ¿cómo les llega?"
             "entrega_requiere_qr" -> "¿Cómo se entrega lo de llevar?"
             "permite_saldo" -> "Pagar con saldo"
+            "permite_pago_en_caja" -> "Pago en caja"
             "barra_prepara" -> "La barra prepara pedidos"
             "cocina_prepara_sin_cobrar" -> "Cocina prepara antes de cobrar"
             "gracia_liberacion_min" -> "Tiempo de gracia"

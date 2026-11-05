@@ -83,6 +83,17 @@ class AdminBusinessContractTest {
     }
 
     @Test
+    fun `pago en caja viaja en la configuracion solo si el servidor lo conoce`() {
+        val off = json.parseStoreConfig("""{"data":{"tipo":"cafeteria","permite_pago_en_caja":false}}""")
+        assertEquals(false, off.allowsCashAtRegister)
+        val sent = obj(json.encodeFlow(off.flow().copy(allowsCashAtRegister = true)))
+        assertEquals("true", sent["permite_pago_en_caja"]!!.jsonPrimitive.content)
+        val older = json.parseStoreConfig("""{"data":{"tipo":"cafeteria"}}""")
+        assertEquals(null, older.allowsCashAtRegister)
+        assertFalse("permite_pago_en_caja" in obj(json.encodeFlow(older.flow())))
+    }
+
+    @Test
     fun `cocina prepara sin cobrar viaja en la configuracion y un servidor anterior la deja en si`() {
         val apagada =
             json.parseStoreConfig("""{"data":{"tipo":"cafeteria","cocina_prepara_sin_cobrar":false}}""")
