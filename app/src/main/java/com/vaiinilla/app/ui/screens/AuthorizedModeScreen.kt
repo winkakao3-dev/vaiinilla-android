@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -455,10 +456,11 @@ private fun CurrentModeCard(
             Text(
                 mode.role.label,
                 color = colors.ink,
-                fontSize = 17.sp,
                 fontWeight = FontWeight.Black,
-                softWrap = false,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // L01: con letra grande «Administración» se cortaba; se encoge antes de cortarse.
+                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 17.sp, stepSize = 0.5.sp),
                 modifier = Modifier.padding(top = 2.dp),
             )
             Text(
@@ -602,8 +604,10 @@ private fun BusinessModesCard(
                 }
             }
         }
-        // Cuatro roles no caben a lo ancho de un teléfono angosto con "Administración": van de dos en dos.
-        val perRow = if (business.modes.size == 4) 2 else 3
+        // Cuatro roles no caben a lo ancho de un teléfono angosto con "Administración": van de dos en dos. Con letra
+        // grande ni así: uno por renglón, para que «Administración» no se corte (L01).
+        val fontScale = LocalDensity.current.fontScale
+        val perRow = modeButtonsPerRow(business.modes.size, fontScale)
         business.modes.chunked(perRow).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -622,6 +626,17 @@ private fun BusinessModesCard(
         }
     }
 }
+
+/** Cuántos botones de rol van por renglón: con letra grande, uno por renglón. */
+internal fun modeButtonsPerRow(
+    count: Int,
+    fontScale: Float,
+): Int =
+    when {
+        fontScale >= 1.2f -> 1
+        count == 4 -> 2
+        else -> 3
+    }
 
 private fun businessNote(business: ModeBusiness): String? =
     when {

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -318,17 +319,34 @@ private fun AccountRow(
             Modifier
                 .fillMaxWidth()
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .height(52.dp)
+                // L01: con letra grande el renglón crece en vez de recortar el texto.
+                .heightIn(min = 52.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
                 .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-        Text(label, color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(
+            label,
+            color = tint,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 15.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         if (value.isNotBlank()) {
-            Text(value, color = colors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(
+                value,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(0.6f, fill = false),
+            )
         }
     }
 }

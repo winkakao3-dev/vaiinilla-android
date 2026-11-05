@@ -40,6 +40,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -529,10 +530,12 @@ fun CashierOperationalScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "Por cobrar",
-                            fontSize = 34.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-1).sp,
                             color = colors.textPrimary,
+                            maxLines = 1,
+                            // L01: con letra grande «Por cobrar» se partía junto al buscador; se encoge.
+                            autoSize = TextAutoSize.StepBased(minFontSize = 22.sp, maxFontSize = 34.sp),
                             modifier = Modifier.weight(1f),
                         )
                         CashierSearchButton(
@@ -554,7 +557,8 @@ fun CashierOperationalScreen(
                         fontSize = 12.5.sp,
                         color = colors.textSecondary,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        // L01: con letra grande el negocio, el fondo y la hora no caben en un renglón.
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
