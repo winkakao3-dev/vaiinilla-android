@@ -323,7 +323,7 @@ fun OrderTrackingCard(
                     ) {
                         Text(
                             text =
-                                (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
+                                (if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary))
                                     .uppercase(),
                             color = if (isReady) colors.accentInk else Color(0xFF171812),
                             fontSize = 8.sp,
@@ -356,7 +356,7 @@ fun OrderTrackingCard(
                 ) {
                     Text(
                         text =
-                            (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
+                            (if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary))
                                 .uppercase(),
                         color = if (isReady) colors.accentInk else Color(0xFF171812),
                         fontSize = 10.sp,
