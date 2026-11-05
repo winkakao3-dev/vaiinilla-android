@@ -442,7 +442,7 @@ fun RentalTimeLeftCard(
                 .padding(16.dp)
                 .semantics(mergeDescendants = true) {
                     val minutes =
-                        if (left.minutesLeft == 1) "Te queda 1 minuto" else "Te quedan ${left.minutesLeft} minutos"
+                        if (left.minutesLeft == 1L) "Te queda 1 minuto" else "Te quedan ${left.minutesLeft} minutos"
                     contentDescription = "$minutes de ${left.totalLabel}"
                 },
     ) {
