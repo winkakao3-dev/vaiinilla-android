@@ -5,6 +5,9 @@ enum class OrderNotificationTarget(
 ) {
     CLIENT("client"),
     STAFF("staff"),
+
+    /** Una mesa llamó al mesero: se abre su tablero, donde se ve el motivo (K02). */
+    WAITER_CALL("waiter_call"),
     ;
 
     companion object {

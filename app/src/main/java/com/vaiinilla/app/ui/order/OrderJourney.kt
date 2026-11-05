@@ -5,7 +5,9 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.deadlineLabel
+import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.moneyLabel
 import java.math.BigDecimal
@@ -336,6 +338,9 @@ internal fun journeyFacts(
                 summary.balanceDue.positive()?.let { add(JourneyFact("Falta pagar", moneyLabel(it), FactTone.DUE)) }
             }
             order.cashDue() -> add(JourneyFact("Total a pagar en Caja", moneyLabel(summary.total), FactTone.DUE))
+            // Cocina puede empezarlo antes del cobro: sin pagar no se dice «Pagaste» (G07).
+            summary.needsCashCollection ->
+                add(JourneyFact("Total a pagar en Caja", moneyLabel(summary.cashAmountDue), FactTone.DUE))
             delivery?.deposit.positive() != null &&
                 state in setOf(OrderState.AWAITING_ACCEPTANCE, OrderState.PENDING_PAYMENT) -> {
                 add(
@@ -369,7 +374,7 @@ internal fun journeyFacts(
             state == OrderState.AWAITING_ACCEPTANCE -> add(JourneyFact("Total", moneyLabel(summary.total)))
             state == OrderState.PENDING_PAYMENT -> add(JourneyFact("Total", moneyLabel(summary.total), FactTone.DUE))
             state == OrderState.CANCELED && order.neverCharged() -> add(JourneyFact("Total", moneyLabel(summary.total)))
-            order.rejectedAmount().signum() > 0 && state != OrderState.CANCELED -> {
+            order.rejectedAmount().signum() > 0 && state != OrderState.CANCELED && order.paidBeforeRejection() -> {
                 add(
                     JourneyFact(
                         "Pagaste",
@@ -419,8 +424,13 @@ internal fun journeyFacts(
         }
         val rejected = order.rejectedAmount()
         if (rejected.signum() > 0 && state != OrderState.CANCELED) {
-            add(JourneyFact("Te regresamos", moneyLabel(rejected), FactTone.GOOD))
-            add(JourneyFact("Tu pedido ahora", moneyLabel(summary.total)))
+            // Sin pago no hay nada que regresar: solo baja lo que se cobra (G07).
+            if (order.paidBeforeRejection()) {
+                add(JourneyFact("Te regresamos", moneyLabel(rejected), FactTone.GOOD))
+            } else {
+                add(JourneyFact("Ya no se cobra", moneyLabel(rejected), FactTone.GOOD))
+            }
+            if (!summary.payAtEnd) add(JourneyFact("Tu pedido ahora", moneyLabel(summary.total)))
         }
         if (state == OrderState.NOT_PICKED_UP) add(JourneyFact("Devolución", "La decide el negocio"))
         summary.combinedSavings.positive()?.let { add(JourneyFact("Ahorraste", moneyLabel(it), FactTone.GOOD)) }
@@ -508,6 +518,18 @@ private const val REASON_IN_TITLE = 18
 
 private fun OrderDetail.rejectedAmount(): BigDecimal =
     items.mapNotNull { it.rejection?.amount?.toBigDecimalOrNull() }.fold(BigDecimal.ZERO, BigDecimal::add)
+
+/**
+ * Quitar un artículo regresa dinero solo si ya se había pagado (G07). Por cobrar o a la cuenta sin cobrar, el servidor
+ * solo baja el total (`docs/rechazo-articulo.md`). `monto_pagado` ya viene neto de lo devuelto; sin él, se juzga
+ * por el saldo pendiente.
+ */
+private fun OrderDetail.paidBeforeRejection(): Boolean {
+    if (summary.state == OrderState.PENDING_PAYMENT || summary.paymentPending) return false
+    if (summary.payAtEnd && summary.amountPaid == null) return false
+    val paid = summary.amountPaid?.toBigDecimalOrNull() ?: return !summary.needsCashCollection
+    return paid.signum() > 0
+}
 
 private fun OrderDetail.depositPaid(): Boolean =
     homeDelivery?.deposit.positive() != null &&
@@ -746,7 +768,7 @@ internal fun journeyLead(
                     PaymentMethod.STRIPE -> "a tu tarjeta"
                     PaymentMethod.CASH -> null
                 }
-            if (to != null && back.signum() > 0 && !order.summary.payAtEnd) {
+            if (to != null && back.signum() > 0 && order.paidBeforeRejection()) {
                 "Te regresamos ${moneyLabel(back)} $to. No tienes que hacer nada."
             } else {
                 "Lo que no se pudo ya no cuenta en tu total."

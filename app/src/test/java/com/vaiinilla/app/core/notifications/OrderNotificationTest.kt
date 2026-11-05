@@ -30,6 +30,7 @@ class OrderNotificationTest {
         assertEquals(OrderNotificationTarget.CLIENT, OrderNotificationTarget.fromWireValue("bogus"))
         assertEquals(OrderNotificationTarget.CLIENT, OrderNotificationTarget.fromWireValue("client"))
         assertEquals(OrderNotificationTarget.STAFF, OrderNotificationTarget.fromWireValue("staff"))
+        assertEquals(OrderNotificationTarget.WAITER_CALL, OrderNotificationTarget.fromWireValue("waiter_call"))
     }
 
     @Test
@@ -88,6 +89,9 @@ class OrderNotificationTest {
         assertEquals("Algo está mal con su pedido", OrderAdvanceNotifier.tableCallText("problema"))
         assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText("atencion"))
         assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText(null))
+        // K02: pedir la cuenta es un motivo propio, no «Necesita atención».
+        assertEquals("Pide la cuenta", OrderAdvanceNotifier.tableCallText("cuenta"))
+        assertEquals("Necesita atención", OrderAdvanceNotifier.tableCallText("otro"))
     }
 
     @Test
@@ -119,6 +123,13 @@ class OrderNotificationTest {
             OrderAdvanceNotifier.messageFor(OrderState.READY, homeDelivery = true),
         )
         assertEquals("Tu pedido está listo. Recógelo en la barra.", OrderAdvanceNotifier.messageFor(OrderState.READY))
+    }
+
+    @Test
+    fun `an order at a table is not announced as paid`() {
+        // K01: un pedido a la cuenta llega cobrado sin pagarse; en un lugar no se dice «Pago confirmado».
+        assertEquals("Cocina recibió tu comanda.", OrderAdvanceNotifier.messageFor(OrderState.PAID, inSpace = true))
+        assertEquals("Pago confirmado. Cocina recibió tu comanda.", OrderAdvanceNotifier.messageFor(OrderState.PAID))
     }
 
     @Test

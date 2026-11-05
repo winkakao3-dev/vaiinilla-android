@@ -89,7 +89,7 @@ internal fun resolveOrderNotificationAction(
                     }
                 else -> OrderNotificationAction.OPEN_CLIENT_ORDER
             }
-        OrderNotificationTarget.STAFF ->
+        OrderNotificationTarget.STAFF, OrderNotificationTarget.WAITER_CALL ->
             when {
                 operationalRole != null && operationalRole != OperationalRole.CLIENT ->
                     OrderNotificationAction.SELECT_STAFF_ORDER
@@ -98,4 +98,28 @@ internal fun resolveOrderNotificationAction(
                 hasStudentSession -> OrderNotificationAction.DISCARD
                 else -> OrderNotificationAction.WAIT
             }
+    }
+
+internal enum class WaiterCallAction {
+    OPEN_WAITER,
+    ACTIVATE_WAITER,
+    OPEN_STAFF_MODES,
+    WAIT,
+}
+
+/**
+ * Tocar «Mesa te llama» lleva al tablero del mesero, donde la llamada se ve con su motivo (K02). Sin modo activo y
+ * con un solo modo de mesero, se activa ese; con otro modo de personal activo no se le saca de lo que hace: Modos.
+ */
+internal fun resolveWaiterCallAction(
+    operationalRole: OperationalRole?,
+    accessLoading: Boolean,
+    waiterModes: Int,
+): WaiterCallAction =
+    when {
+        operationalRole == OperationalRole.WAITER -> WaiterCallAction.OPEN_WAITER
+        accessLoading -> WaiterCallAction.WAIT
+        (operationalRole == null || operationalRole == OperationalRole.CLIENT) && waiterModes == 1 ->
+            WaiterCallAction.ACTIVATE_WAITER
+        else -> WaiterCallAction.OPEN_STAFF_MODES
     }

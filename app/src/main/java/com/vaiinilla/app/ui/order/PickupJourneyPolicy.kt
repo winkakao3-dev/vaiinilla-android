@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.Venue
@@ -60,6 +61,7 @@ internal fun pickupTitle(
     now: Instant = Instant.now(),
 ): String {
     courtMoment(order, now)?.let { return it.title }
+    pickupRejectionTitle(order)?.let { return it }
     return when (order.summary.state) {
         OrderState.PENDING_PAYMENT -> if (order.cashPending()) "Por pagar" else "Pedido recibido"
         OrderState.PAID -> if (order.isHomeDelivery()) "Aceptado" else "Pedido recibido"
@@ -72,6 +74,37 @@ internal fun pickupTitle(
         OrderState.NOT_PICKED_UP,
         OrderState.EXPIRED,
         -> order.summary.state.label
+    }
+}
+
+/** Lo que Cocina o Caja quitaron de un pedido que se sigue haciendo (P10). */
+private fun OrderDetail.rejectedWhileMaking(): List<OrderItem> =
+    if (summary.state == OrderState.PAID || summary.state == OrderState.PREPARING) {
+        items.filter { it.rejection != null }
+    } else {
+        emptyList()
+    }
+
+/** Con un producto quitado el título deja de decir «Pedido recibido»: el cliente ve el cambio sin abrir nada (P10). */
+private fun pickupRejectionTitle(order: OrderDetail): String? {
+    val rejected = order.rejectedWhileMaking()
+    return when {
+        rejected.isEmpty() -> null
+        rejected.size == 1 -> "Uno no se pudo"
+        else -> "${rejected.size} no se pudieron"
+    }
+}
+
+/** Qué se quitó y por qué; `null` si no se quitó nada. Va antes que la pista de siempre (P10). */
+internal fun pickupRejectionHint(order: OrderDetail): String? {
+    val rejected = order.rejectedWhileMaking()
+    val first = rejected.firstOrNull() ?: return null
+    if (rejected.size > 1) return "${rejected.size} productos no se pudieron hacer. Lo demás sigue."
+    val reason = first.rejection?.reason?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
+    return if (reason != null) {
+        "${first.productName} no se pudo: $reason. Lo demás sigue."
+    } else {
+        "${first.productName} no se pudo hacer. Lo demás sigue."
     }
 }
 

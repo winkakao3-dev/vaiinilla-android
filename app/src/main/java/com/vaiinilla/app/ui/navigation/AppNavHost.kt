@@ -461,6 +461,48 @@ fun AppNavHost(
     // cola; staff autenticado sin rol activo -> espera la selección de modo.
     // Intents antiguos sin objetivo se tratan como cliente.
     var clientSwitchAttemptedFor by remember { mutableStateOf<String?>(null) }
+
+    // El pedido de un aviso que aún no estaba cargado (app cerrada o recién pasada a cliente): se abre al llegar (K01).
+    var notifiedOrderToOpen by remember { mutableStateOf<String?>(null) }
+
+    // «Mesa te llama»: al tablero del mesero, donde la llamada se ve con su motivo; no a Modos (K02).
+    fun openWaiterCall() {
+        fun showWaiterBoard() {
+            orderFlowViewModel.clearGuestVenue()
+            navController.navigate(Routes.WAITER) {
+                popUpTo(Routes.DISCOVERY) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+        val waiterModes = authorizedAccessState.modes.filter { it.role == OperationalRole.WAITER }
+        when (
+            resolveWaiterCallAction(
+                operationalRole = operationalState.role,
+                accessLoading = authorizedAccessState.loading,
+                waiterModes = waiterModes.size,
+            )
+        ) {
+            WaiterCallAction.OPEN_WAITER -> {
+                if (navController.currentDestination?.route != Routes.WAITER) showWaiterBoard()
+                onOrderConsumed()
+            }
+            WaiterCallAction.ACTIVATE_WAITER -> {
+                onOrderConsumed()
+                authorizedAccessViewModel.activateMode(waiterModes.single()) {
+                    operationalViewModel.setRole(OperationalRole.WAITER)
+                    showWaiterBoard()
+                }
+            }
+            WaiterCallAction.OPEN_STAFF_MODES -> {
+                if (navController.currentDestination?.route != Routes.STAFF_MODES) {
+                    navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true }
+                }
+                onOrderConsumed()
+            }
+            WaiterCallAction.WAIT -> Unit
+        }
+    }
+
     LaunchedEffect(
         pendingOrderId,
         pendingOrderTarget,
@@ -474,7 +516,11 @@ fun AppNavHost(
         val orderId = pendingOrderId
         if (orderId == null) {
             clientSwitchAttemptedFor = null
-            // Aviso de personal sin pedido (llamada de mesa): abrir la consola de modos.
+            if (target == OrderNotificationTarget.WAITER_CALL) {
+                openWaiterCall()
+                return@LaunchedEffect
+            }
+            // Aviso de personal sin pedido (turno por terminar): abrir la consola de modos.
             if (target == OrderNotificationTarget.STAFF) {
                 if (navController.currentDestination?.route != Routes.STAFF_MODES) {
                     navController.navigate(Routes.STAFF_MODES) { launchSingleTop = true }
@@ -498,6 +544,8 @@ fun AppNavHost(
                 orderFlowViewModel.clearCreatedOrder()
                 navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
             }
+            // Pasar a cliente vacía la lista: sin esto el aviso dejaba al cliente en Pedidos, no en su pedido (K01).
+            notifiedOrderToOpen = orderId.takeIf { known == null }
             onOrderConsumed()
         }
 
@@ -533,6 +581,17 @@ fun AppNavHost(
             OrderNotificationAction.WAIT -> Unit
             OrderNotificationAction.DISCARD -> onOrderConsumed()
         }
+    }
+
+    LaunchedEffect(notifiedOrderToOpen, operationalState.orders) {
+        val id = notifiedOrderToOpen ?: return@LaunchedEffect
+        val order = operationalState.orders.firstOrNull { it.summary.id == id } ?: return@LaunchedEffect
+        notifiedOrderToOpen = null
+        // Una renta se sigue en la lista; si la persona ya se fue a otra pantalla, no se le arrastra.
+        if (order.isRental || navController.currentDestination?.route != Routes.STUDENT_TRACKING) return@LaunchedEffect
+        operationalViewModel.selectOrder(id)
+        orderFlowViewModel.clearCreatedOrder()
+        navController.navigate(Routes.CONFIRMATION) { launchSingleTop = true }
     }
 
     // El QR personal de la cartera abierto sobre la casita: la barra de abajo se va mientras tanto.
@@ -2274,13 +2333,15 @@ fun AppNavHost(
                             ?.let { fresh -> fresh.copy(pickupToken = fresh.pickupToken ?: created.pickupToken) }
                             ?: created
                     }
+                // Con un pedido elegido que aún carga (abierto desde un aviso) no se muestra el pago de otro pedido:
+                // se veía «Pago confirmado» de un pedido con tarjeta anterior (K01).
+                val selectedId = operationalState.selectedOrderId
                 val confirmationOrder =
                     refreshedCreated
                         ?: orderState.stripeObservedOrder?.takeIf {
-                            selectedOrder == null || selectedOrder.summary.id == it.summary.id
+                            selectedId == null || selectedId == it.summary.id
                         }
                         ?: selectedOrder
-                        ?: orderState.stripeObservedOrder
                 val context = LocalContext.current
                 LaunchedEffect(confirmationOrder?.summary?.id) {
                     val order = confirmationOrder ?: return@LaunchedEffect
@@ -2418,7 +2479,10 @@ fun AppNavHost(
                 LaunchedEffect(Unit) {
                     if (operationalState.selectedOrder?.isRental == false) {
                         delay(POP_ANIMATION_MILLIS.toLong() + 50)
-                        operationalViewModel.selectOrder(null)
+                        // Si de paso se abrió ya el pedido (un aviso), soltarlo dejaría su pantalla sin pedido (K01).
+                        if (navController.currentDestination?.route == Routes.STUDENT_TRACKING) {
+                            operationalViewModel.selectOrder(null)
+                        }
                     }
                 }
                 if (!venueAuthRequired) {
