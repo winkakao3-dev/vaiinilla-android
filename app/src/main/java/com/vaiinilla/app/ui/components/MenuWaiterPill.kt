@@ -409,7 +409,7 @@ private fun AssistantPill(onOpen: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
-        // L01: con letra grande quedaba en «Pre…» y, en dos renglones, partía «Pregún/tame»: un solo renglón que se encoge.
+        // L01: con letra grande partía «Pregún/tame»: va en un solo renglón que se encoge.
         Text(
             "Pregúntame qué pedir",
             color = colors.accentInk,
