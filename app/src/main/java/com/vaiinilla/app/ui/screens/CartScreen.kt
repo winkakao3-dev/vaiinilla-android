@@ -42,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
@@ -97,6 +98,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -1055,6 +1057,7 @@ internal fun CartSectionHead(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
+        // Con peso: un título largo se corta con «…» en vez de sacar el dato de la derecha.
         Text(
             title,
             color = colors.ink,
@@ -1062,6 +1065,9 @@ internal fun CartSectionHead(
             lineHeight = 26.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.4).sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
         )
         if (meta != null) {
             Text(
@@ -1373,6 +1379,7 @@ private fun GuestNameField(
             )
         },
         singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
         colors =
             OutlinedTextFieldDefaults.colors(
                 focusedTextColor = colors.ink,

@@ -331,7 +331,16 @@ fun EditorialSectionHead(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text(title, color = colors.ink, fontSize = 19.sp, fontWeight = FontWeight.Black)
+        // Con peso: un título largo se corta con «…» en vez de sacar la acción de la derecha.
+        Text(
+            title,
+            color = colors.ink,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
         when {
             onTrailingClick != null ->
                 TextButton(onClick = onTrailingClick) {
