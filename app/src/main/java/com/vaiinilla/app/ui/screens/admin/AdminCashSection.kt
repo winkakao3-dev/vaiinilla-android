@@ -257,7 +257,8 @@ private fun LastCloseCard(
     }
     val opening = last.opening?.toBigDecimalOrNull()
     val expected = last.expected?.toBigDecimalOrNull()
-    val sales = if (opening != null && expected != null) (expected - opening).toPlainString() else null
+    val sales =
+        last.cashSales ?: if (opening != null && expected != null) (expected - opening).toPlainString() else null
     val rows =
         listOfNotNull(
             last.opening?.let { "Fondo inicial" to moneyLabelCents(it) },

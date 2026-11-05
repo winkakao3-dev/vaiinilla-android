@@ -266,7 +266,8 @@ class AdminViewModel
                                 suggestedCashFloat = cashSessionRepository.suggestedFloat,
                                 cashExpected = cashSessionRepository.expectedCash,
                                 cashOpenedAt = it?.openedAt,
-                                cashLastClose = cashSessionRepository.lastClose ?: _uiState.value.cashLastClose,
+                                cashLastClose =
+                                    mergeLastClose(cashSessionRepository.lastClose, _uiState.value.cashLastClose),
                                 cashLoaded = true,
                                 cashCheckFailed = false,
                             )
@@ -691,6 +692,23 @@ class AdminViewModel
             const val NOTICE_MS = 3_500L
         }
     }
+
+/**
+ * El cierre del servidor gana, pero si es el mismo que este dispositivo acaba de hacer
+ * (mismo monto contado) conserva el «Cerró: Tú».
+ */
+internal fun mergeLastClose(
+    server: CashLastClose?,
+    local: CashLastClose?,
+): CashLastClose? {
+    if (server == null) return local
+    if (local == null || !local.closedByMe) return server
+    val sameCount =
+        server.counted.toBigDecimalOrNull()?.let { counted ->
+            local.counted.toBigDecimalOrNull()?.compareTo(counted) == 0
+        } == true
+    return if (sameCount) server.copy(closedByMe = true) else server
+}
 
 /** Una foto ya preparada para subir. */
 class AdminImage(
