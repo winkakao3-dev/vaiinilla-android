@@ -55,6 +55,7 @@ import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.admin.awaitingAcceptance
 import com.vaiinilla.app.ui.components.chargedPaymentLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
@@ -158,7 +159,7 @@ private fun OrdersPage(
         }
     val awaiting =
         if (state.orderFilter == AdminOrderFilter.ACTIVE) {
-            state.orders.filter { it.summary.state == OrderState.AWAITING_ACCEPTANCE }
+            awaitingAcceptance(state.awaitingOrders, state.orders)
         } else {
             emptyList()
         }
@@ -218,7 +219,7 @@ private fun OrdersPage(
                     } else {
                         null
                     }
-                if (state.takesHomeOrders) {
+                if (state.takesHomeOrders || awaiting.isNotEmpty()) {
                     AwaitingChip(awaiting.size, mode == OrdersMode.AWAITING, colors) {
                         mode = OrdersMode.AWAITING
                         actions.onSelectOrderFilter(AdminOrderFilter.ACTIVE)
