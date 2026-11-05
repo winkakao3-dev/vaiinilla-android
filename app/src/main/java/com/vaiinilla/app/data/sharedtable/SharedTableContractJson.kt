@@ -58,6 +58,9 @@ private data class AmountsDto(
     val total: String,
     val pagado: String,
     val pendiente: String,
+    /** R21: abonos sin liquidar y lo que falta; solo en `totales`, un servidor anterior no los manda. */
+    val abonado: String? = null,
+    val restante: String? = null,
 )
 
 /** `renta` de /mesas/actual: lo pagado por rentar la pista o cancha del turno. */
@@ -144,10 +147,28 @@ class SharedTableContractJson
             }.toString()
     }
 
-private fun AmountsDto.toDomain() = SharedTableAmounts(BigDecimal(total), BigDecimal(pagado), BigDecimal(pendiente))
+private fun AmountsDto.toDomain(): SharedTableAmounts {
+    val pending = BigDecimal(pendiente)
+    val paidIn = abonado?.toBigDecimalOrNull() ?: BigDecimal.ZERO
+    return SharedTableAmounts(
+        total = BigDecimal(total),
+        paid = BigDecimal(pagado),
+        pending = pending,
+        paidIn = paidIn,
+        remaining = restante?.toBigDecimalOrNull() ?: (pending - paidIn).max(BigDecimal.ZERO),
+    )
+}
 
-private fun TableDto.toDomain() =
-    SharedTable(
+/**
+ * R21: los abonos son de la mesa, no de una persona. Nadie debe más de lo que falta en toda la cuenta: con la
+ * cuenta cubierta por abonos, tu parte ya no sale «por pagar».
+ */
+private fun SharedTableAmounts.cappedTo(totals: SharedTableAmounts): SharedTableAmounts =
+    if (totals.paidIn.signum() > 0 && pending > totals.remaining) copy(pending = totals.remaining) else this
+
+private fun TableDto.toDomain(): SharedTable {
+    val totals = totales.toDomain()
+    return SharedTable(
         spaceId = espacio.id,
         spaceName = espacio.nombre,
         spaceType = espacio.tipo,
@@ -179,11 +200,11 @@ private fun TableDto.toDomain() =
                             BigDecimal(group.total),
                             BigDecimal(group.pagado),
                             BigDecimal(group.pendiente),
-                        ),
+                        ).let { if (group.soyYo) it.cappedTo(totals) else it },
                 )
             },
-        totals = totales.toDomain(),
-        myShare = miParte.toDomain(),
+        totals = totals,
+        myShare = miParte.toDomain().cappedTo(totals),
         rent =
             renta?.let { rent ->
                 rent.pagada.toBigDecimalOrNull()?.let { paid ->
@@ -191,3 +212,4 @@ private fun TableDto.toDomain() =
                 }
             },
     )
+}

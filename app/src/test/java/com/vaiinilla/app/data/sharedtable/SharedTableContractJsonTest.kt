@@ -63,6 +63,25 @@ class SharedTableContractJsonTest {
     }
 
     @Test
+    fun `los abonos de la mesa bajan lo que falta (R21)`() {
+        val withAbonos =
+            body.replace(
+                "\"totales\":{\"total\":\"30.30\",\"pagado\":\"0.00\",\"pendiente\":\"30.30\"}",
+                "\"totales\":{\"total\":\"30.30\",\"pagado\":\"0.00\",\"pendiente\":\"30.30\"," +
+                    "\"abonado\":\"25.00\",\"restante\":\"5.30\"}",
+            )
+        val table = json.parseTable(withAbonos)!!
+        assertEquals(BigDecimal("25.00"), table.totals.paidIn)
+        assertEquals(BigDecimal("5.30"), table.totals.remaining)
+        // Nadie debe más de lo que falta en toda la mesa.
+        assertEquals(BigDecimal("5.30"), table.myShare.pending)
+        assertEquals(BigDecimal("5.30"), table.groups.first { it.isMe }.amounts.pending)
+        // Sin abonos todo sigue igual.
+        assertEquals(BigDecimal("30.30"), json.parseTable(body)!!.myShare.pending)
+        assertEquals(BigDecimal("30.30"), json.parseTable(body)!!.totals.remaining)
+    }
+
+    @Test
     fun `sin mesa la API responde data null`() {
         assertNull(json.parseTable("""{"data":null,"meta":{},"error":null}"""))
     }

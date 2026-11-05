@@ -278,7 +278,13 @@ private fun ShareTiles(
         ShareTile(
             "Toda ${SharedSpaceWords.of(table.spaceType).thePlace}",
             tableMoney(all.total),
-            if (all.paid.signum() > 0) "${tableMoney(all.paid)} ya pagado" else "Nada pagado aún",
+            when {
+                // R21: lo abonado ya está en caja aunque los pedidos sigan abiertos; se dice cuánto falta.
+                all.paidIn.signum() > 0 ->
+                    "${tableMoney(all.paid + all.paidIn)} pagado · faltan ${tableMoney(all.remaining)}"
+                all.paid.signum() > 0 -> "${tableMoney(all.paid)} ya pagado"
+                else -> "Nada pagado aún"
+            },
             Modifier.weight(1f),
         )
     }

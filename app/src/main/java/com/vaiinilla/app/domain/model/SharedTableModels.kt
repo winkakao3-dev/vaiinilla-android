@@ -7,6 +7,10 @@ data class SharedTableAmounts(
     val total: BigDecimal,
     val paid: BigDecimal,
     val pending: BigDecimal,
+    /** R21: abonos ya recibidos de la cuenta (dividir por monto o partes) que aún no liquidan los pedidos. */
+    val paidIn: BigDecimal = BigDecimal.ZERO,
+    /** R21: lo que falta de verdad: pendiente menos abonado. */
+    val remaining: BigDecimal = pending,
 )
 
 data class SharedTableOrder(
