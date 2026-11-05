@@ -2210,6 +2210,7 @@ fun AppNavHost(
                             HomeCheckoutActions(
                                 onDestinationChange = orderFlowViewModel::updateCheckoutDestination,
                                 onEditAddress = orderFlowViewModel::editDeliveryAddress,
+                                onEditStreet = orderFlowViewModel::editDeliveryStreet,
                                 onQuoteStart = orderFlowViewModel::startDeliveryQuote,
                                 onQuoteFailed = orderFlowViewModel::failDeliveryQuote,
                                 onQuote = orderFlowViewModel::quoteHomeDelivery,

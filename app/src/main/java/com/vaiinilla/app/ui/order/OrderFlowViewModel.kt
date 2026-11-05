@@ -974,6 +974,21 @@ class OrderFlowViewModel
                 )
         }
 
+        /**
+         * La calle que escribe la persona cuando el mapa solo resolvió el código postal o la colonia. Es el mismo
+         * punto, así que se quedan las coordenadas y la cotización (editDeliveryAddress las borraría).
+         */
+        fun editDeliveryStreet(address: String) {
+            val current = _uiState.value.homeCheckout
+            if (current.address.address == address) return
+            pendingIdempotencyKey = null
+            _uiState.value =
+                _uiState.value.copy(
+                    homeCheckout = current.copy(address = current.address.copy(address = address)),
+                    createOrderError = null,
+                )
+        }
+
         fun selectDeliveryDate(date: String) {
             val current = _uiState.value.homeCheckout
             if (current.deliveryDate == date) return

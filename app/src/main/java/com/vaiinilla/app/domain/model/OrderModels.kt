@@ -68,11 +68,16 @@ data class DeliveryAddress(
     val latitude: Double? = null,
     val longitude: Double? = null,
 ) {
+    /** La calle con número; vacío si el mapa solo dio el código postal, la colonia o el punto. */
+    val street: String
+        get() = AddressStreet.street(address)
+
     /** Lo mínimo para que el negocio llegue y avise: calle y número, y un teléfono de 10 dígitos. */
     val problem: String?
         get() =
             when {
-                address.trim().length < 8 -> "Escribe la calle, el número y la colonia."
+                address.isBlank() -> "Escribe la calle, el número y la colonia."
+                street.isEmpty() -> "Escribe la calle y el número de tu casa."
                 phone.count(Char::isDigit) != 10 -> "Escribe un teléfono de 10 dígitos para que te avisen."
                 else -> null
             }
