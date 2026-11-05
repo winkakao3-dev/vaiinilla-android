@@ -1781,12 +1781,16 @@ private fun CashierScanButton(
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(8.dp))
+        // L01: con letra grande se cortaba en «Escanear QR para…»: se encoge y, si hace falta, usa dos renglones.
         Text(
             "Escanear QR para entregar",
             color = colors.background,
-            fontSize = 15.sp,
             fontWeight = FontWeight.Black,
-            maxLines = 1,
+            maxLines = 2,
+            lineHeight = 17.sp,
+            textAlign = TextAlign.Center,
+            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
+            modifier = Modifier.weight(1f, fill = false),
         )
     }
 }
