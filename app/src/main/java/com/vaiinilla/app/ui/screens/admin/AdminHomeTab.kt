@@ -103,7 +103,16 @@ internal data class AdminSetupStep(
     val done: Boolean,
     val section: AdminSection? = null,
     val optional: Boolean = false,
+    /** Cómo se recuerda en el teléfono que el dueño dijo «No quiero» a este paso opcional. */
+    val key: String = title,
 )
+
+/**
+ * Quita los pasos opcionales que el dueño rechazó con «No quiero» y que siguen sin hacerse: ya no salen ni
+ * cuentan como pendientes. Si después los configura, vuelven como hechos.
+ */
+internal fun List<AdminSetupStep>.withoutDeclined(declined: Set<String>): List<AdminSetupStep> =
+    filterNot { it.optional && !it.done && it.key in declined }
 
 /** Lista cuando no falta ningún paso obligatorio. */
 internal fun List<AdminSetupStep>.storeReady(): Boolean = none { !it.done && !it.optional }
@@ -131,6 +140,8 @@ internal fun AdminHomeTab(
     onSeeAsCustomer: () -> Unit = {},
     /** El asistente de configuración; null lo esconde. */
     onOpenAssistant: (() -> Unit)? = null,
+    /** «No quiero» en un paso opcional; null lo esconde (solo lectura). */
+    onDeclineStep: ((AdminSetupStep) -> Unit)? = null,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
     val presentDialog = LocalAdminDialog.current
@@ -165,7 +176,15 @@ internal fun AdminHomeTab(
                     fadeIn(spring(stiffness = 400f)) + expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)),
                 exit = fadeOut(spring(stiffness = 600f)) + shrinkVertically(spring(stiffness = 600f)),
             ) {
-                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer, onOpenAssistant)
+                SetupChecklist(
+                    setup,
+                    colors,
+                    Modifier.adminRise(2),
+                    onOpenSection,
+                    onSeeAsCustomer,
+                    onOpenAssistant,
+                    onDeclineStep,
+                )
             }
         }
         item(key = "ventas-titulo") {
@@ -274,6 +293,7 @@ private fun SetupChecklist(
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit,
     onOpenAssistant: (() -> Unit)?,
+    onDeclineStep: ((AdminSetupStep) -> Unit)?,
 ) {
     val ready = setup.storeReady()
     Column(modifier) {
@@ -313,7 +333,11 @@ private fun SetupChecklist(
                         }
                     },
                 ) {
-                    step.detail?.let { AdminRowValue(it, colors, muted = true) }
+                    if (step.optional && !step.done && onDeclineStep != null) {
+                        DeclineStepButton(step.title, colors) { onDeclineStep(step) }
+                    } else {
+                        step.detail?.let { AdminRowValue(it, colors, muted = true) }
+                    }
                 }
             }
         }
@@ -325,6 +349,36 @@ private fun SetupChecklist(
                 icon = Icons.Outlined.ShoppingCart,
                 onClick = onSeeAsCustomer,
             )
+        }
+    }
+}
+
+/** «No quiero» (marco IN1): el paso opcional se va de la lista y ya no cuenta como pendiente. */
+@Composable
+private fun DeclineStepButton(
+    title: String,
+    colors: OperationalColors,
+    onClick: () -> Unit,
+) {
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        Modifier
+            .heightIn(min = 44.dp)
+            .physicalPress(scale = PhysicalPressScale.Small) {
+                haptics.selection()
+                onClick()
+            }.semantics { contentDescription = "No quiero $title" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .height(30.dp)
+                .clip(RoundedCornerShape(50))
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(50))
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("No quiero", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, maxLines = 1)
         }
     }
 }

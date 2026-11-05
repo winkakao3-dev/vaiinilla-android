@@ -214,7 +214,10 @@ fun AdminScreen(
     val reduced = reducedMotion()
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
     val welcome = rememberStoreWelcome(scope)
-    val setup = adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
+    val declinedSteps = rememberDeclinedSetupSteps(scope)
+    val setup =
+        adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
+            .withoutDeclined(declinedSteps.keys)
     // El dueño o Vaiinilla pueden apagar el asistente de la tienda (asistente_modo «ninguno»).
     val assistantForStaff = sections.store.uiState.value.config?.assistantMode?.forStaff != false
 
@@ -316,6 +319,7 @@ fun AdminScreen(
                                     if (readOnly || !assistantForStaff) null else ({ assistantOpen = true }),
                                 onSeeAsCustomer = onChangeMode,
                                 onOpenSection = { section = it },
+                                onDeclineStep = if (readOnly) null else ({ declinedSteps.decline(it.key) }),
                             )
                         AdminTab.MENU ->
                             AdminMenuTab(
@@ -404,6 +408,7 @@ private fun adminSetupSteps(
                         done = delivery.enabled,
                         section = AdminSection.STORE,
                         optional = true,
+                        key = "domicilio",
                     ),
                 )
             }
@@ -420,6 +425,7 @@ private fun adminSetupSteps(
                     done = stripeReady,
                     section = AdminSection.STORE,
                     optional = true,
+                    key = "tarjeta",
                 ),
             )
         }
@@ -447,6 +453,7 @@ private fun adminSetupSteps(
                     done = invited,
                     section = AdminSection.STAFF,
                     optional = true,
+                    key = "cocina",
                 ),
             )
         }
@@ -932,5 +939,31 @@ private fun rememberStoreWelcome(scope: String): StoreWelcomeMemory {
     return remember(scope) {
         val prefs = context.applicationContext.getSharedPreferences("vaiinilla_admin_bienvenida", Context.MODE_PRIVATE)
         StoreWelcomeMemory(prefs, "vista_$scope")
+    }
+}
+
+/**
+ * Los pasos opcionales de «Para dejar lista tu tienda» a los que el dueño dijo «No quiero», por tienda. Se guarda
+ * solo en el teléfono: el backend no tiene dónde, y basta con que deje de estorbar aquí.
+ */
+internal class DeclinedSetupSteps(
+    private val prefs: SharedPreferences,
+    private val key: String,
+) {
+    var keys by mutableStateOf(prefs.getStringSet(key, emptySet()).orEmpty().toSet())
+        private set
+
+    fun decline(stepKey: String) {
+        keys = keys + stepKey
+        prefs.edit().putStringSet(key, keys).apply()
+    }
+}
+
+@Composable
+private fun rememberDeclinedSetupSteps(scope: String): DeclinedSetupSteps {
+    val context = LocalContext.current
+    return remember(scope) {
+        val prefs = context.applicationContext.getSharedPreferences("vaiinilla_admin_bienvenida", Context.MODE_PRIVATE)
+        DeclinedSetupSteps(prefs, "no_quiero_$scope")
     }
 }
