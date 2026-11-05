@@ -27,6 +27,12 @@ class PublicEstablishmentDtoTest {
     }
 
     @Test
+    fun `el tipo del negocio dice si es boliche y sin tipo queda nulo`() {
+        assertEquals("boliche", decodeFirst(venueWith(""","tipo":"boliche"""")).businessType)
+        assertEquals(null, decodeFirst(venueWith()).businessType)
+    }
+
+    @Test
     fun `missing videos_local maps to empty list`() {
         assertTrue(decodeFirst(venueWith()).localVideos.isEmpty())
     }
