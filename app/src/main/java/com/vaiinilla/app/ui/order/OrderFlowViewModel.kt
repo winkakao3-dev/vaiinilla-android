@@ -211,10 +211,19 @@ class OrderFlowViewModel
                     searchQuery = if (switchingEstablishment) "" else previous.searchQuery,
                     // El estado operativo es del negocio: el de antes diría si el nuevo es escuela (F19).
                     operationalStatus = if (switchingEstablishment) null else previous.operationalStatus,
+                    // La pista rentada también: la Pastelería mostraba «En la cancha · Pista 3» del Boliche (#10).
+                    rentedCourt = if (switchingEstablishment) null else previous.rentedCourt,
                 )
             guestSessionStore.saveVenue(venue)
             guestVenueLoadJob =
                 launchTracked {
+                    // Con cuenta, el JWT sigue siendo del negocio anterior hasta cambiarlo: el estado, la pista
+                    // rentada y la mesa compartida salían de allá hasta reiniciar la app (en vivo, #10). Un JWT de
+                    // personal no se cambia: la Caja abierta en otro negocio lo sigue usando.
+                    val clientToken = sessionStore.readAccessToken()?.let(JwtContextScope::isClientToken) == true
+                    if (guestSlugFor(venue) == null && clientToken && tokenIsForOtherVenue(venue)) {
+                        withContext(Dispatchers.IO) { refreshClientContext(venue) }
+                    }
                     val (resolvedVenue, catalogResult) =
                         withContext(Dispatchers.IO) {
                             loadGuestCatalogWithVenueRefresh(venue)
@@ -245,8 +254,11 @@ class OrderFlowViewModel
                     // Public guest discovery is valid without identity. Operational status is
                     // authenticated, so its failure must not hide a catalog that loaded correctly.
                     // Load it right away: without it the cart cannot offer "Pagar al final".
+                    // Si el contexto no se pudo cambiar, lo que responda el servidor es del otro negocio: nada.
+                    val ownContext =
+                        guestSlugFor(resolvedVenue) != null || !tokenIsForOtherVenue(resolvedVenue)
                     val status =
-                        withContext(Dispatchers.IO) { fetchOperationalStatus() }.getOrNull()
+                        if (ownContext) withContext(Dispatchers.IO) { fetchOperationalStatus() }.getOrNull() else null
                     val guestEntryRequired =
                         withContext(Dispatchers.IO) {
                             guestSlugFor(resolvedVenue) != null && !guestSession.hasIdentity()
@@ -502,6 +514,12 @@ class OrderFlowViewModel
             return JwtContextScope.isContextFor(token, venue.establishment.id) &&
                 token != null &&
                 JwtContextScope.isClientToken(token)
+        }
+
+        /** Hay un JWT y dice ser de otro negocio (uno sin el claim se da por bueno, como en [hasClientContextFor]). */
+        private fun tokenIsForOtherVenue(venue: GuestVenueContext): Boolean {
+            val token = sessionStore.readAccessToken()
+            return !token.isNullOrBlank() && !JwtContextScope.isContextFor(token, venue.establishment.id)
         }
 
         private fun fetchOperationalStatus(): Result<OperationalStatus> {

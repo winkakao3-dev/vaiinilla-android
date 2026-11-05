@@ -665,6 +665,10 @@ fun AppNavHost(
         orderFlowViewModel.enterGuestVenue(venue)
         orderFlowViewModel.clearMenuFilters()
         navController.navigate(Routes.CATALOG) {
+            // El menú, el carrito y el seguimiento de abajo eran del negocio anterior: Atrás regresaba allá (#10).
+            if (switchingEstablishment) {
+                popUpTo(Routes.CATALOG) { inclusive = true }
+            }
             launchSingleTop = true
         }
         // Con el QR de una mesa, la entrada se vuelve el plano del lugar con tu mesa marcada.

@@ -12,6 +12,8 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.core.runCatchingCancellable
+import com.vaiinilla.app.core.security.JwtContextScope
+import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -99,6 +101,7 @@ class OperationalViewModel
         private val guestOrders: GuestOrderGateway,
         private val guestSessionStore: GuestSessionStore,
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
+        private val sessionStore: SecureSessionStore,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -142,6 +145,12 @@ class OperationalViewModel
 
         // Un cobro que terminó cuando el cajero ya había salido de la pantalla se avisa al volver.
         private var deferredCashierNotice: String? = null
+
+        // El negocio del aviso pendiente: el cobro de un negocio no se avisa en la Caja de otro (en vivo, #10).
+        private var deferredNoticeEstablishmentId: String? = null
+
+        // El negocio del último rol puesto; cambiar de negocio con el mismo rol limpia como cambiar de rol.
+        private var roleEstablishmentId: String? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
                 scope = viewModelScope,
@@ -155,7 +164,11 @@ class OperationalViewModel
             )
 
         fun setRole(role: OperationalRole) {
-            val roleChanged = _uiState.value.role != role
+            val establishmentId = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
+            val establishmentChanged = isOtherEstablishment(roleEstablishmentId, establishmentId)
+            if (establishmentId != null) roleEstablishmentId = establishmentId
+            // Caja de otro negocio con el mismo rol: los pedidos y el aviso «Renta … cobrada» eran del anterior.
+            val roleChanged = _uiState.value.role != role || establishmentChanged
             if (roleChanged) {
                 roleGeneration += 1
                 lastUpdatedSince = null
@@ -192,6 +205,7 @@ class OperationalViewModel
                     pendingWalletReload = null,
                     catalog = null,
                     cashDrawer = CashDrawerUi(),
+                    cashChangeNotice = if (establishmentChanged) null else _uiState.value.cashChangeNotice,
                 )
             pendingWalletReload = null
             if (role == OperationalRole.CASHIER) surfaceDeferredCashierNotice()
@@ -1028,6 +1042,7 @@ class OperationalViewModel
                 return
             }
             val generation = roleGeneration
+            val establishmentAtStart = roleEstablishmentId
             mutationErrorVisible = false
             _uiState.value =
                 _uiState.value.copy(acting = true, errorMessage = null, cashChangeNotice = null)
@@ -1052,7 +1067,10 @@ class OperationalViewModel
                     if (generation != roleGeneration || _uiState.value.role != role) {
                         // El cajero salió de la pantalla con el cobro en vuelo: el dinero ya se movió, así que
                         // se le dice al volver en vez de dejarlo sin saber si cobró.
-                        result.onSuccess { receipt -> deferredCashierNotice = cashCollectionNotice(receipt) }
+                        result.onSuccess { receipt ->
+                            deferredCashierNotice = cashCollectionNotice(receipt)
+                            deferredNoticeEstablishmentId = establishmentAtStart
+                        }
                         return@launch
                     }
                     result
@@ -1083,7 +1101,10 @@ class OperationalViewModel
 
         private fun surfaceDeferredCashierNotice() {
             val notice = deferredCashierNotice ?: return
+            val noticeEstablishment = deferredNoticeEstablishmentId
             deferredCashierNotice = null
+            deferredNoticeEstablishmentId = null
+            if (isOtherEstablishment(noticeEstablishment, roleEstablishmentId)) return
             _uiState.value = _uiState.value.copy(cashChangeNotice = notice)
         }
 
@@ -1879,6 +1900,12 @@ internal fun cashCollectionNotice(receipt: CashCollectionResult): String {
         "$what · Sin cambio"
     }
 }
+
+/** Otro negocio solo si los dos se conocen: un token sin el claim no cuenta como cambio. */
+internal fun isOtherEstablishment(
+    previous: String?,
+    current: String?,
+): Boolean = previous != null && current != null && previous != current
 
 /** El servidor devuelve a lo más esta cantidad por página; una lista de ese tamaño puede estar cortada. */
 internal const val FULL_LIST_LIMIT = 50
