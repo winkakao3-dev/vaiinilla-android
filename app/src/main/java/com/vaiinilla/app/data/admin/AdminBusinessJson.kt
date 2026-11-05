@@ -2,6 +2,8 @@ package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
+import com.vaiinilla.app.domain.admin.ForcedCloseResult
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
@@ -33,6 +35,13 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 
 /** Contratos de Personal, Flujo de mi tienda, Stripe, cashback y espacios. */
+@Serializable
+private data class ForcedCloseDto(
+    val cancelados: Int = 0,
+    val abonado: String = "0.00",
+    val perdida: String = "0.00",
+)
+
 class AdminBusinessJson {
     private val json =
         Json {
@@ -324,11 +333,18 @@ class AdminBusinessJson {
             put("bloque_min", schedule.blockMinutes)
         }.toString()
 
-    fun encodeForcedClose(note: String?): String =
+    /** Contrato D: «Cerrar sin cobrar» manda siempre el motivo (3 a 240 letras). */
+    fun encodeForcedClose(reason: String): String =
         buildJsonObject {
             put("forzar", true)
-            note?.trim()?.takeIf { it.isNotEmpty() }?.let { put("nota", it) }
+            put("motivo", reason.trim().take(FORCED_CLOSE_REASON_MAX))
         }.toString()
+
+    /** Lo que dejó el cierre: un servidor anterior no lo manda y se lee como cero. */
+    fun parseForcedClose(raw: String): ForcedCloseResult {
+        val data = json.decodeFromString<BizEnvelope<ForcedCloseDto>>(raw).data
+        return ForcedCloseResult(cancelled = data.cancelados, paid = data.abonado, lost = data.perdida)
+    }
 
     // endregion
 

@@ -170,6 +170,8 @@ private fun OrdersPage(
             state.unpaid
                 ?.accounts
                 .orEmpty()
+                // Un espacio puede traer su turno y, aparte, deuda de turnos cerrados: la ficha muestra el turno.
+                .filter { !it.abandoned }
                 .associateBy { it.spaceId }
         }
     AdminPage(
@@ -190,7 +192,7 @@ private fun OrdersPage(
                         boardTables.forEach { table ->
                             TableTile(
                                 table,
-                                unpaidBySpace[table.space.id]?.total,
+                                unpaidBySpace[table.space.id]?.remaining,
                                 colors,
                             ) { onOpenTable(table.space.id) }
                         }

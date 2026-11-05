@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
+import com.vaiinilla.app.domain.admin.ForcedCloseResult
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.InvitationsPage
@@ -168,10 +169,13 @@ interface AdminSpacesRepository {
         idempotencyKey: String,
     ): Result<ReservationSchedule>
 
-    /** Cierra la cuenta de un espacio sin cobrarla, cuando el cliente se fue sin pagar. */
+    /**
+     * Cierra la cuenta de un espacio sin cobrarla, cuando el cliente se fue sin pagar. El motivo es obligatorio; el
+     * servidor cancela lo no pagado (sale de Cocina) y deja lo abonado como ingreso (contrato D).
+     */
     fun closeWithoutCharging(
         spaceId: Int,
-        note: String?,
+        reason: String,
         idempotencyKey: String,
-    ): Result<Unit>
+    ): Result<ForcedCloseResult>
 }
