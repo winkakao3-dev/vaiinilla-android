@@ -344,9 +344,11 @@ class AdminBusinessJson {
         fun walletMovementLabel(type: String): String =
             when (type) {
                 "recarga_efectivo" -> "Recargas en efectivo"
+                "recarga_stripe" -> "Recargas con tarjeta"
                 "compra" -> "Compras con saldo"
                 "cashback" -> "Cashback"
                 "cancelacion" -> "Cancelaciones"
+                "devolucion_articulo" -> "Devoluciones de artículos"
                 "ajuste" -> "Ajustes"
                 else -> type.replace('_', ' ').replaceFirstChar { it.uppercase() }
             }
