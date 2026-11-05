@@ -2802,6 +2802,22 @@ fun AppNavHost(
                                         onOpenCash = adminViewModel::openCash,
                                         onCloseCash = adminViewModel::closeCash,
                                         onRefresh = adminViewModel::refreshCash,
+                                        // J09: cobrar es de Caja; se abre ese modo del mismo negocio, o Modos.
+                                        onGoToCashier = {
+                                            val cashier =
+                                                authorizedAccessState.modes.firstOrNull {
+                                                    it.role == OperationalRole.CASHIER &&
+                                                        it.establishmentId == active?.establishmentId
+                                                }
+                                            if (cashier == null) {
+                                                returnToModes(navController, operationalViewModel)()
+                                            } else {
+                                                authorizedAccessViewModel.activateMode(cashier) {
+                                                    operationalViewModel.setRole(cashier.role)
+                                                    navigateAuthorizedMode(cashier.role)
+                                                }
+                                            }
+                                        },
                                     ),
                                 // Pedidos → Mesas: las fichas de arriba y el tablero del mesero para pedir en la mesa
                                 // donde se esté. El tablero sondea solo mientras se ve.
