@@ -286,6 +286,12 @@ fun CashierOperationalScreen(
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
     var openCashSheet by remember { mutableStateOf(false) }
     var browsingClosed by rememberSaveable { mutableStateOf(false) }
+    // El conteo del cierre vive en la ruta y no en la hoja: ir a «Ver cuentas por cobrar» cierra la hoja, y al
+    // volver el cajero no tiene que contar el cajón otra vez. Se borra cuando la caja ya quedó cerrada.
+    val closeCount = rememberSaveable(stateSaver = CashCountDraft.Saver) { mutableStateOf(CashCountDraft()) }
+    LaunchedEffect(state.cashSessionOpen) {
+        if (state.cashSessionOpen == false) closeCount.value = CashCountDraft()
+    }
     val cashRegisterOpen = state.cashSessionOpen == true
     val canReloadWallet = cashRegisterOpen && restrictedMode != RestrictedMode.READ_ONLY
     val walletBlockedReason =
@@ -966,6 +972,7 @@ fun CashierOperationalScreen(
                 onOpenAccounts = onOpenAccounts,
                 expectedCash = state.expectedCash,
                 openingAmount = state.cashOpeningAmount,
+                countState = closeCount,
             )
         }
         chargeOrder?.let { order ->

@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.screens
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsEnabled
@@ -115,5 +116,48 @@ class CashCloseContentTest {
             .assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf("725.50", "725.50"), closes)
+    }
+
+    @Test
+    fun `el conteo sobrevive a cerrar la hoja y volver a abrirla`() {
+        val count = mutableStateOf(CashCountDraft())
+        var shown by mutableStateOf(true)
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                if (shown) {
+                    CashCloseContent(
+                        state = CloseCashUi(),
+                        colors = rememberOperationalColors(),
+                        onDismiss = {},
+                        onConfirm = { closes += it },
+                        onOpenAccounts = null,
+                        countState = count,
+                    )
+                }
+            }
+        }
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("980")
+        shown = false
+        composeTestRule.waitForIdle()
+        shown = true
+        composeTestRule.waitForIdle()
+        composeTestRule
+            .onNodeWithContentDescription("Desliza para cerrar con $980")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf("980.00"), closes)
+    }
+
+    @Test
+    fun `el conteo billete por billete se guarda y se restaura igual`() {
+        val draft =
+            CashCountDraft(
+                amount = "1250.00",
+                counting = true,
+                billCounts = mapOf(500 to 2, 200 to 1),
+                coins = "50",
+            )
+        val scope = SaverScope { true }
+        val saved = with(CashCountDraft.Saver) { scope.save(draft) }!!
+        assertEquals(draft, CashCountDraft.Saver.restore(saved))
     }
 }
