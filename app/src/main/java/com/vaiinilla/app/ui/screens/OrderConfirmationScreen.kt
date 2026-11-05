@@ -142,7 +142,14 @@ fun OrderConfirmationScreen(
             }
         // Abierto desde Pedidos se sigue en la página del dibujo de Doop (P1 a P13). Recién comprado se queda la
         // tienda con su celebración y su ticket.
-        if ((!showTrackingButton || delivery) && activeCelebration == null) {
+        // Naev (5 nov): al pedir sale directo la página del pedido (pasos, foto y «Mostrar código»); la escena de
+        // Vaini con el ticket queda oculta detrás de [SHOWS_VAINI_PICKUP_SCENE], sin borrarla.
+        if (!SHOWS_VAINI_PICKUP_SCENE) {
+            LaunchedEffect(activeCelebration?.orderId) {
+                activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) }
+            }
+        }
+        if (!SHOWS_VAINI_PICKUP_SCENE || ((!showTrackingButton || delivery) && activeCelebration == null)) {
             OrderJourneyPage(
                 order = order,
                 qrPayload = qrPayload,
@@ -183,6 +190,9 @@ fun OrderConfirmationScreen(
         )
     }
 }
+
+/** La escena de Vaini con el ticket al terminar de pedir. Apagada: sale la página del pedido (OrderJourneyPage). */
+internal const val SHOWS_VAINI_PICKUP_SCENE = false
 
 internal const val GUEST_ORDER_NOTICE =
     "Guarda este pedido: solo se ve en este teléfono."
