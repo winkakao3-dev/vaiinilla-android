@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableGroup
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SharedTableParticipant
+import com.vaiinilla.app.domain.model.SharedTableRent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -59,6 +60,14 @@ private data class AmountsDto(
     val pendiente: String,
 )
 
+/** `renta` de /mesas/actual: lo pagado por rentar la pista o cancha del turno. */
+@Serializable
+private data class RentDto(
+    val pagada: String,
+    val minutos: Int = 0,
+    val jugadores: Int? = null,
+)
+
 @Serializable
 private data class TableDto(
     val espacio: SpaceRefDto,
@@ -68,6 +77,7 @@ private data class TableDto(
     val grupos: List<GroupDto>,
     val totales: AmountsDto,
     @SerialName("mi_parte") val miParte: AmountsDto,
+    val renta: RentDto? = null,
 )
 
 @Serializable
@@ -174,4 +184,10 @@ private fun TableDto.toDomain() =
             },
         totals = totales.toDomain(),
         myShare = miParte.toDomain(),
+        rent =
+            renta?.let { rent ->
+                rent.pagada.toBigDecimalOrNull()?.let { paid ->
+                    SharedTableRent(paid, rent.minutos, rent.jugadores?.takeIf { it > 0 })
+                }
+            },
     )

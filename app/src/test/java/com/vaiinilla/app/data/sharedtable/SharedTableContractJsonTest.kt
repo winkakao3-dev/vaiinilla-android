@@ -46,6 +46,23 @@ class SharedTableContractJsonTest {
     }
 
     @Test
+    fun `la renta pagada de la pista llega aparte de la cuenta (U05)`() {
+        assertNull(json.parseTable(body)!!.rent)
+        val withRent =
+            body.replace(
+                "\"mi_parte\":{\"total\":\"30.30\",\"pagado\":\"0.00\",\"pendiente\":\"30.30\"}",
+                "\"mi_parte\":{\"total\":\"30.30\",\"pagado\":\"0.00\",\"pendiente\":\"30.30\"}," +
+                    "\"renta\":{\"pagada\":\"300.00\",\"minutos\":120,\"jugadores\":4}",
+            )
+        val rent = json.parseTable(withRent)!!.rent!!
+        assertEquals(BigDecimal("300.00"), rent.paid)
+        assertEquals(120, rent.minutes)
+        assertEquals(4, rent.players)
+        // No cambia lo que falta pagar.
+        assertEquals(BigDecimal("30.30"), json.parseTable(withRent)!!.myShare.pending)
+    }
+
+    @Test
     fun `sin mesa la API responde data null`() {
         assertNull(json.parseTable("""{"data":null,"meta":{},"error":null}"""))
     }

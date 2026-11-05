@@ -126,6 +126,7 @@ import com.vaiinilla.app.domain.repository.BoardTable
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.SpaceAccount
+import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableCall
@@ -1177,7 +1178,7 @@ internal fun waiterTileStatus(
             if (availability.isWaitingPayment) {
                 WaiterTileStatus("APARTADA", "Esperando el pago", TileTone.Turn)
             } else {
-                WaiterTileStatus("RESERVADA AHORA", "Se abre sola", TileTone.Turn)
+                WaiterTileStatus("RESERVADA AHORA", reservationTileDetail(availability), TileTone.Turn)
             }
         availability?.state == SpaceAvailabilityState.OCUPADA && availability.endsAt != null -> {
             val left =
@@ -1203,13 +1204,21 @@ internal fun waiterTileStatus(
         else -> {
             val next = nextReservationCaption(availability?.nextReservationStart)
             if (next != null) {
-                WaiterTileStatus(next.uppercase(), "Se abre sola", TileTone.Turn)
+                WaiterTileStatus(next.uppercase(), reservationTileDetail(availability), TileTone.Turn)
             } else {
                 WaiterTileStatus("LIBRE", null, TileTone.Free)
             }
         }
     }
 }
+
+/** #13: «4 jugadores · se abre sola», para tener la pista lista; sin el dato, solo «Se abre sola». */
+private fun reservationTileDetail(availability: SpaceAvailability?): String =
+    availability
+        ?.nextReservationPlayers
+        ?.takeIf { it > 0 }
+        ?.let { "$it ${if (it == 1) "jugador" else "jugadores"} · se abre sola" }
+        ?: "Se abre sola"
 
 private fun ordersCaption(table: BoardTable): String? =
     table.orders.size
@@ -1904,6 +1913,7 @@ private fun WaiterTableSheet(
                             canCharge = canChargeAndDeliver,
                             showOrders = false,
                             onTakeOrder = onTakeOrder?.takeIf { !readOnly },
+                            nextReservation = table.availability,
                         )
                         if (accountHasOrders && table.orders.isNotEmpty()) {
                             // Cobrar antes de entregar se vale, pero que no pase sin darse cuenta.

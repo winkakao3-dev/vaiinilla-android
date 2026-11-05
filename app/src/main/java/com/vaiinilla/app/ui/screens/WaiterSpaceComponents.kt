@@ -87,6 +87,7 @@ import com.vaiinilla.app.domain.repository.AccountOrder
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
+import com.vaiinilla.app.domain.repository.SpaceRent
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.domain.time.BusinessTime
@@ -335,6 +336,8 @@ internal fun WaiterSpaceSection(
     showOrders: Boolean = true,
     /** Tomar un pedido para el espacio, junto a "Cobrar cuenta". */
     onTakeOrder: (() -> Unit)? = null,
+    /** Lo que dice el tablero del espacio: trae la siguiente reserva (el detalle de la sesión no). */
+    nextReservation: SpaceAvailability? = null,
 ) {
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
@@ -433,6 +436,39 @@ internal fun WaiterSpaceSection(
             label = "space-subtitle",
         ) { subtitle ->
             Text(subtitle, fontSize = 12.5.sp, color = colors.textSecondary, modifier = Modifier.padding(top = 10.dp))
+        }
+
+        // U05: la renta ya pagada va aparte (es su propio pedido) y no se suma a lo que falta cobrar.
+        val rent = detail.rent
+        if (rent != null) {
+            Text(
+                rentPaidLine(rent),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+        // #13: quién y cuántos juegan, de la renta en curso o, sin turno, de la siguiente reserva.
+        val who =
+            if (rent != null) {
+                rentWhoLine(rent.players, rent.customerName)
+            } else if (session == null) {
+                nextReservation
+                    ?.takeIf { it.nextReservationStart != null }
+                    ?.let { rentWhoLine(it.nextReservationPlayers, it.nextReservationCustomer) }
+                    ?.let { "Siguiente reserva: $it" }
+            } else {
+                null
+            }
+        if (who != null) {
+            Text(
+                who,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = if (rent != null) 2.dp else 6.dp),
+            )
         }
 
         if (session == null) {
@@ -1633,6 +1669,23 @@ private fun rentalLabel(minutes: Int): String =
         minutes > 60 -> "${minutes / 60} h ${minutes % 60}"
         else -> "$minutes min"
     }
+
+/** «Renta de pista · pagada $300 (2 h)»: lo ya pagado del turno, que no se vuelve a cobrar. */
+internal fun rentPaidLine(rent: SpaceRent): String =
+    buildString {
+        append("Renta de ${Venue.court} · pagada ${moneyLabel(rent.paid)}")
+        if (rent.minutes > 0) append(" (${rentalLabel(rent.minutes)})")
+    }
+
+/** «4 jugadores · a nombre de Ana»; null si no hay ninguno de los dos datos. */
+internal fun rentWhoLine(
+    players: Int?,
+    customerName: String?,
+): String? =
+    listOfNotNull(
+        players?.takeIf { it > 0 }?.let { "$it ${if (it == 1) "jugador" else "jugadores"}" },
+        customerName?.takeIf { it.isNotBlank() }?.let { "a nombre de ${it.trim()}" },
+    ).joinToString(" · ").ifEmpty { null }
 
 /** Lo que cuesta rentar esos minutos, con la misma regla que el servidor; null sin precio. */
 internal fun rentalPrice(

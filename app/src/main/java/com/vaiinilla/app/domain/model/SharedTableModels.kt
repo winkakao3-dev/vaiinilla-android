@@ -30,6 +30,14 @@ data class SharedTableGroup(
     val amounts: SharedTableAmounts,
 )
 
+/** La renta ya pagada de la pista o cancha (U05): va aparte de la cuenta y no se vuelve a cobrar. */
+data class SharedTableRent(
+    val paid: BigDecimal,
+    val minutes: Int,
+    /** Boliche: cuántos juegan; null sin dato. */
+    val players: Int? = null,
+)
+
 data class SharedTableParticipant(
     val alias: String,
     val isMe: Boolean,
@@ -45,6 +53,8 @@ data class SharedTable(
     val groups: List<SharedTableGroup>,
     val totals: SharedTableAmounts,
     val myShare: SharedTableAmounts,
+    /** La renta ya pagada del turno; null sin renta (o un servidor anterior). */
+    val rent: SharedTableRent? = null,
 ) {
     /** Tus pedidos primero; luego el resto en el orden en que se unieron. */
     val orderedGroups: List<SharedTableGroup>

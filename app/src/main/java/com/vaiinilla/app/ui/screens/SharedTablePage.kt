@@ -61,6 +61,8 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.SharedTableOrder
+import com.vaiinilla.app.domain.model.SharedTableRent
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.ui.components.ClientCap
@@ -93,6 +95,25 @@ internal fun tablePayLine(table: SharedTable): String {
         else -> "Tu parte + lo de " + claimed.dropLast(1).joinToString(", ") + " y " + claimed.last()
     }
 }
+
+/** «Renta de pista · pagada $300 (2 h) · 4 jugadores». */
+internal fun sharedRentLine(rent: SharedTableRent): String =
+    buildString {
+        append("Renta de ${Venue.court} · pagada ${tableMoney(rent.paid)}")
+        val minutes = rent.minutes
+        if (minutes > 0) {
+            append(" (")
+            append(
+                when {
+                    minutes % 60 == 0 -> "${minutes / 60} h"
+                    minutes > 60 -> "${minutes / 60} h ${minutes % 60}"
+                    else -> "$minutes min"
+                },
+            )
+            append(")")
+        }
+        rent.players?.let { append(" · $it ${if (it == 1) "jugador" else "jugadores"}") }
+    }
 
 private data class OtherRow(
     val alias: String,
@@ -130,6 +151,16 @@ fun SharedTablePage(
         ) {
             TableHeader(table, busy, onLeave = { confirmingLeave = true }, modifier = Modifier.arrive(0))
             ShareTiles(table, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 22.dp).arrive(1))
+            table.rent?.let { rent ->
+                // U05: la renta ya se pagó al apartar; se ve aparte y no entra en lo que falta.
+                Text(
+                    sharedRentLine(rent),
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp).arrive(1),
+                )
+            }
             MyOrders(table, error.takeIf { errorFolio != null }, errorFolio, modifier = Modifier.arrive(2))
             OthersAtTable(table, busy, onClaim, error.takeIf { errorFolio != null }, errorFolio, modifier = Modifier.arrive(3))
             if (canCallWaiter) {

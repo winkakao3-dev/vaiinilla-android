@@ -977,6 +977,12 @@ private fun ReservationsCard(
                 colors = colors,
                 detail =
                     (reservation.courtName?.let { "$it · " } ?: "") +
+                        // #13: cuántos juegan, para tener la pista lista con sus zapatos.
+                        (
+                            reservation.players
+                                ?.takeIf { it > 0 }
+                                ?.let { "$it ${if (it == 1) "jugador" else "jugadores"} · " } ?: ""
+                        ) +
                         if (pending) {
                             "Paga al llegar · ${moneyLabel(
                                 reservation.amount,
