@@ -83,6 +83,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
@@ -411,7 +412,7 @@ fun MenuFeedScreen(
         }
         pops.forEach { pop -> PlusOnePop(pop) { pops.remove(pop) } }
 
-        AnimatedVisibility(visible = hintVisible && products.size > 1, enter = fadeIn(), exit = fadeOut(tween(400))) {
+        AnimatedVisibility(visible = hintVisible && products.size > 1, enter = fadeIn(), exit = fadeOut(tween(200))) {
             SwipeHint(reduced)
         }
 
@@ -612,19 +613,24 @@ private fun Adder(
     onRemove: () -> Unit,
 ) {
     val inCart = quantity > 0
-    val height by animateDpAsState(
-        targetValue = if (inCart) 132.dp else 52.dp,
-        animationSpec = if (reduced) snapSpec() else spring(dampingRatio = 0.55f, stiffness = 420f),
-        label = "adder-height",
-    )
+    val height =
+        animateDpAsState(
+            targetValue = if (inCart) 132.dp else 52.dp,
+            animationSpec = if (reduced) snapSpec() else spring(dampingRatio = 0.55f, stiffness = 420f),
+            label = "adder-height",
+        )
     var center by remember { mutableStateOf<Offset?>(null) }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(
             modifier =
                 Modifier
                     .width(52.dp)
-                    .height(height)
-                    .onGloballyPositioned { center = it.boundsInRoot().center }
+                    // El alto se lee al medir, no al componer: la animación no recompone en cada cuadro.
+                    .layout { measurable, constraints ->
+                        val h = height.value.roundToPx()
+                        val placeable = measurable.measure(constraints.copy(minHeight = h, maxHeight = h))
+                        layout(placeable.width, h) { placeable.place(0, 0) }
+                    }.onGloballyPositioned { center = it.boundsInRoot().center }
                     .clip(RoundedCornerShape(26.dp))
                     .background(Color.White),
         ) {
