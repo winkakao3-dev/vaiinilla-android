@@ -225,9 +225,16 @@ val OrderFlowUiState.homePayments: List<HomePayment>
 val OrderFlowUiState.homeDeliveryFee: String?
     get() = homeDeliveryOffer?.takeIf { isHomeDelivery }?.let { HomeCheckoutRules.fee(homeCheckout, it) }
 
+/**
+ * La forma de pago a domicilio que vale: la elegida si el negocio la ofrece; si no (p. ej. sin tarjeta), la
+ * primera que ofrece. Null solo si no ofrece ninguna, y entonces no se puede pedir (auditoría R23).
+ */
+val OrderFlowUiState.effectiveHomePayment: HomePayment?
+    get() = homeCheckout.payment.takeIf { it in homePayments } ?: homePayments.firstOrNull()
+
 /** A domicilio la forma de pago se elige en el carrito, no en la hoja de pago. */
 val OrderFlowUiState.homePaymentMethod: PaymentMethod
-    get() = if (homeCheckout.payment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
+    get() = if (effectiveHomePayment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
 
 /** Lo que falta para poder pedir a domicilio o para otro día; null si nada. */
 val OrderFlowUiState.checkoutScheduleProblem: String?

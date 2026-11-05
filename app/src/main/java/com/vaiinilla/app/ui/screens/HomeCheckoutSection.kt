@@ -48,6 +48,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartTotalFor
 import com.vaiinilla.app.ui.order.deliveryDates
+import com.vaiinilla.app.ui.order.effectiveHomePayment
 import com.vaiinilla.app.ui.order.homeDeliveryOffer
 import com.vaiinilla.app.ui.order.homePayments
 import com.vaiinilla.app.ui.order.isHomeDelivery
@@ -192,7 +193,7 @@ internal fun HomeDeliverySection(
             state.homePayments.forEach { payment ->
                 SelectPill(
                     paymentLabel(payment, state),
-                    selected = state.homeCheckout.payment == payment,
+                    selected = state.effectiveHomePayment == payment,
                     colors = colors,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -200,7 +201,7 @@ internal fun HomeDeliverySection(
                     actions.onSelectPayment(payment)
                 }
             }
-            if (state.homeCheckout.payment == HomePayment.ON_ARRIVAL) {
+            if (state.effectiveHomePayment == HomePayment.ON_ARRIVAL) {
                 offer.transferDetails?.let { details ->
                     Column(
                         modifier =

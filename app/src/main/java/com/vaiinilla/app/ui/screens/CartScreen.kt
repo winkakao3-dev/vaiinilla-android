@@ -153,6 +153,7 @@ import com.vaiinilla.app.ui.order.checkoutScheduleProblem
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
 import com.vaiinilla.app.ui.order.checkoutTotal
+import com.vaiinilla.app.ui.order.effectiveHomePayment
 import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.homeDeliveryFee
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
@@ -239,6 +240,8 @@ fun CartScreen(
                 !preparingCheckout &&
                 !state.hasUnresolvedStripePayment &&
                 state.unavailableCartKeys.isEmpty() &&
+                // A domicilio sin ninguna forma de pago marcada no se puede pedir (R23).
+                !(state.isHomeDelivery && state.effectiveHomePayment == null) &&
                 (state.canCreateOrder || state.operationalStatus == null)
         }
 

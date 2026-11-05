@@ -835,7 +835,7 @@ class OrderFlowViewModel
 
         fun selectHomePayment(payment: HomePayment) {
             val state = _uiState.value
-            if (state.homeCheckout.payment == payment || payment !in state.homePayments) return
+            if (state.effectiveHomePayment == payment || payment !in state.homePayments) return
             pendingIdempotencyKey = null
             _uiState.value =
                 state.copy(homeCheckout = state.homeCheckout.copy(payment = payment), createOrderError = null)
@@ -1072,8 +1072,8 @@ class OrderFlowViewModel
                         // Lo de domicilio y encargos solo viaja cuando se usa.
                         deliveryDate = current.homeCheckout.deliveryDate.takeIf { current.asksForDeliveryDate },
                         delivery = current.homeCheckout.address.takeIf { home },
-                        paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
-                        withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
+                        paysOnArrival = home && current.effectiveHomePayment == HomePayment.ON_ARRIVAL,
+                        withDeposit = home && current.effectiveHomePayment == HomePayment.DEPOSIT,
                         pickUpAtBar = !home && current.pickUpAtBarForOrder,
                         confirmTakeAway =
                             current.takeAwayConfirmed && current.checkoutDestination == OrderDestination.TAKE_AWAY,
