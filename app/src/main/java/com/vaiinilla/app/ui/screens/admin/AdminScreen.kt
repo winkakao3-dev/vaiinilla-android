@@ -553,7 +553,14 @@ private fun AdminSectionContent(
         AdminSection.INVENTORY ->
             sections.inventory?.let { inventory ->
                 LaunchedEffect(scope) { inventory.onVisible(scope) }
-                AdminInventorySection(inventory, state.catalog?.products, colors, readOnly, onBack)
+                AdminInventorySection(
+                    inventory,
+                    state.catalog?.products,
+                    colors,
+                    readOnly,
+                    onBack,
+                    categories = state.catalog?.categories,
+                )
             }
         AdminSection.CASH ->
             AdminCashSection(
