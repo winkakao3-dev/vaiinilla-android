@@ -7,6 +7,7 @@ import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
@@ -110,7 +111,11 @@ class RemoteWaiterRepository(
                     .mapCatching(contractJson::parseStorePolicy)
                     .getOrThrow()
             }.getOrNull()
-        if (fetched != null) storePolicyCache = now to fetched
+        if (fetched != null) {
+            storePolicyCache = now to fetched
+            // Mesero y Caja no pasan por el catálogo: el tipo de negocio (pista o cancha) sale de aquí.
+            fetched.businessType?.let(Venue::update)
+        }
         return fetched ?: storePolicyCache?.second ?: DeliveryPolicyDto()
     }
 

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.Money
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -200,7 +201,7 @@ fun CashCloseContent(
                 CashWarningCard(
                     title = "Hay una cuenta sin cobrar",
                     body =
-                        "Una mesa o cancha pidió pagar al final y todavía no se cobra. " +
+                        "Una mesa o ${Venue.court} pidió pagar al final y todavía no se cobra. " +
                             "Cóbrala antes de cerrar para no perder ese dinero.",
                     action =
                         onOpenAccounts?.let { open ->

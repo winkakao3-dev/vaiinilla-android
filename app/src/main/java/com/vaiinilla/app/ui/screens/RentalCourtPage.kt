@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
@@ -104,8 +105,8 @@ internal fun RentalCourtPage(
     val reservation = order.reservation ?: return
     val colors = LocalVaiinillaColors.current
     val step = rentalStep(order)
-    val courtName = order.rentalCourtName ?: "Cancha"
-    val place = reservation.space?.let { SpaceCopy.named(it.type, it.name) } ?: "tu cancha"
+    val courtName = order.rentalCourtName ?: Venue.courtTitle
+    val place = reservation.space?.let { SpaceCopy.named(it.type, it.name) } ?: "tu ${Venue.court}"
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
     var codeOpen by rememberSaveable(order.summary.id) { mutableStateOf(false) }
     val spaceId = openTableCallSpaceId(order)
@@ -141,7 +142,7 @@ internal fun RentalCourtPage(
             RentalTrackingTimeline(order = order, modifier = Modifier.padding(horizontal = 20.dp).arrive(1))
         }
         if (canOrder) {
-            ClientCap("Pedir a la cancha", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp).arrive(2))
+            ClientCap("Pedir a la ${Venue.court}", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp).arrive(2))
             CourtMenuCard(
                 pick = courtMenuPick(catalog),
                 place = place,

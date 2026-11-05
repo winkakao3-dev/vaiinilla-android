@@ -62,6 +62,8 @@ data class CourtSchedule(
     val rentable: Boolean,
     val busy: List<BusyInterval>,
     val profile: CourtProfile = CourtProfile(),
+    /** Duraciones que se pueden rentar en este espacio (respeta su mínimo); vacía con un servidor anterior. */
+    val durations: List<Int> = emptyList(),
 )
 
 /** Horario reservable de un día y lo ocupado de cada cancha. */
@@ -96,6 +98,8 @@ data class Reservation(
     val channel: String,
     val customerName: String?,
     val version: Int,
+    /** Boliche: cuántos juegan; null sin dato. */
+    val players: Int? = null,
 )
 
 /** Quién aparta y paga: la cuenta con sesión, o un invitado (sin cuenta) del negocio. */
@@ -216,7 +220,13 @@ object ReservationSlots {
         day: CourtDay,
         court: CourtSchedule,
         start: Instant,
-    ): List<Int> = day.durations.filter { isFree(day, court, start, it) }
+    ): List<Int> = durationsFor(day, court).filter { isFree(day, court, start, it) }
+
+    /** Las del espacio (respetan su mínimo); con un servidor anterior, las del establecimiento. */
+    fun durationsFor(
+        day: CourtDay,
+        court: CourtSchedule,
+    ): List<Int> = court.durations.ifEmpty { day.durations }
 
     /** ¿La cancha está libre ahora mismo por al menos la duración más corta? ("Rentar ahora"). */
     fun canRentNow(

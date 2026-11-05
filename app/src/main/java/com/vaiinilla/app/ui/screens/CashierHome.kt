@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -76,7 +77,7 @@ internal fun CashierQuickActions(
         )
         if (onSpaces != null) {
             QuickAction(
-                if (pendingSpaces != null && pendingSpaces > 0) "Mesas y canchas · $pendingSpaces" else "Mesas y canchas",
+                if (pendingSpaces != null && pendingSpaces > 0) "Mesas y ${Venue.courts} · $pendingSpaces" else "Mesas y ${Venue.courts}",
                 Icons.Outlined.TableRestaurant,
                 colors,
                 true,

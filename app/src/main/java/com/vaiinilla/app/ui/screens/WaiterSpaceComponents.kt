@@ -78,6 +78,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.AbonoMode
@@ -314,7 +315,8 @@ internal fun WaiterSpaceSection(
     onDismissCollection: () -> Unit,
     /** Cancha con precio: se renta y se cobra en lugar de abrir o alargar el turno a mano. */
     rentable: Boolean = false,
-    onRent: (minutes: Int, start: Instant?) -> Unit = { _, _ -> },
+    /** `players`: en un boliche, cuántos juegan (null sin dato). */
+    onRent: (minutes: Int, start: Instant?, players: Int?) -> Unit = { _, _, _ -> },
     /** "Cobrar cuenta": la hoja que contiene la sección cambia al cobro. */
     onStartCollect: () -> Unit = {},
     /** Precio por hora del tablero: el detalle de la sesión no lo trae. */
@@ -325,6 +327,8 @@ internal fun WaiterSpaceSection(
     ordersInCourse: Int = 0,
     /** Duraciones que acepta el backend para rentar; con otras responde 400. */
     rentalDurations: List<Int> = DefaultRentalDurations,
+    rentalDurationsFailed: Boolean = false,
+    onRetryDurations: (() -> Unit)? = null,
     /** Administración ve la cuenta pero no la cobra: el backend le niega /sesion/cobros y /abonos. */
     canCharge: Boolean = true,
     /** La hoja ya lista los pedidos de la cuenta arriba: aquí solo van el total y las acciones. */
@@ -438,10 +442,12 @@ internal fun WaiterSpaceSection(
                     verb = "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
                     durations = rentalDurations,
+                    durationsFailed = rentalDurationsFailed,
+                    onRetryDurations = onRetryDurations,
                     enabled = enabled,
                     colors = colors,
                     modifier = Modifier.padding(top = 14.dp),
-                    onConfirm = { minutes -> onRent(minutes, null) },
+                    onConfirm = { minutes, players -> onRent(minutes, null, players) },
                 )
             } else if (isCourt) {
                 Text(
@@ -626,11 +632,13 @@ internal fun WaiterSpaceSection(
                     verb = if (renewFrom != null) "Alargar" else "Rentar",
                     pricePerHour = pricePerHour ?: availability.pricePerHour,
                     durations = rentalDurations,
+                    durationsFailed = rentalDurationsFailed,
+                    onRetryDurations = onRetryDurations,
                     enabled = enabled,
                     colors = colors,
                     renewal = renewFrom != null,
                     primary = !hasPending,
-                    onConfirm = { minutes -> onRent(minutes, renewFrom) },
+                    onConfirm = { minutes, players -> onRent(minutes, renewFrom, players) },
                 )
             } else if (isCourt || session.endsAt != null) {
                 CollectLabel(if (session.endsAt == null) "Iniciar turno" else "Alargar turno", colors)
@@ -1655,10 +1663,41 @@ internal fun RentalDurationPicker(
     renewal: Boolean = false,
     /** Con una cuenta por cobrar, Cobrar es la acción principal y esta queda como secundaria. */
     primary: Boolean = true,
-    onConfirm: (minutes: Int) -> Unit,
+    durationsFailed: Boolean = false,
+    onRetryDurations: (() -> Unit)? = null,
+    onConfirm: (minutes: Int, players: Int?) -> Unit,
 ) {
-    var chosen by remember { mutableStateOf<Int?>(null) }
+    var chosen by remember(durations) { mutableStateOf<Int?>(null) }
+    var players by remember { mutableIntStateOf(0) }
+    if (durations.isEmpty()) {
+        // Sin las duraciones del servidor no se ofrece ninguna: una inventada termina en 400.
+        Column(modifier = modifier.fillMaxWidth()) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = colors.textSecondary)
+            Text(
+                if (durationsFailed) "No pudimos leer los tiempos de renta." else "Cargando tiempos de renta…",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            if (durationsFailed && onRetryDurations != null) {
+                ChipButton(
+                    label = "Reintentar",
+                    enabled = enabled,
+                    colors = colors,
+                    modifier = Modifier.padding(top = 8.dp),
+                    onClick = onRetryDurations,
+                )
+            }
+        }
+        return
+    }
+    // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos (0 = sin dato).
+    val askPlayers = Venue.isBowling && !renewal
     Column(modifier = modifier.fillMaxWidth()) {
+        if (askPlayers) {
+            PlayersStepper(players = players, enabled = enabled, colors = colors) { players = it }
+        }
         Text(title, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = colors.textSecondary)
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -1690,8 +1729,35 @@ internal fun RentalDurationPicker(
                 colors = colors,
                 primary = primary,
                 modifier = Modifier.padding(top = 12.dp),
-            ) { chosen?.let(onConfirm) }
+            ) { chosen?.let { onConfirm(it, players.takeIf { askPlayers && it > 0 }) } }
         }
+    }
+}
+
+/** Jugadores de una pista de boliche: de 1 a 30, o sin dato. */
+@Composable
+internal fun PlayersStepper(
+    players: Int,
+    enabled: Boolean,
+    colors: OperationalColors,
+    onChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Jugadores", fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = colors.textSecondary)
+            Text(
+                if (players == 0) "Sin anotar" else "$players ${if (players == 1) "jugador" else "jugadores"}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = colors.textPrimary,
+            )
+        }
+        ChipButton(label = "−", enabled = enabled && players > 0, colors = colors) { onChange(players - 1) }
+        ChipButton(label = "+", enabled = enabled && players < 30, colors = colors) { onChange(players + 1) }
     }
 }
 
@@ -1720,7 +1786,7 @@ internal fun RentalCollectSheet(
             payable = emptyList(),
             confirming = confirming,
             colors = colors,
-            title = "Rentar ${rental.courtName ?: "cancha"} · ${rentalLabel(rental.durationMinutes)}",
+            title = "Rentar ${rental.courtName ?: Venue.court} · ${rentalLabel(rental.durationMinutes)}",
             allowTerminal = false,
             allowTip = false,
             onConfirm = { _, received, _, _, _ -> received?.let(onConfirm) },
@@ -1736,7 +1802,16 @@ private fun CourtTurnHero(
     endsAt: String?,
     modifier: Modifier = Modifier,
 ) {
-    val field = animateSelectionColor(if (inGrace) Color(0xFF5A4A1E) else Color(0xFF2F5A2C), "court-field")
+    val bowling = Venue.isBowling
+    val field =
+        animateSelectionColor(
+            when {
+                inGrace -> Color(0xFF5A4A1E)
+                bowling -> Color(0xFF6B4A2B)
+                else -> Color(0xFF2F5A2C)
+            },
+            "court-field",
+        )
     val line = Color.White.copy(alpha = 0.35f)
     Box(
         modifier =
@@ -1746,6 +1821,10 @@ private fun CourtTurnHero(
                 .clip(RoundedCornerShape(24.dp))
                 .background(field)
                 .drawBehind {
+                    if (bowling) {
+                        drawBowlingLane(line)
+                        return@drawBehind
+                    }
                     val inset = 14.dp.toPx()
                     val stroke = 1.5.dp.toPx()
                     drawRect(
@@ -1779,6 +1858,44 @@ private fun CourtTurnHero(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 6.dp),
             )
+        }
+    }
+}
+
+/**
+ * Una pista de boliche vista desde la línea de tiro: canales a los lados, flechas de apunte y los
+ * diez pinos en triángulo al fondo (derecha).
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBowlingLane(line: Color) {
+    val gutter = size.height * 0.14f
+    drawRect(Color.Black.copy(alpha = 0.25f), size = Size(size.width, gutter))
+    drawRect(Color.Black.copy(alpha = 0.25f), topLeft = Offset(0f, size.height - gutter), size = Size(size.width, gutter))
+    // Tablones de la madera.
+    val boards = 8
+    val laneHeight = size.height - 2 * gutter
+    for (i in 1 until boards) {
+        val y = gutter + laneHeight * i / boards
+        drawLine(Color.White.copy(alpha = 0.06f), Offset(0f, y), Offset(size.width, y), 1f)
+    }
+    // Línea de falta y flechas.
+    val foul = size.width * 0.08f
+    drawLine(line, Offset(foul, gutter), Offset(foul, size.height - gutter), 2.dp.toPx())
+    val arrowX = size.width * 0.3f
+    for (i in 1..4) {
+        val y = gutter + laneHeight * i / 5
+        drawLine(line, Offset(arrowX - 8.dp.toPx(), y - 4.dp.toPx()), Offset(arrowX, y), 1.5.dp.toPx())
+        drawLine(line, Offset(arrowX - 8.dp.toPx(), y + 4.dp.toPx()), Offset(arrowX, y), 1.5.dp.toPx())
+    }
+    // Pinos: 1-2-3-4 hacia el fondo.
+    val pin = Color.White.copy(alpha = 0.8f)
+    val radius = size.height * 0.035f
+    val step = radius * 3.2f
+    val headX = size.width * 0.78f
+    for (row in 0..3) {
+        val x = headX + row * step * 0.9f
+        for (k in 0..row) {
+            val y = center.y + (k - row / 2f) * step
+            drawCircle(pin, radius, Offset(x, y))
         }
     }
 }

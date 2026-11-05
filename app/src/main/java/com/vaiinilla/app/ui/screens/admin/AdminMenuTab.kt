@@ -92,6 +92,7 @@ import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminUiState
@@ -403,7 +404,7 @@ private fun MenuList(
         if (rentsSpaces) {
             item(key = "rentas") {
                 Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) {
-                    AdminHint("Las rentas de cancha no son productos: se cobran desde Mesas y espacios.", colors)
+                    AdminHint("Las rentas de ${Venue.court} no son productos: se cobran desde Mesas y espacios.", colors)
                 }
             }
         }
@@ -904,7 +905,8 @@ private fun ProductSheet(
         }
     }
     val canSave = name.isNotBlank() && price.isNotBlank() && categoryId != null
-    val looksLikeRental = RentalWords.containsMatchIn(name)
+    // En un boliche «Renta de zapatos» o «Juego por persona» sí son productos: no se avisa.
+    val looksLikeRental = !Venue.isBowling && RentalWords.containsMatchIn(name)
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -1259,10 +1261,12 @@ private fun ProductSheet(
                             Text(
                                 when {
                                     looksLikeRental && rentsSpaces ->
-                                        "Esto parece una renta de cancha. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
+                                        "Esto parece una renta de ${Venue.court}. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
                                     looksLikeRental ->
                                         "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
-                                    else -> "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto."
+                                    Venue.isBowling ->
+                                        "La pista por hora se renta desde Mesas y espacios. Juegos por persona y renta de zapatos sí van aquí como producto."
+                                    else -> "Este negocio renta ${Venue.courts} desde Mesas y espacios. No crees la renta como producto."
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = if (looksLikeRental) FontWeight.Bold else FontWeight.Normal,

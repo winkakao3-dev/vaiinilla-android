@@ -65,6 +65,7 @@ import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.components.ProductImage
@@ -241,11 +242,11 @@ internal fun AdminSpacesSection(
             }
         is SpacesSheet.Release ->
             AdminConfirmSheet(
-                title = "Liberar cancha",
+                title = "Liberar ${Venue.court}",
                 message =
                     "Se cancela la reserva de ${current.reservation.customerName ?: "este cliente"} " +
-                        "y la cancha queda libre.",
-                confirmLabel = "Liberar cancha",
+                        "y la ${Venue.court} queda libre.",
+                confirmLabel = "Liberar ${Venue.court}",
                 colors = colors,
                 busy = state.saving,
                 onDismiss = close,
@@ -473,7 +474,7 @@ private fun SpacesEmpty(
             modifier = Modifier.padding(top = 28.dp),
         )
         Text(
-            "Crea tus mesas, la barra o una cancha. Cada una tiene su QR para que el cliente pida desde su lugar.",
+            "Crea tus mesas, la barra o una ${Venue.court}. Cada una tiene su QR para que el cliente pida desde su lugar.",
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textMuted,
@@ -536,7 +537,7 @@ private fun SpaceDetailPage(
         item {
             Text(
                 when (space.type) {
-                    SpaceType.COURT -> "Ponlo en la cancha. Al escanearlo, el cliente pide y su pedido llega aquí."
+                    SpaceType.COURT -> "Ponlo en la ${Venue.court}. Al escanearlo, el cliente pide y su pedido llega aquí."
                     SpaceType.BAR -> "Ponlo en la barra. Al escanearlo, el cliente pide y su pedido llega a la barra."
                     else -> "Ponlo en la mesa. Al escanearlo, el cliente pide y su pedido llega a esta mesa."
                 },
@@ -589,7 +590,9 @@ private fun CreateSheet(
         Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (if (many) SpaceType.batchTypes else SpaceType.entries).forEach { option ->
-                ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option == type) {
+                // Fuera de un boliche el mismo tipo sirve para canchas y pistas: que se encuentre.
+                val chip = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label
+                ChipButton(label = chip, enabled = !saving, colors = colors, selected = option == type) {
                     if (prefix == type.label) prefix = option.label
                     type = option
                 }
@@ -737,7 +740,7 @@ private fun EditSheet(
             }
         }
     AdminSheet(
-        title = if (space.isCourt) "Editar cancha" else "Editar ${space.type?.label?.lowercase() ?: "espacio"}",
+        title = if (space.isCourt) "Editar ${Venue.court}" else "Editar ${space.type?.label?.lowercase() ?: "espacio"}",
         colors = colors,
         busy = saving,
         onDismiss = onDismiss,
@@ -769,7 +772,7 @@ private fun EditSheet(
             ) {
                 SpaceType.entries.forEach { option ->
                     ChipButton(
-                        label = option.label,
+                        label = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label,
                         enabled = !saving,
                         colors = colors,
                         selected =
@@ -832,7 +835,7 @@ private fun EditSheet(
                     onValueChange = { sport = it.take(40) },
                     label = "Deporte",
                     colors = colors,
-                    placeholder = "Pádel",
+                    placeholder = if (Venue.isBowling) "Boliche" else "Pádel",
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -841,7 +844,7 @@ private fun EditSheet(
                     onValueChange = { surface = it.take(40) },
                     label = "Superficie",
                     colors = colors,
-                    placeholder = "Pasto sintético",
+                    placeholder = if (Venue.isBowling) "Madera sintética" else "Pasto sintético",
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -1082,8 +1085,9 @@ private fun ChargeSheet(
     var received by remember { mutableStateOf(reservation.amount.removeSuffix(".00")) }
     AdminSheet(title = "Cobrar renta", colors = colors, busy = saving, onDismiss = onDismiss) {
         AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
-            AdminValueRow("Espacio", reservation.courtName ?: "Cancha", colors)
+            AdminValueRow("Espacio", reservation.courtName ?: Venue.courtTitle, colors)
             reservation.customerName?.let { AdminValueRow("Cliente", it, colors) }
+            reservation.players?.let { AdminValueRow("Jugadores", "$it", colors) }
             AdminValueRow("Horario", "Hoy · ${reservationTime(reservation)}", colors)
             AdminValueRow("Renta", hoursLabel(reservation.durationMinutes), colors)
         }
@@ -1126,6 +1130,7 @@ private fun ChargeSheet(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScheduleCard(
     saved: ReservationSchedule?,
@@ -1138,6 +1143,7 @@ private fun ScheduleCard(
     var days by remember(saved) { mutableStateOf(saved?.daysAhead?.toString().orEmpty()) }
     var weekDays by remember(saved) { mutableStateOf(saved?.weekDays.orEmpty().toSet()) }
     var block by remember(saved) { mutableStateOf(saved?.blockMinutes ?: 30) }
+    var durations by remember(saved) { mutableStateOf(saved?.durations?.toSet()) }
     if (saved == null) {
         AdminHint("Cargando…", colors)
         return
@@ -1203,8 +1209,44 @@ private fun ScheduleCard(
                 modifier = Modifier.weight(0.7f),
             )
         }
+        durations?.let { chosen ->
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Se renta por",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textSecondary,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    (SpaceRules.RENTAL_DURATIONS + chosen).distinct().sorted().forEach { minutes ->
+                        val on = minutes in chosen
+                        AdminFilterChip(
+                            durationChipLabel(minutes),
+                            on,
+                            colors,
+                            onClick = {
+                                // Siempre queda al menos una duración.
+                                if (enabled && !(on && chosen.size == 1)) {
+                                    durations = if (on) chosen - minutes else chosen + minutes
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
         val draft =
-            ReservationSchedule(opening, closing, days.toIntOrNull() ?: -1, weekDays.sorted(), block)
+            ReservationSchedule(
+                opening,
+                closing,
+                days.toIntOrNull() ?: -1,
+                weekDays.sorted(),
+                block,
+                durations?.sorted(),
+            )
         AdminPrimaryButton(
             title = "Guardar horario",
             colors = colors,
@@ -1214,6 +1256,14 @@ private fun ScheduleCard(
 }
 
 private val WeekDayLetters = listOf("L", "M", "M", "J", "V", "S", "D")
+
+/** "1 h", "1 h 30", "30 min". */
+private fun durationChipLabel(minutes: Int): String =
+    when {
+        minutes < 60 -> "$minutes min"
+        minutes % 60 == 0 -> "${minutes / 60} h"
+        else -> "${minutes / 60} h ${minutes % 60}"
+    }
 private val ReservationTimeFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 private fun reservationTime(reservation: Reservation): String {

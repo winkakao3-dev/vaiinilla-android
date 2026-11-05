@@ -19,9 +19,10 @@ import com.vaiinilla.app.domain.admin.StoreLocation
 import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
-import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.AssistantMode
+import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -79,7 +80,12 @@ class AdminBusinessJson {
     // region Flujo de mi tienda
 
     fun parseStoreConfig(raw: String): StoreConfig =
-        json.decodeFromString<BizEnvelope<StoreConfigDto>>(raw).data.toDomain()
+        json
+            .decodeFromString<BizEnvelope<StoreConfigDto>>(raw)
+            .data
+            .toDomain()
+            // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de aquí.
+            .also { Venue.update(it.typeWire) }
 
     fun encodeFlow(flow: StoreFlow): String =
         buildJsonObject {
@@ -311,12 +317,14 @@ class AdminBusinessJson {
 
     fun parseSchedule(raw: String): ReservationSchedule {
         val data = json.decodeFromString<BizEnvelope<ScheduleDto>>(raw).data
+        data.tipoEstablecimiento?.let(Venue::update)
         return ReservationSchedule(
             opening = data.apertura.take(5),
             closing = data.cierre.take(5),
             daysAhead = data.diasAdelanto,
             weekDays = data.diasSemana ?: listOf(1, 2, 3, 4, 5, 6, 7),
             blockMinutes = data.bloqueMin ?: 30,
+            durations = data.duracionesMin,
         )
     }
 
@@ -327,6 +335,7 @@ class AdminBusinessJson {
             put("dias_adelanto", schedule.daysAhead)
             put("dias_semana", JsonArray(schedule.weekDays.map(::JsonPrimitive)))
             put("bloque_min", schedule.blockMinutes)
+            schedule.durations?.let { put("duraciones_min", JsonArray(it.sorted().map(::JsonPrimitive))) }
         }.toString()
 
     fun encodeForcedClose(note: String?): String =
@@ -633,4 +642,6 @@ private data class ScheduleDto(
     @SerialName("dias_adelanto") val diasAdelanto: Int,
     @SerialName("dias_semana") val diasSemana: List<Int>? = null,
     @SerialName("bloque_min") val bloqueMin: Int? = null,
+    @SerialName("duraciones_min") val duracionesMin: List<Int>? = null,
+    @SerialName("tipo_establecimiento") val tipoEstablecimiento: String? = null,
 )

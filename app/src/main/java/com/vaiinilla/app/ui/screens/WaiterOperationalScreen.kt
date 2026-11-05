@@ -187,7 +187,9 @@ fun WaiterOperationalScreen(
     onAbono: ((Int, AccountPaymentMethod, AbonoMode, String?, Int?, String?, String, String?) -> Unit)? = null,
     onDismissCollection: () -> Unit = {},
     /** Renta de mostrador de una cancha con precio: aparta (ahora o renovación) y abre el cobro. */
-    onStartRental: (Int, Int, Instant?) -> Unit = { _, _, _ -> },
+    onStartRental: (Int, Int, Instant?, Int?) -> Unit = { _, _, _, _ -> },
+    /** Vuelve a pedir al servidor los tiempos de renta. */
+    onRetryRentalDurations: () -> Unit = {},
     onConfirmRental: (String) -> Unit = {},
     onCancelRental: () -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
@@ -677,8 +679,10 @@ fun WaiterOperationalScreen(
             onOpenTurn = { onOpenTurn(open.space.id, it) },
             onExtendTurn = { onExtendTurn(open.space.id, it) },
             rentable = open.availability?.rentable == true,
-            onStartRental = { minutes, start -> onStartRental(open.space.id, minutes, start) },
+            onStartRental = { minutes, start, players -> onStartRental(open.space.id, minutes, start, players) },
             rentalDurations = state.rentalDurations,
+            rentalDurationsFailed = state.rentalDurationsFailed,
+            onRetryDurations = onRetryRentalDurations,
             onTakeOrder = {
                 openTableId = null
                 onCloseSpace()
@@ -1626,8 +1630,10 @@ private fun WaiterTableSheet(
     /** Personas que faltan tras un abono en partes; la hoja abre en Partes con ese número (I06). */
     remainingParts: Int? = null,
     rentable: Boolean = false,
-    onStartRental: (Int, Instant?) -> Unit = { _, _ -> },
+    onStartRental: (Int, Instant?, Int?) -> Unit = { _, _, _ -> },
     rentalDurations: List<Int> = DefaultRentalDurations,
+    rentalDurationsFailed: Boolean = false,
+    onRetryDurations: (() -> Unit)? = null,
     /** Tomar un pedido para esta mesa; null cuando no aplica. */
     onTakeOrder: (() -> Unit)? = null,
     /** La hoja vive en su propia ventana: el aviso de la pantalla queda debajo y no se ve. */
@@ -1893,6 +1899,8 @@ private fun WaiterTableSheet(
                             hasReadyOrders = table.orders.any { it.state == OrderState.READY },
                             ordersInCourse = table.orders.size,
                             rentalDurations = rentalDurations,
+                            rentalDurationsFailed = rentalDurationsFailed,
+                            onRetryDurations = onRetryDurations,
                             canCharge = canChargeAndDeliver,
                             showOrders = false,
                             onTakeOrder = onTakeOrder?.takeIf { !readOnly },

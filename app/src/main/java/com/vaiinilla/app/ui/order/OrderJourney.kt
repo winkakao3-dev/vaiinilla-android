@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.deadlineLabel
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -143,7 +144,7 @@ internal fun journeySteps(
         OrderJourney.TABLE -> listOf(first, "Preparando", "Listo", "En tu mesa")
         OrderJourney.BAR -> listOf(first, "Preparando", "Listo", "Entregado")
         OrderJourney.SEAT -> listOf(first, "Preparando", "En camino", "Entregado")
-        OrderJourney.COURT_FOOD -> listOf(first, "Preparando", "Listo", "En tu cancha")
+        OrderJourney.COURT_FOOD -> listOf(first, "Preparando", "Listo", "En tu ${Venue.court}")
         OrderJourney.SCHOOL -> listOf("Apartado", "Ese día", "Listo", "Recogido")
         OrderJourney.PREORDER_PICKUP -> listOf("Enviado", "Aceptado", "Anticipo", "Haciéndose", "Recogido")
         OrderJourney.HOME_DELIVERY -> listOf("Enviado", "Aceptado", "Haciéndose", "En camino", "Entregado")
@@ -476,7 +477,7 @@ internal fun journeyKindLabel(journey: OrderJourney): String =
         OrderJourney.TABLE -> "en tu mesa"
         OrderJourney.BAR -> "en la barra"
         OrderJourney.SEAT -> "a tu asiento"
-        OrderJourney.COURT_FOOD -> "a tu cancha"
+        OrderJourney.COURT_FOOD -> "a tu ${Venue.court}"
         OrderJourney.COURT_RENTAL -> "renta"
         OrderJourney.SCHOOL -> "comedor"
         OrderJourney.PREORDER_PICKUP -> "para recoger"
@@ -587,7 +588,7 @@ internal fun journeyCaption(
                 OrderJourney.TABLE -> JourneyCaption("Preparando · te lo llevan", waiting)
                 OrderJourney.BAR -> JourneyCaption("Preparando · en la barra", waiting)
                 OrderJourney.SEAT -> JourneyCaption("Preparando · a tu asiento", waiting)
-                OrderJourney.COURT_FOOD -> JourneyCaption("Preparando · a tu cancha", waiting)
+                OrderJourney.COURT_FOOD -> JourneyCaption("Preparando · a tu ${Venue.court}", waiting)
                 OrderJourney.SCHOOL ->
                     JourneyCaption(journeySchedule(order)?.let { "Apartado · para el $it" } ?: "Apartado", done)
                 OrderJourney.PREORDER_PICKUP, OrderJourney.HOME_DELIVERY ->

@@ -168,6 +168,7 @@ class ReservationDurationChangeTest {
             durationMinutes: Int,
             customerName: String?,
             idempotencyKey: String,
+            players: Int?,
         ): Result<Reservation> {
             calls += "create ${start ?: "ahora"} $durationMinutes"
             if (failNextCreate) return Result.failure(IllegalStateException("Ese horario ya se tomó."))
