@@ -8,6 +8,8 @@ import com.vaiinilla.app.data.inventory.encodeSupplyProducts
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.ui.screens.admin.UsesPickerCategory
+import com.vaiinilla.app.ui.screens.admin.filterUsesPicker
 import com.vaiinilla.app.ui.screens.admin.matchingMenuProducts
 import com.vaiinilla.app.ui.screens.admin.usesPicker
 import com.vaiinilla.app.ui.screens.admin.zeroStockWarning
@@ -116,6 +118,19 @@ class SupplyProductsTest {
         assertNull(zeroStockWarning(listOf(3L to null), listOf(supply(3, "Sal", 2.0))))
     }
 
+    @Test
+    fun `el buscador de lo usan filtra productos o trae la categoria completa`() {
+        val groups =
+            listOf(
+                UsesPickerCategory(1, "Botanas", listOf(1 to "Papas", 2 to "Nachos")),
+                UsesPickerCategory(2, "Bebidas", listOf(3 to "Café")),
+            )
+        assertEquals(groups, filterUsesPicker(groups, " "))
+        assertEquals(listOf(1 to "Papas"), filterUsesPicker(groups, "papa").single().products)
+        assertEquals(listOf(3 to "Café"), filterUsesPicker(groups, "CAFE").single().products)
+        assertEquals(2, filterUsesPicker(groups, "botanas").single().products.size)
+        assertEquals(0, filterUsesPicker(groups, "cerveza").size)
+    }
     private fun supply(
         id: Long,
         name: String,

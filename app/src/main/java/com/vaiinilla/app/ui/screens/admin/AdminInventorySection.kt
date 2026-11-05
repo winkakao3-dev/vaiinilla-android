@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -318,6 +319,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.stockTab(
                                 buildString {
                                     append("Mínimo ${qty(supply.minimum, supply.unit)}")
                                     if (supply.unitCost > 0) append(" · ${moneyLabel(supply.unitCost)} c/u")
+                                    if (supply.usedBy == 0 && supply.active) append(" · sin producto")
                                     if (supply.usedBy == 1) append(" · en 1 producto")
                                     if (supply.usedBy > 1) append(" · en ${supply.usedBy} productos")
                                 },
@@ -606,8 +608,16 @@ private fun SupplyActionsSheet(
             SummaryFigure("Mínimo", qty(supply.minimum, supply.unit), colors, Modifier.weight(1f))
             SummaryFigure("Valor", moneyLabel(supply.value), colors, Modifier.weight(1f))
         }
-        if (!readOnly) {
+        val unlinked = !readOnly && supply.usedBy == 0
+        if (unlinked) {
+            AdminPrimaryButton(title = "Ligar a un producto", colors = colors, onClick = onUses)
+            AdminSecondaryButton(title = "Registrar entrada (compra)", colors = colors, outlined = true) {
+                onPick(SupplySheet.ENTRY)
+            }
+        } else if (!readOnly) {
             AdminPrimaryButton(title = "Registrar entrada (compra)", colors = colors) { onPick(SupplySheet.ENTRY) }
+        }
+        if (!readOnly) {
             AdminSecondaryButton(
                 title = "Registrar merma",
                 colors = colors,
@@ -618,17 +628,19 @@ private fun SupplyActionsSheet(
             }
             AdminSecondaryButton(title = "Editar insumo", colors = colors, outlined = true) { onPick(SupplySheet.EDIT) }
         }
-        AdminSecondaryButton(
-            title =
-                when (supply.usedBy) {
-                    0 -> if (readOnly) "Lo usan · ningún producto" else "Lo usan · ligar a productos"
-                    1 -> "Lo usan · 1 producto"
-                    else -> "Lo usan · ${supply.usedBy} productos"
-                },
-            colors = colors,
-            outlined = true,
-            onClick = onUses,
-        )
+        if (!unlinked) {
+            AdminSecondaryButton(
+                title =
+                    when (supply.usedBy) {
+                        0 -> "Lo usan · ningún producto"
+                        1 -> "Lo usan · 1 producto"
+                        else -> "Lo usan · ${supply.usedBy} productos"
+                    },
+                colors = colors,
+                outlined = true,
+                onClick = onUses,
+            )
+        }
         AdminSecondaryButton(title = "Ver movimientos", colors = colors, onClick = onHistory)
     }
 }
@@ -977,7 +989,7 @@ private fun RecipeSheet(
                     addOption = null
                 }
             } else {
-                AdminPanel(colors) {
+                AdminPanel(colors, Modifier.animateContentSize(spring())) {
                     if (options.isNotEmpty()) {
                         Text(
                             "¿Cuándo se gasta?",
@@ -1310,6 +1322,23 @@ internal fun usesPicker(
         )
 }
 
+/** El selector de «Lo usan» según lo escrito: si coincide la categoría van todos sus productos; si no, los que sí. */
+internal fun filterUsesPicker(
+    groups: List<UsesPickerCategory>,
+    query: String,
+): List<UsesPickerCategory> {
+    val needle = query.normalizeForSearch()
+    if (needle.isEmpty()) return groups
+    return groups
+        .map { group ->
+            if (needle in group.name.normalizeForSearch()) {
+                group
+            } else {
+                group.copy(products = group.products.filter { (_, name) -> needle in name.normalizeForSearch() })
+            }
+        }.filter { it.products.isNotEmpty() }
+}
+
 /**
  * «Lo usan»: los productos del menú cuya receta gasta este insumo, y cuánto por unidad. Se agregan productos sueltos o
  * una categoría completa del menú (se aplica a los productos que hoy tiene). Solo toca las líneas «Siempre» de cada
@@ -1343,6 +1372,7 @@ private fun SupplyUsesSheet(
     val defaultQuantity =
         if (supply.unit == InventoryUnit.PIECE || supply.unit == InventoryUnit.BOTTLE) "1" else ""
     var addQuantity by remember(supply.id) { mutableStateOf(defaultQuantity) }
+    var search by remember(supply.id) { mutableStateOf("") }
 
     AdminSheet(title = "Lo usan: ${supply.name}", colors = colors, busy = state.saving, onDismiss = onDismiss) {
         if (loaded == null) {
@@ -1412,7 +1442,7 @@ private fun SupplyUsesSheet(
                 icon = Icons.Outlined.Add,
             ) { adding = true }
         } else {
-            AdminPanel(colors) {
+            AdminPanel(colors, Modifier.animateContentSize(spring())) {
                 AdminTextField(
                     "Cuánto gasta cada producto (${supply.unit.short})",
                     addQuantity,
@@ -1420,18 +1450,23 @@ private fun SupplyUsesSheet(
                     colors,
                     keyboardType = KeyboardType.Decimal,
                 )
-                if (pickable.isEmpty()) AdminHint("Cargando el menú…", colors)
-                pickable.forEach { group ->
+                AdminTextField("Buscar producto o categoría", search, { search = it }, colors)
+                val shown = filterUsesPicker(pickable, search)
+                when {
+                    pickable.isEmpty() -> AdminHint("Cargando el menú…", colors)
+                    shown.isEmpty() -> AdminHint("Nada coincide con «${search.trim()}».", colors)
+                }
+                shown.forEach { group ->
                     val inDraft = { id: Int -> draft.any { it.productId == id } }
                     val groupTaken = group.id != null && draft.any { it.categoryId == group.id }
                     val free = group.products.filterNot { (id, _) -> inDraft(id) }
-                    if (free.isEmpty() && (group.id == null || groupTaken)) return@forEach
+                    if (free.isEmpty() && (group.id == null || groupTaken || search.isNotBlank())) return@forEach
                     AdminCapsLabel(group.name, colors)
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        if (!groupTaken) {
+                        if (!groupTaken && search.isBlank()) {
                             ChipButton("Toda la categoría", true, colors, selected = true) {
                                 if (group.id != null) {
                                     draft.add(
@@ -1459,12 +1494,15 @@ private fun SupplyUsesSheet(
                         free.forEach { (id, name) ->
                             ChipButton(name, true, colors) {
                                 draft.add(UseDraft(id, null, name, group.name, addQuantity))
-                                adding = false
+                                search = ""
                             }
                         }
                     }
                 }
-                AdminSecondaryButton(title = "Cancelar", colors = colors) { adding = false }
+                AdminSecondaryButton(title = "Listo", colors = colors) {
+                    adding = false
+                    search = ""
+                }
             }
         }
         if (draft.any { it.categoryId != null }) {
