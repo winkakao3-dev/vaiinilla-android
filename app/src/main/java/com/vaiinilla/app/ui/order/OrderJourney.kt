@@ -403,6 +403,14 @@ internal fun journeyFacts(
                     ),
                 )
             }
+            // Efectivo al recibir sin anticipo: aún no se paga nada. Decía «Pagaste en efectivo» antes de pagar (S01).
+            summary.paymentMethod == PaymentMethod.CASH &&
+                delivery != null &&
+                delivery.hasAmountDue &&
+                delivery.deposit.positive() == null -> {
+                val label = if (journey == OrderJourney.PREORDER_PICKUP) "Pagas al recoger" else "Pagas al recibir"
+                add(JourneyFact(label, moneyLabel(delivery.dueOnArrival ?: summary.total), FactTone.DUE))
+            }
             else -> {
                 val how =
                     when (summary.paymentMethod) {
