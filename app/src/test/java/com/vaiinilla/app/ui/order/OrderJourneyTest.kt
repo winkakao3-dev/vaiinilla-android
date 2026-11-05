@@ -163,6 +163,20 @@ class OrderJourneyTest {
     }
 
     @Test
+    fun aCashPreorderTheBusinessRejectedSaysNothingWasCharged() {
+        // S04: decía «Cancelaron tu pedido» y «Pagaste en efectivo» sin haber pagado nada.
+        val canceled = order(OrderState.CANCELED, PaymentMethod.CASH, home = true)
+        val rejected =
+            canceled.copy(
+                answerBy = Instant.parse("2026-11-03T23:30:00Z"),
+                summary = canceled.summary.copy(canceledByRole = "admin"),
+            )
+        assertEquals("No te cobramos nada", journeyMoneyBack(rejected))
+        assertEquals("El negocio no pudo aceptar tu encargo.", journeyHeadline(rejected, OrderJourney.HOME_DELIVERY))
+        assertTrue(journeyFacts(rejected, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste en efectivo" })
+    }
+
+    @Test
     fun aPreorderCanceledForAnUnpaidDepositSaysTheDeadlinePassed() {
         val canceled = order(OrderState.CANCELED, PaymentMethod.STRIPE, home = true)
         val noAnswer =

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -77,6 +78,12 @@ fun OrderConfirmationScreen(
     ) {
         if (order == null) return@Box
         val activeCelebration = purchaseCelebration?.takeIf { it.orderId == order.summary.id }
+        // «¡Pedido recibido!» se quedaba aunque el negocio ya lo hubiera rechazado (S04): al terminar sin entregarse
+        // se cierra la celebración y queda la página del pedido, que dice qué pasó y qué pasa con el dinero.
+        val endedWithoutDelivery = order.summary.state.isTerminalWithoutDelivery
+        LaunchedEffect(activeCelebration?.orderId, endedWithoutDelivery) {
+            if (endedWithoutDelivery) activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) }
+        }
         val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
         val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
         // Stripe orders must never expose the pickup QR before the backend
