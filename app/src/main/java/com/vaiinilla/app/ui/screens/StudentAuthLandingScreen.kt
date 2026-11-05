@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,7 +49,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -123,7 +122,11 @@ private fun WelcomeTopBar(
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = if (onBack != null) 4.dp else 20.dp, end = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .padding(start = if (onBack != null) 4.dp else 20.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
@@ -155,19 +158,21 @@ private fun WelcomeTopBar(
                 Box(
                     modifier =
                         Modifier
-                            .height(36.dp)
-                            .clip(RoundedCornerShape(percent = 50))
+                            .heightIn(min = 36.dp)
+                            .clip(RoundedCornerShape(18.dp))
                             .background(colors.paper2)
-                            .padding(horizontal = 14.dp),
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // L01: con letra grande se cortaba en «Ver menús sin c…»: se encoge y, si no, usa dos renglones.
                     Text(
                         "Ver menús sin cuenta",
                         color = colors.ink2,
-                        fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 2,
+                        lineHeight = 15.sp,
+                        textAlign = TextAlign.Center,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 14.sp, stepSize = 0.5.sp),
                     )
                 }
             }

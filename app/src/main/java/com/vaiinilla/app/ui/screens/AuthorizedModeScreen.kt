@@ -177,9 +177,10 @@ fun AuthorizedModeScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    // L01: las barras van antes del scroll; si no, al desplazarse el contenido pasa bajo la de estado.
                     .statusBarsPadding()
                     .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(bottom = 28.dp),
         ) {
             if (onBack != null) {
