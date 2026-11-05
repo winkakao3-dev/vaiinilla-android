@@ -216,7 +216,9 @@ fun WaiterOperationalScreen(
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
-    var openTableId by remember { mutableStateOf<Int?>(null) }
+    // R18: una pantalla recién compuesta (Admin › Pedidos › tocar una mesa) abre la hoja que el ViewModel ya tiene abierta.
+    var openTableId by remember { mutableStateOf(state.openSpaceId) }
+    LaunchedEffect(state.openSpaceId) { state.openSpaceId?.let { openTableId = it } }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
