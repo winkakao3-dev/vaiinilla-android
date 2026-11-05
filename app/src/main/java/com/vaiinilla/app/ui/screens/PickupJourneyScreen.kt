@@ -151,6 +151,7 @@ import com.vaiinilla.app.ui.order.pickupCodeHint
 import com.vaiinilla.app.ui.order.pickupCodeUseful
 import com.vaiinilla.app.ui.order.pickupHint
 import com.vaiinilla.app.ui.order.pickupPlace
+import com.vaiinilla.app.ui.order.pickupRejectionHint
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
@@ -1036,7 +1037,7 @@ private fun StatusSheet(
                 )
             }
             AnimatedContent(
-                targetState = journeyHint(order, journey, now) ?: pickupHint(order, now),
+                targetState = pickupRejectionHint(order) ?: journeyHint(order, journey, now) ?: pickupHint(order, now),
                 transitionSpec = { fadeIn(spring(stiffness = 180f)) togetherWith fadeOut(spring(stiffness = 300f)) },
                 label = "pickup_hint",
             ) { hint ->
