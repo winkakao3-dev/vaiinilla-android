@@ -211,31 +211,16 @@ internal fun CounterOrderSheet(
             .map { it.product.name }
     val puedeEnviar = lineas.isNotEmpty() && opcionesInvalidas.isEmpty() && !state.counterOrderSending
 
+    // R24: las líneas van por id de línea; dos piezas del mismo producto pueden llevar notas u opciones distintas.
     fun sumar(producto: Product) {
-        val actual = lineas[producto.id]
-        lineas =
-            if (actual == null) {
-                lineas + (producto.id to CartLine(producto, 1, opcionesIniciales(producto)))
-            } else {
-                lineas +
-                    (
-                        producto.id to
-                            actual.copy(quantity = (actual.quantity + 1).coerceAtMost(COUNTER_LINE_QUANTITY_MAX))
-                    )
-            }
+        lineas = StaffOrderLines.addUnit(lineas, producto, opcionesIniciales(producto))
     }
 
     fun restar(productoId: Int) {
-        val actual = lineas[productoId] ?: return
-        lineas =
-            if (actual.quantity <=
-                1
-            ) {
-                lineas - productoId
-            } else {
-                lineas + (productoId to actual.copy(quantity = actual.quantity - 1))
-            }
+        lineas = StaffOrderLines.removeUnit(lineas, productoId)
     }
+
+    val enviar = { StaffOrderLines.toSubmit(lineas) }
 
     ModalBottomSheet(
         onDismissRequest = { pedirCerrar() },
@@ -337,17 +322,16 @@ internal fun CounterOrderSheet(
                     ProductoMostradorTile(
                         modifier = Modifier.animateItem(),
                         producto = producto,
-                        cantidad = lineas[producto.id]?.quantity ?: 0,
+                        cantidad = StaffOrderLines.quantityOf(lineas, producto.id),
                         colors = colors,
                         onSumar = { sumar(producto) },
                         onRestar = { restar(producto.id) },
                     )
                 }
-                val conOpciones = lineas.values.filter { it.product.optionGroups.isNotEmpty() }
-                if (conOpciones.isNotEmpty()) {
-                    item(key = "opciones-titulo", span = { GridItemSpan(maxLineSpan) }) {
+                if (lineas.isNotEmpty()) {
+                    item(key = "lineas-titulo", span = { GridItemSpan(maxLineSpan) }) {
                         Text(
-                            "Opciones",
+                            "Tu pedido",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = colors.textPrimary,
@@ -355,24 +339,25 @@ internal fun CounterOrderSheet(
                         )
                     }
                     items(
-                        conOpciones,
-                        key = { "opciones-${it.product.id}" },
+                        lineas.entries.toList(),
+                        key = { "linea-${it.key}" },
                         span = { GridItemSpan(maxLineSpan) },
-                    ) { linea ->
-                        OpcionesMostrador(
+                    ) { (id, linea) ->
+                        StaffLineCard(
                             modifier = Modifier.animateItem(),
-                            linea = linea,
+                            line = linea,
                             colors = colors,
+                            showOptionsInitially = true,
+                            onStep = { delta -> lineas = StaffOrderLines.step(lineas, id, delta) },
+                            onNote = { nota -> lineas = StaffOrderLines.setNote(lineas, id, nota) },
+                            onSplit = { lineas = StaffOrderLines.splitOne(lineas, id) },
                             onOpcion = { grupo, opcionId ->
-                                lineas[linea.product.id]?.let {
+                                lineas[id]?.let {
                                     lineas =
-                                        lineas +
-                                        (
-                                            linea.product.id to
-                                                it.copy(
-                                                    selectedOptionIds =
-                                                        alternarOpcionMostrador(it.selectedOptionIds, grupo, opcionId),
-                                                )
+                                        StaffOrderLines.setOptions(
+                                            lineas,
+                                            id,
+                                            alternarOpcionMostrador(it.selectedOptionIds, grupo, opcionId),
                                         )
                                 }
                             },
@@ -429,7 +414,7 @@ internal fun CounterOrderSheet(
                             fontSize = 15.5.sp,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.weight(1f),
-                        ) { onSubmit(lineas.values.toList(), nombre) }
+                        ) { onSubmit(enviar(), nombre) }
                         ActionPill(
                             label = "Cobrar ya · ${moneyLabel(Money.counterPreview(lineas.values.toList()))}",
                             enabled = puedeEnviar,
@@ -440,7 +425,7 @@ internal fun CounterOrderSheet(
                             fontSize = 15.5.sp,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.weight(1f),
-                        ) { onSubmitAndCollect(lineas.values.toList(), nombre) }
+                        ) { onSubmitAndCollect(enviar(), nombre) }
                     }
                     Text(
                         "«$submitAction» lo manda a cocina y lo cobras cuando se siente.",
@@ -465,7 +450,7 @@ internal fun CounterOrderSheet(
                         height = 56.dp,
                         fontSize = 15.5.sp,
                         fontWeight = FontWeight.Black,
-                    ) { onSubmit(lineas.values.toList(), nombre) }
+                    ) { onSubmit(enviar(), nombre) }
                 }
             }
         }
@@ -705,6 +690,100 @@ private fun ProductoMostradorTile(
     }
 }
 
+/** R24: una línea del pedido de mostrador: cuántas, su nota para cocina, «Separar una» y sus opciones. */
+@Composable
+private fun StaffLineCard(
+    modifier: Modifier = Modifier,
+    line: CartLine,
+    colors: OperationalColors,
+    showOptionsInitially: Boolean,
+    onStep: (Int) -> Unit,
+    onNote: (String) -> Unit,
+    onSplit: () -> Unit,
+    onOpcion: (OptionGroup, Int) -> Unit,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(colors.cardBackground)
+                .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${line.quantity} × ${line.product.name}",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 14.sp,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            CategoriaChip("−", elegida = false, colors = colors) { onStep(-1) }
+            Spacer(Modifier.size(6.dp))
+            CategoriaChip("+", elegida = false, colors = colors) { onStep(1) }
+        }
+        StaffLineExtras(
+            line = line,
+            colors = colors,
+            showOptionsInitially = showOptionsInitially,
+            onNote = onNote,
+            onSplit = onSplit,
+            onOpcion = onOpcion,
+        )
+    }
+}
+
+/**
+ * R24: lo que va debajo de cada línea del pedido del personal (Mesero, Caja y Admin › Pedir): la nota para cocina de
+ * esa línea, «Separar una» para darle a una pieza otra nota u opciones, y las opciones del producto.
+ */
+@Composable
+internal fun StaffLineExtras(
+    line: CartLine,
+    colors: OperationalColors,
+    onNote: (String) -> Unit,
+    onSplit: () -> Unit,
+    onOpcion: (OptionGroup, Int) -> Unit,
+    modifier: Modifier = Modifier,
+    showOptionsInitially: Boolean = false,
+) {
+    var showOptions by remember { mutableStateOf(showOptionsInitially) }
+    val hasOptions = line.product.optionGroups.isNotEmpty()
+    // Una línea con opciones obligatorias sin elegir siempre las enseña.
+    val optionsVisible = hasOptions && (showOptions || !opcionesValidas(line))
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        CounterInlineField(
+            value = line.notes,
+            onValueChange = onNote,
+            placeholder = "Nota para cocina (opcional)",
+            colors = colors,
+            background = colors.cardInner,
+            shape = RoundedCornerShape(14.dp),
+            height = 44.dp,
+        )
+        if (line.quantity > 1 || hasOptions) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (line.quantity > 1) {
+                    CategoriaChip("Separar una", elegida = false, colors = colors, onClick = onSplit)
+                }
+                if (hasOptions && opcionesValidas(line)) {
+                    CategoriaChip(
+                        if (showOptions) "Ocultar opciones" else "Opciones",
+                        elegida = showOptions,
+                        colors = colors,
+                    ) { showOptions = !showOptions }
+                }
+            }
+        }
+        if (optionsVisible) {
+            OpcionesMostrador(linea = line, colors = colors, onOpcion = onOpcion, showsName = false)
+        }
+    }
+}
+
 /** Las opciones de un producto ya agregado, con la misma regla del carrito del cliente; lo elegido en tinta. */
 @Composable
 internal fun OpcionesMostrador(
@@ -712,9 +791,12 @@ internal fun OpcionesMostrador(
     linea: CartLine,
     colors: OperationalColors,
     onOpcion: (OptionGroup, Int) -> Unit,
+    showsName: Boolean = true,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(linea.product.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+        if (showsName) {
+            Text(linea.product.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+        }
         linea.product.optionGroups.forEach { grupo ->
             Text(
                 grupo.name + if (grupo.minimumSelections >= 1) " · obligatorio" else " · opcional",

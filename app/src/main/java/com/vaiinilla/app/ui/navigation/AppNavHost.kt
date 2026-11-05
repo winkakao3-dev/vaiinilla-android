@@ -2512,7 +2512,9 @@ fun AppNavHost(
                                     DisposableEffect(Unit) {
                                         waiterViewModel.onVisible()
                                         onDispose {
-                                            waiterViewModel.closeCounterOrder()
+                                            // R17: solo se cierra la hoja compartida (si no, el tablero de Mesas la
+                                            // abriría); lo armado y su mesa quedan en el borrador del ViewModel.
+                                            waiterViewModel.parkAdminOrder()
                                             waiterViewModel.onHidden()
                                         }
                                     }
@@ -2520,9 +2522,10 @@ fun AppNavHost(
                                         state = waiterState,
                                         colors = rememberOperationalColors(),
                                         header = header,
-                                        onPickCounter = waiterViewModel::openCounterOrder,
-                                        onPickTable = waiterViewModel::openTableOrder,
-                                        onSubmit = { lines, name -> waiterViewModel.submitCounterOrder(lines, name) },
+                                        onOpen = waiterViewModel::openAdminOrder,
+                                        onPickTarget = waiterViewModel::pickAdminOrderTarget,
+                                        onDraftChange = waiterViewModel::updateAdminOrderDraft,
+                                        onSubmit = waiterViewModel::submitAdminOrder,
                                     )
                                 },
                             ),
