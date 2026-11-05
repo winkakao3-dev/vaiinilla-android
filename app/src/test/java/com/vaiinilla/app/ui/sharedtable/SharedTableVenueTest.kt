@@ -1,10 +1,13 @@
 package com.vaiinilla.app.ui.sharedtable
 
+import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.repository.SharedTableRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -20,6 +23,11 @@ import java.math.BigDecimal
 /** C08: la mesa de un negocio no pasa a otro; con ella el menú de allá llamaba al mesero de acá (404). */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SharedTableVenueTest {
+    private val created = mutableListOf<SharedTableViewModel>()
+
+    private fun viewModel(repository: SharedTableRepository = FakeRepository()) =
+        SharedTableViewModel(repository).also { created += it }
+
     @Before
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
@@ -27,12 +35,17 @@ class SharedTableVenueTest {
 
     @After
     fun tearDown() {
+        // Un sondeo o una relectura que sigue en Dispatchers.IO regresa a Main: si regresa mientras se quita
+        // Main, resetMain truena con «Dispatchers.Main is used concurrently». Se terminan antes.
+        runBlocking {
+            created.forEach { vm -> vm.viewModelScope.coroutineContext.job.children.forEach { it.cancelAndJoin() } }
+        }
         Dispatchers.resetMain()
     }
 
     @Test
     fun `entering another business forgets the table`() {
-        val vm = SharedTableViewModel(FakeRepository())
+        val vm = viewModel()
         vm.bindVenue("usagi")
         runBlocking { vm.joinForWaiterCall("qr-mesa-5", "Kao") }
         assertEquals(5, spaceId(vm))
@@ -47,7 +60,7 @@ class SharedTableVenueTest {
     @Test
     fun `si esto lo pago yo falla el error va junto al pedido y la mesa se vuelve a leer`() {
         val repository = FakeRepository(claimFails = true)
-        val vm = SharedTableViewModel(repository)
+        val vm = viewModel(repository)
 
         vm.claim(folio = 7, payIt = true)
         // El reclamo y la relectura corren en Dispatchers.IO: se espera a que la mesa se vuelva a leer.
@@ -60,7 +73,7 @@ class SharedTableVenueTest {
 
     @Test
     fun `al pasar de Mis pedidos a la mesa la que se va no apaga la consulta de la que llega`() {
-        val vm = SharedTableViewModel(FakeRepository())
+        val vm = viewModel()
         vm.onVisible(SHARED_TABLE_WATCHER_ORDERS)
         // Navegar: la mesa arranca antes de que Mis pedidos se detenga (C05).
         vm.onVisible(SHARED_TABLE_WATCHER_PAGE)
