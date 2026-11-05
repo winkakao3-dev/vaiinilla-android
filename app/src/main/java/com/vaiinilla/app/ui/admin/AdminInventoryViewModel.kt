@@ -158,8 +158,14 @@ class AdminInventoryViewModel
                 result
                     .onSuccess {
                         update { copy(saving = false) }
-                        notice(if (existing == null) "${it.name} agregado" else "${it.name} guardado")
                         onDone()
+                        if (existing == null) {
+                            // Recién creado no lo usa nada: se abre «Lo usan» vacío para ligarlo de una vez.
+                            notice("${it.name} agregado · escoge qué productos lo usan")
+                            update { copy(usesFor = it, uses = emptyList(), sheetError = null) }
+                        } else {
+                            notice("${it.name} guardado")
+                        }
                         refresh()
                     }.onFailure {
                         update {
