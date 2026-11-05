@@ -163,6 +163,18 @@ class OrderJourneyTest {
     }
 
     @Test
+    fun aSchoolOrderForAnotherDaySaysWhenItIsPickedUp() {
+        // P08: la tarjeta de lo pedido decía solo «Apartado · se recoge en el comedor».
+        val reserved = order(OrderState.PAID, date = "2026-11-09")
+        val slotted = reserved.copy(summary = reserved.summary.copy(deliverySlot = "12:00-12:30"))
+        assertEquals("Se recoge el lun 9 nov entre 12:00 y 12:30", scheduledPickupLine(slotted, OrderJourney.SCHOOL))
+        assertTrue(scheduledPickupLine(reserved, OrderJourney.SCHOOL).startsWith("Se recoge el lun 9 nov"))
+        val today = order(OrderState.PAID)
+        assertEquals("Apartado · se recoge en el comedor", scheduledPickupLine(today, OrderJourney.SCHOOL))
+        assertTrue(scheduledPickupLine(slotted, OrderJourney.PREORDER_PICKUP).startsWith("Lo recoges el lun 9 nov"))
+    }
+
+    @Test
     fun aCashPreorderTheBusinessRejectedSaysNothingWasCharged() {
         // S04: decía «Cancelaron tu pedido» y «Pagaste en efectivo» sin haber pagado nada.
         val canceled = order(OrderState.CANCELED, PaymentMethod.CASH, home = true)

@@ -154,6 +154,7 @@ import com.vaiinilla.app.ui.order.pickupPlace
 import com.vaiinilla.app.ui.order.pickupRejectionHint
 import com.vaiinilla.app.ui.order.pickupStep
 import com.vaiinilla.app.ui.order.pickupTitle
+import com.vaiinilla.app.ui.order.scheduledPickupLine
 import com.vaiinilla.app.ui.order.shouldAutoRevealPickupCode
 import com.vaiinilla.app.ui.order.trayItemKind
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -1309,8 +1310,8 @@ private fun OrderSummaryCard(
                     "A ${order.summary.space?.name ?: "tu espacio"}"
                 order.summary.destination == OrderDestination.HOME_DELIVERY -> "A domicilio"
                 journey == OrderJourney.DRIVE_THRU -> "Drive-thru · te lo dan en la ventanilla"
-                journey == OrderJourney.SCHOOL -> "Apartado · se recoge en el comedor"
-                journey == OrderJourney.PREORDER_PICKUP -> "Encargo · lo recoges en el local"
+                journey == OrderJourney.SCHOOL || journey == OrderJourney.PREORDER_PICKUP ->
+                    scheduledPickupLine(order, journey)
                 else -> "Para llevar · recoge en barra"
             },
             color = c.muted,
