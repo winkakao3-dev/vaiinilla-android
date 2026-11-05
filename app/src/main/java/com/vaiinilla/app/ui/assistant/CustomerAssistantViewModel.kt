@@ -104,6 +104,15 @@ class CustomerAssistantViewModel
             _state.value = _state.value.copy(done = _state.value.done + turnIndex, cartOrder = added)
         }
 
+        /**
+         * El carrito quedó vacío (se mandó el pedido o el cliente lo vació): lo que puso el asistente ya no está ahí y el
+         * siguiente pedido no debe restar líneas que el cliente agregue a mano después.
+         */
+        fun forgetCartOrder() {
+            if (_state.value.cartOrder.isEmpty()) return
+            _state.value = _state.value.copy(cartOrder = emptyList())
+        }
+
         /** El invitado da su nombre (se da de alta como al confirmar un pedido) y sigue la plática. */
         fun submitName(
             name: String,
@@ -171,6 +180,7 @@ class CustomerAssistantViewModel
                                             products = reply.products,
                                             order = reply.order,
                                             waiter = reply.waiter,
+                                            courts = reply.courts,
                                         ),
                                 thinking = false,
                                 options = reply.options,

@@ -82,4 +82,39 @@ class CustomerAssistantJsonTest {
         assertEquals(listOf("Michelada"), order.toChoose)
         assertTrue(order.lines.isEmpty())
     }
+
+    @Test
+    fun `lee las pistas del servidor como tarjetas, sin repetir y maximo cuatro`() {
+        val reply =
+            json.parseReply(
+                """
+                {"data":{"mensaje":"Hay dos libres","pistas":[
+                  {"espacio_id":7,"nombre":"Pista 1","libre_ahora":true,"libre_hasta":"18:00","ocupada_hasta":null,
+                    "precio_hora":{"efectivo_saldo":"250.00","tarjeta":"262.50"},"capacidad":6},
+                  {"espacio_id":"8","nombre":"Pista 2","libre_ahora":false,"libre_hasta":null,"ocupada_hasta":"19:30",
+                    "precio_hora":{"efectivo_saldo":"250.00","tarjeta":"250.00"},"capacidad":null},
+                  {"espacio_id":7,"nombre":"Pista 1 otra vez"},
+                  {"nombre":"Sin id"},
+                  {"espacio_id":9,"nombre":"Pista 3","precio_hora":"300.00"},
+                  {"espacio_id":10,"nombre":"Pista 4"},
+                  {"espacio_id":11,"nombre":"Pista 5"}]}}
+                """.trimIndent(),
+            )
+        assertEquals(listOf(7, 8, 9, 10), reply.courts.map { it.courtId })
+        val first = reply.courts[0]
+        assertTrue(first.freeNow)
+        assertEquals("18:00", first.freeUntil)
+        assertEquals("250.00", first.pricePerHour)
+        assertEquals("262.50", first.cardPricePerHour)
+        assertEquals(6, first.capacity)
+        assertEquals("19:30", reply.courts[1].busyUntil)
+        assertNull(reply.courts[1].capacity)
+        assertEquals("300.00", reply.courts[2].pricePerHour)
+        assertNull(reply.courts[3].pricePerHour)
+    }
+
+    @Test
+    fun `sin pistas la respuesta trae la lista vacia`() {
+        assertTrue(json.parseReply("""{"data":{"mensaje":"Hola"}}""").courts.isEmpty())
+    }
 }

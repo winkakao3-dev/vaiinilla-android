@@ -220,6 +220,25 @@ class ReservationsViewModel
                 )
         }
 
+        /**
+         * Llega desde otra pantalla (la tarjeta de una pista en el asistente): esa pista queda elegida en el día de hoy.
+         * Si aún no hay horario cargado, el siguiente sondeo la respeta mientras exista.
+         */
+        fun preselectCourt(courtId: Int) {
+            val state = _uiState.value
+            val otherDay = state.selectedDate != null
+            _uiState.value =
+                state.copy(
+                    selectedCourtId = courtId,
+                    selectedDate = null,
+                    selectedStart = null,
+                    rentNow = false,
+                    selectedDuration = null,
+                    loading = state.loading || otherDay,
+                )
+            if (otherDay && reservationAccess != null) viewModelScope.launch { refresh() }
+        }
+
         /** "Rentar ahora": aparta desde ya con el tiempo más corto que cabe; en la hoja de pago se cambia. */
         fun rentNow() {
             val state = _uiState.value

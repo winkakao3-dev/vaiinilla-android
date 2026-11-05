@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.assistant
 
+import com.vaiinilla.app.domain.assistant.AssistantCourtCard
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.assistant.AssistantOrderProposal
 import com.vaiinilla.app.domain.assistant.AssistantProductCard
@@ -53,6 +54,35 @@ class CustomerAssistantJson(
                     .orEmpty()
                     .mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty) },
             remainingMessages = (data["quedan_mensajes"] as? JsonPrimitive)?.intOrNull ?: MAX_MESSAGES,
+            courts =
+                (data["pistas"] as? JsonArray)
+                    .orEmpty()
+                    .mapNotNull { (it as? JsonObject)?.let(::court) }
+                    .distinctBy { it.courtId }
+                    .take(MAX_COURTS),
+        )
+    }
+
+    /**
+     * Contrato 6: `{espacio_id, nombre, libre_ahora, libre_hasta, ocupada_hasta, precio_hora, capacidad}`, con
+     * `precio_hora = {efectivo_saldo, tarjeta}` (un texto suelto también se acepta como precio único).
+     */
+    private fun court(obj: JsonObject): AssistantCourtCard? {
+        val id = (obj["espacio_id"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: return null
+        val price = obj["precio_hora"]
+        val cashPrice =
+            (price as? JsonObject)?.string("efectivo_saldo")
+                ?: (price as? JsonPrimitive)?.contentOrNull
+        val cardPrice = (price as? JsonObject)?.string("tarjeta")
+        return AssistantCourtCard(
+            courtId = id,
+            name = obj.string("nombre")?.trim()?.takeIf(String::isNotEmpty) ?: "Pista",
+            freeNow = (obj["libre_ahora"] as? JsonPrimitive)?.booleanOrNull ?: false,
+            freeUntil = obj.string("libre_hasta")?.takeIf(String::isNotBlank),
+            busyUntil = obj.string("ocupada_hasta")?.takeIf(String::isNotBlank),
+            pricePerHour = cashPrice?.takeIf(String::isNotBlank) ?: cardPrice?.takeIf(String::isNotBlank),
+            cardPricePerHour = cardPrice?.takeIf(String::isNotBlank),
+            capacity = (obj["capacidad"] as? JsonPrimitive)?.intOrNull?.takeIf { it > 0 },
         )
     }
 
@@ -100,5 +130,6 @@ class CustomerAssistantJson(
         const val MAX_MESSAGES = 40
         const val MAX_LETTERS = 600
         const val MAX_QUANTITY = 20
+        const val MAX_COURTS = 4
     }
 }

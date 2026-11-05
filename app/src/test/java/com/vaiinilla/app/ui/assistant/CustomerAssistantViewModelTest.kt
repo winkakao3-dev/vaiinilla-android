@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.assistant
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.domain.assistant.AssistantOrderLine
+import com.vaiinilla.app.domain.assistant.AssistantProductCard
 import com.vaiinilla.app.domain.assistant.CustomerAssistantReply
 import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.assistant.CustomerAssistantTurn
@@ -96,6 +98,25 @@ class CustomerAssistantViewModelTest {
         vm.retry()
         Thread.sleep(50)
         assertEquals(1, repository.started)
+    }
+
+    @Test
+    fun `con el carrito vacio olvida el pedido que puso el asistente`() {
+        val vm = CustomerAssistantViewModel(FakeRepository())
+        vm.onVisible("est-1:4", "est-1")
+        val tacos =
+            AssistantOrderLine(
+                product = AssistantProductCard(1, "Tacos", "60.00", null, true, false, null),
+                quantity = 2,
+                note = null,
+            )
+        vm.markOrderInCart(0, listOf(tacos))
+        assertEquals(listOf(tacos), vm.state.value.cartOrder)
+
+        vm.forgetCartOrder()
+
+        assertTrue(vm.state.value.cartOrder.isEmpty())
+        assertTrue(0 in vm.state.value.done)
     }
 
     private fun waitUntil(condition: () -> Boolean) {

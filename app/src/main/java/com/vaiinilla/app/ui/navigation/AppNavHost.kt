@@ -410,6 +410,12 @@ fun AppNavHost(
             walletViewModel.refreshIfStale(latestVenueId)
         }
     }
+    // Con el carrito vacío (pedido mandado o vaciado a mano) el asistente olvida lo que puso: su siguiente pedido ya
+    // no resta líneas que el cliente agregue después (#26).
+    val cartEmpty = orderState.cartLines.isEmpty()
+    LaunchedEffect(cartEmpty) {
+        if (cartEmpty) assistantViewModel.forgetCartOrder()
+    }
     // El pago de una renta crea un pedido: se sigue en la confirmación (hoja de tarjeta, folio para pagar en caja o
     // compra ya pagada con saldo). Si la persona ya salió de Reservas, el pedido se adopta y no se le arrastra (FLOW-16).
     LaunchedEffect(Unit) {
@@ -1445,15 +1451,20 @@ fun AppNavHost(
             composable(Routes.ORDER_ASSISTANT) {
                 val venue = orderState.guestVenue
                 val table = sharedTableViewModel.uiState.value.table
-                val assistantSpaceId =
+                val assistantSignedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout()
+                val assistantPlaceId =
                     menuWaiterSpaceId(
                         guestSpaceId = venue?.space?.id,
                         sharedTableSpaceId = table?.spaceId,
-                        signedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout(),
+                        signedIn = assistantSignedIn,
                     )
-                LaunchedEffect(venue?.establishment?.id, assistantSpaceId) {
+                // Quien rentó una pista en la app también llama al mesero desde el asistente (#18).
+                val rentedCourt = orderState.rentedCourt
+                val assistantSpaceId = assistantPlaceId ?: rentedCourt?.id?.takeIf { assistantSignedIn }
+                // La plática se reinicia con el lugar del QR o la mesa, no cuando llega la pista rentada.
+                LaunchedEffect(venue?.establishment?.id, assistantPlaceId) {
                     val establishmentId = venue?.establishment?.id
-                    assistantViewModel.onVisible("$establishmentId:$assistantSpaceId", establishmentId)
+                    assistantViewModel.onVisible("$establishmentId:$assistantPlaceId", establishmentId)
                 }
                 val prepare: suspend () -> Unit = { orderFlowViewModel.ensureClientContext() }
                 CustomerAssistantScreen(
@@ -1461,7 +1472,10 @@ fun AppNavHost(
                     venueName = venue?.establishment?.name,
                     place =
                         venue?.space?.let { SpaceCopy.named(it.type, it.name) }
-                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
+                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) }
+                            ?: rentedCourt
+                                ?.takeIf { assistantSpaceId == it.id }
+                                ?.let { SpaceCopy.named(it.type, it.name) },
                     customerName =
                         (studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName())
                             .takeIf { it.isNotBlank() }
@@ -1485,6 +1499,24 @@ fun AppNavHost(
                                 orderFlowViewModel.addAssistantLines(order.lines, replacing)
                             },
                             openCart = { navController.navigateStudent(Routes.CART) },
+                            // La ficha del producto (la misma del menú) vive debajo del asistente.
+                            openProduct = { card ->
+                                navController.popBackStack()
+                                orderFlowViewModel.openProduct(card.productId)
+                            },
+                            // La tarjeta de una pista abre Reservas con esa pista elegida; si el lugar pide cuenta y
+                            // no hay sesión, se entra primero (igual que el botón de canchas del menú).
+                            openCourt = { court ->
+                                reservationsViewModel.preselectCourt(court.courtId)
+                                val needsAccount =
+                                    orderFlowViewModel.requiresStudentAuth() &&
+                                        venue?.establishment?.clientIdRequired == true
+                                if (needsAccount) {
+                                    navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS))
+                                } else {
+                                    navController.navigate(Routes.RESERVATIONS) { launchSingleTop = true }
+                                }
+                            },
                             callWaiter =
                                 if (assistantSpaceId == null) {
                                     null
