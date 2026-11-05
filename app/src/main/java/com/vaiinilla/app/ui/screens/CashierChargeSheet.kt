@@ -349,7 +349,7 @@ internal fun CashierChargeSheet(
                             disabledContentColor = colors.textMuted,
                         ),
                     shape = CircleShape,
-                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp).height(58.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp).heightIn(min = 58.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
                     Icon(
@@ -358,12 +358,14 @@ internal fun CashierChargeSheet(
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.width(8.dp))
+                    // L01: con letra grande se cortaba; se encoge y, si aún no cabe, pasa a dos renglones.
                     Text(
                         if (withoutQr) "Entregar" else "Escanear QR para entregar",
                         fontWeight = FontWeight.Black,
-                        fontSize = 17.sp,
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = 2,
+                        lineHeight = 18.sp,
+                        textAlign = TextAlign.Center,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 17.sp, stepSize = 0.5.sp),
                     )
                 }
             }

@@ -102,7 +102,11 @@ enum class AdminSection(
     private val baseDescription: String,
     val icon: ImageVector,
 ) {
-    STORE("Flujo de mi tienda", "Pagos con tarjeta, directorio, logo, videos y cómo se pide", Icons.Outlined.Tune),
+    STORE(
+        "Flujo de mi tienda",
+        "Pagos con tarjeta, directorio, logo, teléfono, videos y cómo se pide",
+        Icons.Outlined.Tune,
+    ),
     SCHOOL(
         "Escuela",
         "Código para unirse, recarga con tarjeta, apartar y menú de cada día",
@@ -177,6 +181,8 @@ class AdminActions(
         com.vaiinilla.app.domain.model.HomeOrderAction,
         (com.vaiinilla.app.domain.model.OrderDetail) -> Unit,
     ) -> Unit = { _, _, _ -> },
+    /** Con Pedidos a la vista: vuelve a leer «Por aceptar» y los activos sin la rueda de carga. */
+    val onPollOrders: () -> Unit = {},
 )
 
 @Composable

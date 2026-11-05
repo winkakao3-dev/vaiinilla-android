@@ -386,7 +386,7 @@ private fun CatalogContent(
             state.filteredProducts
         }
 
-    val cartShortcutVisible = onOpenCart != null && state.cartItemCount > 0 && state.selectedProduct == null
+    val cartShortcutVisible = onOpenCart != null && menuCartPillVisible(state)
 
     val scene = scenePaletteForTheme()
     val shelfColors =
@@ -944,6 +944,10 @@ private fun ProductCard(
             placeholder = { m -> ProductIllustration(kind, m) },
             card = true,
         )
+        // Lo agotado se queda en su lugar, deslavado, para que se lea «Agotado» de un vistazo (en vivo, #23).
+        if (!product.available) {
+            Box(Modifier.matchParentSize().background(colors.paper.copy(alpha = 0.5f)))
+        }
         Column(
             modifier =
                 Modifier
@@ -1231,3 +1235,9 @@ private fun MenuModeIcons(
         )
     }
 }
+
+/** Con el aviso de que no se reciben pedidos, la píldora «Ver carrito» no invita a pagar (en vivo, #20). */
+internal fun menuCartPillVisible(state: OrderFlowUiState): Boolean =
+    state.cartItemCount > 0 &&
+        state.selectedProduct == null &&
+        state.operationalStatus?.acceptingOrders != false

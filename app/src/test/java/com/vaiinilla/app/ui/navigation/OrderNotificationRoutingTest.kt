@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.navigation
 
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
+import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -151,4 +152,37 @@ class OrderNotificationRoutingTest {
             resolveWaiterCallAction(OperationalRole.CASHIER, accessLoading = false, waiterModes = 1),
         )
     }
+
+    @Test
+    fun `a table call tapped with the app closed waits for the launch and opens that store's waiter`() {
+        // K02: con la app cerrada aún no hay modos; antes el aviso se gastaba en Modos.
+        assertEquals(
+            WaiterCallAction.WAIT,
+            resolveWaiterCallAction(null, accessLoading = false, waiterModes = 0, launchSettled = false),
+        )
+        assertEquals(
+            WaiterCallAction.ACTIVATE_WAITER,
+            resolveWaiterCallAction(null, accessLoading = false, waiterModes = 2, waiterModeChosen = true),
+        )
+        val modes =
+            listOf(
+                mode(OperationalRole.WAITER, "boliche"),
+                mode(OperationalRole.WAITER, "cafe"),
+                mode(OperationalRole.CASHIER, "cafe"),
+            )
+        assertEquals("cafe", pickWaiterCallMode(modes, "cafe", lastEstablishmentId = "boliche")?.establishmentId)
+        assertEquals("boliche", pickWaiterCallMode(modes, null, lastEstablishmentId = "boliche")?.establishmentId)
+        assertEquals(null, pickWaiterCallMode(modes, null, lastEstablishmentId = null))
+        assertEquals("cafe", pickWaiterCallMode(modes.drop(1), null, lastEstablishmentId = null)?.establishmentId)
+    }
+
+    private fun mode(
+        role: OperationalRole,
+        establishmentId: String,
+    ) = AuthorizedMode(
+        role = role,
+        establishmentId = establishmentId,
+        establishmentName = establishmentId,
+        membershipId = "m-$establishmentId-${role.name}",
+    )
 }

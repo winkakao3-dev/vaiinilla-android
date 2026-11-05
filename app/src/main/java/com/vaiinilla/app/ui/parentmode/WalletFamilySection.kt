@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.core.notifications.ChildDeepLinkStore
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.compactMoney
@@ -87,6 +89,9 @@ import java.math.BigDecimal
 
 private const val CHILD_NOTICE_RETRY_MS = 1_500L
 private const val UNATTENDED_NOTICE_TTL_MS = 20_000L
+
+/** Cada cuánto se vuelve a leer «Mis hijos» con la cartera a la vista. */
+private const val CHILDREN_REFRESH_MS = 30_000L
 
 /** Lo que el host del Modo Padre tiene abierto encima de la cartera. */
 private enum class ParentSheetKind { ADD, CONSENT, LINK_CODE }
@@ -135,10 +140,13 @@ fun ParentModeWalletHost(
     // El hijo recién agregado al que el tutor eligió recargarle: su ficha abre en la recarga.
     var reloadChildId by rememberSaveable { mutableStateOf<String?>(null) }
     var reloadAmount by rememberSaveable { mutableStateOf<Int?>(null) }
+    // El pedido del aviso que abrió la ficha: se abre para verlo (P08).
+    var noticeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(openChildId) {
         if (openChildId == null) {
             reloadChildId = null
             reloadAmount = null
+            noticeOrderId = null
         }
     }
     val openAddedChild: (Dependent, Int?) -> Unit = { child, amount ->
@@ -164,6 +172,17 @@ fun ParentModeWalletHost(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (children.hasLoaded) scope.launch { children.load() }
     }
+    // Con la cartera abierta tampoco llega aviso cuando la escuela aprueba o un tutor cambia algo: «Mis hijos» se
+    // quedaba igual hasta reiniciar (en vivo, #12). Se vuelve a leer cada tanto, solo con la app a la vista.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(CHILDREN_REFRESH_MS)
+                if (children.hasLoaded) children.load()
+            }
+        }
+    }
 
     // Aviso de un hijo: su ficha, ya en su escuela. Si ya no es su tutor, se queda en Cartera.
     val requestedChild by ChildDeepLinkStore.requestedChild.collectAsState()
@@ -176,7 +195,10 @@ fun ParentModeWalletHost(
             val child = children.children.firstOrNull { it.userId == link.dependentUserId }
             if (child != null) {
                 optionsRole = null
-                if (!child.isAwaitingSchool) openChildId = child.userId
+                if (!child.isAwaitingSchool) {
+                    openChildId = child.userId
+                    noticeOrderId = link.orderId
+                }
                 ChildDeepLinkStore.consumeChild()
                 return@LaunchedEffect
             }
@@ -249,6 +271,7 @@ fun ParentModeWalletHost(
                     onBack = { openChildId = null },
                     startWithReload = reloadChildId == openChild.userId,
                     initialReloadAmount = reloadAmount.takeIf { reloadChildId == openChild.userId },
+                    initialOrderId = noticeOrderId,
                 )
             }
         }
@@ -262,7 +285,9 @@ fun ParentModeWalletHost(
                 onDismiss = { sheet = null },
                 onParentUnlocked = children::markParentUnlocked,
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
-                startsWithSchoolCode = children.children.isEmpty() && children.isParentUnlocked == false,
+                // F17: agregar o vincular a un hijo siempre empieza por el código de la escuela, aunque la
+                // membresía ya esté habilitada o ya cuide a otro hijo.
+                startsWithSchoolCode = true,
                 schoolName = schoolName,
                 onOpenChild = openAddedChild,
             )

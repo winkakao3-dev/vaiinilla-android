@@ -71,7 +71,8 @@ class AdminContractJson {
         return AdminUnpaidAccounts(
             accounts =
                 data.cuentas.map {
-                    val orderLines = unpaidOrders(it.pedidos)
+                    // El servidor manda la lista en pedidos_detalle; antes venía en pedidos (#204).
+                    val orderLines = unpaidOrders(it.pedidosDetalle ?: it.pedidos)
                     AdminUnpaidAccount(
                         spaceId = it.espacio.id,
                         spaceName = it.espacio.nombre,
@@ -231,9 +232,11 @@ private data class UnpaidAccountsDto(
 @Serializable
 private data class UnpaidAccountDto(
     val espacio: UnpaidSpaceDto,
-    /** Antes un conteo; ahora la lista de pedidos con su restante (R1). Se aceptan las dos formas. */
+    /** El conteo; con #204 vino un tiempo como lista (R1). Se aceptan las dos formas. */
     val pedidos: JsonElement? = null,
     @SerialName("num_pedidos") val numPedidos: Int? = null,
+    /** La lista de pedidos con su restante; `pedidos` vuelve a ser el conteo. */
+    @SerialName("pedidos_detalle") val pedidosDetalle: JsonElement? = null,
     val total: String,
     val horas: Int = 0,
     val abandonada: Boolean = false,

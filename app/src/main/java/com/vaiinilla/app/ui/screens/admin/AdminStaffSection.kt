@@ -327,7 +327,15 @@ internal fun AdminStaffSection(
 
     when (val current = sheet) {
         StaffSheet.Invite ->
-            AdminSheet(title = "Nueva invitación", colors = colors, busy = state.saving, onDismiss = close) {
+            AdminSheet(
+                title = "Nueva invitación",
+                colors = colors,
+                busy = state.saving,
+                onDismiss = {
+                    viewModel.clearInviteError()
+                    close()
+                },
+            ) {
                 InviteForm(colors, state, viewModel, close)
             }
         is StaffSheet.EditRole ->
@@ -586,7 +594,7 @@ private fun InviteForm(
                 colors,
             )
         }
-        Box(Modifier.padding(top = 6.dp)) { AdminSheetError(state.notice.takeIf { state.noticeIsError }) }
+        Box(Modifier.padding(top = 6.dp)) { AdminSheetError(state.inviteError) }
         AdminPrimaryButton(
             title = "Enviar invitación",
             colors = colors,

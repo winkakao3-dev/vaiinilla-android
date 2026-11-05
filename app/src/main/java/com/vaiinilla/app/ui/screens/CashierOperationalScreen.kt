@@ -40,6 +40,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -529,10 +530,12 @@ fun CashierOperationalScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "Por cobrar",
-                            fontSize = 34.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-1).sp,
                             color = colors.textPrimary,
+                            maxLines = 1,
+                            // L01: con letra grande «Por cobrar» se partía junto al buscador; se encoge.
+                            autoSize = TextAutoSize.StepBased(minFontSize = 22.sp, maxFontSize = 34.sp),
                             modifier = Modifier.weight(1f),
                         )
                         CashierSearchButton(
@@ -554,7 +557,8 @@ fun CashierOperationalScreen(
                         fontSize = 12.5.sp,
                         color = colors.textSecondary,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        // L01: con letra grande el negocio, el fondo y la hora no caben en un renglón.
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
@@ -745,7 +749,13 @@ fun CashierOperationalScreen(
 
             if (state.cashSessionOpen == true) {
                 item(key = "cashier-today") {
+                    // Cada cobro en efectivo mueve el esperado: se relee el cajón para que lo cobrado no se quede en «—».
+                    LaunchedEffect(state.expectedCash) { onLoadCashDrawer() }
                     CashierTodayCard(
+                        cashSales =
+                            state.cashDrawer.report
+                                ?.summary
+                                ?.cashSales,
                         expectedCash = state.expectedCash,
                         colors = colors,
                         modifier = Modifier.animateItem(),
@@ -1685,11 +1695,13 @@ private fun CashWelcome(
 }
 
 /**
- * «COBRADO HOY | Efectivo en el cajón» bajo la fila. El servidor todavía no manda lo cobrado del día, así que
- * se ve «—» hasta que llegue; el efectivo abre el detalle del cajón.
+ * «COBRADO EN EFECTIVO | Efectivo en el cajón» bajo la fila. Lo cobrado son las ventas en efectivo de esta caja, del
+ * resumen del cajón (13): el servidor no manda lo cobrado del día con todos los métodos. Hasta que llega se ve «—»; el
+ * efectivo abre el detalle del cajón.
  */
 @Composable
 private fun CashierTodayCard(
+    cashSales: String?,
     expectedCash: String?,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
@@ -1700,21 +1712,22 @@ private fun CashierTodayCard(
         shape = RoundedCornerShape(24.dp),
         color = colors.cardBackground,
     ) {
+        // L01: con letra grande las dos mitades se encimaban; cada una tiene su mitad y se parte entre palabras.
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "COBRADO HOY",
+                    "COBRADO EN EFECTIVO",
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.5.sp,
                 )
                 Text(
-                    "—",
+                    cashSales?.let(::moneyLabel) ?: "—",
                     color = colors.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
@@ -1722,7 +1735,10 @@ private fun CashierTodayCard(
                 )
             }
             Column(
-                modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpenDrawer),
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
@@ -1730,6 +1746,7 @@ private fun CashierTodayCard(
                     color = colors.textSecondary,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.End,
                 )
                 Text(
                     expectedCash?.let(::moneyLabel) ?: "—",
@@ -1769,12 +1786,16 @@ private fun CashierScanButton(
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(8.dp))
+        // L01: con letra grande se cortaba en «Escanear QR para…»: se encoge y, si hace falta, usa dos renglones.
         Text(
             "Escanear QR para entregar",
             color = colors.background,
-            fontSize = 15.sp,
             fontWeight = FontWeight.Black,
-            maxLines = 1,
+            maxLines = 2,
+            lineHeight = 17.sp,
+            textAlign = TextAlign.Center,
+            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
+            modifier = Modifier.weight(1f, fill = false),
         )
     }
 }

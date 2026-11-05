@@ -29,6 +29,9 @@ object OrderAdvanceNotifier {
     /** El id del aviso en [ReceivedNoticeLog], para anotar que se tocó. */
     const val EXTRA_NOTICE_ID = "aviso_id"
 
+    /** El negocio de una llamada de mesa, si el push lo trae: se abre el modo mesero de ese negocio (K02). */
+    const val EXTRA_ESTABLISHMENT_ID = "establecimiento_id"
+
     /** Lo que se mostró (o se habría mostrado) en el teléfono. */
     data class Shown(
         val title: String,
@@ -82,19 +85,9 @@ object OrderAdvanceNotifier {
         folio: Int,
         alert: String,
         noticeId: String? = null,
+        customerName: String? = null,
     ): Shown {
-        val (title, text) =
-            when (alert) {
-                "por_cobrar" -> "Pedido #$folio por cobrar" to "Entro un pedido en efectivo."
-                "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
-                "listo_mesero" -> "Pedido #$folio listo" to "Entregar al espacio del alumno."
-                // «Pasa por él»: el cliente viene a la barra y Caja se lo entrega.
-                "listo_barra" -> "Pedido #$folio listo" to "El cliente pasa a recogerlo a la barra."
-                // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
-                "por_aceptar" -> "Encargo #$folio por aceptar" to "Acéptalo o recházalo en Pedidos."
-                "pedido_domicilio" -> "Pedido #$folio a domicilio" to "Entró un pedido para entregar."
-                else -> "Pedido #$folio" to "El pedido cambio de estado."
-            }
+        val (title, text) = staffAlertText(folio, alert, customerName)
         if (!canPost(context)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF, noticeId)
@@ -111,6 +104,31 @@ object OrderAdvanceNotifier {
                 .build()
         NotificationManagerCompat.from(context).notify(staffNotificationId(orderId, alert), notification)
         return Shown(title, text, posted = true)
+    }
+
+    /**
+     * Título y texto del aviso al personal. El mesero atiende clientes de cualquier negocio, no solo alumnos (K02):
+     * con el nombre del cliente, si el push lo trae, sabe a quién llevárselo.
+     */
+    internal fun staffAlertText(
+        folio: Int,
+        alert: String,
+        customerName: String? = null,
+    ): Pair<String, String> {
+        val name = customerName?.trim()?.takeIf { it.isNotEmpty() }
+        return when (alert) {
+            "por_cobrar" -> "Pedido #$folio por cobrar" to "Entró un pedido en efectivo."
+            "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
+            "listo_mesero" ->
+                "Pedido #$folio listo" to
+                    if (name != null) "Llévaselo a $name a su lugar." else "Llévaselo al cliente a su lugar."
+            // «Pasa por él»: el cliente viene a la barra y Caja se lo entrega.
+            "listo_barra" -> "Pedido #$folio listo" to "El cliente pasa a recogerlo a la barra."
+            // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
+            "por_aceptar" -> "Encargo #$folio por aceptar" to "Acéptalo o recházalo en Pedidos."
+            "pedido_domicilio" -> "Pedido #$folio a domicilio" to "Entró un pedido para entregar."
+            else -> "Pedido #$folio" to "El pedido cambió de estado."
+        }
     }
 
     internal fun staffNotificationId(
@@ -137,6 +155,7 @@ object OrderAdvanceNotifier {
         spaceName: String,
         reason: String?,
         noticeId: String? = null,
+        establishmentId: String? = null,
     ): Shown {
         val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
         val text = tableCallText(reason)
@@ -151,7 +170,7 @@ object OrderAdvanceNotifier {
                 // El motivo es lo que el mesero necesita: completo aunque el sistema recorte la línea.
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setAutoCancel(true)
-                .setContentIntent(waiterCallLaunchIntent(context, noticeId))
+                .setContentIntent(waiterCallLaunchIntent(context, noticeId, establishmentId))
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
@@ -331,6 +350,7 @@ object OrderAdvanceNotifier {
     private fun waiterCallLaunchIntent(
         context: Context,
         noticeId: String?,
+        establishmentId: String?,
     ): PendingIntent =
         PendingIntent.getActivity(
             context,
@@ -338,6 +358,7 @@ object OrderAdvanceNotifier {
             Intent(context, MainActivity::class.java)
                 .setAction("${context.packageName}.staff.waiter_call")
                 .putExtra(EXTRA_NOTIFICATION_TARGET, OrderNotificationTarget.WAITER_CALL.wireValue)
+                .putExtra(EXTRA_ESTABLISHMENT_ID, establishmentId)
                 .withNoticeId(noticeId)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

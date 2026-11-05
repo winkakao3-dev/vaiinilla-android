@@ -12,8 +12,7 @@ import com.vaiinilla.app.domain.guardianship.compactMoney
 
 /**
  * Avisos de Padres e hijos (notifications.service del backend). Al tocarlos abren la ficha del hijo en
- * Cartera, en su escuela ([ChildDeepLink]); el pedido es del hijo y el tutor no lo puede abrir con su
- * propia sesión.
+ * Cartera, en su escuela ([ChildDeepLink]); el de un pedido abre además ese pedido, solo para verlo (P08).
  */
 object GuardianPushNotifier {
     private const val CHANNEL_ID = "order_tracking"
@@ -23,25 +22,28 @@ object GuardianPushNotifier {
         val body: String,
     )
 
-    /** Lo mismo que dice el backend al tutor (TEXTO_ESTADO_TUTOR), con el nombre de pila guardado del hijo. */
+    /** Lo que dice el backend al tutor (TEXTO_ESTADO_TUTOR), con el nombre de pila del hijo y en frase completa. */
     fun orderStateText(
         childName: String?,
         folio: String,
         state: String,
     ): Text? {
-        val action =
+        val name = childName ?: "Tu hijo"
+        // Sin nombre, «tu hijo» a media frase: decía «Tu hijo su pedido está listo para recoger» (15).
+        val ofChild = childName?.let { "de $it" } ?: "de tu hijo"
+        val body =
             when (state) {
-                "cobrado" -> "pidió y ya está en cocina."
-                "preparando" -> "su comida se está preparando."
-                "listo" -> "su pedido está listo para recoger."
-                "entregado" -> "ya recogió su pedido."
-                "cancelado" -> "su pedido se canceló."
-                "no_recogido" -> "no recogió su pedido."
-                "expirado" -> "su pedido expiró."
+                "cobrado" -> "$name pidió y ya está en cocina."
+                "preparando" -> "La comida $ofChild se está preparando."
+                "listo" -> "El pedido $ofChild está listo para recoger."
+                "en_camino" -> "El pedido $ofChild va en camino."
+                "entregado" -> "$name ya recogió su pedido."
+                "cancelado" -> "El pedido $ofChild se canceló."
+                "no_recogido" -> "$name no recogió su pedido."
+                "expirado" -> "El pedido $ofChild expiró."
                 else -> return null
             }
-        val name = childName ?: "Tu hijo"
-        return Text(title = "$name · Pedido #$folio", body = "$name $action")
+        return Text(title = "$name · Pedido #$folio", body = body)
     }
 
     fun lowBalanceText(
@@ -86,6 +88,7 @@ object GuardianPushNotifier {
         link?.let {
             intent.putExtra(ChildDeepLink.EXTRA_DEPENDENT_ID, it.dependentUserId)
             it.establishmentId?.let { id -> intent.putExtra(ChildDeepLink.EXTRA_ESTABLISHMENT_ID, id) }
+            it.orderId?.let { id -> intent.putExtra(ChildDeepLink.EXTRA_ORDER_ID, id) }
         }
         val launch =
             PendingIntent.getActivity(

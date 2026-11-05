@@ -289,4 +289,25 @@ class AdminContractTest {
         assertEquals("380.00", unpaid.total)
         assertEquals("280.00", unpaid.remaining)
     }
+
+    @Test
+    fun `unpaid accounts read the count in pedidos and the list in pedidos_detalle`() {
+        val unpaid =
+            json.parseUnpaidAccounts(
+                """
+                {"data":{"cuentas":[
+                  {"espacio":{"id":4,"nombre":"Mesa 4"},"pedidos":2,"total":"300.00",
+                   "pedidos_detalle":[{"id":"a","folio":"12","total":"200.00","restante":"150.00"},
+                                      {"id":"b","folio":"13","total":"100.00"}]}
+                 ],"total":"300.00"}}
+                """.trimIndent(),
+            )
+
+        val account = unpaid.accounts.single()
+        assertEquals(2, account.orders)
+        assertEquals(listOf("a", "b"), account.orderLines.map { it.id })
+        assertEquals("12", account.orderLines[0].folio)
+        assertEquals("150.00", account.orderLines[0].remaining)
+        assertEquals("100.00", account.orderLines[1].remaining)
+    }
 }

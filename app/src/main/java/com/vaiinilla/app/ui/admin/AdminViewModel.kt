@@ -21,6 +21,7 @@ import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.HomeOrderBoard
+import com.vaiinilla.app.domain.model.HomeOrderStep
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -76,6 +77,15 @@ enum class AdminOrderFilter(
         if (this == ACTIVE && homeOrders) states + OrderState.AWAITING_ACCEPTANCE + OrderState.ON_THE_WAY else states
 }
 
+/** «Por aceptar»: lo que llegó en su consulta propia más lo que trajo la lista, sin repetir y del más viejo al nuevo. */
+internal fun awaitingAcceptance(
+    fetched: List<OrderDetail>,
+    listed: List<OrderDetail>,
+): List<OrderDetail> =
+    (fetched + listed)
+        .filter { it.summary.state == OrderState.AWAITING_ACCEPTANCE }
+        .distinctBy { it.summary.id }
+
 data class AdminUiState(
     val preset: AdminPeriodPreset = AdminPeriodPreset.TODAY,
     /** Periodo elegido a mano ("Personalizado"); manda sobre [preset]. */
@@ -110,6 +120,11 @@ data class AdminUiState(
     val ordersCursor: String? = null,
     val ordersLoading: Boolean = false,
     val ordersError: String? = null,
+    /**
+     * Los encargos que esperan respuesta, pedidos aparte (T02): «Activos» llega del más viejo al más nuevo de 30 en
+     * 30, y un encargo recién hecho quedaba fuera de la primera página detrás de los pendientes viejos.
+     */
+    val awaitingOrders: List<OrderDetail> = emptyList(),
     /** Repostería (CASA-09): de hoy a 15 días, y lo entregado que falta cobrar de los últimos 30. */
     val agenda: List<AgendaDay> = emptyList(),
     val owed: List<OrderDetail> = emptyList(),
@@ -144,6 +159,9 @@ class AdminViewModel
 
         /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
         private val retryKeys = RetryKeys()
+
+        /** Se pidió la agenda mientras otra lectura seguía en curso: al terminar se vuelve a leer. */
+        private var agendaStale = false
 
         /** [scope] es la membresía activa: si cambió de negocio, no se muestran ni un momento los datos del anterior. */
         fun onVisible(scope: String) {
@@ -191,11 +209,20 @@ class AdminViewModel
             viewModelScope.launch {
                 val status = withContext(Dispatchers.IO) { catalogRepository.getOperationalStatus() }
                 val unpaid = withContext(Dispatchers.IO) { adminRepository.unpaidAccounts() }
+                val tookHomeOrders = _uiState.value.takesHomeOrders
                 _uiState.value =
                     _uiState.value.copy(
                         operationalStatus = status.getOrNull() ?: _uiState.value.operationalStatus,
                         unpaid = unpaid.getOrNull() ?: _uiState.value.unpaid,
                     )
+                // Al entrar, «Activos» se pidió antes de saber si el negocio toma encargos y salió sin los que esperan
+                // respuesta ni los que van en camino (T02): se vuelve a pedir con ellos.
+                if (!tookHomeOrders &&
+                    _uiState.value.takesHomeOrders &&
+                    _uiState.value.orderFilter == AdminOrderFilter.ACTIVE
+                ) {
+                    refreshOrders()
+                }
             }
         }
 
@@ -567,8 +594,40 @@ class AdminViewModel
                                 )
                             },
                         )
-                    if (filter == AdminOrderFilter.ACTIVE && !append) loadDeliveredToday()
+                    if (filter == AdminOrderFilter.ACTIVE && !append) {
+                        loadAwaiting()
+                        loadDeliveredToday()
+                    }
                 }
+        }
+
+        /**
+         * Con Pedidos abierto, cada ~15 s (o al llegar un push de pedido) se vuelve a leer sin girar la rueda: un
+         * encargo nuevo no salía en «Por aceptar» hasta reabrir la app. Solo la primera página, y solo si no se
+         * cargaron más; así no se pierde lo que la persona ya bajó.
+         */
+        fun pollOrders() {
+            val current = _uiState.value
+            if (current.orderFilter != AdminOrderFilter.ACTIVE || current.ordersLoading || current.saving) return
+            if (ordersJob?.isActive == true) return
+            ordersJob =
+                viewModelScope.launch {
+                    loadAwaiting()
+                    if (_uiState.value.ordersCursor != null) return@launch
+                    val states = AdminOrderFilter.ACTIVE.states(_uiState.value.takesHomeOrders)
+                    val page = withContext(Dispatchers.IO) { adminRepository.orders(states, null) }.getOrNull()
+                    if (page == null || _uiState.value.orderFilter != AdminOrderFilter.ACTIVE) return@launch
+                    if (_uiState.value.ordersLoading) return@launch
+                    _uiState.value = _uiState.value.copy(orders = page.orders, ordersCursor = page.cursor)
+                }
+        }
+
+        private suspend fun loadAwaiting() {
+            val page =
+                withContext(Dispatchers.IO) {
+                    adminRepository.orders(setOf(OrderState.AWAITING_ACCEPTANCE), null)
+                }.getOrNull() ?: return
+            _uiState.value = _uiState.value.copy(awaitingOrders = page.orders)
         }
 
         private suspend fun loadDeliveredToday() {
@@ -584,9 +643,17 @@ class AdminViewModel
                 _uiState.value.copy(deliveredToday = page.orders.filter { it.summary.operationalDate == today })
         }
 
-        /** Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. */
+        /**
+         * Lo que viene de hoy a 15 días y, para «Me deben», lo entregado en los últimos 30. Si ya hay una lectura en
+         * curso, se vuelve a leer al terminar: «Entregar y cobrar» pedía la agenda tras entregar y otra vez tras cobrar,
+         * la segunda se perdía y «Me deben» seguía con el pedido ya cobrado (13).
+         */
         fun refreshAgenda() {
-            if (_uiState.value.agendaLoading) return
+            if (_uiState.value.agendaLoading) {
+                agendaStale = true
+                return
+            }
+            agendaStale = false
             val today = java.time.LocalDate.now(BusinessTime.zone)
             _uiState.value = _uiState.value.copy(agendaLoading = true, agendaError = null)
             viewModelScope.launch {
@@ -610,6 +677,7 @@ class AdminViewModel
                             )
                         },
                     )
+                if (agendaStale) refreshAgenda()
             }
         }
 
@@ -637,6 +705,14 @@ class AdminViewModel
                                         } else {
                                             it
                                         }
+                                    },
+                                awaitingOrders =
+                                    _uiState.value.awaitingOrders.filter { it.summary.id != updated.summary.id },
+                                // Ya cobrado sale de «Me deben» sin esperar a la agenda.
+                                owed =
+                                    _uiState.value.owed.filter {
+                                        it.summary.id != updated.summary.id ||
+                                            HomeOrderBoard.step(updated) == HomeOrderStep.COLLECT
                                     },
                             )
                         showNotice(doneMessage(action), isError = false)

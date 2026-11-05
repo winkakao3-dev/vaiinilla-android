@@ -146,8 +146,8 @@ fun SharedTablePage(
         Column(
             Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
         ) {
             TableHeader(table, busy, onLeave = { confirmingLeave = true }, modifier = Modifier.arrive(0))

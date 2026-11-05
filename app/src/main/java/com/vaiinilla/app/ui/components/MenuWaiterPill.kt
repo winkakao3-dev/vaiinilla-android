@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Notifications
@@ -408,14 +409,17 @@ private fun AssistantPill(onOpen: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
+        // L01: con letra grande partía «Pregún/tame»: va en un solo renglón que se encoge.
         Text(
             "Pregúntame qué pedir",
             color = colors.accentInk,
-            fontSize = 15.sp,
             fontWeight = FontWeight.Black,
+            lineHeight = 17.sp,
             maxLines = 1,
+            softWrap = false,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 8.dp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
         )
     }
 }

@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.navigation
 
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
+import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 
 sealed class LaunchDestination {
@@ -108,18 +109,38 @@ internal enum class WaiterCallAction {
 }
 
 /**
- * Tocar «Mesa te llama» lleva al tablero del mesero, donde la llamada se ve con su motivo (K02). Sin modo activo y
- * con un solo modo de mesero, se activa ese; con otro modo de personal activo no se le saca de lo que hace: Modos.
+ * Tocar «Mesa te llama» lleva al tablero del mesero, donde la llamada se ve con su motivo (K02). Sin modo activo, se
+ * activa el modo mesero que [pickWaiterCallMode] eligió; con otro modo de personal activo no se le saca de lo que
+ * hace: Modos. Con la app cerrada se espera a que el arranque termine ([launchSettled]): antes no hay modos cargados
+ * y el aviso se gastaba en Modos.
  */
 internal fun resolveWaiterCallAction(
     operationalRole: OperationalRole?,
     accessLoading: Boolean,
     waiterModes: Int,
+    launchSettled: Boolean = true,
+    waiterModeChosen: Boolean = waiterModes == 1,
 ): WaiterCallAction =
     when {
+        !launchSettled -> WaiterCallAction.WAIT
         operationalRole == OperationalRole.WAITER -> WaiterCallAction.OPEN_WAITER
         accessLoading -> WaiterCallAction.WAIT
-        (operationalRole == null || operationalRole == OperationalRole.CLIENT) && waiterModes == 1 ->
+        (operationalRole == null || operationalRole == OperationalRole.CLIENT) && waiterModeChosen ->
             WaiterCallAction.ACTIVATE_WAITER
         else -> WaiterCallAction.OPEN_STAFF_MODES
     }
+
+/**
+ * El modo mesero que abre una llamada de mesa: el del negocio que llamó si el aviso lo trae; si no, el único modo
+ * mesero, o el del último negocio donde trabajó. Sin forma de saberlo, null: se elige en Modos.
+ */
+internal fun pickWaiterCallMode(
+    modes: List<AuthorizedMode>,
+    noticeEstablishmentId: String?,
+    lastEstablishmentId: String?,
+): AuthorizedMode? {
+    val waiterModes = modes.filter { it.role == OperationalRole.WAITER && it.establishmentActive }
+    noticeEstablishmentId?.let { id -> waiterModes.firstOrNull { it.establishmentId == id }?.let { return it } }
+    if (waiterModes.size == 1) return waiterModes.single()
+    return lastEstablishmentId?.let { id -> waiterModes.firstOrNull { it.establishmentId == id } }
+}

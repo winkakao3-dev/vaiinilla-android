@@ -1,9 +1,11 @@
 package com.vaiinilla.app.ui.admin
 
+import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.domain.admin.InvitationState
 import com.vaiinilla.app.domain.admin.InvitationsPage
 import com.vaiinilla.app.domain.admin.StaffMembership
 import com.vaiinilla.app.domain.repository.AdminStaffRepository
+import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.resetMain
@@ -11,6 +13,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.lang.reflect.Proxy
@@ -56,6 +59,22 @@ class AdminStaffViewModelTest {
             listOf("Ana"),
             viewModel.uiState.value.memberships
                 .map { it.name },
+        )
+    }
+
+    @Test
+    fun `a server error on invite stays in the form`() {
+        val serverError =
+            CatalogRepositoryException(
+                "INTERNAL_ERROR",
+                "Error interno",
+                ApiClientException("INTERNAL_ERROR", "Error interno", httpStatus = 500),
+            )
+        val message = inviteErrorMessage(serverError)
+        assertTrue(message.startsWith("No se pudo enviar la invitación"))
+        assertEquals(
+            "Ya hay una invitación pendiente para ese correo y rol.",
+            inviteErrorMessage(CatalogRepositoryException("INVITATION_PENDING_EXISTS", "x")),
         )
     }
 

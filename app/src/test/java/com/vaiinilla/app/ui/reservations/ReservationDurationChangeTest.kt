@@ -155,6 +155,23 @@ class ReservationDurationChangeTest {
         assertEquals(listOf("create ahora 60 j6"), calls)
     }
 
+    @Test
+    fun `invitado sin qr va directo a entrar con su cuenta y con qr escribe su nombre`() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
+        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()))
+        val viewModel = ReservationsViewModel(FakeRepository(), session)
+
+        viewModel.onVisible(guestSlug = "club", hasAccount = false)
+        assertTrue(viewModel.uiState.value.accountRequired)
+        assertFalse(viewModel.uiState.value.guestEntry)
+
+        viewModel.onVisible(guestSlug = "club", hasAccount = false, cameThroughQr = true)
+        assertFalse(viewModel.uiState.value.accountRequired)
+        assertTrue(viewModel.uiState.value.guestEntry)
+        viewModel.onHidden()
+    }
+
     private fun loadedViewModel(): ReservationsViewModel {
         val context: Context = ApplicationProvider.getApplicationContext()
         val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }

@@ -19,7 +19,7 @@ class ChildDeepLinkTest {
                 "dependienteUsuarioId" to "child-1",
                 "establecimientoId" to school,
             )
-        assertEquals(ChildDeepLink("child-1", school), ChildDeepLink.fromPush(order))
+        assertEquals(ChildDeepLink("child-1", school, "order-9"), ChildDeepLink.fromPush(order))
         val lowBalance =
             mapOf(
                 "type" to "saldo_bajo",

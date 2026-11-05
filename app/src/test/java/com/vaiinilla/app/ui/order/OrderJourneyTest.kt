@@ -1,7 +1,11 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.domain.mode.AuthorizedMode
+import com.vaiinilla.app.domain.model.DeliveryAddress
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderHomeDelivery
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemRejection
 import com.vaiinilla.app.domain.model.OrderSpace
@@ -11,6 +15,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.components.moneyLabel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -160,6 +165,103 @@ class OrderJourneyTest {
         val unpaidPreorder = canceled.copy(answerBy = Instant.parse("2026-11-03T23:30:00Z"))
         assertEquals("No te cobramos nada", journeyMoneyBack(unpaidPreorder))
         assertTrue(journeyFacts(unpaidPreorder, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste el anticipo" })
+    }
+
+    @Test
+    fun aCashHomeOrderSaysWhatIsPaidAtTheDoorNotThatItWasPaid() {
+        // S01: decía «Pagaste en efectivo $460» antes de pagar.
+        val cash = order(OrderState.PAID, PaymentMethod.CASH, home = true)
+        val atDoor =
+            cash.copy(
+                homeDelivery =
+                    OrderHomeDelivery(
+                        address = DeliveryAddress(address = "Av. Siempre Viva 742", phone = "5512345678"),
+                        dueOnArrival = "460.00",
+                    ),
+            )
+        val facts = journeyFacts(atDoor, OrderJourney.HOME_DELIVERY)
+        assertTrue(facts.none { it.label == "Pagaste en efectivo" })
+        assertEquals(JourneyFact("Pagas al recibir", moneyLabel("460.00"), FactTone.DUE), facts.last())
+    }
+
+    @Test
+    fun aReadyOrderForTomorrowDoesNotSayPickItUpToday() {
+        // P08: sin franja nace listo y decía «Ya está. Pasa por él» un día antes.
+        val now = Instant.parse("2026-11-05T18:00:00Z")
+        val zone = java.time.ZoneId.of("America/Mexico_City")
+        val tomorrow = order(OrderState.READY, date = "2026-11-06")
+        assertEquals(
+            "Ya está listo. Pasa por él el vie 6 nov.",
+            journeyHeadline(tomorrow, OrderJourney.PREORDER_PICKUP, now, zone),
+        )
+        assertEquals(
+            "Ya está apartado. Se recoge el vie 6 nov.",
+            journeyHeadline(tomorrow, OrderJourney.SCHOOL, now, zone),
+        )
+        val today = order(OrderState.READY, date = "2026-11-05")
+        assertEquals("Ya está. Pasa por él.", journeyHeadline(today, OrderJourney.PREORDER_PICKUP, now, zone))
+    }
+
+    @Test
+    fun aSchoolPreorderIsAnApartadoEvenBeforeTheStatusLoads() {
+        // P08: el alumno veía «Encargo #3 · para recoger» porque el estado operativo no decía modo_escuela.
+        val school = mode("esc", isSchool = true)
+        assertTrue(inSchoolVenue(statusSchool = null, venueId = "esc", modes = listOf(school)))
+        assertTrue(inSchoolVenue(statusSchool = null, venueId = null, modes = listOf(school)))
+        assertTrue(inSchoolVenue(statusSchool = false, venueId = null, modes = emptyList(), hasGuardian = true))
+        assertFalse(inSchoolVenue(statusSchool = null, venueId = "cafe", modes = listOf(school, mode("cafe"))))
+        assertFalse(inSchoolVenue(statusSchool = null, venueId = null, modes = listOf(school, mode("cafe"))))
+        val reserved = order(OrderState.READY, date = "2026-11-06")
+        assertEquals(OrderJourney.SCHOOL, orderJourney(reserved, JourneyVenue(school = true)))
+    }
+
+    @Test
+    fun aSchoolOrderWaitsOnThatDayUntilItComes() {
+        val today = java.time.LocalDate.parse("2026-11-05")
+        val tomorrow = order(OrderState.READY, date = "2026-11-06")
+        assertEquals(1, journeyStepIndex(tomorrow, OrderJourney.SCHOOL, today))
+        assertEquals("Apartado · para el vie 6 nov", journeyCaption(tomorrow, OrderJourney.SCHOOL, today).text)
+        val onTheDay = order(OrderState.READY, date = "2026-11-05")
+        assertEquals(3, journeyStepIndex(onTheDay, OrderJourney.SCHOOL, today))
+        assertEquals("Listo · en el comedor", journeyCaption(onTheDay, OrderJourney.SCHOOL, today).text)
+        assertEquals(2, journeyStepIndex(order(OrderState.PREPARING, date = "2026-11-05"), OrderJourney.SCHOOL, today))
+    }
+
+    private fun mode(
+        id: String,
+        isSchool: Boolean = false,
+    ) = AuthorizedMode(
+        role = OperationalRole.CLIENT,
+        establishmentId = id,
+        establishmentName = id,
+        membershipId = "m-$id",
+        isSchool = isSchool,
+    )
+
+    @Test
+    fun aSchoolOrderForAnotherDaySaysWhenItIsPickedUp() {
+        // P08: la tarjeta de lo pedido decía solo «Apartado · se recoge en el comedor».
+        val reserved = order(OrderState.PAID, date = "2026-11-09")
+        val slotted = reserved.copy(summary = reserved.summary.copy(deliverySlot = "12:00-12:30"))
+        assertEquals("Se recoge el lun 9 nov entre 12:00 y 12:30", scheduledPickupLine(slotted, OrderJourney.SCHOOL))
+        assertTrue(scheduledPickupLine(reserved, OrderJourney.SCHOOL).startsWith("Se recoge el lun 9 nov"))
+        val today = order(OrderState.PAID)
+        assertEquals("Apartado · se recoge en el comedor", scheduledPickupLine(today, OrderJourney.SCHOOL))
+        assertTrue(scheduledPickupLine(slotted, OrderJourney.PREORDER_PICKUP).startsWith("Lo recoges el lun 9 nov"))
+    }
+
+    @Test
+    fun aCashPreorderTheBusinessRejectedSaysNothingWasCharged() {
+        // S04: decía «Cancelaron tu pedido» y «Pagaste en efectivo» sin haber pagado nada.
+        val canceled = order(OrderState.CANCELED, PaymentMethod.CASH, home = true)
+        val rejected =
+            canceled.copy(
+                answerBy = Instant.parse("2026-11-03T23:30:00Z"),
+                summary = canceled.summary.copy(canceledByRole = "admin"),
+            )
+        assertEquals("No te cobramos nada", journeyMoneyBack(rejected))
+        assertEquals("El negocio no pudo aceptar tu encargo.", journeyHeadline(rejected, OrderJourney.HOME_DELIVERY))
+        assertTrue(journeyFacts(rejected, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste en efectivo" })
     }
 
     @Test

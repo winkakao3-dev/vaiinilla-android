@@ -88,6 +88,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vaiinilla.app.core.location.HomeAddressLocator
 import com.vaiinilla.app.core.location.MapsLink
+import com.vaiinilla.app.domain.model.AddressStreet
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.HomeDeliveryOffer
 import com.vaiinilla.app.domain.model.Money
@@ -559,7 +560,7 @@ internal fun HomeMapPicker(
                 street = null
                 val found =
                     HomeAddressLocator.address(context, point)
-                        ?: "Ubicación %.5f, %.5f".format(point.latitude, point.longitude)
+                        ?: "${AddressStreet.LOCATION_PREFIX}%.5f, %.5f".format(point.latitude, point.longitude)
                 val text = found.take(160)
                 street = text
                 actions.onEditAddress { it.copy(address = text) }

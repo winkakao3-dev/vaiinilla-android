@@ -12,6 +12,8 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.core.runCatchingCancellable
+import com.vaiinilla.app.core.security.JwtContextScope
+import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -99,6 +101,7 @@ class OperationalViewModel
         private val guestOrders: GuestOrderGateway,
         private val guestSessionStore: GuestSessionStore,
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
+        private val sessionStore: SecureSessionStore,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -142,6 +145,16 @@ class OperationalViewModel
 
         // Un cobro que terminó cuando el cajero ya había salido de la pantalla se avisa al volver.
         private var deferredCashierNotice: String? = null
+
+        // El negocio del aviso pendiente: el cobro de un negocio no se avisa en la Caja de otro (en vivo, #10).
+        private var deferredNoticeEstablishmentId: String? = null
+
+        // El negocio del último rol puesto; cambiar de negocio con el mismo rol limpia como cambiar de rol.
+        private var roleEstablishmentId: String? = null
+
+        // El negocio del JWT con que se leyeron los pedidos del cliente. Con cuenta, al entrar a otro lugar el JWT
+        // cambia después de poner el rol: el pedido del anterior («En la cancha · Pista 3») se quedaba (#10).
+        private var clientOrdersEstablishmentId: String? = null
         private val heartbeatCoordinator =
             OperationalHeartbeatCoordinator(
                 scope = viewModelScope,
@@ -155,8 +168,16 @@ class OperationalViewModel
             )
 
         fun setRole(role: OperationalRole) {
-            val roleChanged = _uiState.value.role != role
+            val establishmentId = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
+            val establishmentChanged = isOtherEstablishment(roleEstablishmentId, establishmentId)
+            val previousEstablishmentId = roleEstablishmentId
+            if (establishmentId != null) roleEstablishmentId = establishmentId
+            // Caja de otro negocio con el mismo rol: los pedidos y el aviso «Renta … cobrada» eran del anterior.
+            val roleChanged = _uiState.value.role != role || establishmentChanged
+            val previousState = _uiState.value
             if (roleChanged) {
+                // De Caja a cliente y de vuelta, sin pasar por Modos: también se recuerda lo último de Caja.
+                snapshotStaffState(previousEstablishmentId)
                 roleGeneration += 1
                 lastUpdatedSince = null
                 walletSearchJob?.cancel()
@@ -192,7 +213,14 @@ class OperationalViewModel
                     pendingWalletReload = null,
                     catalog = null,
                     cashDrawer = CashDrawerUi(),
+                    cashChangeNotice = if (establishmentChanged) null else _uiState.value.cashChangeNotice,
                 )
+            // Con el mismo rol se conserva lo último conocido mientras se vuelve a pedir: borrarlo dejaba Caja en
+            // «Revisando la caja» y quitaba «Cerrar caja» del menú hasta que contestara el servidor (en vivo, USAGI).
+            val known = if (roleChanged) takeStaffSnapshot(role, roleEstablishmentId) else previousState
+            if (known != null && role != OperationalRole.CLIENT && role != OperationalRole.ADMIN) {
+                _uiState.value = _uiState.value.keepKnownStaffState(known, restoreOrders = roleChanged)
+            }
             pendingWalletReload = null
             if (role == OperationalRole.CASHIER) surfaceDeferredCashierNotice()
             // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
@@ -212,7 +240,30 @@ class OperationalViewModel
             deviceTokenRegistrar.register()
         }
 
+        /** El JWT de cliente es de otro negocio que el de la lista: lo del anterior se suelta antes de leer. */
+        private fun dropClientOrdersOfAnotherEstablishment() {
+            val current = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
+            val previous = clientOrdersEstablishmentId
+            if (current != null) clientOrdersEstablishmentId = current
+            if (!isOtherEstablishment(previous, current)) return
+            _uiState.value =
+                _uiState.value.copy(
+                    orders = emptyList(),
+                    latestClientOrder = null,
+                    menuOrder = null,
+                    selectedOrderId = null,
+                )
+        }
+
+        /**
+         * Lo último que se supo de un rol de personal al soltarlo. Volver al mismo rol y negocio poco después (Atrás
+         * a Por cobrar, reabrir el modo) arranca con esto en vez de «Revisando la caja» y «Cargando pedidos», y sin
+         * perder «Cerrar caja»; la primera carga trae la lista completa y la concilia.
+         */
+        private var lastStaffState: StaffStateSnapshot? = null
+
         fun clearRole() {
+            snapshotStaffState()
             roleGeneration += 1
             pollingJob?.cancel()
             pollingJob = null
@@ -230,6 +281,32 @@ class OperationalViewModel
             errorClearJob = null
             UnreadableOrders.clear()
             _uiState.value = OperationalUiState()
+        }
+
+        private fun snapshotStaffState(establishmentId: String? = roleEstablishmentId) {
+            val current = _uiState.value
+            val role = current.role ?: return
+            if (role == OperationalRole.CLIENT || role == OperationalRole.ADMIN) return
+            // Solo lo que de verdad se cargó: un estado a medias no ahorra nada.
+            if (current.lastRefreshOk != true && current.cashSessionOpen == null) return
+            lastStaffState =
+                StaffStateSnapshot(
+                    role = role,
+                    establishmentId = establishmentId,
+                    takenAtMs = System.currentTimeMillis(),
+                    state = current,
+                )
+        }
+
+        /** La foto del mismo rol y negocio, si es reciente; se usa una sola vez. */
+        private fun takeStaffSnapshot(
+            role: OperationalRole,
+            establishmentId: String?,
+        ): OperationalUiState? {
+            val snapshot = lastStaffState ?: return null
+            if (!snapshot.matches(role, establishmentId, System.currentTimeMillis())) return null
+            lastStaffState = null
+            return snapshot.state
         }
 
         fun selectOrder(orderId: String?) {
@@ -286,6 +363,8 @@ class OperationalViewModel
         fun refresh() {
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
+            if (role == OperationalRole.CLIENT) dropClientOrdersOfAnotherEstablishment()
+            val pollEstablishment = clientOrdersEstablishmentId
             if (role == OperationalRole.CLIENT && _uiState.value.orders.isEmpty()) {
                 listOrders.cachedClientOrders()?.let { cached ->
                     if (generation == roleGeneration && _uiState.value.role == role) {
@@ -331,6 +410,8 @@ class OperationalViewModel
                 val since = if (role == OperationalRole.CLIENT || fullSync) null else lastUpdatedSince
                 val result = withContext(Dispatchers.IO) { loadOrders(role, since) }
                 if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                // Salió con el JWT del negocio anterior y ya se cambió: traería sus pedidos de vuelta.
+                if (role == OperationalRole.CLIENT && pollEstablishment != clientOrdersEstablishmentId) return@launch
                 // Una respuesta que salió antes de otra ya aplicada traería el estado viejo encima del nuevo.
                 if (seq < appliedRefreshSeq) return@launch
                 appliedRefreshSeq = seq
@@ -1028,6 +1109,7 @@ class OperationalViewModel
                 return
             }
             val generation = roleGeneration
+            val establishmentAtStart = roleEstablishmentId
             mutationErrorVisible = false
             _uiState.value =
                 _uiState.value.copy(acting = true, errorMessage = null, cashChangeNotice = null)
@@ -1052,7 +1134,10 @@ class OperationalViewModel
                     if (generation != roleGeneration || _uiState.value.role != role) {
                         // El cajero salió de la pantalla con el cobro en vuelo: el dinero ya se movió, así que
                         // se le dice al volver en vez de dejarlo sin saber si cobró.
-                        result.onSuccess { receipt -> deferredCashierNotice = cashCollectionNotice(receipt) }
+                        result.onSuccess { receipt ->
+                            deferredCashierNotice = cashCollectionNotice(receipt)
+                            deferredNoticeEstablishmentId = establishmentAtStart
+                        }
                         return@launch
                     }
                     result
@@ -1083,7 +1168,10 @@ class OperationalViewModel
 
         private fun surfaceDeferredCashierNotice() {
             val notice = deferredCashierNotice ?: return
+            val noticeEstablishment = deferredNoticeEstablishmentId
             deferredCashierNotice = null
+            deferredNoticeEstablishmentId = null
+            if (isOtherEstablishment(noticeEstablishment, roleEstablishmentId)) return
             _uiState.value = _uiState.value.copy(cashChangeNotice = notice)
         }
 
@@ -1879,6 +1967,12 @@ internal fun cashCollectionNotice(receipt: CashCollectionResult): String {
         "$what · Sin cambio"
     }
 }
+
+/** Otro negocio solo si los dos se conocen: un token sin el claim no cuenta como cambio. */
+internal fun isOtherEstablishment(
+    previous: String?,
+    current: String?,
+): Boolean = previous != null && current != null && previous != current
 
 /** El servidor devuelve a lo más esta cantidad por página; una lista de ese tamaño puede estar cortada. */
 internal const val FULL_LIST_LIMIT = 50

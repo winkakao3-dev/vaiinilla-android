@@ -152,6 +152,7 @@ import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartLineTotal
 import com.vaiinilla.app.ui.order.cartTotalFor
+import com.vaiinilla.app.ui.order.cashbackLine
 import com.vaiinilla.app.ui.order.checkoutScheduleProblem
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
@@ -269,7 +270,15 @@ fun CartScreen(
         val last = listState.layoutInfo.totalItemsCount - 1
         if (last >= 0) listState.animateScrollToItem(last)
     }
-    val heroGone by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    // L01: la barra se tapa en cuanto el fondo de la foto llega a ella, no hasta que la foto sale de la lista;
+    // si no, lo que sigue a la foto pasaba bajo la barra de estado (con letra grande, mucho más).
+    val statusBarPx = WindowInsets.statusBars.getTop(density)
+    val heroPx = with(density) { (if (state.cartLines.isNotEmpty()) 380.dp else 400.dp).roundToPx() }
+    val heroGone by remember(statusBarPx, heroPx) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset >= heroPx - statusBarPx
+        }
+    }
     val notesFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val hasLines = state.cartLines.isNotEmpty()
@@ -457,6 +466,17 @@ fun CartScreen(
                                 ),
                                 Modifier.padding(top = 16.dp),
                             )
+                            // Con el cashback prendido, cuánto deja este pedido, junto al total; apagado o sin cuenta
+                            // no se menciona (24). Va dentro de este renglón para que siempre se vea con el total.
+                            state.cashbackLine().takeUnless { guestCheckout }?.let { cashback ->
+                                Text(
+                                    cashback,
+                                    color = colors.ink2,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
+                                )
+                            }
                         }
                     }
                     item(key = "limit") {
@@ -619,6 +639,7 @@ fun CartScreen(
                     // «Pasa por él» (elegido o porque el negocio solo entrega en barra): no se lleva al lugar.
                     toTable = state.checkoutDestination == OrderDestination.IN_SPACE && !state.pickUpAtBarForOrder,
                     spaceType = state.checkoutSpace?.type,
+                    cashbackLine = state.cashbackLine().takeUnless { guestCheckout },
                     onDismiss = { paymentDialogOpen = false },
                     onSelectPayAtEnd = {
                         paymentDialogOpen = false
@@ -648,7 +669,7 @@ fun CartScreen(
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
                 .graphicsLayer { alpha = if (heroGone) 1f else 0f }
-                .background(colors.paper.copy(alpha = 0.92f)),
+                .background(colors.paper),
         )
     }
 }
@@ -674,6 +695,8 @@ private fun PaymentMethodOverlay(
     /** Comer en la mesa: nadie recoge en barra, se lo llevan. */
     toTable: Boolean = false,
     spaceType: String? = null,
+    /** «Ganas $4.60 de cashback (1%)…»; `null` con el cashback apagado (24). */
+    cashbackLine: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
@@ -835,6 +858,10 @@ private fun PaymentMethodOverlay(
                         },
                     )
                 }
+            }
+
+            cashbackLine?.let {
+                Text(it, color = colors.ink2, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
 
             // Action Button matching reference

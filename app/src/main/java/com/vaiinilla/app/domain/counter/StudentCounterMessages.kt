@@ -15,6 +15,11 @@ import java.time.format.DateTimeFormatter
 object StudentCounterMessages {
     private val hour = DateTimeFormatter.ofPattern("H:mm")
 
+    /** El servidor pide PIN y la ficha no lo sabía: su tutor se lo puso con la ficha ya abierta. */
+    fun isPinRequired(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.filterIsInstance<ApiClientException>().firstOrNull()?.code ==
+            "PIN_REQUIRED"
+
     fun chargeFailure(
         error: Throwable,
         zone: ZoneId = BusinessTime.zone,

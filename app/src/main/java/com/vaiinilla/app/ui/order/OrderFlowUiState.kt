@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.core.text.normalizeForSearch
+import com.vaiinilla.app.domain.admin.CashbackPreview
+import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
@@ -22,6 +24,8 @@ import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
+import com.vaiinilla.app.ui.components.moneyLabel
+import java.time.ZonedDateTime
 
 data class OrderFlowUiState(
     val loading: Boolean = true,
@@ -82,6 +86,8 @@ data class OrderFlowUiState(
     val homeCheckout: HomeCheckoutDraft = HomeCheckoutDraft(),
     val quotingDelivery: Boolean = false,
     val deliveryQuoteError: String? = null,
+    /** La regla de cashback activa del negocio; `null` si está apagado o no se pudo leer (24). */
+    val cashbackRule: CashbackRule? = null,
 )
 
 /** A one-shot visual confirmation for the order currently being created. */
@@ -142,8 +148,17 @@ val OrderFlowUiState.selectedProduct: Product?
 
 val OrderFlowUiState.filteredProducts: List<Product>
     get() {
-        // Lo agotado se queda en el menú, al final, con "Agotado" y sin Agregar (B10).
-        val products = catalog?.products.orEmpty().sortedBy { !it.available }
+        // Lo agotado se queda en el menú con "Agotado" y sin Agregar (B10), al final de su categoría y no de todo el
+        // menú: allá abajo parecía que había desaparecido (en vivo, #23). El orden va por categoría y por id, no por
+        // el del servidor, que cambia con cada edición (marcar agotado lo mandaba al final).
+        val categoryOrder =
+            catalog?.categories.orEmpty().sortedBy { it.order }.withIndex().associate { (index, category) ->
+                category.id to index
+            }
+        val products =
+            catalog?.products.orEmpty().sortedWith(
+                compareBy({ categoryOrder[it.categoryId] ?: Int.MAX_VALUE }, { !it.available }, { it.id }),
+            )
         val categoryFiltered =
             selectedCategoryId
                 ?.takeIf { id -> catalog?.categories.orEmpty().any { it.id == id } }
@@ -190,6 +205,14 @@ val OrderFlowUiState.checkoutTotal: String
         val fee = homeDeliveryFee ?: return cart
         return Money.format(Money.parse(cart) + Money.parse(fee))
     }
+
+/** «Ganas $4.60 de cashback (1%)» para el carrito y la hoja de pago; `null` si este pedido no gana nada (24). */
+fun OrderFlowUiState.cashbackLine(now: ZonedDateTime = ZonedDateTime.now(BusinessTime.zone)): String? {
+    val percent = CashbackPreview.percentAt(cashbackRule, now) ?: return null
+    val earned = CashbackPreview.earned(cashbackRule, checkoutTotal, now) ?: return null
+    val shown = percent.stripTrailingZeros().toPlainString()
+    return "Ganas ${moneyLabel(earned)} de cashback ($shown%) cuando te lo entreguen."
+}
 
 val OrderFlowUiState.homeDeliveryOffer: HomeDeliveryOffer?
     get() = operationalStatus?.homeDelivery

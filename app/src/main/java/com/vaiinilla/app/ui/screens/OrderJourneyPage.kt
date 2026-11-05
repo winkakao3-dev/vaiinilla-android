@@ -185,6 +185,8 @@ internal fun OrderJourneyPage(
     /** Pagar el encargo que ya aceptaron (D1b); null si no hay nada que pagar aquí. */
     onPay: (() -> Unit)? = null,
     paying: Boolean = false,
+    /** El tutor mirando el pedido de su hijo: sin botones para cancelar, pagar, llamar ni pedir ayuda (P08). */
+    readOnly: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -292,9 +294,9 @@ internal fun OrderJourneyPage(
             modifier
                 .fillMaxSize()
                 .background(colors.paper)
-                .verticalScroll(rememberScrollState())
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
     ) {
         JourneyTopRow(
@@ -384,7 +386,7 @@ internal fun OrderJourneyPage(
                     Modifier.arrive(4, key),
                 )
             }
-            if (home && state == OrderState.ON_THE_WAY) {
+            if (home && state == OrderState.ON_THE_WAY && !readOnly) {
                 order.homeDelivery?.dueOnArrival?.takeIf { order.homeDelivery.hasAmountDue }?.let { due ->
                     PayAtDoorCard(due, order.homeDelivery.deposit, colors, Modifier.arrive(5, key))
                     JourneyButton(
@@ -403,7 +405,7 @@ internal fun OrderJourneyPage(
                 ?.takeUnless { journeyMoneyBack(order) != null && it == cancellationMoneyNote(order) }
                 ?.let { DashedNote(it, colors, Modifier.arrive(5, key)) }
             guestNotice?.let { DashedNote(it, colors, Modifier.arrive(5, key)) }
-            if (arrival != null) {
+            if (arrival != null && !readOnly) {
                 ArrivedButton(arrival, colors, Modifier.arrive(5, key))
             } else if (journey == OrderJourney.DRIVE_THRU && order.arrivedAt != null && state != OrderState.DELIVERED) {
                 Text(
@@ -419,11 +421,9 @@ internal fun OrderJourneyPage(
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                 )
             }
-            JourneyActions(actions, colors, Modifier.arrive(6, key))
-            if (home &&
-                venue.whatsappUrl != null &&
-                state in setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY, OrderState.ON_THE_WAY)
-            ) {
+            if (!readOnly) JourneyActions(actions, colors, Modifier.arrive(6, key))
+            // Sin WhatsApp del negocio el enlace también sale (S06): la hoja dice qué pasa con el dinero en cada caso.
+            if (home && state in HelpStates && !readOnly) {
                 Text(
                     if (state ==
                         OrderState.ON_THE_WAY
@@ -453,6 +453,7 @@ internal fun OrderJourneyPage(
             order = order,
             venueName = venue.name,
             colors = colors,
+            canWrite = venue.whatsappUrl != null,
             onWrite = {
                 helpOpen = false
                 writeToVenue(it)
@@ -1652,6 +1653,7 @@ private fun OrderHelpSheet(
     order: OrderDetail,
     venueName: String?,
     colors: VaiinillaColors,
+    canWrite: Boolean,
     onWrite: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1706,11 +1708,18 @@ private fun OrderHelpSheet(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .physicalPress(scale = PhysicalPressScale.Small) { onWrite("Pedido #$folio: $title.") }
-                        .clip(RoundedCornerShape(18.dp))
+                        .then(
+                            if (canWrite) {
+                                Modifier.physicalPress(scale = PhysicalPressScale.Small) {
+                                    onWrite("Pedido #$folio: $title.")
+                                }
+                            } else {
+                                Modifier
+                            },
+                        ).clip(RoundedCornerShape(18.dp))
                         .background(colors.paper2)
                         .padding(12.dp)
-                        .semantics(mergeDescendants = true) { role = Role.Button },
+                        .semantics(mergeDescendants = true) { if (canWrite) role = Role.Button },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -1722,9 +1731,39 @@ private fun OrderHelpSheet(
                         Text(title, color = colors.ink, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
                         Text(detail, color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.muted)
+                    if (canWrite) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = colors.muted,
+                        )
+                    }
                 }
+            }
+            if (!canWrite) {
+                Text(
+                    HELP_WITHOUT_WHATSAPP,
+                    color = colors.ink2,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
     }
 }
+
+/** Los estados en que el pedido a domicilio aún puede cambiar: «Algo cambió o necesito ayuda». */
+private val HelpStates =
+    setOf(
+        OrderState.AWAITING_ACCEPTANCE,
+        OrderState.PAID,
+        OrderState.PREPARING,
+        OrderState.READY,
+        OrderState.ON_THE_WAY,
+    )
+
+internal const val HELP_WITHOUT_WHATSAPP =
+    "Este negocio no dejó su WhatsApp en Vaiinilla: llámalo o escríbele por donde lo conoces. " +
+        "Mientras tanto tu pedido y tu dinero siguen igual."
+

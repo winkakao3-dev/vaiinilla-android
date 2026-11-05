@@ -104,8 +104,7 @@ object VaiinillaModule {
         parser: ContractResponseParser,
         orderContractJson: OrderContractJson,
         archivedStore: PreferencesArchivedProductsStore,
-    ): AdminRepository =
-        RemoteAdminRepository(apiClient, parser, orderContractJson, archivedStore = archivedStore)
+    ): AdminRepository = RemoteAdminRepository(apiClient, parser, orderContractJson, archivedStore = archivedStore)
 
     @Provides
     @Singleton

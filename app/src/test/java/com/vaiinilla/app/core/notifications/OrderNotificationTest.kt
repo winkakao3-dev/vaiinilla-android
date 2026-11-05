@@ -145,4 +145,19 @@ class OrderNotificationTest {
         )
         assertNull(OrderAdvanceNotifier.rentalMessageFor(OrderState.PAID, "Pista 1"))
     }
+
+    @Test
+    fun `waiter ready notice speaks of the customer, never of a student`() {
+        val (title, body) = OrderAdvanceNotifier.staffAlertText(folio = 12, alert = "listo_mesero")
+        assertEquals("Pedido #12 listo", title)
+        assertEquals("Llévaselo al cliente a su lugar.", body)
+        assertEquals(
+            "Llévaselo a Ana a su lugar.",
+            OrderAdvanceNotifier.staffAlertText(folio = 12, alert = "listo_mesero", customerName = " Ana ").second,
+        )
+        assertEquals(
+            "Llévaselo al cliente a su lugar.",
+            OrderAdvanceNotifier.staffAlertText(folio = 12, alert = "listo_mesero", customerName = "  ").second,
+        )
+    }
 }
