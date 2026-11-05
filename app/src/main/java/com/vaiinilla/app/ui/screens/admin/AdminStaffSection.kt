@@ -61,6 +61,7 @@ import com.vaiinilla.app.ui.admin.AdminStaffUiState
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -393,7 +394,7 @@ private fun StaffAvatar(
         }
     Box(Modifier.size(size).clip(CircleShape).background(tint), contentAlignment = Alignment.Center) {
         Text(
-            name.take(1).uppercase(),
+            initialOf(name),
             fontSize = (size.value * 0.42f).sp,
             fontWeight = FontWeight.Black,
             color = Color(0xFF1D1E1C),

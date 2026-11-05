@@ -71,6 +71,7 @@ import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.RollingText
 import com.vaiinilla.app.ui.components.WaiterCallHost
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -416,7 +417,7 @@ private fun Initial(
         Modifier.size(34.dp).clip(CircleShape).background(fill).clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
-        Text(alias.trim().take(1).uppercase(), color = ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
+        Text(initialOf(alias), color = ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
     }
 }
 

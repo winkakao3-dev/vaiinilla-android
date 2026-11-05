@@ -50,6 +50,7 @@ import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ClientPillButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.mode.AuthorizedAccessUiState
@@ -244,7 +245,7 @@ private fun InvitationHeader(invitation: AuthorizedInvitation?) {
     val (inviter, title) = invitationHeadline(invitation)
     Column {
         if (invitation != null) {
-            val initial = invitation.establishmentName.trim().firstOrNull()?.uppercaseChar() ?: 'V'
+            val initial = initialOf(invitation.establishmentName).ifEmpty { "V" }
             Box(
                 modifier =
                     Modifier

@@ -43,6 +43,7 @@ import com.vaiinilla.app.domain.model.SharedTableParticipant
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
@@ -232,10 +233,7 @@ private fun TableFaces(people: List<SharedTableParticipant>) {
         shown.forEachIndexed { index, person ->
             val (bg, fg) = FaceColors[index]
             TableFace(
-                person.alias
-                    .trim()
-                    .take(1)
-                    .uppercase(),
+                initialOf(person.alias),
                 bg,
                 fg,
             )
@@ -287,7 +285,7 @@ private fun JoinTableRow(
             val shown = state.othersAtTable.take(2)
             shown.forEachIndexed { index, name ->
                 val (bg, fg) = FaceColors[index]
-                TableFace(name.trim().take(1).uppercase(), bg, fg)
+                TableFace(initialOf(name), bg, fg)
             }
             val extra = state.othersAtTable.size - shown.size
             if (extra > 0) TableFace("+$extra", Color(0xFF33342F), OrderTrackingCardText.copy(alpha = 0.86f))

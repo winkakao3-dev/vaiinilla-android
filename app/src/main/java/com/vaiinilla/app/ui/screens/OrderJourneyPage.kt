@@ -28,8 +28,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,6 +109,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.WaiterCallHost
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.canAnnounceArrival
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -990,10 +993,12 @@ private fun CancelQuote(
         modifier
             .padding(top = 14.dp)
             .fillMaxWidth()
+            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 18.dp, bottomEnd = 18.dp))
             .background(colors.paper2),
     ) {
-        Box(Modifier.width(3.dp).height(68.dp).background(colors.coral))
+        // La barra mide lo que la cita: con un motivo largo no termina antes que la tarjeta.
+        Box(Modifier.width(3.dp).fillMaxHeight().background(colors.coral))
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text("«$reason»", color = colors.ink, fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
             Text(
@@ -1175,7 +1180,7 @@ private fun CourierRow(
                 .background(colors.accent),
             contentAlignment = Alignment.Center,
         ) {
-            Text(name.trim().take(1).uppercase(), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(initialOf(name), color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(12.dp))
         Column {

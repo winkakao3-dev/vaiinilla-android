@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.ClientPillButton
 import com.vaiinilla.app.ui.components.ClientSheetHandle
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
@@ -185,7 +186,7 @@ private fun InviteFaces(names: List<String>) {
     ) {
         shown.forEachIndexed { index, name ->
             val (fill, ink) = InviteFaceTints[index]
-            InviteFace(name.trim().take(1).uppercase(), fill, ink, 16.sp)
+            InviteFace(initialOf(name), fill, ink, 16.sp)
         }
         if (rest > 0) InviteFace("+$rest", lerp(colors.paper2, colors.ink, 0.06f), colors.ink2, 13.sp)
     }
