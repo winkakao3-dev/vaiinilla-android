@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -354,7 +355,14 @@ private fun BigFigure(
 ) {
     Column(modifier) {
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textMuted, maxLines = 1)
-        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Black, color = colors.textPrimary, maxLines = 1)
+        Text(
+            value,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 20.sp),
+        )
     }
 }
 
@@ -425,7 +433,7 @@ private fun LazyListScope.breakdownItems(
         LinesPanel(colors, emptyText = "Sin ventas todavía.", empty = b.payments.isEmpty()) {
             b.payments.forEachIndexed { i, p ->
                 if (i > 0) AdminRowDivider(colors)
-                BarRow(p.label, "${p.orders} pedidos", p.amount, shareOf(p.amount, b.summary.sales), colors)
+                BarRow(p.label, adminOrdersText(p.orders), p.amount, shareOf(p.amount, b.summary.sales), colors)
             }
         }
     }
@@ -493,7 +501,7 @@ private fun LazyListScope.breakdownItems(
                 val role = staffRoleLabel(s.role).takeIf { it.isNotEmpty() && s.userId != null }
                 BarRow(
                     s.label,
-                    listOfNotNull(role, "${s.orders} pedidos", s.averageTicket?.let { "ticket ${moneyLabel(it)}" })
+                    listOfNotNull(role, adminOrdersText(s.orders), s.averageTicket?.let { "ticket ${moneyLabel(it)}" })
                         .joinToString(" · "),
                     s.sales,
                     shareOf(s.sales, b.summary.sales),
@@ -509,9 +517,10 @@ private fun LazyListScope.breakdownItems(
                 if (i > 0) AdminRowDivider(colors)
                 val detail =
                     if (s.rentals.isNotZero()) {
-                        "${s.orders} pedidos · renta ${moneyLabel(s.rentals)} · consumo ${moneyLabel(s.consumption)}"
+                        "${adminOrdersText(s.orders)} · renta ${moneyLabel(s.rentals)} · " +
+                            "consumo ${moneyLabel(s.consumption)}"
                     } else {
-                        "${s.orders} pedidos"
+                        adminOrdersText(s.orders)
                     }
                 BarRow(s.label, detail, s.sales, shareOf(s.sales, b.summary.sales), colors)
             }
@@ -525,7 +534,7 @@ private fun LazyListScope.breakdownItems(
                     if (i > 0) AdminRowDivider(colors)
                     AdminRow(
                         title = cutDayLabel(runCatching { LocalDate.parse(d.date) }.getOrNull()),
-                        detail = "${d.orders} pedidos",
+                        detail = adminOrdersText(d.orders),
                         colors = colors,
                     ) { AdminRowValue(moneyLabel(d.sales), colors) }
                 }
