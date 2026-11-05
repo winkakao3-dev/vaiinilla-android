@@ -400,8 +400,14 @@ class WaiterViewModel
         fun openTableOrder(space: TableSpace) = openOrderSheet(space)
 
         private fun openOrderSheet(space: TableSpace?) {
+            // Cada pedido arranca en «Te lo llevamos»: un «Pasa por él» del anterior no se hereda (R38).
             _uiState.value =
-                _uiState.value.copy(counterOrderOpen = true, counterOrderError = null, counterOrderSpace = space)
+                _uiState.value.copy(
+                    counterOrderOpen = true,
+                    counterOrderError = null,
+                    counterOrderSpace = space,
+                    counterPickUpAtBar = false,
+                )
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
