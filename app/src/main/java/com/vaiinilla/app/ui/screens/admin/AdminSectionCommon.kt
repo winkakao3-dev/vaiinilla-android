@@ -332,26 +332,35 @@ internal fun AdminQrBlock(
 ) {
     val context = LocalContext.current
     var writingNfc by remember { mutableStateOf(false) }
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        VaiinillaQrCode(value = url, qrSize = 120.dp)
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-            if (code != null) {
-                Text("Código", fontSize = 12.sp, color = colors.textSecondary)
-                Text(code, fontSize = 22.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+    // Su propia columna: dentro de un Box los botones se dibujaban encima del QR (en vivo, T10).
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            VaiinillaQrCode(value = url, qrSize = 120.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                if (code != null) {
+                    Text("Código", fontSize = 12.sp, color = colors.textSecondary)
+                    Text(code, fontSize = 22.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
+                }
+                Text(
+                    url,
+                    fontSize = 11.sp,
+                    color = colors.textSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Text(url, fontSize = 11.sp, color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-    }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ChipButton(label = "Compartir QR", enabled = true, colors = colors) {
-            if (!shareQr(context, url, name, shareMessage)) onNotice("No se pudo preparar el QR.", true)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipButton(label = "Compartir QR", enabled = true, colors = colors) {
+                if (!shareQr(context, url, name, shareMessage)) onNotice("No se pudo preparar el QR.", true)
+            }
+            ChipButton(label = "Copiar enlace", enabled = true, colors = colors) {
+                copyLink(context, name, url)
+                onNotice("Enlace copiado", false)
+            }
+            ChipButton(label = "Abrir", enabled = true, colors = colors) { openLink(context, url) }
+            ChipButton(label = "Grabar en NFC", enabled = true, colors = colors) { writingNfc = true }
         }
-        ChipButton(label = "Copiar enlace", enabled = true, colors = colors) {
-            copyLink(context, name, url)
-            onNotice("Enlace copiado", false)
-        }
-        ChipButton(label = "Abrir", enabled = true, colors = colors) { openLink(context, url) }
-        ChipButton(label = "Grabar en NFC", enabled = true, colors = colors) { writingNfc = true }
     }
     if (writingNfc) {
         AdminNfcSheet(url = url, colors = colors, onDone = { ok, message ->

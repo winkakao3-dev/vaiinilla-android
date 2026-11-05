@@ -102,7 +102,8 @@ internal fun AdminStaffSection(
             state.memberships.isEmpty() &&
             state.invitations.isEmpty() &&
             !state.loading &&
-            state.error == null
+            state.error == null &&
+            state.membershipsError == null
 
     AdminSectionPage(
         title = "Personal",
@@ -166,7 +167,10 @@ internal fun AdminStaffSection(
                     colors,
                     Modifier.padding(top = 16.dp, bottom = 8.dp),
                 )
-                if (state.memberships.isEmpty()) {
+                val membershipsError = state.membershipsError
+                if (membershipsError != null && state.memberships.isEmpty()) {
+                    AdminLoadError(membershipsError, colors, viewModel::refresh)
+                } else if (state.memberships.isEmpty()) {
                     AdminPanel(colors) {
                         Text(
                             "Todavía nadie más tiene acceso. Cuando acepten la invitación, aparecen aquí.",
@@ -208,6 +212,13 @@ internal fun AdminStaffSection(
                             }
                         }
                     }
+                }
+                Box(Modifier.padding(top = 10.dp, start = 6.dp, end = 6.dp)) {
+                    AdminHint(
+                        "Administración ya incluye Caja, Mesero y Cocina. Un acceso desactivado deja de salir " +
+                            "aquí: para devolvérselo, invítalo de nuevo.",
+                        colors,
+                    )
                 }
             }
         }

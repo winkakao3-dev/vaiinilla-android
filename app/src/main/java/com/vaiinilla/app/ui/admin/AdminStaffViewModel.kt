@@ -30,6 +30,8 @@ data class AdminStaffUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val memberships: List<StaffMembership> = emptyList(),
+    /** Los accesos no cargaron: se dice y se reintenta, en vez de decir que no hay nadie (en vivo, T07). */
+    val membershipsError: String? = null,
     val saving: Boolean = false,
     val notice: String? = null,
     val noticeIsError: Boolean = false,
@@ -62,9 +64,16 @@ class AdminStaffViewModel
         fun refresh() {
             load(append = false)
             viewModelScope.launch {
-                withContext(Dispatchers.IO) { repository.memberships() }.onSuccess {
-                    _uiState.value = _uiState.value.copy(memberships = it)
-                }
+                val result = withContext(Dispatchers.IO) { repository.memberships() }
+                _uiState.value =
+                    result.fold(
+                        onSuccess = { _uiState.value.copy(memberships = it, membershipsError = null) },
+                        onFailure = {
+                            _uiState.value.copy(
+                                membershipsError = it.toUserFacingMessage("No se pudo cargar quién tiene acceso."),
+                            )
+                        },
+                    )
             }
         }
 

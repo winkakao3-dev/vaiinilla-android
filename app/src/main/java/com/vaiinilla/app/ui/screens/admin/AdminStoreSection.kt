@@ -833,7 +833,7 @@ private fun StorePresencePage(
             item {
                 AdminPanel(colors, Modifier.padding(top = 10.dp)) {
                     AdminHint("El QR de tu tienda abre tu menú directo.", colors)
-                    Box(Modifier.padding(top = 10.dp)) {
+                    Column(Modifier.padding(top = 10.dp)) {
                         // Con un mensaje listo, el QR se pega tal cual en WhatsApp o en el estado (CASA-10).
                         AdminQrBlock(
                             url = url,
