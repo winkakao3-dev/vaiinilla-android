@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.data.mode.LastStaffModeStore
+import com.vaiinilla.app.data.mode.StaffOfflineContextStore
+import com.vaiinilla.app.data.mode.canWorkOffline
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.domain.mode.AuthorizedMode
@@ -30,6 +33,8 @@ class AuthorizedAccessViewModel
         private val authRepository: StudentAuthRepository,
         private val sessionStore: SecureSessionStore,
         private val refreshCoordinator: VaiinillaJwtRefreshCoordinator,
+        private val lastStaffMode: LastStaffModeStore,
+        private val offlineContext: StaffOfflineContextStore,
     ) : ViewModel() {
         private val _state = mutableStateOf(AuthorizedAccessUiState())
         val state: State<AuthorizedAccessUiState> = _state
@@ -133,6 +138,8 @@ class AuthorizedAccessViewModel
                     withContext(Dispatchers.IO) { repository.authorizedModes(session) }.fold(
                         onSuccess = { modes ->
                             lastModesUid = session.uid
+                            // Para abrir Mesero o Caja si la próxima vez la app arranca sin internet (O04).
+                            withContext(Dispatchers.IO) { offlineContext.saveModes(session.uid, modes) }
                             _state.value =
                                 _state.value.copy(
                                     modes = modes,
@@ -209,12 +216,21 @@ class AuthorizedAccessViewModel
                             // El token del modo nuevo y su contexto se guardan juntos aunque cancelen la corrutina.
                             withContext(NonCancellable) {
                                 // Espera a que termine un refresh del modo anterior: fuera del hilo principal.
-                                withContext(Dispatchers.IO) { activateContext(mode, session, context) }
+                                withContext(Dispatchers.IO) {
+                                    activateContext(mode, session, context)
+                                    if (mode.role == OperationalRole.CLIENT) {
+                                        lastStaffMode.clear()
+                                    } else {
+                                        lastStaffMode.save(session.uid, mode)
+                                        offlineContext.saveContext(session.uid, context)
+                                    }
+                                }
                                 _state.value =
                                     _state.value.copy(
                                         loading = false,
                                         session = session,
                                         activeContext = context,
+                                        restoredOffline = false,
                                         message = "Modo ${mode.role.label} activo.",
                                     )
                             }
@@ -247,6 +263,7 @@ class AuthorizedAccessViewModel
                     _state.value.copy(
                         loading = false,
                         activeContext = null,
+                        restoredOffline = false,
                         errorMessage = "No hay un acceso Alumno disponible para esta cuenta.",
                     )
                 return
@@ -262,11 +279,16 @@ class AuthorizedAccessViewModel
                     withContext(Dispatchers.IO) { repository.activateMode(clientMode, session) }.fold(
                         onSuccess = { context ->
                             withContext(NonCancellable) {
-                                withContext(Dispatchers.IO) { activateContext(clientMode, session, context) }
+                                withContext(Dispatchers.IO) {
+                                    activateContext(clientMode, session, context)
+                                    lastStaffMode.clear()
+                                    offlineContext.clear()
+                                }
                                 _state.value =
                                     _state.value.copy(
                                         loading = false,
                                         activeContext = null,
+                                        restoredOffline = false,
                                         message = "Regresaste al modo Alumno.",
                                         errorMessage = null,
                                     )
@@ -295,10 +317,12 @@ class AuthorizedAccessViewModel
                 return
             }
             viewModelScope.launch(Dispatchers.IO) {
+                lastStaffMode.clear()
                 refreshCoordinator.clearSession()
                 sessionStore.clear()
             }
-            _state.value = _state.value.copy(loading = false, activeContext = null, errorMessage = null)
+            _state.value =
+                _state.value.copy(loading = false, activeContext = null, restoredOffline = false, errorMessage = null)
             onLeft()
         }
 
@@ -316,7 +340,63 @@ class AuthorizedAccessViewModel
             _state.value = _state.value.copy(errorMessage = null, message = null)
         }
 
+        /**
+         * El modo de personal que esta cuenta tenía activo antes de que Android cerrara la app, si sigue autorizado.
+         * Llamar con los modos ya cargados.
+         */
+        fun rememberedStaffMode(): AuthorizedMode? {
+            val session = authRepository.peekSession() ?: return null
+            return lastStaffMode.find(session.uid, _state.value.modes)
+        }
+
+        /**
+         * O04: la app arrancó sin internet y no se pudieron leer los modos. Si esta cuenta tenía Mesero o Caja
+         * abierto en este teléfono, se reabre con lo guardado (modos, contexto y el token que quedó en el almacén
+         * seguro) para seguir tomando pedidos en la cola sin conexión. Devuelve el modo reabierto, o null.
+         */
+        fun reopenRememberedModeOffline(): AuthorizedMode? {
+            if (_state.value.activeContext != null) return null
+            val session = authRepository.peekSession() ?: return null
+            val saved = offlineContext.load(session.uid) ?: return null
+            val savedContext = saved.context ?: return null
+            val modes = _state.value.modes.ifEmpty { saved.modes }
+            val mode =
+                lastStaffMode.find(session.uid, modes)
+                    ?.takeIf { canWorkOffline(it.role) && savedContext.matches(it) }
+                    ?: return null
+            val context = savedContext.toModeContext(sessionStore.readAccessToken().orEmpty())
+            refreshCoordinator.startSession(
+                role = context.role,
+                expiresInSeconds = context.expiresIn,
+                // El token guardado se queda: sin red no hay otro. El refresh pide uno nuevo en cuanto vuelve.
+                refresh = {
+                    kotlinx.coroutines.runBlocking {
+                        repository.activateMode(mode, session).fold(
+                            onSuccess = { refreshed ->
+                                sessionStore.saveAccessToken(refreshed.accessToken)
+                                Result.success(Unit)
+                            },
+                            onFailure = { Result.failure(it) },
+                        )
+                    }
+                },
+            )
+            _state.value =
+                _state.value.copy(
+                    loading = false,
+                    session = session,
+                    modes = modes,
+                    activeContext = context,
+                    restoredOffline = true,
+                    errorMessage = null,
+                    message = "Sin internet: abriste ${mode.role.label} con lo guardado en este teléfono.",
+                )
+            return mode
+        }
+
         fun resetAfterSignOut() {
+            lastStaffMode.clear()
+            offlineContext.clear()
             invitationJob?.cancel()
             modesJob?.cancel()
             actionJob?.cancel()
@@ -356,6 +436,7 @@ class AuthorizedAccessViewModel
                     _state.value.copy(
                         loading = false,
                         activeContext = null,
+                        restoredOffline = false,
                         errorMessage = "Tu acceso operativo cambió, pero no hay un contexto Alumno disponible.",
                     )
                 return

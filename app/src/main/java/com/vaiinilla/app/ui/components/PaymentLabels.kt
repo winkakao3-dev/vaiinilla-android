@@ -21,6 +21,7 @@ fun paymentWireLabel(method: String): String =
         "saldo" -> "Saldo"
         "stripe" -> "Tarjeta"
         "mixto" -> "Mixto"
+        "transferencia" -> "Transferencia"
         else -> method.replaceFirstChar { it.uppercase() }
     }
 
@@ -50,13 +51,15 @@ fun orderStateLabel(summary: OrderSummary): String =
 
 /**
  * ¿El cliente tiene que mostrar su QR para recibir el pedido? No, si el backend lo dispensa para este
- * pedido (`entrega_sin_qr`); para llevar, siempre; en un espacio solo si el establecimiento pide el QR.
+ * pedido (`entrega_sin_qr`); para llevar o «Pasa por él», siempre; en un espacio solo si el establecimiento
+ * pide el QR.
  */
 fun OrderDetail.needsPickupQr(deliveryRequiresQr: Boolean): Boolean =
     !summary.deliveryWithoutQr &&
         when (summary.destination) {
             OrderDestination.TAKE_AWAY -> true
-            OrderDestination.IN_SPACE -> deliveryRequiresQr
+            // «Pasa por él»: se recoge en la barra como para llevar y se enseña el código en Caja.
+            OrderDestination.IN_SPACE -> deliveryRequiresQr || summary.pickUpAtBar
             // A domicilio nunca: el cliente dicta su código de 4 dígitos (CASA-08).
             OrderDestination.HOME_DELIVERY -> false
         }

@@ -1,12 +1,17 @@
 package com.vaiinilla.app.ui.screens.admin
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.screens.receiptLocalTime
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,5 +52,31 @@ class AdminCashSectionUiTest {
         composeTestRule.onNodeWithText("$500").assertIsDisplayed()
         // La hora va dentro de la etiqueta en mayúsculas «SESIÓN DE CAJA · DESDE 09:05».
         composeTestRule.onNodeWithText("DESDE ${receiptLocalTime(openedAt)}", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `dice que se cobra en Caja y lleva ahi`() {
+        var goes = 0
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                AdminCashSection(
+                    state = AdminUiState(cashLoaded = true),
+                    colors = rememberOperationalColors(),
+                    readOnly = false,
+                    actions =
+                        AdminCashActions(
+                            onOpenCash = { _, _ -> },
+                            onCloseCash = { _, _ -> },
+                            onGoToCashier = { goes++ },
+                        ),
+                    onBack = {},
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasText("Ir a Caja"))
+        composeTestRule.onNodeWithText("Aquí no se cobra", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ir a Caja").performClick()
+        assertEquals(1, goes)
     }
 }

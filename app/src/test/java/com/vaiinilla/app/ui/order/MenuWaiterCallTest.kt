@@ -29,6 +29,15 @@ class MenuWaiterCallTest {
     }
 
     @Test
+    fun `quien rento la cancha en la app tambien llama al mesero`() {
+        val court = 5
+        assertEquals(court, menuWaiterSpaceId(null, null, signedIn = true, rentedCourtId = court))
+        // La pista rentada en curso manda sobre la mesa del QR: ya está jugando allá.
+        assertEquals(court, menuWaiterSpaceId(1, null, signedIn = true, rentedCourtId = court))
+        assertNull(menuWaiterSpaceId(null, null, signedIn = false, rentedCourtId = court))
+    }
+
+    @Test
     fun `la pildora dice el estado y se encoge junto a Pedir ya`() {
         assertEquals(
             MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Llamar al mesero", "Mesero"),
@@ -213,6 +222,78 @@ class MenuWaiterCallTest {
             assertEquals(MenuWaiterPhase.CHOOSING, state.phase)
             assertTrue(state.expanded)
             assertEquals("Llamar al mesero todavía no está disponible en esta cafetería.", state.error)
+        }
+
+    @Test
+    fun `sin cuenta pide el nombre antes de sentarlo y llama con lo que eligio`() =
+        runTest {
+            var calls = 0
+            val joinedAs = mutableListOf<String>()
+            val state =
+                MenuWaiterCallState(
+                    spaceId = 1,
+                    onCurrent = { Result.success(null) },
+                    onCall = { _, _, _ ->
+                        calls++
+                        if (calls == 1) Result.failure(notAtTable()) else Result.success(call(CallStatus.PENDIENTE))
+                    },
+                    onCancel = { Result.success(it) },
+                    onJoinTable = { error("No debe sentarlo como Cliente") },
+                    onJoinAs = { name ->
+                        joinedAs += name
+                        if (joinedAs.size == 1) {
+                            Result.failure(OrderRepositoryException("PARTICIPANT_NAME_TAKEN", "Ya está."))
+                        } else {
+                            Result.success(Unit)
+                        }
+                    },
+                )
+            state.tap()
+            assertFalse(state.send(CallReason.CUENTA))
+            assertTrue(state.askingName)
+            assertNull(state.error)
+            // Otro de la mesa ya usa ese nombre: se queda pidiéndolo.
+            assertFalse(state.sendWithName("  Ana "))
+            assertTrue(state.askingName)
+            assertEquals(MenuWaiterCallState.NAME_TAKEN_MESSAGE, state.error)
+            assertTrue(state.sendWithName("Ana Sofía"))
+            assertFalse(state.askingName)
+            assertEquals(listOf("Ana", "Ana Sofía"), joinedAs)
+            assertEquals(MenuWaiterPhase.OPEN, state.phase)
+        }
+
+    @Test
+    fun `si la llamada falla ya sentado, el reintento no vuelve a unirse`() =
+        runTest {
+            var calls = 0
+            var joins = 0
+            val state =
+                MenuWaiterCallState(
+                    spaceId = 1,
+                    onCurrent = { Result.success(null) },
+                    onCall = { _, _, _ ->
+                        calls++
+                        when (calls) {
+                            1 -> Result.failure(notAtTable())
+                            2 -> Result.failure(IllegalStateException("Sin red"))
+                            else -> Result.success(call(CallStatus.PENDIENTE))
+                        }
+                    },
+                    onCancel = { Result.success(it) },
+                    onJoinTable = null,
+                    onJoinAs = {
+                        joins++
+                        Result.success(Unit)
+                    },
+                )
+            state.tap()
+            assertFalse(state.send(CallReason.CUENTA))
+            assertFalse(state.sendWithName("Ana"))
+            assertFalse(state.askingName)
+            // Ya tiene nombre: la pantalla quita onJoinAs y el reintento llama directo.
+            state.onJoinAs = null
+            assertTrue(state.send(CallReason.CUENTA))
+            assertEquals(1, joins)
         }
 
     private fun notAtTable() =

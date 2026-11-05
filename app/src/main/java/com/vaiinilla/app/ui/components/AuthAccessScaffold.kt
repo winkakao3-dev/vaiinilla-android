@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +29,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +43,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -77,11 +78,6 @@ fun AuthAccessField(
     var focused by remember { mutableStateOf(false) }
     var revealed by remember { mutableStateOf(false) }
     val isPassword = kind == AuthAccessFieldKind.Password
-    val lift by animateDpAsState(
-        targetValue = if (focused) (-1).dp else 0.dp,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
-        label = "fieldLift",
-    )
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
@@ -92,12 +88,12 @@ fun AuthAccessField(
             if (trailingLabel != null && onTrailingLabel != null) {
                 Text(
                     trailingLabel,
+                    // Se siente al tocarlo y toca en 48 dp, aunque la letra mida 16.
                     modifier =
-                        Modifier.clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() },
-                            onClick = onTrailingLabel,
-                        ),
+                        Modifier
+                            .minimumInteractiveComponentSize()
+                            .physicalPress(scale = PhysicalPressScale.Small, onClick = onTrailingLabel)
+                            .semantics { role = Role.Button },
                     color = colors.muted,
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
@@ -110,7 +106,6 @@ fun AuthAccessField(
                 Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .offset(y = lift)
                     .clip(FieldShape)
                     .background(colors.paper)
                     .border(

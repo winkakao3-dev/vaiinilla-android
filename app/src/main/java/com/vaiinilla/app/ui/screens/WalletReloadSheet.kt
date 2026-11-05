@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
+import com.vaiinilla.app.domain.model.NameInitials
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.domain.time.BusinessTime
@@ -732,13 +733,8 @@ private val InitialsPalette =
 
 @Composable
 private fun ClientInitials(name: String) {
-    val initials =
-        name
-            .split(' ')
-            .filter { it.isNotBlank() }
-            .take(2)
-            .joinToString("") { it.first().uppercase() }
-            .ifEmpty { "?" }
+    // Un emoji al inicio no cuenta: first() lo partía y se veía «�».
+    val initials = NameInitials.of(name, max = 2).ifEmpty { "?" }
     val (bg, fg) = InitialsPalette[Math.floorMod(name.hashCode(), InitialsPalette.size)]
     Box(
         modifier = Modifier.size(40.dp).clip(CircleShape).background(bg),

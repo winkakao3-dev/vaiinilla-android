@@ -86,6 +86,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.skipsKitchen
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
@@ -176,6 +177,15 @@ internal fun kitchenSplitItems(items: List<OrderItem>): Pair<List<OrderItem>, Li
     val (kitchen, other) = items.partition { it.preparationStation == PreparationStation.KITCHEN }
     return if (kitchen.isEmpty()) items to emptyList() else kitchen to other
 }
+
+/**
+ * Con `cocina_prepara_sin_cobrar` apagado, el servidor rechaza empezar un pedido por cobrar (409
+ * ORDER_PAYMENT_PENDING): la comanda se ve, pero espera a que Caja la cobre (R14).
+ */
+internal fun kitchenWaitsForCashier(
+    order: OrderDetail,
+    kitchenPreparesUnpaid: Boolean,
+): Boolean = !kitchenPreparesUnpaid && order.summary.state == OrderState.PENDING_PAYMENT
 
 internal fun kitchenDefaultTab(queue: List<OrderDetail>): KitchenTab =
     when {
@@ -542,6 +552,7 @@ fun KitchenOperationalScreen(
                     order = order,
                     acting = state.acting,
                     canAct = canAct,
+                    waitsForCashier = kitchenWaitsForCashier(order, state.kitchenPreparesUnpaid),
                     canRemove = { item -> canRemoveItems && item.preparationStation == PreparationStation.KITCHEN },
                     onRemoveItem = { item -> rejectingItem = order.summary.id to item },
                     onPrimary = {
@@ -818,12 +829,14 @@ private fun KitchenOrderCard(
     primaryAnchor: String,
     registry: com.vaiinilla.app.ui.components.AssistantAnchorRegistry,
     modifier: Modifier = Modifier,
+    /** El negocio solo prepara lo cobrado y este pedido sigue por cobrar: no hay «Empezar a preparar» (R14). */
+    waitsForCashier: Boolean = false,
 ) {
     val tab = kitchenTabOf(order)
     val summary = order.summary
     val place =
         buildList {
-            add(SpaceCopy.staffDestination(summary.destination, summary.space))
+            add(SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar))
             staffCustomerName(order)?.let(::add)
             when {
                 summary.state == OrderState.PENDING_PAYMENT && !summary.payAtEnd -> add("falta pagar")
@@ -855,6 +868,16 @@ private fun KitchenOrderCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 2.dp),
                     )
+                    // Llegó al volver la red: probablemente ya se preparó con su folio provisional.
+                    order.offlineCaptureLabel()?.let { label ->
+                        Text(
+                            "$label · revisa si ya se preparó",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = KitchenInk,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
                 KitchenAgeChip(createdAt = kitchenAgeStart(summary))
             }
@@ -940,7 +963,15 @@ private fun KitchenOrderCard(
                         modifier = Modifier.padding(top = 12.dp),
                     )
                 else ->
-                    if (readyDeadline != null) {
+                    if (tab == KitchenTab.NEW && waitsForCashier) {
+                        Text(
+                            "Falta cobrar en Caja · se empieza cuando lo cobren",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = KitchenMuted,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    } else if (readyDeadline != null) {
                         KitchenUndoReady(
                             deadline = readyDeadline,
                             onUndo = onUndoReady,

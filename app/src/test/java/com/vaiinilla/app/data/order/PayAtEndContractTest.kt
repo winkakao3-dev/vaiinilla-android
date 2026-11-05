@@ -43,8 +43,29 @@ class PayAtEndContractTest {
     private fun orderJson(extra: String = "") = """{"data":${orderData(extra)},"meta":{},"error":null}"""
 
     @Test
-    fun `a normal order is sent exactly as before, without the pay at end field`() {
-        assertFalse(json.encodeCreateRequest(request()).contains("pago_diferido"))
+    fun `a normal order always sends pago_diferido false so the server never infers pay at end`() {
+        assertTrue(json.encodeCreateRequest(request()).contains("\"pago_diferido\":false"))
+    }
+
+    @Test
+    fun `pay at the register in a space sends pago_diferido false explicitly`() {
+        val raw = json.encodeCreateRequest(request(destination = OrderDestination.IN_SPACE, payAtEnd = false))
+        assertTrue(raw.contains("\"pago_diferido\":false"))
+    }
+
+    @Test
+    fun `confirmar_para_llevar only travels once the customer confirms and changes the fingerprint`() {
+        val takeAway = request(destination = OrderDestination.TAKE_AWAY, spaceId = null)
+        assertFalse(json.encodeCreateRequest(takeAway).contains("confirmar_para_llevar"))
+        val confirmed = takeAway.copy(confirmTakeAway = true)
+        assertTrue(json.encodeCreateRequest(confirmed).contains("\"confirmar_para_llevar\":true"))
+        assertNotEquals(createOrderFingerprint(takeAway), createOrderFingerprint(confirmed))
+    }
+
+    @Test
+    fun `a take away order also sends pago_diferido false`() {
+        val raw = json.encodeCreateRequest(request(destination = OrderDestination.TAKE_AWAY, spaceId = null))
+        assertTrue(raw.contains("\"pago_diferido\":false"))
     }
 
     @Test

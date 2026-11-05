@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -33,7 +34,7 @@ class RentalDurationPickerTest {
                     durations = listOf(60, 90, 120),
                     enabled = true,
                     colors = rememberOperationalColors(),
-                    onConfirm = { confirmed += it },
+                    onConfirm = { minutes, _, _ -> confirmed += minutes },
                 )
             }
         }
@@ -44,6 +45,31 @@ class RentalDurationPickerTest {
 
         composeTestRule.onNodeWithText("Rentar 1 h · $150").assertIsDisplayed().performClick()
         assertEquals(listOf(60), confirmed)
+    }
+
+    @Test
+    fun `lo elegido en el ViewModel vuelve a salir al regresar a la hoja (U04)`() {
+        val confirmed = mutableListOf<Triple<Int, Int?, String?>>()
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                RentalDurationPicker(
+                    title = "Rentar ahora",
+                    verb = "Rentar",
+                    pricePerHour = "150.00",
+                    durations = listOf(60, 90, 120),
+                    enabled = true,
+                    colors = rememberOperationalColors(),
+                    draft = RentalDraft(spaceId = 7, minutes = 60, players = 0, customerName = "Ana"),
+                    onDraftChange = { _, _, _ -> },
+                    askName = true,
+                    onConfirm = { minutes, players, name -> confirmed += Triple(minutes, players, name) },
+                )
+            }
+        }
+
+        // Sin tocar nada: la duración guardada ya está elegida y el nombre va en la renta.
+        composeTestRule.onNodeWithText("Rentar 1 h · $150").assertIsDisplayed().performClick()
+        assertEquals(listOf(Triple(60, null, "Ana")), confirmed)
     }
 
     @Test

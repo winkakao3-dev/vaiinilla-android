@@ -26,6 +26,8 @@ data class AuthorizedMode(
     /** Un servidor anterior no lo envía: no es escuela. */
     val isSchool: Boolean = false,
     val establishmentActive: Boolean = true,
+    /** Plataforma le dio esta tienda hace poco: se le recibe con el marco AS0. */
+    val recentlyAssigned: Boolean = false,
 )
 
 /**

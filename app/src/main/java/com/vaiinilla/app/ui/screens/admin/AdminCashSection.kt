@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
@@ -60,6 +64,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.receiptLocalTime
 import com.vaiinilla.app.ui.theme.Yolk
+import kotlinx.coroutines.delay
 import java.math.BigDecimal
 
 /** Lo que la sección de Caja necesita del resto del modo. */
@@ -67,7 +72,12 @@ class AdminCashActions(
     val onOpenCash: (String, () -> Unit) -> Unit,
     val onCloseCash: (String, () -> Unit) -> Unit,
     val onRefresh: () -> Unit = {},
+    /** J09: cobrar y entregar es de Caja; abre ese modo del mismo negocio. Null sin a dónde ir. */
+    val onGoToCashier: (() -> Unit)? = null,
 )
+
+/** J09: cada cuánto se vuelve a leer la caja mientras se ve; los cobros los hace Caja desde otro teléfono. */
+private const val CASH_POLL_MS = 15_000L
 
 /** Caja, como los marcos 39, 40 y 41 del lienzo. Cobrar y entregar quedan para una cuenta de Caja. */
 @Composable
@@ -81,7 +91,17 @@ internal fun AdminCashSection(
     var sheet by remember { mutableStateOf<CashSheet?>(null) }
     val open = state.cashSessionId != null
     val enabled = !readOnly && !state.saving
-    LaunchedEffect(Unit) { actions.onRefresh() }
+    // J09: se lee al entrar, al volver a la app y cada poco mientras se ve; los cobros de Caja llegan solos.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val refresh by rememberUpdatedState(actions.onRefresh)
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                refresh()
+                delay(CASH_POLL_MS)
+            }
+        }
+    }
 
     AdminSectionPage(
         title = "Caja",
@@ -89,7 +109,7 @@ internal fun AdminCashSection(
         notice = state.notice.takeIf { sheet == null },
         noticeIsError = state.notice != null && state.noticeIsError,
         onBack = onBack,
-        subtitle = "El efectivo del día. Abre la caja para cobrar en mostrador.".takeIf { !open && state.cashLoaded },
+        subtitle = "El efectivo del día: ábrela al empezar, ciérrala al final.".takeIf { !open && state.cashLoaded },
         trailing = {
             if (state.cashLoaded && !state.cashCheckFailed) {
                 AdminBadge(
@@ -150,6 +170,7 @@ internal fun AdminCashSection(
                 }
             }
         }
+        item(key = "cobrar-en-caja") { ChargeInCashierNote(colors, actions.onGoToCashier) }
     }
 
     val error = state.notice.takeIf { state.noticeIsError }
@@ -183,6 +204,38 @@ internal fun AdminCashSection(
 }
 
 private enum class CashView { FAILED, LOADING, CLOSED, OPEN }
+
+/** J09: aquí solo se abre y se cierra la caja; cobrar y entregar pedidos se hace en el modo Caja. */
+@Composable
+private fun ChargeInCashierNote(
+    colors: OperationalColors,
+    onGoToCashier: (() -> Unit)?,
+) {
+    AdminPanel(colors, Modifier.adminRise(4)) {
+        Text(
+            "¿Vas a cobrar?",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+        )
+        Spacer(Modifier.height(4.dp))
+        AdminHint(
+            "Aquí no se cobra. Los pedidos se cobran y se entregan en el modo Caja; como administras, también lo " +
+                "tienes. Lo que cobre Caja aparece aquí solo.",
+            colors,
+        )
+        if (onGoToCashier != null) {
+            Spacer(Modifier.height(12.dp))
+            AdminSecondaryButton(
+                "Ir a Caja",
+                colors,
+                icon = Icons.Outlined.PointOfSale,
+                outlined = true,
+                onClick = onGoToCashier,
+            )
+        }
+    }
+}
 
 private enum class CashSheet { OPEN, CLOSE }
 
@@ -257,7 +310,8 @@ private fun LastCloseCard(
     }
     val opening = last.opening?.toBigDecimalOrNull()
     val expected = last.expected?.toBigDecimalOrNull()
-    val sales = if (opening != null && expected != null) (expected - opening).toPlainString() else null
+    val sales =
+        last.cashSales ?: if (opening != null && expected != null) (expected - opening).toPlainString() else null
     val rows =
         listOfNotNull(
             last.opening?.let { "Fondo inicial" to moneyLabelCents(it) },

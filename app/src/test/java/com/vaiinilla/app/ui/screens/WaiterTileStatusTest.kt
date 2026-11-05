@@ -110,6 +110,18 @@ class WaiterTileStatusTest {
     }
 
     @Test
+    fun `la parte de una persona junta lo que pidio y lo que dijo pagar`() {
+        val payable =
+            listOf(
+                AccountOrder("a", 12, "listo", "100.00", "kao.papa", "Tacos", true, true, owner = "Papá"),
+                AccountOrder("b", 13, "listo", "50.00", "kao.mama", "Café", true, true, "Papá", owner = "Mamá"),
+                AccountOrder("c", 14, "listo", "40.00", "kao.mama", "Pan", true, true, owner = "Mamá"),
+            )
+        assertEquals("Papá", partialPayer(payable, setOf("a", "b")))
+        assertEquals("faltan $40 de Mamá", pendingAfterPartial(payable, setOf("a", "b")))
+    }
+
+    @Test
     fun `lo que sigue pone primero quien llama, luego lo listo, el turno por acabar y lo que falta cobrar`() {
         val call =
             TableCall(

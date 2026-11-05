@@ -8,6 +8,8 @@ import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.components.needsPickupQr
+import com.vaiinilla.app.ui.components.paymentWireLabel
+import com.vaiinilla.app.ui.components.trackingStepDescription
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
@@ -94,6 +96,21 @@ class HomeDeliveryTest {
         assertTrue(delivery.hasAmountDue)
         assertFalse("A domicilio no hay QR", detail.needsPickupQr(deliveryRequiresQr = true))
         assertEquals(3, detail.summary.state.trackingIndex)
+    }
+
+    @Test
+    fun `el pedido entregado dice con que se cobro en la puerta`() {
+        val raw =
+            """
+            {"id":"p1","folio":3,"fecha_operativa":"2026-10-30","estado":"entregado","metodo_pago":"stripe",
+             "destino":"a_domicilio","subtotal":"250.00","ahorro_combinado":"0.00","cashback_otorgado":"0.00",
+             "total":"290.00","version":5,"creado_en":"2026-10-30T12:00:00Z","actualizado_en":"2026-10-30T13:00:00Z",
+             "entrega":{"direccion":"Calle 5 #123","telefono":"6141234567"},"metodo_pago_cobrado":"mixto",
+             "anticipo":"145.00","por_cobrar_al_entregar":"0.00",
+             "cobrado_al_entregar":{"metodo":"transferencia","en":"2026-10-30T13:00:00Z"},"items":[]}
+            """.trimIndent()
+        assertEquals("transferencia", order(raw).homeDelivery!!.collectedAtDoorMethod)
+        assertEquals("Transferencia", paymentWireLabel("transferencia"))
     }
 
     @Test
@@ -261,6 +278,18 @@ class HomeDeliveryTest {
         assertEquals("1 día", answerTimeLabel(1440))
         assertEquals("2 días", answerTimeLabel(2880))
         assertEquals("1 h 30 min", answerTimeLabel(90))
+    }
+
+    @Test
+    fun `listo a domicilio no dice que se recoge en la barra`() {
+        assertEquals(
+            "Está listo para salir.",
+            trackingStepDescription(OrderState.READY, OrderDestination.HOME_DELIVERY, PaymentMethod.CASH, null),
+        )
+        assertEquals(
+            "Recógelo en la barra.",
+            trackingStepDescription(OrderState.READY, OrderDestination.TAKE_AWAY, PaymentMethod.CASH, null),
+        )
     }
 
     private fun order(raw: String) = Json { ignoreUnknownKeys = true }.decodeFromString<OrderDetailDto>(raw).toDomain()

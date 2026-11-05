@@ -33,7 +33,7 @@ import com.vaiinilla.app.ui.screens.admin.AdminHint
 import com.vaiinilla.app.ui.screens.admin.AdminSectionTitle
 import com.vaiinilla.app.ui.screens.admin.AdminSegmented
 import com.vaiinilla.app.ui.screens.admin.moneyLabelCents
-import com.vaiinilla.app.ui.theme.Yolk
+import com.vaiinilla.app.ui.screens.amberInk
 
 /** Los tutores que esperan a la escuela, con lo que hace falta para decidir. */
 @Composable
@@ -389,7 +389,7 @@ private fun StudentRequestRow(
             )
         }
         studentRequestWarning(request)?.let {
-            Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Yolk)
+            Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.amberInk)
         }
         when (confirming) {
             "r${request.id}" ->

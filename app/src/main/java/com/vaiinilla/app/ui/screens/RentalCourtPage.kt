@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
@@ -88,6 +90,17 @@ internal fun courtMenuPick(catalog: Catalog?): CourtMenuPick {
  * Una renta abierta desde Pedidos, como el dibujo de Doop (L09): la cancha en grande, cuánto le queda, qué pedirle
  * y los botones del mesero y de tu código. Fuera de juego se ve el seguimiento de la renta en lugar del reloj.
  */
+/** Cómo llega lo que pides desde la cancha, según `entrega_en_espacio` del negocio. */
+internal fun courtMenuDeliveryLine(
+    spaceDelivery: SpaceDelivery,
+    place: String,
+): String =
+    when (spaceDelivery) {
+        SpaceDelivery.TABLE -> "Te lo llevan a $place"
+        SpaceDelivery.BAR -> "Pides aquí y pasas por él a la barra"
+        SpaceDelivery.BOTH -> "Te lo llevan a $place o pasas por él"
+    }
+
 @Composable
 internal fun RentalCourtPage(
     order: OrderDetail,
@@ -100,12 +113,14 @@ internal fun RentalCourtPage(
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)?,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)?,
     modifier: Modifier = Modifier,
+    /** Cómo entrega el negocio en la cancha: a la cancha, en la barra o ambas. */
+    spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
 ) {
     val reservation = order.reservation ?: return
     val colors = LocalVaiinillaColors.current
     val step = rentalStep(order)
-    val courtName = order.rentalCourtName ?: "Cancha"
-    val place = reservation.space?.let { SpaceCopy.named(it.type, it.name) } ?: "tu cancha"
+    val courtName = order.rentalCourtName ?: Venue.courtTitle
+    val place = reservation.space?.let { SpaceCopy.named(it.type, it.name) } ?: "tu ${Venue.court}"
     val qrValue = userId?.trim()?.takeIf { it.isNotEmpty() }?.let(QrPayloadParser::encodeUser)
     var codeOpen by rememberSaveable(order.summary.id) { mutableStateOf(false) }
     val spaceId = openTableCallSpaceId(order)
@@ -141,10 +156,11 @@ internal fun RentalCourtPage(
             RentalTrackingTimeline(order = order, modifier = Modifier.padding(horizontal = 20.dp).arrive(1))
         }
         if (canOrder) {
-            ClientCap("Pedir a la cancha", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp).arrive(2))
+            ClientCap("Pedir a la ${Venue.court}", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp).arrive(2))
             CourtMenuCard(
                 pick = courtMenuPick(catalog),
                 place = place,
+                spaceDelivery = spaceDelivery,
                 onOpen = onOpenMenu,
                 colors = colors,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).arrive(2),
@@ -277,6 +293,7 @@ private fun StepTag(
 private fun CourtMenuCard(
     pick: CourtMenuPick,
     place: String,
+    spaceDelivery: SpaceDelivery,
     onOpen: () -> Unit,
     colors: VaiinillaColors,
     modifier: Modifier = Modifier,
@@ -322,7 +339,7 @@ private fun CourtMenuCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "Te lo llevan a $place",
+                courtMenuDeliveryLine(spaceDelivery, place),
                 color = colors.muted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,

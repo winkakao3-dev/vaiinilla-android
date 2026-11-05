@@ -6,6 +6,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.order.courtLights
 import com.vaiinilla.app.ui.order.courtMinutesLeft
 import java.time.Instant
@@ -20,12 +21,27 @@ import kotlin.math.sin
 // reflectores bajan en los últimos minutos (`courtLights`) y se apagan al terminar. Mientras se juega hay peloteo, el
 // marcador cuenta los minutos que quedan y, de noche, las palomillas rondan los reflectores.
 
-/** La cancha rentada: su nombre y su horario. */
+/** La cancha rentada: su nombre y su horario. En un boliche ([bowling]) se dibuja la pista de boliche (U03). */
 internal data class CourtRental(
     val name: String,
     val start: Instant,
     val end: Instant,
+    val bowling: Boolean = false,
 )
+
+private val LaneWords = Regex("boliche|bowling|bolos|carril", RegexOption.IGNORE_CASE)
+
+/** U03: en un boliche lo rentado es una pista de bolos; con la cancha de pádel el cliente no reconocía su renta. */
+internal fun isLaneRental(courtName: String?): Boolean =
+    Venue.isBowling || courtName?.let { LaneWords.containsMatchIn(it) } == true
+
+/** La pista de boliche, sobre la misma cuadrícula: la madera, la línea de falta, las flechas y los pinos. */
+internal object LaneLayout {
+    val lane = GridRect(40, 12, 16, 70)
+    const val FOUL_Y = 70
+    const val ARROWS_Y = 56
+    const val PINS_FRONT_Y = 26
+}
 
 /** La cuadrícula de la cancha, sobre la misma de 96 × 96 del plano de mesas. */
 internal object CourtLayout {
@@ -78,8 +94,12 @@ internal fun DrawScope.drawCourt(
     val state = courtLights(court.start, court.end, now)
     val frame = FloorPlanLayout.frame(stage)
     drawRect(palette.sidewalk, size = stage)
-    drawPixels(CourtArt.base(art, court.name), frame)
-    CourtArt.lines(art, lineCount(state.lines))?.let { drawPixels(it, frame) }
+    if (court.bowling) {
+        drawPixels(CourtArt.laneBase(art, court.name), frame)
+    } else {
+        drawPixels(CourtArt.base(art, court.name), frame)
+        CourtArt.lines(art, lineCount(state.lines))?.let { drawPixels(it, frame) }
+    }
     val light = lights ?: state.lights.toFloat()
     if (tick == null) {
         if (light > 0.001f) drawPixels(CourtArt.light(art), frame, light)
@@ -91,7 +111,9 @@ internal fun DrawScope.drawCourt(
         CourtArt.board(art, if (playing) courtMinutesLeft(court.end, now) else null),
         cells(board.x, board.y, board.width, board.height, stage),
     )
-    if (playing) drawRally(tick, stage)
+    if (playing) {
+        if (court.bowling) drawRoll(tick, stage) else drawRally(tick, stage)
+    }
     // Los reflectores: la luz cálida encima de todo lo que está en la cancha.
     if (light > 0.001f) drawPixels(CourtArt.light(art), frame, light)
     if (art.night && light > 0.5f && tick > 0) drawMoths(tick, stage)
@@ -125,6 +147,7 @@ private val ShirtOrange = Color(0.95f, 0.71f, 0.35f)
 private val Hair = Color(0.23f, 0.16f, 0.13f)
 private val Ball = Color(0.91f, 0.94f, 0.38f)
 private val Moth = Color(1f, 0.96f, 0.85f, 0.85f)
+private val LaneBall = Color(0.36f, 0.22f, 0.62f)
 
 /**
  * Dos jugadores (vistos desde arriba: la playera y el pelo) y la pelota que va y viene sobre la red, con su sombra
@@ -169,6 +192,27 @@ private fun DrawScope.drawRally(
     player(topX, 16, ShirtOrange)
     pixel(bx, by + 1, Color.Black.copy(alpha = 0.28f))
     pixel(bx, by - lift, Ball)
+}
+
+/** En el boliche: quien tira espera detrás de la línea de falta y la bola rueda por la pista hasta los pinos. */
+private fun DrawScope.drawRoll(
+    tick: Int,
+    stage: Size,
+) {
+    val p = FloorPlanLayout.pixel(stage)
+    val lane = LaneLayout.lane
+    val phase = tick % 16
+    val bowler = FloorPlanLayout.point((lane.x + 6).toFloat(), (LaneLayout.FOUL_Y + 4).toFloat(), stage)
+    drawRect(ShirtLavender, topLeft = bowler + Offset(0f, p), size = Size(4 * p, 2 * p))
+    drawRect(ShirtLavender, topLeft = bowler + Offset(p, 0f), size = Size(2 * p, 4 * p))
+    drawRect(Hair, topLeft = bowler + Offset(p, p), size = Size(2 * p, 2 * p))
+    if (phase >= 12) return
+    val ballX = lane.x + 7 + listOf(0, 2, -2, 1)[(tick / 16) % 4]
+    val from = LaneLayout.FOUL_Y - 2
+    val ballY = from - phase * (from - LaneLayout.PINS_FRONT_Y) / 11
+    val at = FloorPlanLayout.point(ballX.toFloat(), ballY.toFloat(), stage)
+    drawRect(Color.Black.copy(alpha = 0.28f), topLeft = at + Offset(0f, p), size = Size(2 * p, 2 * p))
+    drawRect(LaneBall, topLeft = at, size = Size(2 * p, 2 * p))
 }
 
 /** De noche, dos palomillas rondan cada reflector prendido. */
@@ -264,6 +308,65 @@ private object CourtArt {
                 rect(lamp.x + 1, lamp.y + 1, 2, 1, c.metal)
             }
             // La banca con una maleta encima.
+            rect(13, 24, 8, 12, c.outline)
+            rect(14, 25, 6, 10, c.wood)
+            rect(14, 25, 6, 1, c.woodLight)
+            sprite(
+                listOf(".oo.", "oMMo", "oMMo", "oooo"),
+                15,
+                28,
+                mapOf('o' to c.outline, 'M' to ShirtLavender.packed()),
+            )
+            nameSign(this, name, c)
+        }
+
+    /** Lo mismo en un boliche: la alfombra, la pista de madera con sus canales, la línea de falta y los pinos. */
+    fun laneBase(
+        c: PixelPalette,
+        name: String,
+    ): ImageBitmap =
+        cached("lane-${c.key}-$name", FloorPlanLayout.COLUMNS, FloorPlanLayout.ROWS) {
+            for (y in 0 until FloorPlanLayout.ROWS) {
+                for (x in 0 until FloorPlanLayout.COLUMNS) {
+                    this[x, y] = if ((x * 3 + y * 7) % 11 == 0 || (x + y * 5) % 17 == 0) c.floorDark else c.floor
+                }
+            }
+            val lane = LaneLayout.lane
+            // El marco y los dos canales de metal a los lados.
+            rect(lane.x - 3, lane.y - 1, lane.width + 6, lane.height + 2, c.outline)
+            rect(lane.x - 2, lane.y, 2, lane.height, c.metal)
+            rect(lane.x + lane.width, lane.y, 2, lane.height, c.metal)
+            // Las tablas, a lo largo de la pista.
+            for (y in lane.y until lane.y + lane.height) {
+                for (x in lane.x until lane.x + lane.width) {
+                    this[x, y] =
+                        when {
+                            (x - lane.x) % 4 == 3 -> c.woodDark
+                            (x + y) % 13 == 0 -> c.woodLight
+                            else -> c.wood
+                        }
+                }
+            }
+            // El foso detrás de los pinos, la línea de falta y las flechas para apuntar.
+            rect(lane.x - 2, lane.y, lane.width + 4, 2, c.outline)
+            rect(lane.x, LaneLayout.FOUL_Y, lane.width, 1, c.outline)
+            for (arrow in lane.x + 2 until lane.x + lane.width - 1 step 3) {
+                this[arrow, LaneLayout.ARROWS_Y] = c.ink
+                this[arrow - 1, LaneLayout.ARROWS_Y + 1] = c.ink
+                this[arrow + 1, LaneLayout.ARROWS_Y + 1] = c.ink
+            }
+            // Los diez pinos en triángulo, el primero hacia quien tira.
+            val center = lane.x + lane.width / 2
+            val rows = listOf(listOf(-7, -3, 1, 5), listOf(-5, -1, 3), listOf(-3, 1), listOf(-1))
+            rows.forEachIndexed { row, offsets ->
+                val y = LaneLayout.PINS_FRONT_Y - 2 - (rows.size - 1 - row) * 3
+                for (dx in offsets) {
+                    rect(center + dx, y, 2, 1, c.cream)
+                    rect(center + dx, y + 1, 2, 1, c.creamShade)
+                    this[center + dx + 1, y + 2] = c.woodDark
+                }
+            }
+            // La banca con la maleta de la bola.
             rect(13, 24, 8, 12, c.outline)
             rect(14, 25, 6, 10, c.wood)
             rect(14, 25, 6, 1, c.woodLight)

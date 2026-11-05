@@ -3,6 +3,8 @@ package com.vaiinilla.app.data.admin
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
+import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
+import com.vaiinilla.app.domain.admin.ForcedCloseResult
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
 import com.vaiinilla.app.domain.admin.InvitationsPage
@@ -19,20 +21,32 @@ import com.vaiinilla.app.domain.admin.StoreLocation
 import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 
 /** Contratos de Personal, Flujo de mi tienda, Stripe, cashback y espacios. */
+@Serializable
+private data class ForcedCloseDto(
+    val cancelados: Int = 0,
+    val abonado: String = "0.00",
+    val perdida: String = "0.00",
+)
+
 class AdminBusinessJson {
     private val json =
         Json {
@@ -76,8 +90,26 @@ class AdminBusinessJson {
 
     // region Flujo de mi tienda
 
-    fun parseStoreConfig(raw: String): StoreConfig =
-        json.decodeFromString<BizEnvelope<StoreConfigDto>>(raw).data.toDomain()
+    fun parseStoreConfig(raw: String): StoreConfig {
+        val config = json.decodeFromString<BizEnvelope<StoreConfigDto>>(raw).data.toDomain()
+        // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de aquí.
+        Venue.update(config.typeWire)
+        // Fondo, teléfono y pausa sin internet solo se editan (y se mandan) si el servidor trae la clave, aunque
+        // venga en null: un servidor anterior rechazaría el flujo completo por una clave que no conoce.
+        val data = (json.parseToJsonElement(raw) as? JsonObject)?.get("data") as? JsonObject ?: return config
+        return config.copy(
+            suggestedFloat = data.presentText("fondo_sugerido"),
+            contactPhone = data.presentText("telefono_contacto"),
+            pauseWhenOffline =
+                data["pausa_sin_conexion"]?.let { (it as? JsonPrimitive)?.booleanOrNull ?: false },
+        )
+    }
+
+    /** El texto de [key]: "" si llega en null, null si el servidor no la manda. */
+    private fun JsonObject.presentText(key: String): String? {
+        if (key !in this) return null
+        return (this[key] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+    }
 
     fun encodeFlow(flow: StoreFlow): String =
         buildJsonObject {
@@ -85,8 +117,16 @@ class AdminBusinessJson {
             put("entrega_requiere_qr", flow.deliveryRequiresQr)
             put("permite_pago_al_final", flow.allowsPayAtEnd)
             put("permite_saldo", flow.allowsBalance)
+            // Solo si el servidor lo conoce: uno anterior rechaza la clave.
+            flow.allowsCashAtRegister?.let { put("permite_pago_en_caja", it) }
             put("gracia_liberacion_min", flow.releaseGraceMinutes)
             put("cocina_prepara_sin_cobrar", flow.kitchenPreparesUnpaid)
+            // Solo si el servidor lo conoce: uno anterior rechaza la clave.
+            flow.spaceDelivery?.let { put("entrega_en_espacio", it.wire) }
+            flow.assistantMode?.let { put("asistente_modo", it.wire) }
+            flow.pauseWhenOffline?.let { put("pausa_sin_conexion", it) }
+            flow.suggestedFloat?.let { put("fondo_sugerido", HomeBusinessRules.money(it).orNull()) }
+            flow.contactPhone?.let { put("telefono_contacto", StoreRules.phone(it).orNull()) }
             put(
                 "franjas_pedido",
                 buildJsonArray {
@@ -306,12 +346,14 @@ class AdminBusinessJson {
 
     fun parseSchedule(raw: String): ReservationSchedule {
         val data = json.decodeFromString<BizEnvelope<ScheduleDto>>(raw).data
+        data.tipoEstablecimiento?.let(Venue::update)
         return ReservationSchedule(
             opening = data.apertura.take(5),
             closing = data.cierre.take(5),
             daysAhead = data.diasAdelanto,
             weekDays = data.diasSemana ?: listOf(1, 2, 3, 4, 5, 6, 7),
             blockMinutes = data.bloqueMin ?: 30,
+            durations = data.duracionesMin,
         )
     }
 
@@ -322,13 +364,21 @@ class AdminBusinessJson {
             put("dias_adelanto", schedule.daysAhead)
             put("dias_semana", JsonArray(schedule.weekDays.map(::JsonPrimitive)))
             put("bloque_min", schedule.blockMinutes)
+            schedule.durations?.let { put("duraciones_min", JsonArray(it.sorted().map(::JsonPrimitive))) }
         }.toString()
 
-    fun encodeForcedClose(note: String?): String =
+    /** Contrato D: «Cerrar sin cobrar» manda siempre el motivo (3 a 240 letras). */
+    fun encodeForcedClose(reason: String): String =
         buildJsonObject {
             put("forzar", true)
-            note?.trim()?.takeIf { it.isNotEmpty() }?.let { put("nota", it) }
+            put("motivo", reason.trim().take(FORCED_CLOSE_REASON_MAX))
         }.toString()
+
+    /** Lo que dejó el cierre: un servidor anterior no lo manda y se lee como cero. */
+    fun parseForcedClose(raw: String): ForcedCloseResult {
+        val data = json.decodeFromString<BizEnvelope<ForcedCloseDto>>(raw).data
+        return ForcedCloseResult(cancelled = data.cancelados, paid = data.abonado, lost = data.perdida)
+    }
 
     // endregion
 
@@ -341,9 +391,11 @@ class AdminBusinessJson {
         fun walletMovementLabel(type: String): String =
             when (type) {
                 "recarga_efectivo" -> "Recargas en efectivo"
+                "recarga_stripe" -> "Recargas con tarjeta"
                 "compra" -> "Compras con saldo"
                 "cashback" -> "Cashback"
                 "cancelacion" -> "Cancelaciones"
+                "devolucion_articulo" -> "Devoluciones de artículos"
                 "ajuste" -> "Ajustes"
                 else -> type.replace('_', ' ').replaceFirstChar { it.uppercase() }
             }
@@ -404,6 +456,7 @@ private data class StoreConfigDto(
     @SerialName("entrega_requiere_qr") val entregaRequiereQr: Boolean = true,
     @SerialName("permite_pago_al_final") val permitePagoAlFinal: Boolean = false,
     @SerialName("permite_saldo") val permiteSaldo: Boolean = true,
+    @SerialName("permite_pago_en_caja") val permitePagoEnCaja: Boolean? = null,
     @SerialName("gracia_liberacion_min") val graciaLiberacionMin: Int = 5,
     @SerialName("franjas_pedido") val franjasPedido: List<WindowDto> = emptyList(),
     @SerialName("videos_local") val videosLocal: List<VideoDto> = emptyList(),
@@ -414,6 +467,8 @@ private data class StoreConfigDto(
     @SerialName("modo_escuela") val modoEscuela: Boolean = false,
     @SerialName("cocina_prepara_sin_cobrar") val cocinaPreparaSinCobrar: Boolean = true,
     @SerialName("tipos_disponibles") val tiposDisponibles: List<String>? = null,
+    @SerialName("entrega_en_espacio") val entregaEnEspacio: String? = null,
+    @SerialName("asistente_modo") val asistenteModo: String? = null,
     // Repostería (CASA-02, CASA-03); un servidor anterior no los envía y la app se comporta como siempre.
     @SerialName("reparto_activo") val repartoActivo: Boolean? = null,
     @SerialName("reparto_radio_km") val repartoRadioKm: JsonPrimitive? = null,
@@ -436,6 +491,7 @@ private data class StoreConfigDto(
             deliveryRequiresQr = entregaRequiereQr,
             allowsPayAtEnd = permitePagoAlFinal,
             allowsBalance = permiteSaldo,
+            allowsCashAtRegister = permitePagoEnCaja,
             releaseGraceMinutes = graciaLiberacionMin,
             orderWindows = franjasPedido.map { OrderWindow(it.desde.take(5), it.hasta.take(5)) },
             videos = videosLocal.map { StoreVideo(it.titulo, it.url) },
@@ -446,6 +502,8 @@ private data class StoreConfigDto(
             isSchool = modoEscuela,
             kitchenPreparesUnpaid = cocinaPreparaSinCobrar,
             availableTypes = tiposDisponibles,
+            spaceDelivery = entregaEnEspacio?.let(SpaceDelivery::fromWire),
+            assistantMode = asistenteModo?.let(AssistantMode::fromWire),
             homeDelivery =
                 repartoActivo?.let { enabled ->
                     HomeDeliverySettings(
@@ -624,4 +682,6 @@ private data class ScheduleDto(
     @SerialName("dias_adelanto") val diasAdelanto: Int,
     @SerialName("dias_semana") val diasSemana: List<Int>? = null,
     @SerialName("bloque_min") val bloqueMin: Int? = null,
+    @SerialName("duraciones_min") val duracionesMin: List<Int>? = null,
+    @SerialName("tipo_establecimiento") val tipoEstablecimiento: String? = null,
 )

@@ -7,6 +7,8 @@ import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.repository.StoreImageKind
@@ -16,10 +18,17 @@ class RemoteCatalogRepository(
     private val apiClient: VaiinillaApiClient,
     private val parser: ContractResponseParser,
 ) : CatalogRepository {
+    /**
+     * Sin internet, Mesero y Caja siguen tomando pedidos con el último menú que llegó a este teléfono (plan «Vaiinilla
+     * sin internet», fase 1). El servidor recalcula precio y disponibilidad cuando el pedido llega.
+     */
     override fun getCatalog(): Result<Catalog> =
         apiClient
             .get("catalogo")
-            .mapCatching { parser.parseCatalog(it) }
+            .recoverCatching { error ->
+                if (!OfflineStaffOrderRules.isConnectionProblem(error)) throw error
+                apiClient.readCachedGet("catalogo") ?: throw error
+            }.mapCatching { parser.parseCatalog(it) }
             .mapApiErrors()
 
     override fun getOperationalStatus(): Result<OperationalStatus> =
@@ -27,6 +36,7 @@ class RemoteCatalogRepository(
             .get("estado-operativo")
             .mapCatching { parser.parseOperationalStatus(it) }
             .mapApiErrors()
+            .onSuccess { Venue.update(it.businessType) }
 
     override fun createProduct(
         draft: CatalogProductDraft,

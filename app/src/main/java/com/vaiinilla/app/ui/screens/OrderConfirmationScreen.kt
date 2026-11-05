@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -77,6 +78,12 @@ fun OrderConfirmationScreen(
     ) {
         if (order == null) return@Box
         val activeCelebration = purchaseCelebration?.takeIf { it.orderId == order.summary.id }
+        // «¡Pedido recibido!» se quedaba aunque el negocio ya lo hubiera rechazado (S04): al terminar sin entregarse
+        // se cierra la celebración y queda la página del pedido, que dice qué pasó y qué pasa con el dinero.
+        val endedWithoutDelivery = order.summary.state.isTerminalWithoutDelivery
+        LaunchedEffect(activeCelebration?.orderId, endedWithoutDelivery) {
+            if (endedWithoutDelivery) activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) }
+        }
         val stripeOrder = order.summary.paymentMethod == PaymentMethod.STRIPE
         val stripeConfirmed = stripeOrder && order.isStripePaymentConfirmedByBackend()
         // Stripe orders must never expose the pickup QR before the backend
@@ -135,7 +142,14 @@ fun OrderConfirmationScreen(
             }
         // Abierto desde Pedidos se sigue en la página del dibujo de Doop (P1 a P13). Recién comprado se queda la
         // tienda con su celebración y su ticket.
-        if ((!showTrackingButton || delivery) && activeCelebration == null) {
+        // Naev (5 nov): al pedir sale directo la página del pedido (pasos, foto y «Mostrar código»); la escena de
+        // Vaini con el ticket queda oculta detrás de [SHOWS_VAINI_PICKUP_SCENE], sin borrarla.
+        if (!SHOWS_VAINI_PICKUP_SCENE) {
+            LaunchedEffect(activeCelebration?.orderId) {
+                activeCelebration?.let { onPurchaseCelebrationFinished(it.orderId) }
+            }
+        }
+        if (!SHOWS_VAINI_PICKUP_SCENE || ((!showTrackingButton || delivery) && activeCelebration == null)) {
             OrderJourneyPage(
                 order = order,
                 qrPayload = qrPayload,
@@ -176,6 +190,9 @@ fun OrderConfirmationScreen(
         )
     }
 }
+
+/** La escena de Vaini con el ticket al terminar de pedir. Apagada: sale la página del pedido (OrderJourneyPage). */
+internal const val SHOWS_VAINI_PICKUP_SCENE = false
 
 internal const val GUEST_ORDER_NOTICE =
     "Guarda este pedido: solo se ve en este teléfono."

@@ -26,7 +26,8 @@ class HttpVaiinillaApiClient
     ) : VaiinillaApiClient {
         override val baseUrl: String = environment.apiBaseUrl
 
-        private val cacheableGetPaths = setOf("wallets/me", "pedidos")
+        // `catalogo`: el menú que Mesero y Caja usan para tomar pedidos sin internet.
+        private val cacheableGetPaths = setOf("wallets/me", "pedidos", "catalogo")
 
         override fun readCachedGet(
             path: String,
@@ -199,6 +200,44 @@ class HttpVaiinillaApiClient
                 accessToken = bearer,
                 allowSessionRefresh = false,
             )
+
+        fun patchWithBearer(
+            bearer: String,
+            path: String,
+            body: String,
+            headers: Map<String, String> = emptyMap(),
+        ): Result<String> =
+            execute(
+                method = "PATCH",
+                path = path,
+                body = body,
+                headers = headers,
+                accessToken = bearer,
+                allowSessionRefresh = false,
+            )
+
+        fun putMultipartWithBearer(
+            bearer: String,
+            path: String,
+            fieldName: String,
+            filename: String,
+            mimeType: String,
+            bytes: ByteArray,
+            headers: Map<String, String>,
+        ): Result<String> =
+            runCatching {
+                sendMultipartOnce(
+                    method = "PUT",
+                    path = path,
+                    fieldName = fieldName,
+                    filename = filename,
+                    mimeType = mimeType,
+                    bytes = bytes,
+                    headers = headers,
+                    allowSessionRefresh = false,
+                    bearer = bearer,
+                )
+            }
 
         override fun getWithBearer(
             bearer: String,
@@ -374,8 +413,9 @@ class HttpVaiinillaApiClient
             bytes: ByteArray,
             headers: Map<String, String>,
             allowSessionRefresh: Boolean,
+            bearer: String? = null,
         ): String {
-            val token = sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
+            val token = bearer ?: sessionStore.readAccessToken()?.takeIf { it.isNotBlank() }
             if (token.isNullOrBlank()) throw MissingAccessTokenException()
             val boundary = "----VaiinillaForm${System.nanoTime()}"
             val safeName = filename.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "producto.jpg" }
@@ -451,7 +491,9 @@ class HttpVaiinillaApiClient
                 instanceFollowRedirects = false
                 requestMethod = method
                 connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
+                // Los asistentes pueden tardar: el de la tienda arma propuestas con todo el menú.
+                val slow = SLOW_PATHS.any { path.trimStart('/').startsWith(it) }
+                readTimeout = if (slow) SLOW_READ_TIMEOUT_MS else READ_TIMEOUT_MS
             }
         }
 
@@ -503,5 +545,8 @@ class HttpVaiinillaApiClient
             const val CONNECT_TIMEOUT_MS = 15_000
             const val READ_TIMEOUT_MS = 20_000
             const val MULTIPART_READ_TIMEOUT_MS = 60_000
+            const val SLOW_READ_TIMEOUT_MS = 60_000
+            // Los asistentes esperan al modelo (hasta 25-40 s y a veces un reintento).
+            val SLOW_PATHS = listOf("establecimiento/asistente", "asistente-cliente")
         }
     }

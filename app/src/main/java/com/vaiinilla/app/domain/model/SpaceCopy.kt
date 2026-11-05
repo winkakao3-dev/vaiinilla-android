@@ -8,7 +8,7 @@ object SpaceCopy {
     /** Nombre corto del tipo para el personal: "Mesa", "Cancha"... */
     fun kindLabel(type: String?): String =
         when (type) {
-            "cancha" -> "Cancha"
+            "cancha" -> Venue.courtTitle
             "barra" -> "Barra"
             "drive_thru" -> "Carril"
             "asiento" -> "Asiento"
@@ -24,7 +24,7 @@ object SpaceCopy {
     /** Cómo nombra el cliente su lugar: "tu mesa", "tu cancha"... */
     fun yourPlace(type: String?): String =
         when (type) {
-            "cancha" -> "tu cancha"
+            "cancha" -> "tu ${Venue.court}"
             "barra" -> "la barra"
             "drive_thru" -> "tu auto"
             "asiento" -> "tu asiento"
@@ -35,7 +35,7 @@ object SpaceCopy {
     /** Título de la opción de destino en el carrito (antes siempre "Comer aquí"). */
     fun destinationTitle(type: String?): String =
         when (type) {
-            "cancha" -> "En la cancha"
+            "cancha" -> "En la ${Venue.court}"
             "barra" -> "En la barra"
             "drive_thru" -> "En tu auto"
             "asiento" -> "En tu asiento"
@@ -55,28 +55,53 @@ object SpaceCopy {
         if (type == "barra") {
             "Tu pedido está listo. Te lo entregamos en la barra."
         } else {
-            "Tu pedido está listo. Ya va a ${yourPlace(type)}."
+            "Tu pedido está listo. En un momento te lo llevan a ${yourPlace(type)}."
         }
 
-    fun destinationSubtitle(type: String?): String =
-        if (type == null) "Te lo llevamos a tu espacio" else "Te lo llevamos a ${yourPlace(type)}"
+    /** Aviso de pedido entregado en un espacio: el mesero ya lo dejó en el lugar del cliente. */
+    fun deliveredInSpace(type: String?): String =
+        if (type == "barra") {
+            "Pedido entregado. Buen provecho."
+        } else {
+            "Ya está en ${yourPlace(type)}. Buen provecho."
+        }
+
+    /** Subtítulo de la opción de destino en el carrito. Si el negocio solo entrega en barra, no se lleva al lugar. */
+    fun destinationSubtitle(
+        type: String?,
+        delivery: SpaceDelivery = SpaceDelivery.TABLE,
+    ): String =
+        when {
+            delivery == SpaceDelivery.BAR -> "Pides desde tu lugar y pasas por él a la barra"
+            type == null -> "Te lo llevamos a tu espacio"
+            else -> "Te lo llevamos a ${yourPlace(type)}"
+        }
 
     fun pickPrompt(type: String?): String =
         when (type) {
-            "cancha" -> "Selecciona tu cancha"
+            "cancha" -> "Selecciona tu ${Venue.court}"
             "barra" -> "Selecciona tu lugar en la barra"
             "drive_thru" -> "Selecciona tu carril"
             "asiento" -> "Selecciona tu asiento"
             else -> "Selecciona tu mesa"
         }
 
-    /** Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). */
+    /**
+     * Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). Un «Pasa por
+     * él» (`recoge_en_barra`) se entrega en la barra aunque se pidió desde el lugar:
+     * «Pasa por él a la barra · Pista 1».
+     */
     fun staffDestination(
         destination: OrderDestination,
         space: OrderSpace?,
+        pickUpAtBar: Boolean = false,
     ): String {
-        if (destination != OrderDestination.IN_SPACE) return "Para llevar"
-        val title = destinationTitle(space?.type)
+        when (destination) {
+            OrderDestination.TAKE_AWAY -> return "Para llevar"
+            OrderDestination.HOME_DELIVERY -> return "A domicilio"
+            OrderDestination.IN_SPACE -> Unit
+        }
+        val title = if (pickUpAtBar) "Pasa por él a la barra" else destinationTitle(space?.type)
         val name = space?.name?.takeIf { it.isNotBlank() } ?: return title
         return "$title · $name"
     }

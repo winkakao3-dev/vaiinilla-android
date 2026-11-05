@@ -1,6 +1,9 @@
 package com.vaiinilla.app.domain.admin
 
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
@@ -98,14 +101,21 @@ enum class BusinessType(
     CANTEEN("comedor", "Comedor de empresa"),
     EVENT("evento", "Cine, estadio o evento"),
     HOME_BAKERY("reposteria", "Repostería o cocina en casa"),
+
+    /** Pistas que se rentan como canchas, con bar y restaurante en la misma cuenta. */
+    BOWLING("boliche", "Boliche"),
     ;
 
     companion object {
         fun fromWire(value: String): BusinessType? = entries.firstOrNull { it.wire == value }
 
-        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria`). */
+        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria` ni `boliche`). */
         fun offered(available: List<String>?): List<BusinessType> =
-            if (available == null) entries.filter { it != HOME_BAKERY } else entries.filter { it.wire in available }
+            if (available == null) {
+                entries.filter { it != HOME_BAKERY && it != BOWLING }
+            } else {
+                entries.filter { it.wire in available }
+            }
     }
 }
 
@@ -121,6 +131,7 @@ enum class StoreTemplate(
     RESTAURANT("Restaurante con mesero", BusinessType.RESTAURANT, false, true),
     BAR("Bar o cantina", BusinessType.BAR, false, true),
     PADEL("Club de pádel", BusinessType.PADEL, false, true),
+    BOWLING("Boliche con bar", BusinessType.BOWLING, false, true),
     FOOD_TRUCK("Food truck o puesto", BusinessType.FOOD_TRUCK, true, false),
     DRIVE_THRU("Drive-thru", BusinessType.DRIVE_THRU, true, false),
     CANTEEN("Comedor de empresa", BusinessType.CANTEEN, true, false),
@@ -168,6 +179,18 @@ data class StoreConfig(
     val preorders: PreorderSettings? = null,
     /** null si el servidor todavía no deja poner la ubicación desde la app. */
     val location: StoreLocation? = null,
+    /** «Te lo llevamos», «Pasa por él» o ambas; null si el servidor todavía no lo conoce. */
+    val spaceDelivery: SpaceDelivery? = null,
+    /** Qué asistentes de IA tiene; null si el servidor todavía no lo conoce. */
+    val assistantMode: AssistantMode? = null,
+    /** Fondo con el que se abre la caja (`fondo_sugerido`); "" si no hay, null si el servidor no lo conoce. */
+    val suggestedFloat: String? = null,
+    /** Teléfono que ven los clientes (`telefono_contacto`); "" si no hay, null si el servidor no lo conoce. */
+    val contactPhone: String? = null,
+    /** Pausar pedidos y reservas si el local se queda sin internet; null si el servidor no lo conoce. */
+    val pauseWhenOffline: Boolean? = null,
+    /** «Pago en caja» desde la app (`permite_pago_en_caja`); null si el servidor no lo conoce. */
+    val allowsCashAtRegister: Boolean? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -180,6 +203,13 @@ data class StoreConfig(
             releaseGraceMinutes = releaseGraceMinutes,
             orderWindows = orderWindows,
             kitchenPreparesUnpaid = kitchenPreparesUnpaid,
+            spaceDelivery = spaceDelivery,
+            suggestedFloat = suggestedFloat,
+            contactPhone = contactPhone,
+            pauseWhenOffline = pauseWhenOffline,
+            allowsCashAtRegister = allowsCashAtRegister,
+            // asistente_modo no va en cada guardado: solo cuando el dueño lo cambia (si no, pisaría lo que Vaiinilla
+            // cambió mientras tanto, y un servidor sin la migración 180 rechazaría todo el flujo).
         )
 }
 
@@ -192,6 +222,18 @@ data class StoreFlow(
     val releaseGraceMinutes: Int,
     val orderWindows: List<OrderWindow>,
     val kitchenPreparesUnpaid: Boolean = true,
+    /** null: el servidor no lo conoce y no se envía. */
+    val spaceDelivery: SpaceDelivery? = null,
+    /** null: no se cambia (solo se manda al elegirlo). */
+    val assistantMode: AssistantMode? = null,
+    /** El fondo sugerido como lo escribe el dueño; "" lo borra. null: el servidor no lo conoce y no se envía. */
+    val suggestedFloat: String? = null,
+    /** El teléfono de contacto; "" lo borra. null: el servidor no lo conoce y no se envía. */
+    val contactPhone: String? = null,
+    /** null: el servidor no lo conoce y no se envía. */
+    val pauseWhenOffline: Boolean? = null,
+    /** «Pago en caja» desde la app. null: el servidor no lo conoce y no se envía. */
+    val allowsCashAtRegister: Boolean? = null,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =
         copy(
@@ -204,6 +246,7 @@ data class StoreFlow(
 }
 
 object StoreRules {
+    private val PHONE = Regex("""\+?\d{7,15}""")
     const val MAX_WINDOWS = 6
     const val MAX_GRACE_MINUTES = 60
     const val MAX_VIDEOS = 5
@@ -223,8 +266,19 @@ object StoreRules {
         if (flow.releaseGraceMinutes !in 0..MAX_GRACE_MINUTES) {
             return "La gracia al terminar un turno va de 0 a $MAX_GRACE_MINUTES minutos."
         }
+        val fund = flow.suggestedFloat
+        if (!fund.isNullOrBlank() && HomeBusinessRules.money(fund) == null) {
+            return "Escribe el fondo de caja como 500 o déjalo vacío."
+        }
+        val contact = flow.contactPhone
+        if (!contact.isNullOrBlank() && phone(contact) == null) {
+            return "El teléfono de contacto lleva de 7 a 15 dígitos."
+        }
         return windowsProblem(flow.orderWindows)
     }
+
+    /** "55 1234-5678" → "5512345678" (con + si lo trae); null si no son de 7 a 15 dígitos. Igual que el servidor. */
+    fun phone(raw: String): String? = raw.trim().replace(Regex("""[\s()-]"""), "").takeIf { PHONE.matches(it) }
 
     fun windowsProblem(windows: List<OrderWindow>): String? {
         if (windows.size > MAX_WINDOWS) return "Puedes tener hasta $MAX_WINDOWS franjas de pedidos."
@@ -400,7 +454,7 @@ data class AdminWalletSummary(
 
 enum class SpaceType(
     val wire: String,
-    val label: String,
+    private val baseLabel: String,
 ) {
     TABLE("mesa", "Mesa"),
     BAR("barra", "Barra"),
@@ -408,6 +462,9 @@ enum class SpaceType(
     DRIVE_THRU("drive_thru", "Drive-thru"),
     SEAT("asiento", "Asiento"),
     ;
+
+    /** En un boliche la cancha se llama pista ([Venue]). */
+    val label: String get() = if (this == COURT) Venue.courtTitle else baseLabel
 
     companion object {
         fun fromWire(value: String): SpaceType? = entries.firstOrNull { it.wire == value }
@@ -487,6 +544,8 @@ data class ReservationSchedule(
     /** 1 = lunes … 7 = domingo. */
     val weekDays: List<Int> = listOf(1, 2, 3, 4, 5, 6, 7),
     val blockMinutes: Int = 30,
+    /** Cuánto tiempo se renta (minutos). null: el servidor no lo maneja y no se manda. */
+    val durations: List<Int>? = null,
 )
 
 object SpaceRules {
@@ -494,7 +553,10 @@ object SpaceRules {
     const val MAX_FEATURES = 8
 
     /** Los mínimos de renta que acepta el servidor, en minutos. */
-    val MINIMUM_RENTALS = listOf(90, 180, 270, 360)
+    val MINIMUM_RENTALS = listOf(60, 90, 120, 180, 270, 360)
+
+    /** Las duraciones que se ofrecen al configurar la renta: por hora (boliche) o turnos de pádel. */
+    val RENTAL_DURATIONS = listOf(30, 60, 90, 120, 180, 240, 270, 360)
 
     fun minimumLabel(minutes: Int): String = if (minutes % 60 == 0) "${minutes / 60} h" else "${minutes / 60}.5 h"
 

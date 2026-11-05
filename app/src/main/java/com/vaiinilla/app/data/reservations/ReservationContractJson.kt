@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.CustomerPrice
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -59,6 +60,10 @@ data class CourtScheduleDto(
     @SerialName("precio_hora_cliente") val precioHoraCliente: CustomerPriceDto? = null,
     val rentable: Boolean = false,
     val ocupado: List<BusyIntervalDto> = emptyList(),
+    /** Las del establecimiento desde el mínimo de este espacio; un servidor anterior no las manda. */
+    @SerialName("duraciones_min") val duracionesMin: List<Int> = emptyList(),
+    /** R25: cuántos caben (1-99); null = sin tope propio. Un servidor anterior no la manda. */
+    val capacidad: Int? = null,
 )
 
 @Serializable
@@ -76,6 +81,10 @@ data class CourtDayDto(
     val canchas: List<CourtScheduleDto> = emptyList(),
     // Un servidor anterior no lo manda: se sigue ofreciendo la renta sin cuenta.
     @SerialName("requiere_cuenta") val requiereCuenta: Boolean = false,
+    /** «boliche» nombra pistas; un servidor anterior no lo manda. */
+    @SerialName("tipo_establecimiento") val tipoEstablecimiento: String? = null,
+    /** Día sin servicio; un servidor anterior no lo manda. */
+    val cerrado: Boolean = false,
 )
 
 @Serializable
@@ -92,6 +101,7 @@ data class ReservationDto(
     @SerialName("pedido_id") val pedidoId: String? = null,
     val canal: String = "cliente",
     @SerialName("nombre_cliente") val nombreCliente: String? = null,
+    val jugadores: Int? = null,
     val version: Int = 1,
 )
 
@@ -196,12 +206,14 @@ class ReservationContractJson
             start: Instant?,
             durationMinutes: Int,
             customerName: String?,
+            players: Int? = null,
         ): String =
             buildJsonObject {
                 put("espacio_id", courtId)
                 start?.let { put("inicio", it.toString()) }
                 put("duracion_min", durationMinutes)
                 customerName?.takeIf { it.isNotBlank() }?.let { put("nombre_cliente", it.trim()) }
+                players?.let { put("jugadores", it) }
             }.toString()
 
         fun encodePay(
@@ -212,12 +224,23 @@ class ReservationContractJson
                 put("metodo_pago", method)
                 cashReceived?.let { put("monto_recibido", it) }
             }.toString()
+
+        /** #28: cancelar una renta pagada desde el personal exige `{monto_reembolso, motivo}`. */
+        fun encodeRefund(
+            amount: String,
+            reason: String,
+        ): String =
+            buildJsonObject {
+                put("monto_reembolso", amount)
+                put("motivo", reason.trim())
+            }.toString()
     }
 
 private fun CustomerPriceDto.toDomain() = CustomerPrice(card = tarjeta, cashOrBalance = efectivoSaldo)
 
-private fun CourtDayDto.toDomain() =
-    CourtDay(
+private fun CourtDayDto.toDomain(): CourtDay {
+    tipoEstablecimiento?.let(Venue::update)
+    return CourtDay(
         date = fecha,
         today = hoy,
         timeZone = zonaHoraria,
@@ -229,11 +252,12 @@ private fun CourtDayDto.toDomain() =
         holdMinutes = apartadoMin,
         now = Instant.parse(ahora),
         requiresAccount = requiereCuenta,
+        closed = cerrado,
         courts =
             canchas.map { court ->
                 CourtSchedule(
                     id = court.espacio.id,
-                    name = court.espacio.nombre ?: "Cancha ${court.espacio.id}",
+                    name = court.espacio.nombre ?: "${Venue.courtTitle} ${court.espacio.id}",
                     pricePerHour = court.precioHora,
                     customerPricePerHour = court.precioHoraCliente?.toDomain(),
                     rentable = court.rentable,
@@ -253,9 +277,12 @@ private fun CourtDayDto.toDomain() =
                                 reason = it.motivo,
                             )
                         },
+                    durations = court.duracionesMin.sorted(),
+                    capacity = court.capacidad?.takeIf { it > 0 },
                 )
             },
     )
+}
 
 fun ReservationDto.toDomain() =
     Reservation(
@@ -272,5 +299,6 @@ fun ReservationDto.toDomain() =
         orderId = pedidoId,
         channel = canal,
         customerName = nombreCliente,
+        players = jugadores,
         version = version,
     )

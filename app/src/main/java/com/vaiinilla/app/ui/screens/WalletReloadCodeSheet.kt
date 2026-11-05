@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -73,6 +74,7 @@ internal fun WalletReloadCodeSheet(
             Box(
                 modifier =
                     Modifier
+                        .minimumInteractiveComponentSize()
                         .size(36.dp)
                         .physicalPress(scale = PhysicalPressScale.Small, onClick = onClose)
                         .clip(CircleShape)
