@@ -149,7 +149,8 @@ python3 /Volumes/KINGSTON1TB/Dev/proyectos/vaiinilla-roles/android/jvm-ui.py nfc
 En la corrida combinada (API + JVM), saca el dato real de la tienda de pruebas de VPS2 y pásaselo al lector. No inventes un payload.
 
 - **Pedido:** `GET /api/v1/pedidos/{id}/qr` como el cliente dueño. Devuelve `qr_token`.
-- **Mesa y cuenta:** se arman como en `ui/discovery/QrPayloadParser.kt` (`encodeSpace` y su par de cuenta), con el slug y el token reales del espacio o el id real del usuario.
+- **Mesa:** `https://vaiinilla.app/<slug>/m/<token>`, con el slug y el token reales del espacio (`QrPayloadParser.encodeSpace`).
+- **Cuenta:** `https://vaiinilla.app/u/<id>`, con el id real del usuario (`QrPayloadParser.encodeUser`).
 - **Credencial:** el prefijo es `StudentCredentialPayload.PREFIX`, con el dato real del alumno.
 
 Esto prueba la lógica detrás de la cámara. No prueba que la cámara enfoque ni que el teléfono detecte la etiqueta: repórtalo así y no marques esa parte como vista en un teléfono.
