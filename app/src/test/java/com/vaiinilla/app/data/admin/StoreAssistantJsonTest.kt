@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantProduct
+import com.vaiinilla.app.domain.admin.AssistantProductPhoto
 import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.steps
 import kotlinx.serialization.json.Json
@@ -112,6 +113,47 @@ class StoreAssistantJsonTest {
         assertTrue(steps[2] is AssistantStep.Menu)
         assertEquals(AssistantStep.StorePhoto("logo", "foto1"), steps[3])
         assertEquals("Invitar a ana@correo.com", steps[4].label)
+    }
+
+    @Test
+    fun `lee fotos para productos que ya existen y las aplica despues del menu`() {
+        val proposal =
+            json
+                .parseReply(
+                    """
+                    {"data":{"mensaje":"Le pongo foto.","opciones":[],"quedan_mensajes":20,
+                    "propuesta":{"cambios":{},
+                    "menu":[{"categoria":"Bebidas","productos":[
+                      {"nombre":"Agua","precio":"20.00","descripcion":null,"prepara":"ninguna","foto":null}]}],
+                    "fotos_productos":[{"producto_id":41,"nombre":"Cerveza","foto":"foto2"},
+                      {"tipo":"foto_producto","producto_id":42,"nombre":"Nachos","foto":"foto3"},
+                      {"producto_id":43,"nombre":"Sin foto"},
+                      {"tipo":"otra","producto_id":44,"nombre":"Otra","foto":"foto4"}],
+                    "fotos":{"logo":"foto1"}}}}
+                    """.trimIndent(),
+                ).proposal!!
+        assertEquals(
+            listOf(AssistantProductPhoto(41, "Cerveza", "foto2"), AssistantProductPhoto(42, "Nachos", "foto3")),
+            proposal.productPhotos,
+        )
+        val steps = proposal.steps()
+        assertTrue(steps[0] is AssistantStep.Menu)
+        assertEquals(AssistantStep.ProductPhoto(AssistantProductPhoto(41, "Cerveza", "foto2")), steps[1])
+        assertEquals("Foto de Nachos", steps[2].label)
+        assertEquals(AssistantStep.StorePhoto("logo", "foto1"), steps[3])
+    }
+
+    @Test
+    fun `una propuesta con solo fotos de productos no se pierde`() {
+        val proposal =
+            json
+                .parseReply(
+                    """
+                    {"data":{"mensaje":"Listo.","opciones":[],
+                    "propuesta":{"cambios":{},"fotos_productos":[{"producto_id":7,"nombre":"Café","foto":"foto1"}]}}}
+                    """.trimIndent(),
+                ).proposal
+        assertEquals(7L, proposal!!.productPhotos.single().productId)
     }
 
     @Test
