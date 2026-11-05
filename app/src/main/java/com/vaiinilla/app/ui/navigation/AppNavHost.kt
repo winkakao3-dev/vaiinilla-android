@@ -199,6 +199,7 @@ fun AppNavHost(
     pendingInvitationToken: String? = null,
     pendingOrderId: String? = null,
     pendingOrderTarget: OrderNotificationTarget? = null,
+    pendingNoticeEstablishmentId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onSpaceLinkConsumed: () -> Unit = {},
     onInvitationConsumed: () -> Unit = {},
@@ -470,8 +471,18 @@ fun AppNavHost(
     // El pedido de un aviso que aún no estaba cargado (app cerrada o recién pasada a cliente): se abre al llegar (K01).
     var notifiedOrderToOpen by remember { mutableStateOf<String?>(null) }
 
+    // El arranque (Splash) ya eligió pantalla y, si tocaba, reabrió el modo de personal guardado. Una llamada de mesa
+    // tocada con la app cerrada espera a esto: antes no hay modos y el aviso se gastaba en Modos (K02).
+    var launchSettled by rememberSaveable { mutableStateOf(false) }
+
     // «Mesa te llama»: al tablero del mesero, donde la llamada se ve con su motivo; no a Modos (K02).
     fun openWaiterCall() {
+        // Sin cuenta no hay tablero de mesero: el aviso se descarta y no se arrastra hasta el próximo inicio de sesión.
+        if (launchSettled && authorizedAccessState.session == null && !authorizedAccessState.loading) {
+            onOrderConsumed()
+            return
+        }
+
         fun showWaiterBoard() {
             orderFlowViewModel.clearGuestVenue()
             navController.navigate(Routes.WAITER) {
@@ -480,11 +491,19 @@ fun AppNavHost(
             }
         }
         val waiterModes = authorizedAccessState.modes.filter { it.role == OperationalRole.WAITER }
+        val chosenMode =
+            pickWaiterCallMode(
+                modes = authorizedAccessState.modes,
+                noticeEstablishmentId = pendingNoticeEstablishmentId,
+                lastEstablishmentId = authorizedAccessViewModel.rememberedStaffMode()?.establishmentId,
+            )
         when (
             resolveWaiterCallAction(
                 operationalRole = operationalState.role,
                 accessLoading = authorizedAccessState.loading,
                 waiterModes = waiterModes.size,
+                launchSettled = launchSettled,
+                waiterModeChosen = chosenMode != null,
             )
         ) {
             WaiterCallAction.OPEN_WAITER -> {
@@ -493,7 +512,7 @@ fun AppNavHost(
             }
             WaiterCallAction.ACTIVATE_WAITER -> {
                 onOrderConsumed()
-                authorizedAccessViewModel.activateMode(waiterModes.single()) {
+                authorizedAccessViewModel.activateMode(checkNotNull(chosenMode)) {
                     operationalViewModel.setRole(OperationalRole.WAITER)
                     showWaiterBoard()
                 }
@@ -516,6 +535,7 @@ fun AppNavHost(
         operationalState.role,
         authorizedAccessState.loading,
         authorizedAccessState.modes,
+        launchSettled,
     ) {
         val target = pendingOrderTarget ?: OrderNotificationTarget.CLIENT
         val orderId = pendingOrderId
@@ -1220,11 +1240,15 @@ fun AppNavHost(
                             )
                         navigateLaunchDestination(destination)
                         // Android cerró la app con Caja, Cocina o Mesero abiertos: se vuelve a ese modo sin pasar
-                        // por la lista. Modos queda debajo, como cuando se elige a mano.
+                        // por la lista. Modos queda debajo, como cuando se elige a mano. Si se abrió tocando una
+                        // llamada de mesa, el modo lo elige esa llamada: el mesero de ese negocio (K02).
+                        val waiterCallPending = pendingOrderTarget == OrderNotificationTarget.WAITER_CALL
                         val remembered =
                             authorizedAccessViewModel
                                 .rememberedStaffMode()
-                                ?.takeIf { destination == LaunchDestination.StaffModes && modesLoaded }
+                                ?.takeIf {
+                                    destination == LaunchDestination.StaffModes && modesLoaded && !waiterCallPending
+                                }
                         if (remembered != null) {
                             authorizedAccessViewModel.activateMode(remembered) {
                                 operationalViewModel.setRole(remembered.role)
@@ -1239,6 +1263,7 @@ fun AppNavHost(
                             }
                         }
                     }
+                    launchSettled = true
                 }
 
                 WelcomeBootStage(reduceMotion = rememberReduceMotion())

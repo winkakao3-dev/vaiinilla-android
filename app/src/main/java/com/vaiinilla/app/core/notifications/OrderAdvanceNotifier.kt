@@ -29,6 +29,9 @@ object OrderAdvanceNotifier {
     /** El id del aviso en [ReceivedNoticeLog], para anotar que se tocó. */
     const val EXTRA_NOTICE_ID = "aviso_id"
 
+    /** El negocio de una llamada de mesa, si el push lo trae: se abre el modo mesero de ese negocio (K02). */
+    const val EXTRA_ESTABLISHMENT_ID = "establecimiento_id"
+
     /** Lo que se mostró (o se habría mostrado) en el teléfono. */
     data class Shown(
         val title: String,
@@ -137,6 +140,7 @@ object OrderAdvanceNotifier {
         spaceName: String,
         reason: String?,
         noticeId: String? = null,
+        establishmentId: String? = null,
     ): Shown {
         val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
         val text = tableCallText(reason)
@@ -151,7 +155,7 @@ object OrderAdvanceNotifier {
                 // El motivo es lo que el mesero necesita: completo aunque el sistema recorte la línea.
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setAutoCancel(true)
-                .setContentIntent(waiterCallLaunchIntent(context, noticeId))
+                .setContentIntent(waiterCallLaunchIntent(context, noticeId, establishmentId))
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build()
@@ -331,6 +335,7 @@ object OrderAdvanceNotifier {
     private fun waiterCallLaunchIntent(
         context: Context,
         noticeId: String?,
+        establishmentId: String?,
     ): PendingIntent =
         PendingIntent.getActivity(
             context,
@@ -338,6 +343,7 @@ object OrderAdvanceNotifier {
             Intent(context, MainActivity::class.java)
                 .setAction("${context.packageName}.staff.waiter_call")
                 .putExtra(EXTRA_NOTIFICATION_TARGET, OrderNotificationTarget.WAITER_CALL.wireValue)
+                .putExtra(EXTRA_ESTABLISHMENT_ID, establishmentId)
                 .withNoticeId(noticeId)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

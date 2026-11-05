@@ -156,6 +156,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
                 spaceName = data["espacio_nombre"] ?: data["espacioNombre"].orEmpty(),
                 reason = data["motivo"],
                 noticeId = noticeId,
+                establishmentId = data["establecimiento_id"] ?: data["establecimientoId"],
             )
         }
         if (alert == "turno_por_terminar") {
