@@ -228,6 +228,8 @@ fun WaiterOperationalScreen(
     embedded: Boolean = false,
     /** Cobrar la cuenta y entregar son de Mesero y Caja: el backend se los niega a Administración. */
     canChargeAndDeliver: Boolean = true,
+    /** En vivo, I09: las cuentas de mesas y canchas sin cobrar, también de turnos cerrados. */
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
@@ -389,6 +391,13 @@ fun WaiterOperationalScreen(
                                     haptics.impact()
                                     onChangeMode?.invoke() ?: onBack()
                                 },
+                                onOpenUnpaidAccounts =
+                                    onOpenUnpaidAccounts?.let { open ->
+                                        {
+                                            haptics.selection()
+                                            open()
+                                        }
+                                    },
                             )
                         }
                     }
