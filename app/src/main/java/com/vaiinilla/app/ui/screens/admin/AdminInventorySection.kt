@@ -301,7 +301,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.stockTab(
                                 buildString {
                                     append("Mínimo ${qty(supply.minimum, supply.unit)}")
                                     if (supply.unitCost > 0) append(" · ${moneyLabel(supply.unitCost)} c/u")
-                                    if (supply.usedBy > 0) append(" · en ${supply.usedBy} productos")
+                                    if (supply.usedBy == 1) append(" · en 1 producto")
+                                    if (supply.usedBy > 1) append(" · en ${supply.usedBy} productos")
                                 },
                             onClick = { onOpen(supply) },
                         ) {
@@ -369,8 +370,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recipesTab(
     val withRecipe = products.count { it.hasRecipe }
     item(key = "recipes-hint") {
         AdminHint(
-            "$withRecipe de ${products.size} productos con receta. Toca uno para decir qué insumos gasta cada vez " +
-                "que se vende.",
+            "$withRecipe de ${products.size} ${if (products.size == 1) "producto" else "productos"} con receta. " +
+                "Toca uno para decir qué insumos gasta cada vez que se vende.",
             colors,
         )
     }
@@ -1243,7 +1244,12 @@ private fun SupplyUsesSheet(
                                             productId = null,
                                             categoryId = group.id,
                                             name = "Toda la categoría ${group.name}",
-                                            caption = "Sus ${group.products.size} productos de hoy",
+                                            caption =
+                                                if (group.products.size == 1) {
+                                                    "Su único producto de hoy"
+                                                } else {
+                                                    "Sus ${group.products.size} productos de hoy"
+                                                },
                                             quantity = addQuantity,
                                         ),
                                     )
