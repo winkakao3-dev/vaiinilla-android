@@ -1036,7 +1036,9 @@ private fun HistorySheet(
                             "entrada" -> "Entrada"
                             "merma" -> "Merma"
                             "conteo" -> "Conteo"
-                            else -> "Ajuste"
+                            "ajuste" -> "Ajuste"
+                            "inicial" -> "Existencia inicial"
+                            else -> m.type.replace('_', ' ').replaceFirstChar { it.uppercase() }
                         }
                     val sign = if (m.quantity > 0) "+" else "−"
                     AdminValueRow(
