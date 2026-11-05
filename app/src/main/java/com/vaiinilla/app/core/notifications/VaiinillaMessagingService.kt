@@ -169,7 +169,14 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         }
         val orderId = data["orderId"] ?: return null
         val folio = data["folio"]?.toIntOrNull() ?: return null
-        return OrderAdvanceNotifier.notifyStaff(applicationContext, orderId, folio, alert, noticeId)
+        return OrderAdvanceNotifier.notifyStaff(
+            context = applicationContext,
+            orderId = orderId,
+            folio = folio,
+            alert = alert,
+            noticeId = noticeId,
+            customerName = data["nombreCliente"] ?: data["nombre_cliente"],
+        )
     }
 
     private fun notifyCallerOnTheWay(
