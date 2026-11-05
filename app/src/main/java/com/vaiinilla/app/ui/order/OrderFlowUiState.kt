@@ -17,6 +17,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.time.BusinessTime
@@ -44,6 +45,8 @@ data class OrderFlowUiState(
     val checkoutPayment: PaymentMethod = PaymentMethod.CASH,
     /** Pagar al final: el pedido va a la cuenta del espacio y se paga al irse (en efectivo). */
     val checkoutPayAtEnd: Boolean = false,
+    /** «Pasa por él»: lo que eligió el cliente cuando el negocio ofrece las dos formas. */
+    val checkoutPickUpAtBar: Boolean = false,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     /** Líneas del carrito que el menú vigente ya no permite pedir (agotadas o con opciones que cambiaron). */
@@ -317,9 +320,26 @@ val OrderFlowUiState.menuNotice: String?
 private const val STALE_MENU_NOTICE =
     "No pudimos actualizar el menú. Desliza hacia abajo para reintentar: los precios pueden haber cambiado."
 
-/** ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. */
+/**
+ * ¿Se ofrece "Pagar al final"? Solo en un espacio y si el establecimiento lo permite. El invitado que aún no da su
+ * nombre no puede leer el estado operativo: mientras tanto vale lo que dice la ficha pública del negocio.
+ */
 val OrderFlowUiState.canPayAtEnd: Boolean
-    get() = checkoutDestination == OrderDestination.IN_SPACE && operationalStatus?.allowsPayAtEnd == true
+    get() =
+        checkoutDestination == OrderDestination.IN_SPACE &&
+            (operationalStatus?.allowsPayAtEnd ?: guestVenue?.establishment?.allowsPayAtEnd) == true
+
+/** Cómo entrega el negocio en mesa o lugar; el invitado sin sesión lo lee de la ficha pública. */
+val OrderFlowUiState.spaceDelivery: SpaceDelivery
+    get() = operationalStatus?.spaceDelivery ?: guestVenue?.establishment?.spaceDelivery ?: SpaceDelivery.TABLE
+
+/** ¿Se pregunta «Te lo llevamos» o «Pasa por él»? Solo en un espacio de un negocio que ofrece las dos. */
+val OrderFlowUiState.asksSpaceDelivery: Boolean
+    get() = checkoutDestination == OrderDestination.IN_SPACE && spaceDelivery.asksCustomer
+
+/** Lo que viaja en el pedido: en un espacio decide el negocio, o el cliente si se ofrecen las dos. */
+val OrderFlowUiState.pickUpAtBarForOrder: Boolean
+    get() = checkoutDestination == OrderDestination.IN_SPACE && spaceDelivery.pickUpAtBar(checkoutPickUpAtBar)
 
 /** Después de pedir a la cuenta en una mesa, la siguiente ronda sigue a la cuenta. */
 val OrderFlowUiState.payAtEndForNextRound: Boolean

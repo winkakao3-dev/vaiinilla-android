@@ -23,6 +23,7 @@ internal fun createOrderFingerprint(request: CreateOrderRequest): String {
             append(request.kitchenNotes)
             // Solo cuando es true, para no cambiar la huella de los pedidos de siempre.
             if (request.payAtEnd) append("|pago_al_final")
+            if (request.pickUpAtBar) append("|recoge_en_barra")
             // Solo en pedidos de mostrador: el nombre cambia el pedido, así que no puede reusar la llave.
             if (request.origin == OrderOrigin.MOSTRADOR) {
                 val name = request.customerName.orEmpty()

@@ -11,6 +11,7 @@ import com.vaiinilla.app.data.admin.RemoteAdminRepository
 import com.vaiinilla.app.data.admin.RemoteAdminSpacesRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStaffRepository
 import com.vaiinilla.app.data.admin.RemoteAdminStoreRepository
+import com.vaiinilla.app.data.assistant.RemoteCustomerAssistantRepository
 import com.vaiinilla.app.data.auth.student.AccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteAccessEmailApi
 import com.vaiinilla.app.data.auth.student.RemoteStudentEnrollmentApi
@@ -18,6 +19,7 @@ import com.vaiinilla.app.data.auth.student.StudentEnrollmentApi
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
+import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
@@ -36,6 +38,7 @@ import com.vaiinilla.app.data.sharedtable.RemoteSharedTableRepository
 import com.vaiinilla.app.data.sharedtable.SharedTableContractJson
 import com.vaiinilla.app.data.wallet.RemoteWalletRepository
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
+import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRepository
 import com.vaiinilla.app.domain.repository.AdminRepository
@@ -111,6 +114,13 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
+    fun provideCustomerAssistantRepository(
+        apiClient: VaiinillaApiClient,
+        guestClientAccess: GuestClientAccess,
+    ): CustomerAssistantRepository = RemoteCustomerAssistantRepository(apiClient, guestClientAccess)
+
+    @Provides
+    @Singleton
     fun provideAdminSpacesRepository(apiClient: VaiinillaApiClient): AdminSpacesRepository =
         RemoteAdminSpacesRepository(apiClient)
 
@@ -156,7 +166,8 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         waiterContractJson: WaiterContractJson,
         orderContractJson: OrderContractJson,
-    ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson)
+        guestClientAccess: GuestClientAccess,
+    ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson, guestClientAccess)
 
     @Provides
     @Singleton
@@ -176,7 +187,8 @@ object VaiinillaModule {
     fun provideSharedTableRepository(
         apiClient: VaiinillaApiClient,
         sharedTableContractJson: SharedTableContractJson,
-    ): SharedTableRepository = RemoteSharedTableRepository(apiClient, sharedTableContractJson)
+        guestClientAccess: GuestClientAccess,
+    ): SharedTableRepository = RemoteSharedTableRepository(apiClient, sharedTableContractJson, guestClientAccess)
 
     @Provides
     @Singleton

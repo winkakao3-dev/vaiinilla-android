@@ -15,6 +15,7 @@ import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.guest.LastOrderedPlaceStore
 import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
+import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
 import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
@@ -30,6 +31,7 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.ReservationAccess
@@ -42,6 +44,7 @@ import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
 import com.vaiinilla.app.domain.usecase.CreateRemoteOrderUseCase
 import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
@@ -88,6 +91,7 @@ class OrderFlowViewModel
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
         private val orderRepository: OrderRepository,
         private val lastOrderedPlaces: LastOrderedPlaceStore,
+        private val sharedTables: SharedTableRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -376,6 +380,9 @@ class OrderFlowViewModel
 
         /** Como [requiresStudentAuth], salvo la compra sin cuenta: ese invitado no necesita cuenta. */
         fun requiresAccountAuth(): Boolean = requiresStudentAuth() && !isGuestCheckout()
+
+        /** El nombre del invitado (el que dio al entrar o el que va escribiendo); vacío si aún no hay. */
+        fun guestDisplayName(): String = guestSession.storedName() ?: _uiState.value.guestName
 
         fun updateGuestName(name: String) {
             _uiState.value = _uiState.value.copy(guestName = name, createOrderError = null)
@@ -729,6 +736,84 @@ class OrderFlowViewModel
             }
         }
 
+        /**
+         * El pedido que armó el asistente: sus líneas entran al carrito como si se agregaran a mano. Cada pedido
+         * del asistente es el pedido completo, así que primero se quita lo que puso el anterior ([replacing]) y no
+         * se suma dos veces. Regresa los nombres que no entraron (ya no hay, piden elegir opciones en la ficha o el
+         * carrito está lleno).
+         */
+        fun addAssistantLines(
+            lines: List<AssistantOrderLine>,
+            replacing: List<AssistantOrderLine> = emptyList(),
+        ): List<String> {
+            val state = _uiState.value
+            if (state.creatingOrder) return lines.map { it.product.name }
+            val products = state.catalog?.products.orEmpty().associateBy { it.id }
+            var cart = state.cartLines
+            for (old in replacing) {
+                val product = products[old.product.productId] ?: continue
+                val key = assistantCartLine(product, old).key
+                cart =
+                    cart.mapNotNull {
+                        when {
+                            it.key != key -> it
+                            it.quantity > old.quantity -> it.copy(quantity = it.quantity - old.quantity)
+                            else -> null
+                        }
+                    }
+            }
+            val skipped = mutableListOf<String>()
+            for (line in lines) {
+                val product = products[line.product.productId]
+                if (product == null || !product.available || product.archived || product.blockReason != null ||
+                    MenuFeed.needsChoice(product)
+                ) {
+                    skipped += line.product.name
+                    continue
+                }
+                val candidate = assistantCartLine(product, line)
+                val existing = cart.firstOrNull { it.key == candidate.key }
+                cart =
+                    when {
+                        existing == null && cart.size >= MenuFeed.MAX_LINES -> {
+                            skipped += line.product.name
+                            cart
+                        }
+                        existing == null -> cart + candidate
+                        existing.quantity + candidate.quantity > MenuFeed.MAX_LINE_QUANTITY -> {
+                            skipped += line.product.name
+                            cart
+                        }
+                        else ->
+                            cart.map {
+                                val sum = it.quantity + candidate.quantity
+                                if (it.key == candidate.key) it.copy(quantity = sum) else it
+                            }
+                    }
+            }
+            if (cart != state.cartLines) {
+                pendingIdempotencyKey = null
+                _uiState.value =
+                    state.copy(
+                        cartLines = cart,
+                        unavailableCartKeys = state.unavailableCartKeys.stillIn(cart),
+                        createOrderError = null,
+                    )
+                persistCurrentCartIfNeeded()
+            }
+            return skipped
+        }
+
+        private fun assistantCartLine(
+            product: Product,
+            line: AssistantOrderLine,
+        ) = CartLine(
+            product = product,
+            quantity = line.quantity.coerceIn(1, MenuFeed.MAX_LINE_QUANTITY),
+            selectedOptionIds = emptySet(),
+            notes = line.note?.trim().orEmpty().take(CART_LINE_NOTE_MAX),
+        )
+
         /** El "−" del menú deslizable: uno menos del platillo. */
         fun quickRemoveProduct(productId: Int) {
             val state = _uiState.value
@@ -930,6 +1015,12 @@ class OrderFlowViewModel
                 )
         }
 
+        /** «Pasa por él» (true) o «Te lo llevamos» (false), cuando el negocio ofrece las dos. */
+        fun updateCheckoutPickUpAtBar(pickUpAtBar: Boolean) {
+            pendingIdempotencyKey = null
+            _uiState.value = _uiState.value.copy(checkoutPickUpAtBar = pickUpAtBar, createOrderError = null)
+        }
+
         /** Pagar al final: efectivo, sumado a la cuenta del espacio y cobrado al irse. */
         fun selectPayAtEnd() {
             pendingIdempotencyKey = null
@@ -1058,6 +1149,7 @@ class OrderFlowViewModel
                         delivery = current.homeCheckout.address.takeIf { home },
                         paysOnArrival = home && current.homeCheckout.payment == HomePayment.ON_ARRIVAL,
                         withDeposit = home && current.homeCheckout.payment == HomePayment.DEPOSIT,
+                        pickUpAtBar = !home && current.pickUpAtBarForOrder,
                     )
                 // La nota general más el resumen de las notas por línea pueden pasar el máximo del servidor, que
                 // respondería con un 400 sin explicación (COMPRA-18).
@@ -1085,11 +1177,30 @@ class OrderFlowViewModel
                 val guestSlug = guestSlugFor(current.guestVenue)
                 val result =
                     withContext(Dispatchers.IO) {
-                        if (guestSlug != null) {
-                            guestOrders.create(guestSlug, request, idempotencyKey)
-                        } else {
-                            createRemoteOrder(request, idempotencyKey)
-                        }
+                        // Con el QR de la mesa y a la cuenta: si aún no está sentado ahí, se sienta y reintenta. Con
+                        // cuenta o sin ella (el repositorio de la mesa usa la sesión del invitado cuando toca).
+                        val qrToken =
+                            current.guestVenue
+                                ?.space
+                                ?.takeIf { request.payAtEnd && it.id == current.checkoutSpaceId }
+                                ?.qrToken
+                        val name =
+                            if (guestSlug != null) {
+                                guestSession.storedName() ?: current.guestName
+                            } else {
+                                studentAuthRepository.peekSession()?.displayName.orEmpty()
+                            }
+                        createSeatingAtTableIfNeeded(
+                            create = {
+                                if (guestSlug != null) {
+                                    guestOrders.create(guestSlug, request, idempotencyKey)
+                                } else {
+                                    createRemoteOrder(request, idempotencyKey)
+                                }
+                            },
+                            aliases = payAtEndSeatAliases(name),
+                            join = qrToken?.let { token -> { alias: String -> sharedTables.join(token, alias) } },
+                        )
                     }
                 result.fold(
                     onSuccess = { created ->

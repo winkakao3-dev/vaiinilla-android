@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import java.time.Duration
 import java.time.Instant
 
@@ -260,6 +261,8 @@ data class WaiterBoard(
     val deliveryRequiresQr: Boolean = true,
     /** El negocio deja pagar al final: el pedido de una mesa puede ir a su cuenta. */
     val allowsPayAtEnd: Boolean = false,
+    /** «Te lo llevamos», «Pasa por él» o ambas, para los pedidos de un espacio. */
+    val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
 )
 
 enum class TableState {

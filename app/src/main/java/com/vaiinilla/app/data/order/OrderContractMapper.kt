@@ -41,6 +41,7 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         deliverySlot = deliverySlot?.takeIf { it.isNotBlank() },
         paysOnArrival = paysOnArrival.takeIf { it },
         withDeposit = withDeposit.takeIf { it },
+        pickUpAtBar = pickUpAtBar.takeIf { it },
     )
 
 fun DeliveryAddress.toDto(): DeliveryDto =
@@ -108,6 +109,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 balanceDue = balanceDue,
                 chargedMethod = chargedMethod?.takeIf { it.isNotBlank() },
                 paymentsByMethod = paymentsByMethod.map { PaymentPart(method = it.method, amount = it.amount) },
+                pickUpAtBar = pickUpAtBar,
             ),
         user =
             user?.let {

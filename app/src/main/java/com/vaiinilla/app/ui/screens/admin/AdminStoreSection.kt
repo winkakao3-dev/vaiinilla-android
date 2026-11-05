@@ -90,6 +90,8 @@ import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeStep
 import com.vaiinilla.app.domain.admin.stripeStep
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.AssistantMode
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
@@ -116,6 +118,8 @@ internal fun AdminStoreSection(
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
+    /** Abre el asistente de configuración (marco AS2); null lo esconde, como en solo consulta. */
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState
     // Al volver de Stripe (otra app) se vuelve a consultar el estado de la cuenta.
@@ -143,7 +147,7 @@ internal fun AdminStoreSection(
         label = "store-page",
     ) { current ->
         when (current) {
-            null -> StoreCover(viewModel, colors, readOnly, onBack) { page = it }
+            null -> StoreCover(viewModel, colors, readOnly, onBack, onOpenAssistant) { page = it }
             StorePage.PAYMENTS -> StorePaymentsPage(viewModel, colors, readOnly) { page = null }
             StorePage.FLOW -> StoreFlowPage(viewModel, colors, readOnly) { page = null }
             StorePage.PRESENCE -> StorePresencePage(viewModel, colors, readOnly) { page = null }
@@ -160,6 +164,7 @@ private fun StoreCover(
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
+    onOpenAssistant: (() -> Unit)?,
     onOpen: (StorePage) -> Unit,
 ) {
     val state by viewModel.uiState
@@ -193,6 +198,9 @@ private fun StoreCover(
                 color = colors.textMuted,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
+        }
+        onOpenAssistant?.let { open ->
+            item(key = "asistente") { AssistantEntryCard(colors, Modifier.adminRise(1), open) }
         }
         item { StoreHero(state.images, colors, Modifier.adminRise(1)) { onOpen(StorePage.PRESENCE) } }
         item {
@@ -234,6 +242,53 @@ private fun StoreCover(
                         height = 40.dp,
                     )
                 }
+                val spaceDelivery = flow.spaceDelivery
+                if (spaceDelivery != null) {
+                    StoreQuestion("En mesa o lugar, ¿cómo les llega?", colors, Modifier.padding(top = 14.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SpaceDelivery.entries.forEach { option ->
+                            AdminFilterChip(
+                                label = spaceDeliveryLabel(option),
+                                selected = spaceDelivery == option,
+                                colors = colors,
+                                onClick = { if (enabled) saveNow(viewModel, flow, flow.copy(spaceDelivery = option)) },
+                                height = 40.dp,
+                            )
+                        }
+                    }
+                }
+                val assistantMode = config.assistantMode
+                if (assistantMode != null) {
+                    StoreQuestion("¿Quién usa el asistente de IA?", colors, Modifier.padding(top = 14.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AssistantMode.entries.forEach { option ->
+                            AdminFilterChip(
+                                label = option.label,
+                                selected = assistantMode == option,
+                                colors = colors,
+                                onClick = {
+                                    if (enabled && option != assistantMode) {
+                                        saveNow(viewModel, flow, flow.copy(assistantMode = option))
+                                    }
+                                },
+                                height = 40.dp,
+                            )
+                        }
+                    }
+                    Text(
+                        assistantModeHint(assistantMode),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
         item {
@@ -254,6 +309,22 @@ private fun StoreCover(
         }
     }
 }
+
+/** Qué hace cada opción del asistente, en palabras del dueño. */
+internal fun assistantModeHint(mode: AssistantMode): String =
+    when (mode) {
+        AssistantMode.BOTH -> "Te ayuda a configurar la tienda y tus clientes le preguntan qué pedir."
+        AssistantMode.STAFF -> "Solo te ayuda a configurar la tienda; tus clientes no lo ven."
+        AssistantMode.NONE -> "Nadie lo ve: configuras paso a paso y los clientes piden desde el menú."
+    }
+
+/** Las opciones de entrega en mesa o lugar, como las lee el dueño. */
+internal fun spaceDeliveryLabel(option: SpaceDelivery): String =
+    when (option) {
+        SpaceDelivery.TABLE -> "Te lo llevamos"
+        SpaceDelivery.BAR -> "Pasa por él"
+        SpaceDelivery.BOTH -> "Las dos"
+    }
 
 /** Los chips de la portada guardan al tocarlos; lo demás del flujo se edita en su página. */
 private fun saveNow(

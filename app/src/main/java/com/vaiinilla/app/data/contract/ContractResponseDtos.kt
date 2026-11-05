@@ -42,6 +42,8 @@ data class OperationalStatusDto(
     @SerialName("consultado_en") val consultedAt: String,
     @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
+    /** Un servidor anterior no lo envía: lo lleva el mesero. */
+    @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
     /** Un servidor anterior no lo envía: no se ofrece la tarjeta. */
     @SerialName("acepta_tarjeta") val acceptsCard: Boolean = false,
     /** Un servidor anterior no lo envía: el saldo se ofrece como antes. */

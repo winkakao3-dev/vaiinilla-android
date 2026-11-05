@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.discovery
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.PublicVideo
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -17,6 +18,10 @@ data class PublicEstablishmentDto(
     @SerialName("imagen_url") val photoUrl: String? = null,
     @SerialName("logo_url") val logoUrl: String? = null,
     @SerialName("whatsapp_url") val whatsappUrl: String? = null,
+    @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
+    @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
+    // Un servidor sin la migración 180 no lo manda: vale true, como hasta ahora.
+    @SerialName("asistente_clientes") val assistantForCustomers: Boolean = true,
 )
 
 @Serializable
@@ -49,6 +54,9 @@ fun PublicEstablishmentDto.toDomain() =
         photoUrl = photoUrl.httpsOrNull(),
         logoUrl = logoUrl.httpsOrNull(),
         whatsappUrl = whatsappUrl.httpsOrNull(),
+        allowsPayAtEnd = allowsPayAtEnd,
+        spaceDelivery = SpaceDelivery.fromWire(spaceDelivery),
+        assistantForCustomers = assistantForCustomers,
     )
 
 // Las imágenes se descargan sin sesión: solo https.

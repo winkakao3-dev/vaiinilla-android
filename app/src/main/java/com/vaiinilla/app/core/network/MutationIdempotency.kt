@@ -58,6 +58,15 @@ internal object MutationIdempotency {
 
     fun accountDeletion(uid: String): String = derive("account-deletion", uid)
 
+    /**
+     * Una sub-operación al aplicar la propuesta del asistente (paso 3, producto 2…). La base es
+     * aleatoria por propuesta: reintentar la misma propuesta da las mismas llaves.
+     */
+    fun assistant(
+        baseKey: String,
+        vararg parts: String,
+    ): String = derive("assistant", baseKey, *parts)
+
     private fun derive(
         operation: String,
         vararg parts: String?,

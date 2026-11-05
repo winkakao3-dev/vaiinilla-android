@@ -1,6 +1,8 @@
 package com.vaiinilla.app.domain.admin
 
 import com.vaiinilla.app.domain.model.OrderWindow
+import com.vaiinilla.app.domain.model.AssistantMode
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
@@ -168,6 +170,10 @@ data class StoreConfig(
     val preorders: PreorderSettings? = null,
     /** null si el servidor todavía no deja poner la ubicación desde la app. */
     val location: StoreLocation? = null,
+    /** «Te lo llevamos», «Pasa por él» o ambas; null si el servidor todavía no lo conoce. */
+    val spaceDelivery: SpaceDelivery? = null,
+    /** Qué asistentes de IA tiene; null si el servidor todavía no lo conoce. */
+    val assistantMode: AssistantMode? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -180,6 +186,9 @@ data class StoreConfig(
             releaseGraceMinutes = releaseGraceMinutes,
             orderWindows = orderWindows,
             kitchenPreparesUnpaid = kitchenPreparesUnpaid,
+            spaceDelivery = spaceDelivery,
+            // asistente_modo no va en cada guardado: solo cuando el dueño lo cambia (si no, pisaría lo que Vaiinilla
+            // cambió mientras tanto, y un servidor sin la migración 180 rechazaría todo el flujo).
         )
 }
 
@@ -192,6 +201,10 @@ data class StoreFlow(
     val releaseGraceMinutes: Int,
     val orderWindows: List<OrderWindow>,
     val kitchenPreparesUnpaid: Boolean = true,
+    /** null: el servidor no lo conoce y no se envía. */
+    val spaceDelivery: SpaceDelivery? = null,
+    /** null: no se cambia (solo se manda al elegirlo). */
+    val assistantMode: AssistantMode? = null,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =
         copy(

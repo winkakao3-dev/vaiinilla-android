@@ -17,6 +17,8 @@ data class OperationalStatus(
     val deliveryRequiresQr: Boolean = true,
     /** Si es true, el cliente puede pedir en un espacio y pagar al final. */
     val allowsPayAtEnd: Boolean = false,
+    /** «Te lo llevamos», «Pasa por él» o ambas, para pedidos en mesa o lugar. */
+    val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
     /** Si es true, el dueño activó la tarjeta en su panel y Stripe ya le permite cobrar. */
     val acceptsCard: Boolean = false,
     /** Si es false, el dueño apagó los pagos con saldo: el servidor rechaza `metodo_pago: saldo`. */

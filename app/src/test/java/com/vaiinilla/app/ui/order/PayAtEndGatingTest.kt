@@ -1,7 +1,10 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.domain.model.PublicSpace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -69,5 +72,30 @@ class PayAtEndGatingTest {
         assertTrue(state(status(), payAtEnd = true).payAtEndForNextRound)
         assertFalse(state(status(), payAtEnd = false).payAtEndForNextRound)
         assertFalse(state(status(), payAtEnd = true, destination = OrderDestination.TAKE_AWAY).payAtEndForNextRound)
+    }
+
+    @Test
+    fun `a guest without a name yet sees pay at end from the public establishment`() {
+        fun guest(allows: Boolean) =
+            OrderFlowUiState(
+                checkoutDestination = OrderDestination.IN_SPACE,
+                guestVenue =
+                    GuestVenueContext(
+                        establishment =
+                            PublicEstablishment(
+                                id = "e1",
+                                name = "USAGI",
+                                slug = "usagi",
+                                clientIdLabel = "",
+                                clientIdRequired = false,
+                                allowsPayAtEnd = allows,
+                            ),
+                        space = PublicSpace(id = 2, name = "Mesa 2", type = "mesa", qrToken = "qr"),
+                    ),
+            )
+        assertTrue(guest(allows = true).canPayAtEnd)
+        assertFalse(guest(allows = false).canPayAtEnd)
+        // En cuanto llega el estado operativo, manda él.
+        assertFalse(guest(allows = true).copy(operationalStatus = status(allowsPayAtEnd = false)).canPayAtEnd)
     }
 }

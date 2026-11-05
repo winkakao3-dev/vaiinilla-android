@@ -90,13 +90,26 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.coroutines.resume
 
-/** Un paso de "Para dejar lista tu tienda"; [section] es a dónde lleva tocarlo. */
+/**
+ * Un paso de "Para dejar lista tu tienda"; [section] es a dónde lleva tocarlo. Uno [optional] (domicilio, tarjeta)
+ * se ofrece pero no cuenta para que la tienda esté lista: un restaurante sin domicilio ni Stripe ya puede vender.
+ */
 internal data class AdminSetupStep(
     val title: String,
     val detail: String?,
     val done: Boolean,
     val section: AdminSection? = null,
+    val optional: Boolean = false,
 )
+
+/** Lista cuando no falta ningún paso obligatorio. */
+internal fun List<AdminSetupStep>.storeReady(): Boolean = none { !it.done && !it.optional }
+
+/**
+ * Se ve mientras falte algo obligatorio. Antes también se quedaba con "sin ventas" en el periodo, y como el periodo
+ * es "Hoy", volvía cada mañana hasta la primera venta: lista la tienda, ya no estorba.
+ */
+internal fun showsStoreSetup(setup: List<AdminSetupStep>): Boolean = setup.isNotEmpty() && !setup.storeReady()
 
 /**
  * Inicio, como el lienzo de Doop (marcos 07 y 21 a 23): la foto del negocio con su nombre en grande, si recibe
@@ -113,6 +126,8 @@ internal fun AdminHomeTab(
     onOpenOrders: () -> Unit,
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit = {},
+    /** El asistente de configuración; null lo esconde. */
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
     val presentDialog = LocalAdminDialog.current
@@ -142,13 +157,12 @@ internal fun AdminHomeTab(
         }
         item(key = "tienda-lista") {
             AnimatedVisibility(
-                // Recién lista y sin ventas todavía, se queda a la vista con su botón (marco 07); después estorba.
-                visible = setup.isNotEmpty() && (setup.any { !it.done } || summary?.orders == 0),
+                visible = showsStoreSetup(setup),
                 enter =
                     fadeIn(spring(stiffness = 400f)) + expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)),
                 exit = fadeOut(spring(stiffness = 600f)) + shrinkVertically(spring(stiffness = 600f)),
             ) {
-                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer)
+                SetupChecklist(setup, colors, Modifier.adminRise(2), onOpenSection, onSeeAsCustomer, onOpenAssistant)
             }
         }
         item(key = "ventas-titulo") {
@@ -254,10 +268,14 @@ private fun SetupChecklist(
     modifier: Modifier,
     onOpenSection: (AdminSection) -> Unit,
     onSeeAsCustomer: () -> Unit,
+    onOpenAssistant: (() -> Unit)?,
 ) {
-    val ready = setup.none { !it.done }
+    val ready = setup.storeReady()
     Column(modifier) {
         AdminH2(if (ready) "Tu tienda está lista" else "Para dejar lista tu tienda", colors)
+        if (!ready && onOpenAssistant != null) {
+            AssistantEntryCard(colors, Modifier.padding(bottom = 10.dp), onOpenAssistant)
+        }
         AdminPanel(
             colors,
             padding =

@@ -21,6 +21,12 @@ class PublicEstablishmentDtoTest {
             """"identificador_cliente_etiqueta":"Matrícula","identificador_cliente_obligatorio":false$extra}"""
 
     @Test
+    fun `el asistente para clientes vale true si el servidor no lo manda`() {
+        assertTrue(decodeFirst(venueWith()).assistantForCustomers)
+        assertEquals(false, decodeFirst(venueWith(""","asistente_clientes":false""")).assistantForCustomers)
+    }
+
+    @Test
     fun `missing videos_local maps to empty list`() {
         assertTrue(decodeFirst(venueWith()).localVideos.isEmpty())
     }

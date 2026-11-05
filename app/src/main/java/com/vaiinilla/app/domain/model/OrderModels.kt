@@ -54,6 +54,8 @@ data class CreateOrderRequest(
     val paysOnArrival: Boolean = false,
     /** Con tarjeta: se cobra el anticipo y el resto en la puerta. */
     val withDeposit: Boolean = false,
+    /** «Pasa por él»: en un espacio, el cliente lo recoge en la barra en lugar de que se lo lleven. */
+    val pickUpAtBar: Boolean = false,
 )
 
 /** A dónde se lleva un pedido, como lo escribe el cliente. */
@@ -279,6 +281,8 @@ data class OrderSummary(
     val chargedMethod: String? = null,
     /** Lo cobrado con cada método (`pagos_por_metodo`). */
     val paymentsByMethod: List<PaymentPart> = emptyList(),
+    /** «Pasa por él» (`recoge_en_barra`): el cliente lo recoge en la barra y Caja lo entrega. */
+    val pickUpAtBar: Boolean = false,
 )
 
 /** Una parte del cobro: `metodo` como lo manda el servidor y su monto. */

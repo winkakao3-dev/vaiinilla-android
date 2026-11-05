@@ -338,6 +338,8 @@ data class DeliveryPolicyDto(
     @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
     /** Si el mesero puede mandar el pedido de una mesa a su cuenta (se paga al final). */
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
+    /** «Te lo llevamos», «Pasa por él» o ambas; un servidor anterior no lo envía. */
+    @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
 )
 
 @Serializable

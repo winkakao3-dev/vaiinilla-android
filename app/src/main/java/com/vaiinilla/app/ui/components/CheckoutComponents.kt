@@ -88,6 +88,38 @@ fun CheckoutDestinationPicker(
     }
 }
 
+/** «Te lo llevamos» o «Pasa por él»: solo cuando el negocio ofrece las dos en mesa o lugar. */
+@Composable
+fun CheckoutSpaceDeliveryPicker(
+    pickUpAtBar: Boolean,
+    onSelect: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        DestinationOption(
+            title = "Te lo llevamos",
+            subtitle = "A tu lugar",
+            detail = null,
+            icon = Icons.Outlined.Restaurant,
+            selected = !pickUpAtBar,
+            onClick = { onSelect(false) },
+            modifier = Modifier.weight(1f),
+        )
+        DestinationOption(
+            title = "Pasa por él",
+            subtitle = "Te avisamos y lo recoges en la barra",
+            detail = null,
+            icon = Icons.Outlined.ShoppingBag,
+            selected = pickUpAtBar,
+            onClick = { onSelect(true) },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
 data class CheckoutSpaceOption(
     val id: Int,
     val name: String,

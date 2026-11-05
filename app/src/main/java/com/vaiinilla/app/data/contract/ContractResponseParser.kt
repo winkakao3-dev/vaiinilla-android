@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.ProductOption
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.repository.StoreImages
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -55,6 +56,7 @@ class ContractResponseParser
                 consultedAt = envelope.data.consultedAt,
                 deliveryRequiresQr = envelope.data.deliveryRequiresQr,
                 allowsPayAtEnd = envelope.data.allowsPayAtEnd,
+                spaceDelivery = SpaceDelivery.fromWire(envelope.data.spaceDelivery),
                 acceptsCard = envelope.data.acceptsCard,
                 allowsBalance = envelope.data.allowsBalance,
                 businessType = envelope.data.businessType,

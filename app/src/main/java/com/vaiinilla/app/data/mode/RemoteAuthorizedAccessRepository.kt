@@ -263,6 +263,7 @@ class RemoteAuthorizedAccessRepository
                 establishmentSlug = establecimiento.slug,
                 isSchool = establecimiento.isSchool,
                 establishmentActive = establishmentStatus == "activo",
+                recentlyAssigned = recentlyAssigned,
             )
         }
 
@@ -336,6 +337,7 @@ private data class SessionAccessDto(
     @SerialName("identificador_cliente") val clientIdentifier: String? = null,
     @SerialName("estado_establecimiento") val establishmentStatus: String,
     @SerialName("cierre_operativo_disponible") val operationalCloseAvailable: Boolean,
+    @SerialName("recien_asignado") val recentlyAssigned: Boolean = false,
 )
 
 @Serializable

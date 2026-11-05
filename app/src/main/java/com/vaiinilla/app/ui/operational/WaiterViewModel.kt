@@ -12,6 +12,7 @@ import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -64,6 +65,10 @@ data class WaiterUiState(
     val allowsPayAtEnd: Boolean = false,
     /** Mesa a la que va el pedido que se está tomando; null = pedido de mostrador para Caja. */
     val counterOrderSpace: TableSpace? = null,
+    /** «Te lo llevamos», «Pasa por él» o ambas, para los pedidos de un espacio. */
+    val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
+    /** En Caja, con las dos formas: el cliente pidió en la barra y pasa por él (true) o se lo llevan. */
+    val counterPickUpAtBar: Boolean = false,
     /** Sesión, cuenta y estado del espacio abierto en la hoja; null si no hay ninguno. */
     val spaceDetail: SpaceSessionDetail? = null,
     val spaceDetailLoading: Boolean = false,
@@ -312,8 +317,13 @@ class WaiterViewModel
         private fun loadStationsCatalog() {
             if (_uiState.value.counterCatalog != null) return
             viewModelScope.launch {
-                val catalog = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
-                if (_uiState.value.counterCatalog == null) _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+                val catalog =
+                    withContext(Dispatchers.IO) { catalogRepository.getCatalog() }.getOrNull() ?: return@launch
+                if (_uiState.value.counterCatalog ==
+                    null
+                ) {
+                    _uiState.value = _uiState.value.copy(counterCatalog = catalog)
+                }
             }
         }
 
@@ -412,7 +422,17 @@ class WaiterViewModel
         fun closeCounterOrder() {
             if (_uiState.value.counterOrderSending) return
             _uiState.value =
-                _uiState.value.copy(counterOrderOpen = false, counterOrderError = null, counterOrderSpace = null)
+                _uiState.value.copy(
+                    counterOrderOpen = false,
+                    counterOrderError = null,
+                    counterOrderSpace = null,
+                    counterPickUpAtBar = false,
+                )
+        }
+
+        /** En Caja: «Pasa por él» (true) o «Te lo llevamos» (false) para el pedido de un espacio. */
+        fun updateCounterPickUpAtBar(pickUpAtBar: Boolean) {
+            _uiState.value = _uiState.value.copy(counterPickUpAtBar = pickUpAtBar)
         }
 
         /**
@@ -438,6 +458,9 @@ class WaiterViewModel
                     payAtEnd = toAccount,
                     origin = OrderOrigin.MOSTRADOR,
                     customerName = customerName,
+                ).copy(
+                    pickUpAtBar =
+                        space != null && _uiState.value.spaceDelivery.pickUpAtBar(_uiState.value.counterPickUpAtBar),
                 )
             val key =
                 counterOrderKeyFor(counterOrderKey, createOrderFingerprint(request)) {
@@ -456,6 +479,7 @@ class WaiterViewModel
                                 counterOrderOpen = false,
                                 counterOrderError = null,
                                 counterOrderSpace = null,
+                                counterPickUpAtBar = false,
                             )
                         if (onCreated != null) {
                             onCreated(created.summary.id)
@@ -783,6 +807,7 @@ internal fun WaiterUiState.withBoard(
         callsEnabled = board.callsEnabled,
         deliveryRequiresQr = board.deliveryRequiresQr,
         allowsPayAtEnd = board.allowsPayAtEnd,
+        spaceDelivery = board.spaceDelivery,
         loading = false,
         errorMessage = null,
         lastBoardRefreshAt = receivedAt,

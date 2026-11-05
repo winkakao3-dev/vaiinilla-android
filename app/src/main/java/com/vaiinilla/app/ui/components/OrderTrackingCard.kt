@@ -12,7 +12,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,17 +45,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.core.snap
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import kotlinx.coroutines.delay
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -66,6 +63,7 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -155,13 +153,28 @@ internal fun trackingStepTitle(
     paymentMethod: PaymentMethod,
     paymentStatus: StripePaymentStatus?,
     payAtEnd: Boolean = false,
+    destination: OrderDestination = OrderDestination.TAKE_AWAY,
+    pickUpAtBar: Boolean = false,
 ): String =
     payAtEndStepTitle(state, payAtEnd)
+        ?: spaceReadyTitle(state, destination, pickUpAtBar)
         ?: timelineSteps
             .firstOrNull { it.state == state }
             ?.title
             ?.invoke(paymentMethod, paymentStatus)
         ?: state.label.uppercase()
+
+/** En mesa o lugar, listo dice cómo llega: «Te lo llevamos» va en camino, «Pasa por él» espera en la barra. */
+private fun spaceReadyTitle(
+    state: OrderState,
+    destination: OrderDestination,
+    pickUpAtBar: Boolean,
+): String? =
+    when {
+        state != OrderState.READY || destination != OrderDestination.IN_SPACE -> null
+        pickUpAtBar -> "LISTO, PASA A LA BARRA"
+        else -> "EN CAMINO"
+    }
 
 /** Un pedido a la cuenta no se cobra al pedir: sus dos primeros pasos lo dicen así. */
 private fun payAtEndStepTitle(
@@ -193,9 +206,12 @@ internal fun trackingStepDescription(
     paymentStatus: StripePaymentStatus?,
     spaceType: String? = null,
     payAtEnd: Boolean = false,
+    pickUpAtBar: Boolean = false,
 ): String =
     if (payAtEndStepDescription(state, payAtEnd) != null) {
         payAtEndStepDescription(state, payAtEnd).orEmpty()
+    } else if (state == OrderState.READY && destination == OrderDestination.IN_SPACE && pickUpAtBar) {
+        "Tu pedido está listo, pasa a la barra."
     } else if (state == OrderState.READY && destination == OrderDestination.IN_SPACE) {
         "El personal lo llevará a ${SpaceCopy.yourPlace(spaceType)}."
     } else {
@@ -363,6 +379,8 @@ fun OrderTrackingTimeline(
     payAtEnd: Boolean = false,
     /** Pedido sin cocina: "Preparando" queda omitido. */
     skipsKitchen: Boolean = false,
+    /** «Pasa por él»: listo dice que pase a la barra en lugar de que va en camino. */
+    pickUpAtBar: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val view = LocalView.current
@@ -380,7 +398,7 @@ fun OrderTrackingTimeline(
             val skipped = skipsKitchen && step.state == OrderState.PREPARING
             TimelineRow(
                 stepNumber = index + 1,
-                title = trackingStepTitle(step.state, paymentMethod, paymentStatus, payAtEnd),
+                title = trackingStepTitle(step.state, paymentMethod, paymentStatus, payAtEnd, destination, pickUpAtBar),
                 description =
                     if (skipped) {
                         PREPARING_SKIPPED_NOTE
@@ -392,6 +410,7 @@ fun OrderTrackingTimeline(
                             paymentStatus,
                             spaceType,
                             payAtEnd,
+                            pickUpAtBar,
                         )
                     },
                 isSkipped = skipped,
@@ -489,6 +508,7 @@ fun RentalTimeLeftCard(
         )
     }
 }
+
 private const val RENTAL_TICK_MS = 30_000L
 
 /** Seguimiento de una renta de cancha: pagar, reservada, en juego, terminada. Sin cocina. */

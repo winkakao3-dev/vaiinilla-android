@@ -142,7 +142,11 @@ internal fun counterOrderMatches(
 /** Las categorías que tienen algo en el menú, en el orden del catálogo, para los chips de C03. */
 internal fun counterOrderCategories(catalog: Catalog?): List<Category> {
     val used = catalog?.products.orEmpty().mapTo(mutableSetOf()) { it.categoryId }
-    return catalog?.categories.orEmpty().filter { it.id in used }.sortedBy { it.order }
+    return catalog
+        ?.categories
+        .orEmpty()
+        .filter { it.id in used }
+        .sortedBy { it.order }
 }
 
 private fun String.foldAccents(): String =
@@ -166,6 +170,8 @@ internal fun CounterOrderSheet(
     submitAction: String = "Enviar a Caja",
     /** Solo en Caja con la caja abierta: crea el pedido y abre su cobro. El otro botón lo deja por cobrar (G03). */
     onSubmitAndCollect: ((List<CartLine>, String) -> Unit)? = null,
+    /** Solo en Caja: con las dos formas de entrega, marca si el cliente pasa por él a la barra. */
+    onPickUpAtBarChange: ((Boolean) -> Unit)? = null,
 ) {
     var nombre by remember { mutableStateOf("") }
     var buscar by remember { mutableStateOf("") }
@@ -250,10 +256,28 @@ internal fun CounterOrderSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (state.counterOrderSpace == null) {
-                        Text("Para llevar", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                        Text(
+                            "Para llevar",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textSecondary,
+                        )
                     }
                 }
                 Spacer(Modifier.size(44.dp))
+            }
+            if (onPickUpAtBarChange != null && state.counterOrderSpace != null && state.spaceDelivery.asksCustomer) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CategoriaChip("Te lo llevamos", elegida = !state.counterPickUpAtBar, colors = colors) {
+                        onPickUpAtBarChange(false)
+                    }
+                    CategoriaChip("Pasa por él", elegida = state.counterPickUpAtBar, colors = colors) {
+                        onPickUpAtBarChange(true)
+                    }
+                }
             }
             CounterInlineField(
                 value = buscar,
@@ -503,6 +527,7 @@ private fun CounterInlineField(
         },
     )
 }
+
 /** Un chip de categoría arriba de la cuadrícula; el elegido en tinta. Se ve de 34 con un toque de 44. */
 @Composable
 private fun CategoriaChip(
