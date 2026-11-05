@@ -170,6 +170,11 @@ data class AccountOrder(
     val pending: Boolean,
     /** Alias de quien dijo "esto lo pago yo" en la mesa compartida. */
     val payer: String? = null,
+    /**
+     * R13: lo que falta cobrar de este pedido (`restante`): sin lo ya pagado. Es lo que el servidor suma para el
+     * total esperado. Un servidor anterior no lo manda y se usa el total.
+     */
+    val due: String = total,
 )
 
 data class SpaceAccount(

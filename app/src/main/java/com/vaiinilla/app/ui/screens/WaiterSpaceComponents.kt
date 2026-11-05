@@ -1095,8 +1095,17 @@ internal fun CollectAccountContent(
     initialPeople: Int? = null,
     /** Controles propios de quien abre la hoja (la renta: duración y jugadores), bajo el monto. */
     headerExtra: (@Composable ColumnScope.() -> Unit)? = null,
+    /**
+     * R34: la selección de pedidos dura lo que dura esta cuenta (la sesión), no la lista que trae cada sondeo.
+     * Un pedido que llega después entra sin marcar y uno que ya no está se quita.
+     */
+    selectionKey: Any? = Unit,
+    /** R16: hay algo sin mandar (jugadores de la renta): el botón se apaga y dice esto. */
+    blockedReason: String? = null,
 ) {
-    var selected by remember(payable.map { it.id }) { mutableStateOf(payable.map { it.id }.toSet()) }
+    val payableIds = payable.map { it.id }.toSet()
+    var chosen by remember(selectionKey) { mutableStateOf(payableIds) }
+    val selected = chosen intersect payableIds
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
     val splitLocked = paidInAmount.signum() > 0
@@ -1124,10 +1133,11 @@ internal fun CollectAccountContent(
                 MoneyInput.parse(abonoText)?.setScale(2, java.math.RoundingMode.DOWN)
                     ?: BigDecimal.ZERO
             payable.isEmpty() -> total.moneyOrZero()
+            // R13: el servidor espera lo que falta de la cuenta, no la suma de los totales brutos.
+            allSelected -> (remaining ?: total).moneyOrZero()
             else ->
                 payable.filter { it.id in selected }.fold(BigDecimal.ZERO) { sum, order ->
-                    sum +
-                        order.total.moneyOrZero()
+                    sum + order.due.moneyOrZero()
                 }
         }
     val abonoValid = byOrders || AccountSplit.isValidAmount(totalAmount, remainingAmount)
@@ -1212,7 +1222,7 @@ internal fun CollectAccountContent(
                         onSelect = { mode ->
                             if (!(splitLocked && mode in SplitMode.WHOLE_ORDERS)) {
                                 split = mode
-                                if (mode == SplitMode.ALL) selected = payable.map { it.id }.toSet()
+                                if (mode == SplitMode.ALL) chosen = payableIds
                                 typed = null
                             }
                         },
@@ -1271,7 +1281,7 @@ internal fun CollectAccountContent(
                     enabled = !confirming,
                     colors = colors,
                     onPick = { ids ->
-                        selected = ids
+                        chosen = ids
                         typed = null
                     },
                 )
@@ -1281,7 +1291,7 @@ internal fun CollectAccountContent(
                     enabled = !confirming,
                     colors = colors,
                     onToggle = { id ->
-                        selected = if (id in selected) selected - id else selected + id
+                        chosen = if (id in selected) selected - id else selected + id
                         typed = null
                     },
                 )
@@ -1487,6 +1497,7 @@ internal fun CollectAccountContent(
             AdminPrimaryButton(
                 title =
                     when {
+                        blockedReason != null -> blockedReason
                         !byOrders && withTerminal -> "Abonado en la terminal $$chargeLabel"
                         !byOrders -> "Abonar $$chargeLabel"
                         withTerminal -> "Cobrado en la terminal $$chargeLabel"
@@ -1496,7 +1507,7 @@ internal fun CollectAccountContent(
                     },
                 colors = colors,
                 busy = confirming,
-                enabled = canConfirm,
+                enabled = canConfirm && blockedReason == null,
             ) {
                 val orderIds = if (allSelected) null else selected.toList()
                 val tip = tipAmount.asTipWire()
@@ -1631,7 +1642,7 @@ private fun SplitOrdersPicker(
                         )
                     }
                     Text(
-                        moneyLabel(order.total),
+                        moneyLabel(order.due),
                         fontWeight = FontWeight.Black,
                         fontSize = 15.sp,
                         color = ink,
@@ -1676,7 +1687,7 @@ internal fun pendingAfterPartial(
 ): String? {
     val rest = payable.filter { it.id !in selected }
     if (rest.isEmpty() || rest.size == payable.size) return null
-    val amount = rest.fold(BigDecimal.ZERO) { sum, order -> sum + order.total.moneyOrZero() }
+    val amount = rest.fold(BigDecimal.ZERO) { sum, order -> sum + order.due.moneyOrZero() }
     val names = rest.mapNotNull { it.payer ?: it.clientName }.distinct()
     val who = if (names.isEmpty()) "" else " de ${names.joinToString(" y ")}"
     return "faltan ${moneyLabel(Money.format(amount))}$who"

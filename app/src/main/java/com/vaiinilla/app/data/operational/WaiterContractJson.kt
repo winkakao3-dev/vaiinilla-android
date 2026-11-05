@@ -31,6 +31,8 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
@@ -203,6 +205,8 @@ data class AccountOrderDto(
     @SerialName("items_resumen") val itemsSummary: String = "",
     /** Alias de quien dijo "esto lo pago yo"; un servidor anterior no lo envía. */
     val pagara: String? = null,
+    /** R13: lo que falta de este pedido (número o texto decimal); un servidor anterior no lo envía. */
+    val restante: JsonPrimitive? = null,
 )
 
 @Serializable
@@ -398,7 +402,18 @@ fun AccountOrderDto.toDomain(): AccountOrder =
         payAtEnd = payAtEnd,
         pending = pending,
         payer = pagara,
+        due = restante.moneyOrNull() ?: total.toMoney(),
     )
+
+/** Un monto que el servidor manda como número o como texto decimal ("12.50"); null o ilegible = sin dato. */
+private fun JsonPrimitive?.moneyOrNull(): String? =
+    this
+        ?.takeUnless { it is JsonNull }
+        ?.content
+        ?.trim()
+        ?.toBigDecimalOrNull()
+        ?.setScale(2, RoundingMode.HALF_UP)
+        ?.toPlainString()
 
 fun SpaceAccountDto.toDomain(): SpaceAccount =
     SpaceAccount(

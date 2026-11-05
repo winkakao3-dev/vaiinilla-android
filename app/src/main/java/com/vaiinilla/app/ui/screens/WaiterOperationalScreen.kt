@@ -1746,6 +1746,8 @@ private fun WaiterTableSheet(
                             initialPeople = remainingParts,
                             initialSplit = if (remainingParts != null) SplitMode.PARTS else SplitMode.ALL,
                             showsHeader = false,
+                            // R34: el sondeo trae la cuenta cada 5 s; la selección dura lo que dura la sesión.
+                            selectionKey = spaceDetail?.session?.id ?: table.space.id,
                         )
                     }
                 } else {
