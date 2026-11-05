@@ -107,6 +107,7 @@ class ReservationsViewModel
         fun onVisible(
             guestSlug: String?,
             hasAccount: Boolean,
+            cameThroughQr: Boolean = false,
         ) {
             pollingJob?.cancel()
             pollingJob = null
@@ -129,16 +130,19 @@ class ReservationsViewModel
                     )
             }
             val guest = next as? ReservationAccess.Guest
-            val needsEntry = guest != null && !guestSession.hasIdentity()
+            // Sin escanear el QR/NFC del lugar el servidor no deja apartar a un invitado (QA-009): pedirle el
+            // nombre para luego negarle la renta confundía (en vivo, D08). Se le pide entrar con su cuenta.
+            val accountFirst = guest != null && !cameThroughQr && !guestSession.hasIdentity()
+            val needsEntry = guest != null && !accountFirst && !guestSession.hasIdentity()
             _uiState.value =
                 _uiState.value.copy(
                     guestMode = guest != null,
                     guestEntry = needsEntry,
-                    accountRequired = false,
-                    loading = next != null && !needsEntry,
+                    accountRequired = accountFirst,
+                    loading = next != null && !needsEntry && !accountFirst,
                     error = if (next == null) "Elige un lugar para ver sus ${Venue.courts}." else _uiState.value.error,
                 )
-            if (next != null && !needsEntry) startPolling()
+            if (next != null && !needsEntry && !accountFirst) startPolling()
         }
 
         /** Un fallo antes de consultar (preparar la cuenta en este lugar) se ve en el mismo aviso. */

@@ -1754,6 +1754,7 @@ fun AppNavHost(
                             reservationsViewModel.onVisible(
                                 guestSlug = reservationsVenueSlug,
                                 hasAccount = reservationsHasAccount,
+                                cameThroughQr = orderState.guestVenue?.space != null,
                             )
                         }
                     },
@@ -3031,14 +3032,18 @@ fun AppNavHost(
             }
 
             composable(Routes.CASHIER_UNPAID) {
-                val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
-                LaunchedEffect(authorizedCashier) {
-                    if (!authorizedCashier) {
+                // Caja y, desde su menú, el mesero (en vivo, I09): el servidor deja leer y cobrar a los dos.
+                val unpaidRole =
+                    authorizedAccessState.activeContext?.role?.takeIf {
+                        it == OperationalRole.CASHIER || it == OperationalRole.WAITER
+                    }
+                LaunchedEffect(unpaidRole) {
+                    if (unpaidRole == null) {
                         returnToModes(navController, operationalViewModel)()
                     }
                 }
-                if (authorizedCashier) {
-                    OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                if (unpaidRole != null) {
+                    OperationalPresenceLifecycle(unpaidRole, operationalViewModel)
                     LaunchedEffect(Unit) { cashierUnpaidViewModel.refresh() }
                     CashierUnpaidAccountsScreen(
                         state = cashierUnpaidViewModel.uiState.value,
@@ -3169,6 +3174,9 @@ fun AppNavHost(
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "waiter",
+                        onOpenUnpaidAccounts = {
+                            navController.navigate(Routes.CASHIER_UNPAID) { launchSingleTop = true }
+                        },
                     )
                 }
             }

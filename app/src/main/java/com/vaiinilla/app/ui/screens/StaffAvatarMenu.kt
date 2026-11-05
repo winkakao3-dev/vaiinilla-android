@@ -86,6 +86,8 @@ internal fun StaffAvatarMenu(
     onOpenCashDrawer: (() -> Unit)? = null,
     /** Doop CR5: el corte de caja del turno y del día. */
     onOpenCashCut: (() -> Unit)? = null,
+    /** En vivo, I09: el mesero también ve las cuentas de mesas y canchas que siguen sin cobrar. */
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var shiftOpen by remember { mutableStateOf(false) }
@@ -130,6 +132,13 @@ internal fun StaffAvatarMenu(
                 },
             onOpenCashCut =
                 onOpenCashCut?.let { open ->
+                    {
+                        expanded = false
+                        open()
+                    }
+                },
+            onOpenUnpaidAccounts =
+                onOpenUnpaidAccounts?.let { open ->
                     {
                         expanded = false
                         open()
@@ -181,6 +190,7 @@ private fun StaffAccountCard(
     onOpenShift: () -> Unit,
     onOpenCashDrawer: (() -> Unit)?,
     onOpenCashCut: (() -> Unit)? = null,
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
     val reduceMotion = rememberReducedMotion()
     val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
@@ -277,6 +287,14 @@ private fun StaffAccountCard(
                 }
                 if (onOpenCashCut != null) {
                     AccountRow(Icons.Outlined.ReceiptLong, "Corte de caja", colors = colors, onClick = onOpenCashCut)
+                }
+                if (onOpenUnpaidAccounts != null) {
+                    AccountRow(
+                        Icons.Outlined.ReceiptLong,
+                        "Cuentas por cobrar",
+                        colors = colors,
+                        onClick = onOpenUnpaidAccounts,
+                    )
                 }
                 if (onCloseCash != null) {
                     AccountRow(Icons.Outlined.Lock, "Cerrar caja", tint = coral, colors = colors, onClick = onCloseCash)
