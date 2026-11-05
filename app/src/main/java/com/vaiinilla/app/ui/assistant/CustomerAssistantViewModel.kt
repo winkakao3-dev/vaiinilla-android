@@ -171,6 +171,7 @@ class CustomerAssistantViewModel
                                             products = reply.products,
                                             order = reply.order,
                                             waiter = reply.waiter,
+                                            courts = reply.courts,
                                         ),
                                 thinking = false,
                                 options = reply.options,

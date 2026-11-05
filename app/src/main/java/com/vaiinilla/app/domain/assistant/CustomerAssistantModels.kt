@@ -9,6 +9,23 @@ data class CustomerAssistantTurn(
     val products: List<AssistantProductCard> = emptyList(),
     val order: AssistantOrderProposal? = null,
     val waiter: AssistantWaiterOffer? = null,
+    val courts: List<AssistantCourtCard> = emptyList(),
+)
+
+/**
+ * Una pista o cancha que el asistente menciona, armada por el servidor con la disponibilidad real (nunca por el
+ * modelo). [freeUntil] y [busyUntil] llegan como hora local "HH:MM". [pricePerHour] es el precio en efectivo o
+ * saldo ("250.00") y [cardPricePerHour] con tarjeta; null si no se renta desde la app.
+ */
+data class AssistantCourtCard(
+    val courtId: Int,
+    val name: String,
+    val freeNow: Boolean,
+    val freeUntil: String?,
+    val busyUntil: String?,
+    val pricePerHour: String?,
+    val cardPricePerHour: String? = null,
+    val capacity: Int?,
 )
 
 /** Un producto que el asistente recomienda o menciona. [price] llega como "95.00". */
@@ -51,6 +68,8 @@ data class CustomerAssistantReply(
     val waiter: AssistantWaiterOffer?,
     val options: List<String>,
     val remainingMessages: Int,
+    /** Contrato 6 (`pistas`): máximo 4. */
+    val courts: List<AssistantCourtCard> = emptyList(),
 )
 
 interface CustomerAssistantRepository {

@@ -1460,6 +1460,24 @@ fun AppNavHost(
                                 orderFlowViewModel.addAssistantLines(order.lines, replacing)
                             },
                             openCart = { navController.navigateStudent(Routes.CART) },
+                            // La ficha del producto (la misma del menú) vive debajo del asistente.
+                            openProduct = { card ->
+                                navController.popBackStack()
+                                orderFlowViewModel.openProduct(card.productId)
+                            },
+                            // La tarjeta de una pista abre Reservas con esa pista elegida; si el lugar pide cuenta y
+                            // no hay sesión, se entra primero (igual que el botón de canchas del menú).
+                            openCourt = { court ->
+                                reservationsViewModel.preselectCourt(court.courtId)
+                                val needsAccount =
+                                    orderFlowViewModel.requiresStudentAuth() &&
+                                        venue?.establishment?.clientIdRequired == true
+                                if (needsAccount) {
+                                    navController.navigate(Routes.authLandingRoute(Routes.RESERVATIONS))
+                                } else {
+                                    navController.navigate(Routes.RESERVATIONS) { launchSingleTop = true }
+                                }
+                            },
                             callWaiter =
                                 if (assistantSpaceId == null) {
                                     null

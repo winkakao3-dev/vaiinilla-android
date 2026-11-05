@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -69,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.assistant.CustomerAssistantJson
+import com.vaiinilla.app.domain.assistant.AssistantCourtCard
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.assistant.AssistantOrderProposal
 import com.vaiinilla.app.domain.assistant.AssistantProductCard
@@ -89,6 +91,10 @@ class CustomerAssistantActions(
      */
     val addOrder: (order: AssistantOrderProposal, replacing: List<AssistantOrderLine>) -> List<String>,
     val openCart: () -> Unit,
+    /** Tocar la tarjeta de un producto abre su ficha (la misma del menú). */
+    val openProduct: (AssistantProductCard) -> Unit,
+    /** Tocar una pista o su «Rentar» abre Reservas con esa pista elegida. */
+    val openCourt: (AssistantCourtCard) -> Unit,
     /** null: aquí no hay a quién llamar (sin mesa o sin llamadas). */
     val callWaiter: (suspend (AssistantWaiterOffer) -> Result<Unit>)?,
 )
@@ -154,7 +160,11 @@ fun CustomerAssistantScreen(
                             added = added[card.productId] == true,
                             colors = colors,
                             onAdd = { if (actions.addProduct(card)) added[card.productId] = true },
+                            onOpen = { actions.openProduct(card) },
                         )
+                    }
+                    turn.courts.forEach { court ->
+                        CourtRow(court = court, colors = colors, onRent = { actions.openCourt(court) })
                     }
                     turn.order?.let { order ->
                         OrderCard(
@@ -454,6 +464,7 @@ private fun ProductRow(
     added: Boolean,
     colors: VaiinillaColors,
     onAdd: () -> Unit,
+    onOpen: () -> Unit,
 ) {
     Row(
         Modifier
@@ -463,6 +474,7 @@ private fun ProductRow(
             .clip(RoundedCornerShape(20.dp))
             .background(colors.paper2)
             .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+            .clickable(role = Role.Button, onClickLabel = "Ver detalle", onClick = onOpen)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -497,6 +509,82 @@ private fun ProductRow(
         }
     }
 }
+
+/**
+ * Una pista que mencionó el asistente, con datos del servidor: si está libre ahora (y hasta cuándo) o cuándo se
+ * desocupa, precio por hora y cupo. Solo las que se rentan desde la app llevan «Rentar».
+ */
+@Composable
+private fun CourtRow(
+    court: AssistantCourtCard,
+    colors: VaiinillaColors,
+    onRent: () -> Unit,
+) {
+    val rentable = court.pricePerHour != null
+    Row(
+        Modifier
+            .padding(start = 36.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.paper2)
+            .border(1.dp, colors.line, RoundedCornerShape(20.dp))
+            .clickable(enabled = rentable, role = Role.Button, onClickLabel = "Rentar", onClick = onRent)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(62.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (court.freeNow) colors.accent else colors.line),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.CalendarMonth,
+                null,
+                tint = if (court.freeNow) colors.accentInk else colors.ink2,
+                modifier = Modifier.size(26.dp),
+            )
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(court.name, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink, maxLines = 2)
+            Text(
+                courtAvailability(court),
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (court.freeNow) colors.accent else colors.muted,
+            )
+            val detail =
+                listOfNotNull(
+                    court.pricePerHour?.let { "${moneyLabel(it)} por hora" },
+                    court.cardPricePerHour
+                        ?.takeIf { card ->
+                            val cash = court.pricePerHour?.toBigDecimalOrNull()
+                            val byCard = card.toBigDecimalOrNull()
+                            cash == null || byCard == null || cash.compareTo(byCard) != 0
+                        }
+                        ?.let { "con tarjeta ${moneyLabel(it)}" },
+                    court.capacity?.let { if (it == 1) "1 persona" else "Hasta $it personas" },
+                ).joinToString(" · ")
+                    .ifEmpty { if (rentable) "" else "Se renta en el lugar" }
+            if (detail.isNotEmpty()) {
+                Text(detail, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = colors.muted)
+            }
+        }
+        if (rentable) {
+            SmallButton(label = "Rentar", colors = colors, enabled = true, onClick = onRent)
+        }
+    }
+}
+
+/** «Libre ahora», «Libre hasta las 18:00» u «Ocupada hasta las 19:30». */
+internal fun courtAvailability(court: AssistantCourtCard): String =
+    when {
+        court.freeNow && court.freeUntil != null -> "Libre hasta las ${court.freeUntil}"
+        court.freeNow -> "Libre ahora"
+        court.busyUntil != null -> "Ocupada hasta las ${court.busyUntil}"
+        else -> "Ocupada ahora"
+    }
 
 @Composable
 private fun OrderCard(
