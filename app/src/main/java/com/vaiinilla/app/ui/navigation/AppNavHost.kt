@@ -204,6 +204,7 @@ fun AppNavHost(
     val operationalViewModel: OperationalViewModel = viewModel()
     val adminViewModel: AdminViewModel = viewModel()
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
+    val adminInventoryViewModel: com.vaiinilla.app.ui.admin.AdminInventoryViewModel = viewModel()
     val adminStoreViewModel: AdminStoreViewModel = viewModel()
     val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
     val adminSchoolViewModel: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel = viewModel()
@@ -2630,6 +2631,7 @@ fun AppNavHost(
                         sections =
                             AdminSectionsHost(
                                 staff = adminStaffViewModel,
+                                inventory = adminInventoryViewModel,
                                 store = adminStoreViewModel,
                                 spaces = adminSpacesViewModel,
                                 cash =

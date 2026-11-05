@@ -21,6 +21,8 @@ import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.discovery.RemoteDiscoveryRepository
 import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.guest.GuestReservationSession
+import com.vaiinilla.app.data.inventory.InventoryRepository
+import com.vaiinilla.app.data.inventory.RemoteInventoryRepository
 import com.vaiinilla.app.data.mode.AuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessApi
 import com.vaiinilla.app.data.mode.RemoteAuthorizedAccessRepository
@@ -118,6 +120,11 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         guestClientAccess: GuestClientAccess,
     ): CustomerAssistantRepository = RemoteCustomerAssistantRepository(apiClient, guestClientAccess)
+
+    @Provides
+    @Singleton
+    fun provideInventoryRepository(apiClient: VaiinillaApiClient): InventoryRepository =
+        RemoteInventoryRepository(apiClient)
 
     @Provides
     @Singleton
