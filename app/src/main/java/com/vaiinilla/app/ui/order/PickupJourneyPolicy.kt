@@ -66,7 +66,11 @@ internal fun pickupTitle(
         OrderState.PENDING_PAYMENT -> if (order.cashPending()) "Por pagar" else "Pedido recibido"
         OrderState.PAID -> if (order.isHomeDelivery()) "Aceptado" else "Pedido recibido"
         OrderState.PREPARING -> "Preparando"
-        OrderState.READY -> "¡Listo!"
+        // Listo desde antes del día en que se recoge (sin franja nace listo): no es «¡Listo!» todavía (P08).
+        OrderState.READY -> {
+            val today = now.atZone(BusinessTime.zone).toLocalDate()
+            if (order.beforePickupDay(today)) "Apartado" else "¡Listo!"
+        }
         OrderState.AWAITING_ACCEPTANCE,
         OrderState.ON_THE_WAY,
         OrderState.DELIVERED,

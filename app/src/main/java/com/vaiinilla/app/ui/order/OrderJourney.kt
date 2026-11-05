@@ -117,6 +117,16 @@ internal fun scheduledPickupLine(
     }
 }
 
+/**
+ * El pedido es para un día que todavía no llega, en la hora del negocio. Con la fecha de entrega en el futuro, «Ya
+ * está. Pasa por él» se decía un día antes (P08).
+ */
+internal fun OrderDetail.beforePickupDay(today: LocalDate): Boolean {
+    val date = summary.deliveryDate?.take(10) ?: return false
+    val day = runCatching { LocalDate.parse(date) }.getOrNull() ?: return false
+    return day.isAfter(today)
+}
+
 /** «sáb 7 nov entre 11:00 y 13:00» para una frase; `null` si es para ahora. */
 private fun journeyWhen(order: OrderDetail): String? {
     val schedule = journeySchedule(order) ?: return null
@@ -275,6 +285,8 @@ internal fun journeyHint(
             }
         OrderJourney.SCHOOL ->
             when {
+                state == OrderState.READY && order.beforePickupDay(today) ->
+                    journeySchedule(order)?.let { "Ya está apartado. Se recoge el $it en el comedor con tu código." }
                 state == OrderState.READY -> "Está listo. Recógelo en el comedor con tu código."
                 making -> journeySchedule(order)?.let { "Apartado para el $it. Se recoge en el comedor con tu código." }
                 else -> null
@@ -303,6 +315,9 @@ internal fun journeyHint(
                 pickup && making ->
                     journeySchedule(order)?.let { "Se está haciendo. Pasa por él el $it." }
                         ?: "Se está haciendo."
+                // Sin franja, un encargo que nace listo decía «Pasa por él» un día antes (P08): se dice qué día.
+                pickup && state == OrderState.READY && order.beforePickupDay(today) ->
+                    journeySchedule(order)?.let { "Ya está listo. Pasa por él el $it y muestra tu código." }
                 pickup && state == OrderState.READY -> "Está listo. Pasa por él y muestra tu código."
                 else -> null
             }
@@ -715,6 +730,12 @@ internal fun journeyHeadline(
             }
         state == OrderState.ON_THE_WAY ->
             if (journey == OrderJourney.HOME_DELIVERY) "Va en camino a tu casa." else "Va en camino a $place."
+        state == OrderState.READY && order.beforePickupDay(today) && journeyWhen(order) != null ->
+            when (journey) {
+                OrderJourney.SCHOOL -> "Ya está apartado. Se recoge el ${journeyWhen(order)}."
+                OrderJourney.HOME_DELIVERY -> "Ya está listo. Llega el ${journeyWhen(order)}."
+                else -> "Ya está listo. Pasa por él el ${journeyWhen(order)}."
+            }
         state == OrderState.READY ->
             when (journey) {
                 OrderJourney.DRIVE_THRU -> "Ya está. Te lo dan en la ventanilla."

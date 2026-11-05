@@ -182,6 +182,24 @@ class OrderJourneyTest {
     }
 
     @Test
+    fun aReadyOrderForTomorrowDoesNotSayPickItUpToday() {
+        // P08: sin franja nace listo y decía «Ya está. Pasa por él» un día antes.
+        val now = Instant.parse("2026-11-05T18:00:00Z")
+        val zone = java.time.ZoneId.of("America/Mexico_City")
+        val tomorrow = order(OrderState.READY, date = "2026-11-06")
+        assertEquals(
+            "Ya está listo. Pasa por él el vie 6 nov.",
+            journeyHeadline(tomorrow, OrderJourney.PREORDER_PICKUP, now, zone),
+        )
+        assertEquals(
+            "Ya está apartado. Se recoge el vie 6 nov.",
+            journeyHeadline(tomorrow, OrderJourney.SCHOOL, now, zone),
+        )
+        val today = order(OrderState.READY, date = "2026-11-05")
+        assertEquals("Ya está. Pasa por él.", journeyHeadline(today, OrderJourney.PREORDER_PICKUP, now, zone))
+    }
+
+    @Test
     fun aSchoolOrderForAnotherDaySaysWhenItIsPickedUp() {
         // P08: la tarjeta de lo pedido decía solo «Apartado · se recoge en el comedor».
         val reserved = order(OrderState.PAID, date = "2026-11-09")
