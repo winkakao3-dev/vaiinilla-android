@@ -107,6 +107,7 @@ import androidx.core.content.edit
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.delay
+import java.text.Normalizer
 import kotlin.math.roundToInt
 
 const val ASSISTANT_ANCHOR_CASHIER_ORDER_CARD = "comanda-card"
@@ -370,6 +371,37 @@ fun rememberOperationalAssistantController(
     }
 }
 
+/**
+ * El buscador del manual: sin acentos ni mayúsculas, y busca cada palabra en el título, la sección y el
+ * texto de los pasos («cerrar» encuentra «¿Cómo cierro la caja…?» por su paso «Cerrar caja»; en vivo, L05).
+ */
+internal fun manualGuideMatches(
+    guide: OperationalAssistantGuide,
+    query: String,
+): Boolean {
+    val words = query.foldForManualSearch().split(' ').filter(String::isNotBlank)
+    if (words.isEmpty()) return true
+    val haystack =
+        buildList {
+            add(guide.title)
+            add(guide.section)
+            add(guide.completionMessage)
+            guide.demoSteps.forEach {
+                add(it.title)
+                add(it.body)
+            }
+            guide.steps.forEach { add(it.text) }
+        }.joinToString(" ").foldForManualSearch()
+    return words.all(haystack::contains)
+}
+
+private fun String.foldForManualSearch(): String =
+    Normalizer
+        .normalize(lowercase(), Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+        .trim()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OperationalAssistantHost(
@@ -561,12 +593,7 @@ private fun AssistantSheetContent(
     }
 
     val normalizedQuery = query.trim()
-    val filteredGuides =
-        guides.filter { guide ->
-            normalizedQuery.isBlank() ||
-                guide.title.contains(normalizedQuery, ignoreCase = true) ||
-                guide.section.contains(normalizedQuery, ignoreCase = true)
-        }
+    val filteredGuides = guides.filter { guide -> manualGuideMatches(guide, normalizedQuery) }
 
     Column(modifier = modifier) {
         Row(
@@ -1671,6 +1698,34 @@ fun cashierAssistantGuides(
             completionMessage = "Caja abierta para el turno",
             available = cashSessionOpen == false,
             unavailableReason = "La caja ya está abierta o el estado todavía no está disponible.",
+        ),
+        OperationalAssistantGuide(
+            id = "cerrar-caja",
+            title = "¿Cómo cierro la caja al terminar el turno?",
+            role = OperationalRole.CASHIER,
+            section = "Turno",
+            icon = Icons.Outlined.Payments,
+            demoSteps =
+                listOf(
+                    OperationalManualDemoStep(
+                        "Cobra o cierra las cuentas abiertas",
+                        "Si quedan cuentas de mesas por cobrar, la caja no se puede cerrar: " +
+                            "cóbralas o ciérralas primero.",
+                        OperationalManualVisual.CASH_OPEN,
+                    ),
+                    OperationalManualDemoStep(
+                        "Abre tu menú y toca Cerrar caja",
+                        "Toca tu avatar arriba a la derecha y elige Cerrar caja (corte de caja).",
+                        OperationalManualVisual.CASH_OPEN,
+                    ),
+                    OperationalManualDemoStep(
+                        "Cuenta el efectivo y confirma",
+                        "Escribe el total que hay en el cajón o cuéntalo billete por billete y confirma. " +
+                            "La caja queda cerrada hasta el siguiente turno.",
+                        OperationalManualVisual.CASH_OPEN,
+                    ),
+                ),
+            completionMessage = "Caja cerrada",
         ),
         OperationalAssistantGuide(
             id = "estados-pedido",
