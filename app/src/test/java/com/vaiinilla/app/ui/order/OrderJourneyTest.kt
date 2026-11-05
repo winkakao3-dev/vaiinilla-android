@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.DeliveryAddress
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderHomeDelivery
@@ -13,6 +15,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.components.moneyLabel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -198,6 +201,42 @@ class OrderJourneyTest {
         val today = order(OrderState.READY, date = "2026-11-05")
         assertEquals("Ya está. Pasa por él.", journeyHeadline(today, OrderJourney.PREORDER_PICKUP, now, zone))
     }
+
+    @Test
+    fun aSchoolPreorderIsAnApartadoEvenBeforeTheStatusLoads() {
+        // P08: el alumno veía «Encargo #3 · para recoger» porque el estado operativo no decía modo_escuela.
+        val school = mode("esc", isSchool = true)
+        assertTrue(inSchoolVenue(statusSchool = null, venueId = "esc", modes = listOf(school)))
+        assertTrue(inSchoolVenue(statusSchool = null, venueId = null, modes = listOf(school)))
+        assertTrue(inSchoolVenue(statusSchool = false, venueId = null, modes = emptyList(), hasGuardian = true))
+        assertFalse(inSchoolVenue(statusSchool = null, venueId = "cafe", modes = listOf(school, mode("cafe"))))
+        assertFalse(inSchoolVenue(statusSchool = null, venueId = null, modes = listOf(school, mode("cafe"))))
+        val reserved = order(OrderState.READY, date = "2026-11-06")
+        assertEquals(OrderJourney.SCHOOL, orderJourney(reserved, JourneyVenue(school = true)))
+    }
+
+    @Test
+    fun aSchoolOrderWaitsOnThatDayUntilItComes() {
+        val today = java.time.LocalDate.parse("2026-11-05")
+        val tomorrow = order(OrderState.READY, date = "2026-11-06")
+        assertEquals(1, journeyStepIndex(tomorrow, OrderJourney.SCHOOL, today))
+        assertEquals("Apartado · para el vie 6 nov", journeyCaption(tomorrow, OrderJourney.SCHOOL, today).text)
+        val onTheDay = order(OrderState.READY, date = "2026-11-05")
+        assertEquals(3, journeyStepIndex(onTheDay, OrderJourney.SCHOOL, today))
+        assertEquals("Listo · en el comedor", journeyCaption(onTheDay, OrderJourney.SCHOOL, today).text)
+        assertEquals(2, journeyStepIndex(order(OrderState.PREPARING, date = "2026-11-05"), OrderJourney.SCHOOL, today))
+    }
+
+    private fun mode(
+        id: String,
+        isSchool: Boolean = false,
+    ) = AuthorizedMode(
+        role = OperationalRole.CLIENT,
+        establishmentId = id,
+        establishmentName = id,
+        membershipId = "m-$id",
+        isSchool = isSchool,
+    )
 
     @Test
     fun aSchoolOrderForAnotherDaySaysWhenItIsPickedUp() {
