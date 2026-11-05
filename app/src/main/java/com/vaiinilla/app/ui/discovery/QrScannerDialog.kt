@@ -163,6 +163,7 @@ fun QrScannerDialog(
     /** Lo que se está haciendo, chico y arriba; el título baja a una línea bajo el visor (Doop C08). */
     topLabel: String? = null,
 ) {
+    RegisterQrConsumer(onPayload)
     val context = LocalContext.current
     var permissionGranted by remember {
         mutableStateOf(

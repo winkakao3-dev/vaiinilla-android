@@ -42,6 +42,7 @@ import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.domain.model.GeoCoordinates
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.ui.discovery.ScanBridge
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.json.JSONArray
@@ -190,6 +191,12 @@ class JvmRolesHarness {
             "shot" -> shot(args.firstOrNull() ?: error("Uso: shot <ruta.png>"))
             "location" -> setLocation(args)
             "deeplink" -> deeplink(args.firstOrNull() ?: error("Uso: deeplink <https://vaiinilla.app/...>"))
+            "qr" -> scanned(ScanBridge.injectQr(args.joinToString(" ")), "lector de QR")
+            "nfc" ->
+                scanned(
+                    ScanBridge.injectNfc(args.firstOrNull() ?: error("Uso: nfc <UID en hexadecimal>")),
+                    "lector de NFC",
+                )
             "red" -> network.configure(args)
             "escrituras" -> {
                 network.writesAllowed = args.firstOrNull() == "si"
@@ -289,6 +296,15 @@ class JvmRolesHarness {
     }
 
     /** Como escanear el QR o tocar un enlace con la app abierta: llega por onNewIntent, igual que en el teléfono. */
+    private fun scanned(
+        delivered: Boolean,
+        reader: String,
+    ): String {
+        if (!delivered) error("No hay un $reader abierto en esta pantalla.")
+        pump(SETTLE_MILLIS, realTime = true)
+        return summary()
+    }
+
     private fun deeplink(url: String): String {
         val activityScenario = scenario ?: error("Primero entra a un rol.")
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
