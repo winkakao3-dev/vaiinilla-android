@@ -1019,11 +1019,8 @@ private fun ReservationsCard(
                     }
                 },
             ) {
-                AdminBadge(
-                    if (pending) "Por cobrar" else "Pagada",
-                    colors,
-                    if (pending) AdminBadgeTone.WARN else AdminBadgeTone.OK,
-                )
+                val (badge, tone) = reservationBadge(reservation.state)
+                AdminBadge(badge, colors, tone)
             }
             if (pending) {
                 Row(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1052,7 +1049,8 @@ private fun ReservationsCard(
                 ) { onRefund(reservation) }
             }
         }
-        freeGaps(reservations, schedule).forEach { (start, minutes) ->
+        // Un apartado vencido no ocupa la pista: lo que sigue libre se ofrece igual.
+        freeGaps(reservations.filter { it.state != ReservationState.EXPIRED }, schedule).forEach { (start, minutes) ->
             AdminRowDivider(colors)
             AdminRow(
                 title = "Disponible",
@@ -1357,6 +1355,20 @@ private fun reservationTime(reservation: Reservation): String {
         reservation.start.atZone(zone),
     )}–${ReservationTimeFormat.format(reservation.end.atZone(zone))}"
 }
+
+/**
+ * R27: la insignia de cada estado. Un apartado vencido nunca se pagó y uno en conflicto hay que revisarlo:
+ * ninguno sale en verde como «Pagada».
+ */
+internal fun reservationBadge(state: ReservationState): Pair<String, AdminBadgeTone> =
+    when (state) {
+        ReservationState.PENDING_PAYMENT -> "Por cobrar" to AdminBadgeTone.WARN
+        ReservationState.CONFIRMED, ReservationState.IN_PROGRESS, ReservationState.FINISHED ->
+            "Pagada" to AdminBadgeTone.OK
+        ReservationState.EXPIRED -> "Vencida" to AdminBadgeTone.NEUTRAL
+        ReservationState.CONFLICT -> "Revisar" to AdminBadgeTone.DANGER
+        ReservationState.CANCELLED -> "Cancelada" to AdminBadgeTone.NEUTRAL
+    }
 
 private fun reservationLabel(state: ReservationState): String =
     when (state) {
