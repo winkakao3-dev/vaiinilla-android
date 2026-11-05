@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import kotlinx.coroutines.Dispatchers
@@ -223,6 +224,7 @@ class ReservationDurationChangeTest {
             access: ReservationAccess,
             reservationId: String,
             idempotencyKey: String,
+            refund: ReservationRefund?,
         ): Result<Reservation> {
             calls += "cancel $reservationId"
             return Result.success(reservation(reservationId, 60, ReservationState.CANCELLED))

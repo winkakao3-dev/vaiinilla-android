@@ -99,6 +99,11 @@ private sealed interface SpacesSheet {
     data class Release(
         val reservation: Reservation,
     ) : SpacesSheet
+
+    /** #28: cancelar una renta ya pagada que no ha empezado, con reembolso. */
+    data class Refund(
+        val reservation: Reservation,
+    ) : SpacesSheet
 }
 
 /** La página abierta dentro de Mesas y espacios: un espacio con su QR (marco 49) o las reservas (marco 50). */
@@ -178,6 +183,7 @@ internal fun AdminSpacesSection(
                             enabled,
                             onCharge = { sheet = SpacesSheet.Charge(it) },
                             onRelease = { sheet = SpacesSheet.Release(it) },
+                            onRefund = { sheet = SpacesSheet.Refund(it) },
                         )
                     }
                     item { AdminH2("Horario de reservas", colors) }
@@ -253,6 +259,10 @@ internal fun AdminSpacesSection(
             ) {
                 viewModel.cancelReservation(current.reservation)
                 close()
+            }
+        is SpacesSheet.Refund ->
+            RefundSheet(current.reservation, colors, state.saving, error, close) { amount, reason ->
+                viewModel.refundReservation(current.reservation, amount, reason, close)
             }
         null -> Unit
     }
@@ -962,7 +972,9 @@ private fun ReservationsCard(
     enabled: Boolean,
     onCharge: (Reservation) -> Unit,
     onRelease: (Reservation) -> Unit,
+    onRefund: (Reservation) -> Unit = {},
 ) {
+    val now = java.time.Instant.now()
     AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
         if (reservations.isEmpty()) {
             AdminRow(title = "Sin reservas hoy", colors = colors, detail = "Nadie la ha apartado") {
@@ -1029,6 +1041,15 @@ private fun ReservationsCard(
                         enabled = enabled,
                     ) { onCharge(reservation) }
                 }
+            } else if (reservation.state == ReservationState.CONFIRMED && reservation.start.isAfter(now)) {
+                // #28: pagada y sin empezar: el personal la cancela con reembolso (el cliente puede la suya).
+                AdminSecondaryButton(
+                    "Cancelar y reembolsar",
+                    colors,
+                    Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    destructive = true,
+                    enabled = enabled,
+                ) { onRefund(reservation) }
             }
         }
         freeGaps(reservations, schedule).forEach { (start, minutes) ->
@@ -1133,6 +1154,64 @@ private fun ChargeSheet(
                     .money(received) ?: received,
             )
         }
+    }
+}
+
+/**
+ * #28: cancelar una renta pagada desde Administración. El personal decide cuánto se devuelve (de 0 a lo
+ * pagado) y por qué; el servidor lo regresa por la misma vía del pago (saldo, efectivo o tarjeta).
+ */
+@Composable
+private fun RefundSheet(
+    reservation: Reservation,
+    colors: OperationalColors,
+    saving: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (amount: String, reason: String) -> Unit,
+) {
+    var amount by remember { mutableStateOf(reservation.amount.removeSuffix(".00")) }
+    var reason by remember { mutableStateOf("") }
+    val wire = MoneyInput.toWire(amount)
+    val reasonOk = reason.trim().length in 3..240
+    AdminSheet(title = "Cancelar renta pagada", colors = colors, busy = saving, onDismiss = onDismiss) {
+        AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+            AdminValueRow("Espacio", reservation.courtName ?: Venue.courtTitle, colors)
+            reservation.customerName?.let { AdminValueRow("Cliente", it, colors) }
+            reservation.players?.let { AdminValueRow("Jugadores", "$it", colors) }
+            AdminValueRow("Horario", reservationTime(reservation), colors)
+            AdminValueRow("Renta", moneyLabelCents(reservation.amount), colors)
+        }
+        OperationalField(
+            value = amount,
+            onValueChange = { amount = MoneyInput.sanitize(it).take(10) },
+            label = "Se devuelve",
+            colors = colors,
+            enabled = !saving,
+            keyboardType = KeyboardType.Decimal,
+        )
+        OperationalField(
+            value = reason,
+            onValueChange = { reason = it.take(240) },
+            label = "Motivo",
+            colors = colors,
+            placeholder = "Por qué se cancela",
+            enabled = !saving,
+            singleLine = false,
+            minLines = 2,
+        )
+        AdminHint(
+            "La ${Venue.court} queda libre. Se devuelve por donde pagó: saldo a su cartera, efectivo de la caja " +
+                "y tarjeta queda pendiente para Caja. Pon 0 si no se devuelve nada.",
+            colors,
+        )
+        AdminSheetError(error)
+        AdminPrimaryButton(
+            title = wire?.let { "Cancelar y devolver ${moneyLabelCents(it)}" } ?: "Cancelar y reembolsar",
+            colors = colors,
+            enabled = wire != null && reasonOk,
+            busy = saving,
+        ) { onConfirm(amount, reason) }
     }
 }
 

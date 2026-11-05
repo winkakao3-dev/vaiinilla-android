@@ -102,6 +102,16 @@ data class Reservation(
     val players: Int? = null,
 )
 
+/**
+ * #28: reembolso al cancelar una renta ya pagada desde el personal. El servidor lo exige para cancelar una
+ * reserva `confirmada` y lo devuelve por la misma vía del pago. `amount` va con dos decimales («150.00»),
+ * de 0 a lo pagado; `reason` de 3 a 240 caracteres.
+ */
+data class ReservationRefund(
+    val amount: String,
+    val reason: String,
+)
+
 /** Quién aparta y paga: la cuenta con sesión, o un invitado (sin cuenta) del negocio. */
 sealed interface ReservationAccess {
     data object Account : ReservationAccess

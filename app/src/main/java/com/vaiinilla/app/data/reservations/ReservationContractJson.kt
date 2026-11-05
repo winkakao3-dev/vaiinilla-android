@@ -220,6 +220,16 @@ class ReservationContractJson
                 put("metodo_pago", method)
                 cashReceived?.let { put("monto_recibido", it) }
             }.toString()
+
+        /** #28: cancelar una renta pagada desde el personal exige `{monto_reembolso, motivo}`. */
+        fun encodeRefund(
+            amount: String,
+            reason: String,
+        ): String =
+            buildJsonObject {
+                put("monto_reembolso", amount)
+                put("motivo", reason.trim())
+            }.toString()
     }
 
 private fun CustomerPriceDto.toDomain() = CustomerPrice(card = tarjeta, cashOrBalance = efectivoSaldo)
