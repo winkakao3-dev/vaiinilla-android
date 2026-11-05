@@ -185,6 +185,8 @@ internal fun OrderJourneyPage(
     /** Pagar el encargo que ya aceptaron (D1b); null si no hay nada que pagar aquí. */
     onPay: (() -> Unit)? = null,
     paying: Boolean = false,
+    /** El tutor mirando el pedido de su hijo: sin botones para cancelar, pagar, llamar ni pedir ayuda (P08). */
+    readOnly: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -384,7 +386,7 @@ internal fun OrderJourneyPage(
                     Modifier.arrive(4, key),
                 )
             }
-            if (home && state == OrderState.ON_THE_WAY) {
+            if (home && state == OrderState.ON_THE_WAY && !readOnly) {
                 order.homeDelivery?.dueOnArrival?.takeIf { order.homeDelivery.hasAmountDue }?.let { due ->
                     PayAtDoorCard(due, order.homeDelivery.deposit, colors, Modifier.arrive(5, key))
                     JourneyButton(
@@ -403,7 +405,7 @@ internal fun OrderJourneyPage(
                 ?.takeUnless { journeyMoneyBack(order) != null && it == cancellationMoneyNote(order) }
                 ?.let { DashedNote(it, colors, Modifier.arrive(5, key)) }
             guestNotice?.let { DashedNote(it, colors, Modifier.arrive(5, key)) }
-            if (arrival != null) {
+            if (arrival != null && !readOnly) {
                 ArrivedButton(arrival, colors, Modifier.arrive(5, key))
             } else if (journey == OrderJourney.DRIVE_THRU && order.arrivedAt != null && state != OrderState.DELIVERED) {
                 Text(
@@ -419,9 +421,9 @@ internal fun OrderJourneyPage(
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                 )
             }
-            JourneyActions(actions, colors, Modifier.arrive(6, key))
+            if (!readOnly) JourneyActions(actions, colors, Modifier.arrive(6, key))
             // Sin WhatsApp del negocio el enlace también sale (S06): la hoja dice qué pasa con el dinero en cada caso.
-            if (home && state in HelpStates) {
+            if (home && state in HelpStates && !readOnly) {
                 Text(
                     if (state ==
                         OrderState.ON_THE_WAY

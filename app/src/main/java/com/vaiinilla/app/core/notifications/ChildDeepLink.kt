@@ -5,21 +5,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Un aviso de un hijo (su pedido, saldo bajo o recarga): a qué escuela cambiar y qué ficha abrir. */
+/** Un aviso de un hijo (su pedido, saldo bajo o recarga): a qué escuela cambiar, qué ficha y qué pedido abrir. */
 data class ChildDeepLink(
     val dependentUserId: String,
     val establishmentId: String?,
+    /** El pedido del aviso `order_state`: la ficha lo abre para verlo (P08). */
+    val orderId: String? = null,
 ) {
     companion object {
         const val EXTRA_DEPENDENT_ID = "child_dependent_id"
         const val EXTRA_ESTABLISHMENT_ID = "child_establishment_id"
+        const val EXTRA_ORDER_ID = "child_order_id"
 
         private val ID = Regex("^[A-Za-z0-9_-]{1,100}$")
 
         /** Los datos del push: `order_state` de tutor, `saldo_bajo` y `recarga_acreditada`. */
         fun fromPush(data: Map<String, String>): ChildDeepLink? {
             val dependentId = data["dependienteUsuarioId"]?.trim()?.takeIf(ID::matches) ?: return null
-            return ChildDeepLink(dependentId, data["establecimientoId"]?.trim()?.takeIf(ID::matches))
+            return ChildDeepLink(
+                dependentId,
+                data["establecimientoId"]?.trim()?.takeIf(ID::matches),
+                data["orderId"]?.trim()?.takeIf(ID::matches),
+            )
         }
 
         fun fromIntent(intent: Intent?): ChildDeepLink? {
@@ -27,6 +34,7 @@ data class ChildDeepLink(
             return ChildDeepLink(
                 dependentId,
                 intent.getStringExtra(EXTRA_ESTABLISHMENT_ID)?.trim()?.takeIf(ID::matches),
+                intent.getStringExtra(EXTRA_ORDER_ID)?.trim()?.takeIf(ID::matches),
             )
         }
     }
@@ -69,6 +77,7 @@ object ChildDeepLinkStore {
         val link = ChildDeepLink.fromIntent(intent) ?: return
         intent?.removeExtra(ChildDeepLink.EXTRA_DEPENDENT_ID)
         intent?.removeExtra(ChildDeepLink.EXTRA_ESTABLISHMENT_ID)
+        intent?.removeExtra(ChildDeepLink.EXTRA_ORDER_ID)
         pendingFlow.value = link
     }
 

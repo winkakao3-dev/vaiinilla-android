@@ -12,8 +12,7 @@ import com.vaiinilla.app.domain.guardianship.compactMoney
 
 /**
  * Avisos de Padres e hijos (notifications.service del backend). Al tocarlos abren la ficha del hijo en
- * Cartera, en su escuela ([ChildDeepLink]); el pedido es del hijo y el tutor no lo puede abrir con su
- * propia sesión.
+ * Cartera, en su escuela ([ChildDeepLink]); el de un pedido abre además ese pedido, solo para verlo (P08).
  */
 object GuardianPushNotifier {
     private const val CHANNEL_ID = "order_tracking"
@@ -89,6 +88,7 @@ object GuardianPushNotifier {
         link?.let {
             intent.putExtra(ChildDeepLink.EXTRA_DEPENDENT_ID, it.dependentUserId)
             it.establishmentId?.let { id -> intent.putExtra(ChildDeepLink.EXTRA_ESTABLISHMENT_ID, id) }
+            it.orderId?.let { id -> intent.putExtra(ChildDeepLink.EXTRA_ORDER_ID, id) }
         }
         val launch =
             PendingIntent.getActivity(

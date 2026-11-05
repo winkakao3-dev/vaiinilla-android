@@ -140,10 +140,13 @@ fun ParentModeWalletHost(
     // El hijo recién agregado al que el tutor eligió recargarle: su ficha abre en la recarga.
     var reloadChildId by rememberSaveable { mutableStateOf<String?>(null) }
     var reloadAmount by rememberSaveable { mutableStateOf<Int?>(null) }
+    // El pedido del aviso que abrió la ficha: se abre para verlo (P08).
+    var noticeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(openChildId) {
         if (openChildId == null) {
             reloadChildId = null
             reloadAmount = null
+            noticeOrderId = null
         }
     }
     val openAddedChild: (Dependent, Int?) -> Unit = { child, amount ->
@@ -192,7 +195,10 @@ fun ParentModeWalletHost(
             val child = children.children.firstOrNull { it.userId == link.dependentUserId }
             if (child != null) {
                 optionsRole = null
-                if (!child.isAwaitingSchool) openChildId = child.userId
+                if (!child.isAwaitingSchool) {
+                    openChildId = child.userId
+                    noticeOrderId = link.orderId
+                }
                 ChildDeepLinkStore.consumeChild()
                 return@LaunchedEffect
             }
@@ -265,6 +271,7 @@ fun ParentModeWalletHost(
                     onBack = { openChildId = null },
                     startWithReload = reloadChildId == openChild.userId,
                     initialReloadAmount = reloadAmount.takeIf { reloadChildId == openChild.userId },
+                    initialOrderId = noticeOrderId,
                 )
             }
         }
