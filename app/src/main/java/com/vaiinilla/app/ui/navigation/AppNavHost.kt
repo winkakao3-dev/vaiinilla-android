@@ -396,6 +396,12 @@ fun AppNavHost(
             walletViewModel.refreshIfStale(latestVenueId)
         }
     }
+    // Con el carrito vacío (pedido mandado o vaciado a mano) el asistente olvida lo que puso: su siguiente pedido ya
+    // no resta líneas que el cliente agregue después (#26).
+    val cartEmpty = orderState.cartLines.isEmpty()
+    LaunchedEffect(cartEmpty) {
+        if (cartEmpty) assistantViewModel.forgetCartOrder()
+    }
     // El pago de una renta crea un pedido: se sigue en la confirmación (hoja de tarjeta, folio para pagar en caja o
     // compra ya pagada con saldo). Si la persona ya salió de Reservas, el pedido se adopta y no se le arrastra (FLOW-16).
     LaunchedEffect(Unit) {
