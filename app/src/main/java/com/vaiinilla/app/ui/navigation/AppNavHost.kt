@@ -1252,6 +1252,7 @@ fun AppNavHost(
                                     ?.spaceId,
                             // Sin cuenta también se llama al mesero, con la sesión del invitado.
                             signedIn = studentAuthState.session != null || orderFlowViewModel.isGuestCheckout(),
+                            rentedCourtId = orderState.rentedCourt?.id,
                         )?.let { spaceId ->
                             val qrToken = orderState.guestVenue?.space?.qrToken
                             val alias =
@@ -1288,7 +1289,8 @@ fun AppNavHost(
                                     place =
                                         orderState.guestVenue?.space?.let { SpaceCopy.named(it.type, it.name) }
                                             ?: sharedTableViewModel.uiState.value.table
-                                                ?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
+                                                ?.let { SpaceCopy.named(it.spaceType, it.spaceName) }
+                                            ?: orderState.rentedCourt?.let { SpaceCopy.named(it.type, it.name) },
                                 )
                             }
                             layer

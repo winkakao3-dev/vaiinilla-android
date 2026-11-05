@@ -29,6 +29,15 @@ class MenuWaiterCallTest {
     }
 
     @Test
+    fun `quien rento la cancha en la app tambien llama al mesero`() {
+        val court = 5
+        assertEquals(court, menuWaiterSpaceId(null, null, signedIn = true, rentedCourtId = court))
+        // El QR que escaneó manda sobre la cancha rentada.
+        assertEquals(1, menuWaiterSpaceId(1, null, signedIn = true, rentedCourtId = court))
+        assertNull(menuWaiterSpaceId(null, null, signedIn = false, rentedCourtId = court))
+    }
+
+    @Test
     fun `la pildora dice el estado y se encoge junto a Pedir ya`() {
         assertEquals(
             MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Llamar al mesero", "Mesero"),
