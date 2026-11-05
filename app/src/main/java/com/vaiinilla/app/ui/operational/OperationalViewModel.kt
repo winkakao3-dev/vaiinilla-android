@@ -259,6 +259,22 @@ class OperationalViewModel
             return guestOrders.list(slug)
         }
 
+        private var kitchenPolicyLoaded = false
+
+        private fun refreshKitchenPolicy(generation: Long) {
+            kitchenPolicyLoaded = true
+            viewModelScope.launch {
+                val status = withContext(Dispatchers.IO) { catalogRepository.getOperationalStatus() }.getOrNull()
+                if (generation != roleGeneration || _uiState.value.role != OperationalRole.KITCHEN) return@launch
+                if (status == null) {
+                    // Sin respuesta se vuelve a intentar en el siguiente sondeo; se queda lo último que se supo.
+                    kitchenPolicyLoaded = false
+                    return@launch
+                }
+                _uiState.value = _uiState.value.copy(kitchenPreparesUnpaid = status.kitchenPreparesUnpaid)
+            }
+        }
+
         fun refresh() {
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
@@ -298,6 +314,9 @@ class OperationalViewModel
             // El personal pide cambios, pero el servidor no avisa de lo que dejó de ser suyo (cobrado por otro
             // cajero, cancelado, expirado): cada cierto tiempo se pide la lista completa y se concilia.
             val fullSync = role != OperationalRole.CLIENT && isFullSyncDue()
+            // Cocina relee si el negocio prepara lo que falta cobrar (R14): al entrar y con cada sincronización
+            // completa, no en cada sondeo.
+            if (role == OperationalRole.KITCHEN && (fullSync || !kitchenPolicyLoaded)) refreshKitchenPolicy(generation)
             viewModelScope.launch {
                 // Client orders always fetch the full list (like iOS): the delta can miss
                 // transitions that don't bump updatedAt. Staff keeps the delta.
@@ -402,6 +421,7 @@ class OperationalViewModel
             fullSyncRequested = false
             alertedKeys.clear()
             staffBaselineReady = false
+            kitchenPolicyLoaded = false
         }
 
         /**

@@ -11,6 +11,8 @@ import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -98,11 +100,27 @@ class KitchenTicketUiTest {
         assertEquals(listOf("preparando", "cobrado"), queue.map { it.summary.id })
     }
 
-    private fun setKitchen(orders: List<OrderDetail>) {
+    @Test
+    fun `si el negocio solo prepara lo cobrado, la comanda por cobrar espera a Caja`() {
+        val unpaid = order("por-cobrar", 501, OrderState.PENDING_PAYMENT)
+        assertTrue(kitchenWaitsForCashier(unpaid, kitchenPreparesUnpaid = false))
+        assertFalse(kitchenWaitsForCashier(unpaid, kitchenPreparesUnpaid = true))
+        assertFalse(kitchenWaitsForCashier(order("cobrado", 502, OrderState.PAID), kitchenPreparesUnpaid = false))
+    }
+
+    private fun setKitchen(
+        orders: List<OrderDetail>,
+        kitchenPreparesUnpaid: Boolean = true,
+    ) {
         composeTestRule.setContent {
             ScreenshotTheme {
                 KitchenOperationalScreen(
-                    state = OperationalUiState(role = OperationalRole.KITCHEN, orders = orders),
+                    state =
+                        OperationalUiState(
+                            role = OperationalRole.KITCHEN,
+                            orders = orders,
+                            kitchenPreparesUnpaid = kitchenPreparesUnpaid,
+                        ),
                     onBack = {},
                     onStart = { _, _ -> },
                     onReady = { _, _ -> },
