@@ -14,6 +14,7 @@ import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.JwtContextScope
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.data.cashcut.CashCutRepository
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -102,6 +103,7 @@ class OperationalViewModel
         private val guestSessionStore: GuestSessionStore,
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
         private val sessionStore: SecureSessionStore,
+        private val cashCutRepository: CashCutRepository,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
@@ -658,7 +660,10 @@ class OperationalViewModel
                                 cashSessionRepository.drawerReport(sessionId).getOrThrow()
                             }
                         }
+                    // «Cobrado hoy» con todos los métodos; si falla se queda lo último (o lo del cajón en efectivo).
+                    val day = withContext(Dispatchers.IO) { cashCutRepository.dayCut(null) }.getOrNull()
                     if (generation != roleGeneration || _uiState.value.role != OperationalRole.CASHIER) return@launch
+                    day?.let { _uiState.value = _uiState.value.copy(collectedToday = CollectedToday.of(it)) }
                     val drawer = _uiState.value.cashDrawer
                     _uiState.value =
                         result.fold(

@@ -142,6 +142,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.rentalChargeLabel
 import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.CashSession
+import com.vaiinilla.app.ui.operational.CollectedToday
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
 import com.vaiinilla.app.ui.operational.queuePresentation
@@ -750,12 +751,16 @@ fun CashierOperationalScreen(
             if (state.cashSessionOpen == true) {
                 item(key = "cashier-today") {
                     // Cada cobro en efectivo mueve el esperado: se relee el cajón para que lo cobrado no se quede en «—».
-                    LaunchedEffect(state.expectedCash) { onLoadCashDrawer() }
+                    // Un cobro con tarjeta o saldo no lo mueve: también se relee cuando un pedido cambia de estado,
+                    // para que «Cobrado hoy» (todos los métodos) siga al día.
+                    val orderStates = state.orders.map { it.summary.id to it.summary.state }
+                    LaunchedEffect(state.expectedCash, orderStates) { onLoadCashDrawer() }
                     CashierTodayCard(
                         cashSales =
                             state.cashDrawer.report
                                 ?.summary
                                 ?.cashSales,
+                        collectedToday = state.collectedToday,
                         expectedCash = state.expectedCash,
                         colors = colors,
                         modifier = Modifier.animateItem(),
@@ -1695,9 +1700,10 @@ private fun CashWelcome(
 }
 
 /**
- * «COBRADO EN EFECTIVO | Efectivo en el cajón» bajo la fila. Lo cobrado son las ventas en efectivo de esta caja, del
- * resumen del cajón (13): el servidor no manda lo cobrado del día con todos los métodos. Hasta que llega se ve «—»; el
- * efectivo abre el detalle del cajón.
+ * «COBRADO HOY | Efectivo en el cajón» bajo la fila. Lo cobrado es lo del día con todos los métodos, del corte del día
+ * (GET /sesiones-caja/cortes: `resumen.ventas` y `formas_pago`), con el desglose debajo si cabe. Sin corte todavía
+ * (o si falla) queda lo de antes: las ventas en efectivo de esta caja, del resumen del cajón. El efectivo abre el
+ * detalle del cajón.
  */
 @Composable
 private fun CashierTodayCard(
@@ -1705,8 +1711,12 @@ private fun CashierTodayCard(
     expectedCash: String?,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
+    collectedToday: CollectedToday? = null,
     onOpenDrawer: () -> Unit,
 ) {
+    val title = if (collectedToday != null) "COBRADO HOY" else "COBRADO EN EFECTIVO"
+    val amount = collectedToday?.total ?: cashSales
+    val breakdown = collectedToday?.breakdownLine(::moneyLabel)
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -1720,19 +1730,30 @@ private fun CashierTodayCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "COBRADO EN EFECTIVO",
+                    title,
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.5.sp,
                 )
                 Text(
-                    cashSales?.let(::moneyLabel) ?: "—",
+                    amount?.let(::moneyLabel) ?: "—",
                     color = colors.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+                breakdown?.let {
+                    Text(
+                        it,
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
             Column(
                 modifier =
