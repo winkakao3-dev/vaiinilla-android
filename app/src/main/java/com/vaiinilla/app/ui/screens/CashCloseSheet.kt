@@ -99,6 +99,7 @@ fun CashCloseSheet(
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
     openingAmount: String? = null,
+    unsyncedCashOrders: Int = 0,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -122,6 +123,7 @@ fun CashCloseSheet(
                 amountToExpire,
                 expectedCash,
                 openingAmount,
+                unsyncedCashOrders = unsyncedCashOrders,
             )
         }
     }
@@ -148,6 +150,8 @@ fun CashCloseContent(
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
     openingAmount: String? = null,
+    /** Pedidos cobrados sin internet que el servidor aún no registra: mientras haya, no se cierra (R5). */
+    unsyncedCashOrders: Int = 0,
 ) {
     var amount by remember { mutableStateOf("") }
     var counting by remember { mutableStateOf(false) }
@@ -213,6 +217,14 @@ fun CashCloseContent(
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (unsyncedCashOrders > 0) {
+                        CashWarningCard(
+                            title = unsyncedCashTitle(unsyncedCashOrders),
+                            body =
+                                "Ese efectivo ya está en el cajón pero todavía no cuenta en la caja. Espera a que se " +
+                                    "mande con la red, o resuélvelo en «Pedidos guardados», y luego cierra.",
+                        )
+                    }
                     expiringOrdersNotice(ordersToExpire, amountToExpire)?.let {
                         CashWarningCard(title = it, body = "Cóbralos antes de cerrar para no perder ese dinero.")
                     }
@@ -289,12 +301,13 @@ fun CashCloseContent(
                         title =
                             when {
                                 state.closing -> "Cerrando…"
+                                unsyncedCashOrders > 0 -> "Primero se registra lo cobrado sin internet"
                                 normalized == null -> "Escribe el efectivo contado"
                                 else -> "Cerrar caja con ${moneyLabel(normalized)}"
                             },
                         colors = colors,
                         busy = state.closing,
-                        enabled = normalized != null,
+                        enabled = normalized != null && unsyncedCashOrders == 0,
                     ) { normalized?.let(onConfirm) }
                 }
             }
@@ -478,6 +491,14 @@ internal fun CashAmountField(
         supporting?.let { Text(it, fontSize = 12.sp, color = coral) }
     }
 }
+
+/** El aviso que bloquea el cierre mientras haya efectivo cobrado sin internet sin registrar. */
+internal fun unsyncedCashTitle(count: Int): String =
+    if (count == 1) {
+        "Hay 1 pedido cobrado sin internet sin registrar"
+    } else {
+        "Hay $count pedidos cobrados sin internet sin registrar"
+    }
 
 /** Lo que se pierde al cerrar: el servidor expira los pedidos en efectivo que siguen por cobrar. */
 internal fun expiringOrdersNotice(

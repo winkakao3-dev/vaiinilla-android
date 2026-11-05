@@ -23,4 +23,10 @@ class CashCloseSheetTest {
         assertNull(normalizeCountedCash("12.345"))
         assertNull(normalizeCountedCash("1.2.3"))
     }
+
+    @Test
+    fun `el aviso de cobrado sin internet dice cuantos faltan`() {
+        assertEquals("Hay 1 pedido cobrado sin internet sin registrar", unsyncedCashTitle(1))
+        assertEquals("Hay 3 pedidos cobrados sin internet sin registrar", unsyncedCashTitle(3))
+    }
 }

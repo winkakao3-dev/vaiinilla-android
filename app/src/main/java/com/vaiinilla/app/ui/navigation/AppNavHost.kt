@@ -243,6 +243,11 @@ fun AppNavHost(
     LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
     }
+    // Efectivo que Caja cobró sin internet y aún no se registra: el cierre de caja espera a que se mande (R5).
+    val unsyncedOfflineCash = waiterState.offlineOrders.unregisteredCash.size
+    LaunchedEffect(unsyncedOfflineCash, operationalState.role) {
+        operationalViewModel.setUnsyncedOfflineCash(unsyncedOfflineCash)
+    }
     // Pedidos guardados sin internet de un modo que ya no está abierto (app reiniciada, otro modo): salen solos.
     LaunchedEffect(authorizedAccessState.modes, authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.rescueOfflineOrders(authorizedAccessState.modes)
@@ -2256,7 +2261,13 @@ fun AppNavHost(
                         openSearchRequest = cashierSearchRequests,
                         onBack = returnToModes(navController, operationalViewModel),
                         onOpenCashSession = operationalViewModel::openCashRegister,
-                        onRequestCloseCash = operationalViewModel::requestCloseCash,
+                        onRequestCloseCash = {
+                            // Antes de cerrar se intenta mandar ya lo cobrado sin internet.
+                            if (waiterState.offlineOrders.unregisteredCash.isNotEmpty()) {
+                                waiterViewModel.sendOfflineOrdersNow()
+                            }
+                            operationalViewModel.requestCloseCash()
+                        },
                         onDismissCloseCash = operationalViewModel::dismissCloseCash,
                         onCloseCash = operationalViewModel::closeCashRegister,
                         onCollect = operationalViewModel::collectCash,

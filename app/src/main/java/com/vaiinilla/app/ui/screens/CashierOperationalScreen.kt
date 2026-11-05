@@ -969,6 +969,7 @@ fun CashierOperationalScreen(
                 onOpenAccounts = onOpenAccounts,
                 expectedCash = state.expectedCash,
                 openingAmount = state.cashOpeningAmount,
+                unsyncedCashOrders = state.unsyncedOfflineCash,
             )
         }
         chargeOrder?.let { order ->

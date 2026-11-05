@@ -537,6 +537,9 @@ class WaiterViewModel
             showToast(offlineOrderToast(saved.localFolio, space?.name, toAccount, cashier))
         }
 
+        /** Manda ya lo pendiente sin tocar lo apartado (antes de cerrar la caja). */
+        fun sendOfflineOrdersNow() = offlineOrders.launchFlush()
+
         /** Manda ya lo guardado sin conexión, también lo apartado por un rechazo (tocó «Reintentar»). */
         fun retryOfflineOrders() = offlineOrders.retryAll()
 

@@ -52,6 +52,11 @@ data class OperationalUiState(
     val actionNotice: String? = null,
     /** Hoja de cierre de caja; null mientras está cerrada. */
     val closeCash: CloseCashUi? = null,
+    /**
+     * Pedidos que Caja cobró en efectivo sin internet y que el servidor aún no registra: ese dinero ya está en el
+     * cajón pero no en el esperado. Mientras haya alguno no se cierra la caja (R5).
+     */
+    val unsyncedOfflineCash: Int = 0,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
@@ -92,4 +97,14 @@ internal fun operationalLink(lastRefreshOk: Boolean?): WaiterBoardLink =
         null -> WaiterBoardLink.Connecting
         true -> WaiterBoardLink.Live
         false -> WaiterBoardLink.Offline
+    }
+
+/** Por qué no se puede cerrar la caja todavía: hay efectivo cobrado sin internet sin registrar. */
+internal fun unsyncedOfflineCashNotice(count: Int): String =
+    if (count == 1) {
+        "Hay 1 pedido cobrado sin internet que aún no se registra. Espera a que se mande (o resuélvelo en " +
+            "«Pedidos guardados») antes de cerrar: ese efectivo todavía no cuenta en la caja."
+    } else {
+        "Hay $count pedidos cobrados sin internet que aún no se registran. Espera a que se manden (o resuélvelos " +
+            "en «Pedidos guardados») antes de cerrar: ese efectivo todavía no cuenta en la caja."
     }

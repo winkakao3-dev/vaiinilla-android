@@ -509,6 +509,12 @@ class OperationalViewModel
             _uiState.value = _uiState.value.copy(closeCash = CloseCashUi())
         }
 
+        /** Lo dice la cola de pedidos sin internet de Caja; el cierre se bloquea mientras haya alguno. */
+        fun setUnsyncedOfflineCash(count: Int) {
+            if (_uiState.value.unsyncedOfflineCash == count) return
+            _uiState.value = _uiState.value.copy(unsyncedOfflineCash = count)
+        }
+
         fun dismissCloseCash() {
             if (_uiState.value.closeCash?.closing == true) return
             _uiState.value = _uiState.value.copy(closeCash = null)
@@ -518,6 +524,14 @@ class OperationalViewModel
         fun closeCashRegister(finalAmount: String) {
             val current = _uiState.value.closeCash ?: return
             if (_uiState.value.role != OperationalRole.CASHIER || current.closing) return
+            // Efectivo cobrado sin internet que aún no se registra: cerrar ahora lo deja fuera del arqueo y, al
+            // sincronizar, caería en otra caja o quedaría por cobrar (y se cobraría dos veces).
+            val unsynced = _uiState.value.unsyncedOfflineCash
+            if (unsynced > 0) {
+                _uiState.value =
+                    _uiState.value.copy(closeCash = current.copy(errorMessage = unsyncedOfflineCashNotice(unsynced)))
+                return
+            }
             val generation = roleGeneration
             _uiState.value = _uiState.value.copy(closeCash = CloseCashUi(closing = true))
             viewModelScope.launch {
