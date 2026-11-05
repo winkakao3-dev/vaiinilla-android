@@ -262,6 +262,9 @@ class OrderFlowViewModel
                             operationalStatus = status ?: _uiState.value.operationalStatus.takeIf { sameCart },
                             rentedCourt = rentedCourt,
                             selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                            // Al entrar al lugar el destino acaba de quedar en «Para llevar»: la cancha se ofrece de entrada.
+                            checkoutDestination =
+                                destinationWithRentedCourt(_uiState.value, rentedCourt, offerAsDefault = true),
                             cartLines = nextCart,
                             unavailableCartKeys = unavailableKeys,
                             cartNotice = droppedCartLinesNotice(droppedFromSavedCart) ?: _uiState.value.cartNotice,
@@ -896,9 +899,11 @@ class OrderFlowViewModel
 
         fun updateCheckoutDestination(destination: OrderDestination) {
             if (destination == OrderDestination.HOME_DELIVERY && !_uiState.value.canDeliverHome) return
+            // El destino en espacio vale con el QR de una mesa o con la cancha rentada y en curso: el carrito
+            // ofrece «En tu pista» con cualquiera de los dos (auditoría R9).
             if (
                 destination == OrderDestination.IN_SPACE &&
-                _uiState.value.guestVenue?.space == null
+                _uiState.value.checkoutSpaces.isEmpty()
             ) {
                 _uiState.value =
                     _uiState.value.copy(
@@ -1249,7 +1254,27 @@ class OrderFlowViewModel
                     _uiState.value.copy(
                         rentedCourt = rentedCourt,
                         selectedSpaceId = rentedCourt?.id ?: _uiState.value.selectedSpaceId,
+                        checkoutDestination = destinationWithRentedCourt(_uiState.value, rentedCourt),
                     )
+            }
+        }
+
+        /**
+         * Sin QR de mesa, la cancha rentada que acaba de aparecer se ofrece de entrada como destino; si la renta
+         * ya no está en curso y no hay otro espacio, el pedido vuelve a «Para llevar» (auditoría R9).
+         */
+        private fun destinationWithRentedCourt(
+            current: OrderFlowUiState,
+            rentedCourt: PublicSpace?,
+            offerAsDefault: Boolean = false,
+        ): OrderDestination {
+            if (current.guestVenue?.space != null) return current.checkoutDestination
+            return when {
+                rentedCourt != null && (offerAsDefault || current.rentedCourt == null) &&
+                    current.checkoutDestination == OrderDestination.TAKE_AWAY -> OrderDestination.IN_SPACE
+                rentedCourt == null && current.checkoutDestination == OrderDestination.IN_SPACE ->
+                    OrderDestination.TAKE_AWAY
+                else -> current.checkoutDestination
             }
         }
 
