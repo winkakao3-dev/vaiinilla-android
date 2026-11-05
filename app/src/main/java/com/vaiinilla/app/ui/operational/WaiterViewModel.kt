@@ -5,8 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
+import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderOrigin
 import com.vaiinilla.app.domain.model.Reservation
@@ -14,6 +16,9 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.offline.OfflineStaffOrder
+import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
+import com.vaiinilla.app.domain.offline.OfflineStaffScope
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -40,6 +45,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,6 +98,8 @@ data class WaiterUiState(
     /** Cuándo llegó bien el tablero por última vez y cuántas cargas seguidas han fallado desde entonces. */
     val lastBoardRefreshAt: Instant? = null,
     val consecutiveBoardFailures: Int = 0,
+    /** Pedidos tomados sin internet: por mandar y con problema (plan «Vaiinilla sin internet», fase 1). */
+    val offlineOrders: OfflineStaffOrdersState = OfflineStaffOrdersState(),
 ) {
     /** Ya llegó al menos un tablero bueno. Las mesas solo entran con uno, así que también cuentan como prueba. */
     val boardLoaded: Boolean
@@ -110,6 +118,8 @@ class WaiterViewModel
         private val catalogRepository: CatalogRepository,
         private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
         private val createOrder: CreateRemoteOrderUseCase,
+        private val offlineOrders: OfflineStaffOrderQueue,
+        private val rescuer: OfflineStaffOrderRescuer,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
@@ -128,12 +138,28 @@ class WaiterViewModel
 
         private var contextKey: String? = null
 
+        init {
+            viewModelScope.launch {
+                offlineOrders.state.collectLatest { queue ->
+                    _uiState.value = _uiState.value.copy(offlineOrders = queue)
+                }
+            }
+            offlineOrders.onSent = { localFolio, folio ->
+                viewModelScope.launch { showToast("Ya volvió la red: el pedido $localFolio quedó como #$folio") }
+            }
+            offlineOrders.onAlreadyRegistered = { localFolio ->
+                viewModelScope.launch { showToast("El pedido $localFolio sí había llegado; ya está en la lista") }
+            }
+        }
+
         /**
          * El tablero es de una membresía en un negocio. Al cambiar de negocio o de usuario se olvida todo: lo
          * conocido de uno hacía que las llamadas pendientes del otro se anunciaran como nuevas, y un refresco en
          * vuelo pintaba mesas ajenas (FLOW-24).
          */
         fun bindContext(key: String?) {
+            // La cola sin conexión es de la membresía: cada mesero manda lo suyo con su sesión al volver la red.
+            offlineOrders.start(key?.let { OfflineStaffScope(membershipId = it) })
             if (key == contextKey) return
             val previous = contextKey
             contextKey = key
@@ -489,6 +515,10 @@ class WaiterViewModel
                     UUID.randomUUID().toString()
                 }
             counterOrderKey = key
+            if (!offlineOrders.hasInternet()) {
+                keepOffline(request, key.key, lines, space, cashier, toAccount)
+                return
+            }
             _uiState.value = _uiState.value.copy(counterOrderSending = true, counterOrderError = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { createOrder(request, key.key) }
@@ -510,11 +540,57 @@ class WaiterViewModel
                         }
                     },
                     onFailure = { error ->
-                        _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
+                        if (OfflineStaffOrderRules.shouldKeepOffline(error)) {
+                            keepOffline(request, key.key, lines, space, cashier, toAccount)
+                        } else {
+                            _uiState.value = _uiState.value.copy(counterOrderError = error.toUserFacingMessage())
+                        }
                     },
                 )
             }
         }
+
+        /**
+         * Sin internet el pedido no se pierde: se guarda en el teléfono con un folio local y se manda solo al volver la
+         * red. Cocina todavía no lo ve (eso llega con el concentrador del local, fase 2), así que el aviso lo dice.
+         */
+        private fun keepOffline(
+            request: CreateOrderRequest,
+            idempotencyKey: String,
+            lines: List<CartLine>,
+            space: TableSpace?,
+            cashier: CashierContext?,
+            toAccount: Boolean,
+        ) {
+            val saved =
+                offlineOrders.enqueue(
+                    request = request,
+                    idempotencyKey = idempotencyKey,
+                    roleInitial = if (cashier != null) 'C' else 'M',
+                    placeLabel = space?.name ?: "Mostrador",
+                    summary = offlineSummary(lines),
+                    // Caja cobra el efectivo en el momento (el aviso se lo pide): el pedido llega cobrado.
+                    collectNow = cashier != null && !toAccount,
+                )
+            if (saved == null) {
+                _uiState.value =
+                    _uiState.value.copy(counterOrderError = "Sin internet. Revisa la conexión e inténtalo de nuevo.")
+                return
+            }
+            counterOrderKey = null
+            _uiState.value =
+                _uiState.value.copy(counterOrderOpen = false, counterOrderError = null, counterOrderSpace = null)
+            showToast(offlineOrderToast(saved.localFolio, space?.name, toAccount, cashier))
+        }
+
+        /** Manda ya lo guardado sin conexión, también lo apartado por un rechazo (tocó «Reintentar»). */
+        fun retryOfflineOrders() = offlineOrders.retryAll()
+
+        /** Lo guardado de otras membresías de la cuenta (otro modo, app reiniciada) se manda con su propio token. */
+        fun rescueOfflineOrders(modes: List<AuthorizedMode>) = rescuer.rescue(modes)
+
+        /** El personal ya resolvió a mano un pedido con problema: se quita de la lista. */
+        fun dismissOfflineOrder(order: OfflineStaffOrder) = offlineOrders.dismiss(order)
 
         fun startRental(
             spaceId: Int,
@@ -791,6 +867,9 @@ class WaiterViewModel
         }
 
         override fun onCleared() {
+            // La cola vive lo que la app; esta pantalla ya no recibe sus avisos.
+            offlineOrders.onSent = null
+            offlineOrders.onAlreadyRegistered = null
             pollingJob?.cancel()
             boardJob?.cancel()
             super.onCleared()
@@ -867,6 +946,25 @@ internal fun abonoIdempotencyKey(
 data class CashierContext(
     val cashOpen: Boolean?,
 )
+
+internal fun offlineSummary(lines: List<CartLine>): String =
+    lines.joinToString(", ") { "${it.quantity}× ${it.product.name}" }.take(OFFLINE_SUMMARY_MAX)
+
+private const val OFFLINE_SUMMARY_MAX = 160
+
+internal fun offlineOrderToast(
+    localFolio: String,
+    spaceName: String?,
+    toAccount: Boolean,
+    cashier: CashierContext?,
+): String {
+    val label = if (spaceName == null) "Pedido $localFolio" else "Pedido $localFolio de $spaceName"
+    return when {
+        cashier != null -> "Sin internet: $label guardado. Cóbralo en efectivo; se registra solo al volver la red."
+        toAccount -> "Sin internet: $label guardado. Avísale a cocina; se manda solo al volver la red."
+        else -> "Sin internet: $label guardado. Llévalo a Caja; se manda solo al volver la red."
+    }
+}
 
 internal fun counterOrderToast(
     folio: Int,

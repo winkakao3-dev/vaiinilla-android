@@ -108,6 +108,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.StoreImageKind
@@ -203,6 +204,8 @@ fun CashierOperationalScreen(
     pendingSpaces: Int? = null,
     /** Caja de una escuela: la fila Alumnos (padres e hijos); null fuera de una escuela. */
     studentsEntry: (@Composable () -> Unit)? = null,
+    /** Pedidos de mostrador guardados sin internet (por mandar y con problema); null si no hay. */
+    offlineOrdersEntry: (@Composable () -> Unit)? = null,
     /** Devoluciones pendientes (G08, H03); null las oculta. */
     refundsEntry: (@Composable () -> Unit)? = null,
     /** El negocio de esta caja, para que el cajero vea en cuál cobra. */
@@ -461,7 +464,15 @@ fun CashierOperationalScreen(
             }
 
             if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
-                item(key = "cashier-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
+                item(key = "cashier-offline") {
+                    StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
+                }
+            }
+
+            if (offlineOrdersEntry != null) {
+                item(key = "cashier-offline-orders") {
+                    Box(modifier = Modifier.animateItem()) { offlineOrdersEntry() }
+                }
             }
 
             if (unreadableOrders > 0) {
@@ -1106,7 +1117,7 @@ private fun cashierRowTitle(order: OrderDetail): String =
         "Mostrador"
     } else {
         listOfNotNull(cashierPlaceLabel(order), staffCustomerName(order)).joinToString(" · ")
-    } + arrivalSuffix(order)
+    } + arrivalSuffix(order) + (order.offlineCaptureLabel()?.let { " · $it" } ?: "")
 
 /** «2 Concha, Café de olla»: lo que lleva el pedido, con la cantidad solo cuando es más de uno. */
 private fun cashierItemsLine(order: OrderDetail): String =

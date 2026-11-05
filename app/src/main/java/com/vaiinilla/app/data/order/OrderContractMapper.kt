@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.HomeDeliveryQuote
+import com.vaiinilla.app.domain.model.OfflineCapture
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderHomeDelivery
@@ -165,6 +166,10 @@ fun OrderDetailDto.toDomain(): OrderDetail =
             },
         answerBy = answerBy?.let(::serverInstant),
         payBy = payBy?.let(::serverInstant),
+        offlineCapture =
+            offlineCapture?.let {
+                OfflineCapture(capturedAt = it.capturedAt?.let(::serverInstant), localFolio = it.localFolio)
+            },
     )
 
 // El servidor lee estas fechas de to_jsonb: llegan con desfase ("…+00:00"), no con Z.

@@ -118,6 +118,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
@@ -199,6 +200,9 @@ fun WaiterOperationalScreen(
     onOpenTableOrder: (TableSpace) -> Unit = {},
     onCloseCounterOrder: () -> Unit = {},
     onSubmitCounterOrder: (List<CartLine>, String) -> Unit = { _, _ -> },
+    /** Pedidos guardados sin internet: mandarlos ya, o quitar uno que se resolvió a mano. */
+    onRetryOfflineOrders: () -> Unit = {},
+    onDismissOfflineOrder: (OfflineStaffOrder) -> Unit = {},
     newCallTable: TableCall? = null,
     onAlertConsumed: () -> Unit = {},
     onChangeMode: (() -> Unit)? = null,
@@ -391,7 +395,18 @@ fun WaiterOperationalScreen(
 
             if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty()) {
                 item(key = "waiter-offline", span = fullWidth) {
-                    StaffOfflineBanner(offline = true, modifier = Modifier.animateItem())
+                    StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
+                }
+            }
+
+            if (state.offlineOrders.count > 0) {
+                item(key = "waiter-offline-orders", span = fullWidth) {
+                    OfflineOrdersCard(
+                        state = state.offlineOrders,
+                        onRetry = onRetryOfflineOrders,
+                        onDismiss = onDismissOfflineOrder,
+                        modifier = Modifier.animateItem(),
+                    )
                 }
             }
 

@@ -132,6 +132,7 @@ import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.LocalVenueArt
 import com.vaiinilla.app.ui.screens.MenuFeedScreen
+import com.vaiinilla.app.ui.screens.OfflineOrdersCard
 import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.OrdersAccessGate
 import com.vaiinilla.app.ui.screens.PickupDeliveryFooter
@@ -256,6 +257,10 @@ fun AppNavHost(
     LaunchedEffect(cashierShift) { studentCounterViewModel.setShift(cashierShift) }
     LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
         waiterViewModel.bindContext(authorizedAccessState.activeContext?.membershipId)
+    }
+    // Pedidos guardados sin internet de un modo que ya no está abierto (app reiniciada, otro modo): salen solos.
+    LaunchedEffect(authorizedAccessState.modes, authorizedAccessState.activeContext?.membershipId) {
+        waiterViewModel.rescueOfflineOrders(authorizedAccessState.modes)
     }
     // «Avisos recibidos» explica cada aviso con la cuenta, el modo abierto y los modos que tenía el teléfono.
     val noticeContext = LocalContext.current
@@ -2472,6 +2477,16 @@ fun AppNavHost(
                                 orders = operationalState.orders,
                             )
                         },
+                        offlineOrdersEntry =
+                            waiterState.offlineOrders.takeIf { it.count > 0 }?.let { queue ->
+                                {
+                                    OfflineOrdersCard(
+                                        state = queue,
+                                        onRetry = waiterViewModel::retryOfflineOrders,
+                                        onDismiss = waiterViewModel::dismissOfflineOrder,
+                                    )
+                                }
+                            },
                         staffName = studentAuthState.session?.displayName,
                         notice = waiterState.toastMessage,
                         onDismissError = operationalViewModel::dismissMutationError,
@@ -2673,6 +2688,8 @@ fun AppNavHost(
                                             onOpenTableOrder = waiterViewModel::openTableOrder,
                                             onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                                             onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
+                                            onRetryOfflineOrders = waiterViewModel::retryOfflineOrders,
+                                            onDismissOfflineOrder = waiterViewModel::dismissOfflineOrder,
                                             restrictedMode = active?.restrictedMode,
                                             placeName = active?.establishmentName.orEmpty(),
                                             embedded = true,
@@ -2763,6 +2780,8 @@ fun AppNavHost(
                                 CashierContext(cashOpen = operationalState.cashSessionOpen),
                             )
                         },
+                        onRetryOfflineOrders = waiterViewModel::retryOfflineOrders,
+                        onDismissOfflineOrder = waiterViewModel::dismissOfflineOrder,
                         onChangeMode = backToCashier,
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
@@ -2815,6 +2834,8 @@ fun AppNavHost(
                         onOpenTableOrder = waiterViewModel::openTableOrder,
                         onCloseCounterOrder = waiterViewModel::closeCounterOrder,
                         onSubmitCounterOrder = waiterViewModel::submitCounterOrder,
+                        onRetryOfflineOrders = waiterViewModel::retryOfflineOrders,
+                        onDismissOfflineOrder = waiterViewModel::dismissOfflineOrder,
                         newCallTable = alertCall,
                         onAlertConsumed = { alertCall = null },
                         onChangeMode =
