@@ -111,9 +111,19 @@ class OrderNotificationTest {
     @Test
     fun `ready push names the place, the bar or home delivery`() {
         assertEquals(
-            "Tu pedido está listo. Ya va a tu cancha.",
+            "Tu pedido está listo. En un momento te lo llevan a tu cancha.",
             OrderAdvanceNotifier.messageFor(OrderState.READY, inSpace = true, spaceType = "cancha"),
         )
+        // «Ya está en tu mesa» solo cuando el mesero lo entrega.
+        assertEquals(
+            "Ya está en tu mesa. Buen provecho.",
+            OrderAdvanceNotifier.messageFor(OrderState.DELIVERED, inSpace = true, spaceType = "mesa"),
+        )
+        assertEquals(
+            "Pedido entregado. Buen provecho.",
+            OrderAdvanceNotifier.messageFor(OrderState.DELIVERED, inSpace = true, spaceType = "mesa", pickUpAtBar = true),
+        )
+        assertEquals("Pedido entregado. Buen provecho.", OrderAdvanceNotifier.messageFor(OrderState.DELIVERED))
         assertEquals(
             OrderAdvanceNotifier.PICK_UP_AT_BAR_TEXT,
             OrderAdvanceNotifier.messageFor(OrderState.READY, inSpace = true, spaceType = "cancha", pickUpAtBar = true),

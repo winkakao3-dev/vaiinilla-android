@@ -415,7 +415,9 @@ object OrderAdvanceNotifier {
                     homeDelivery -> "Tu pedido está listo para salir."
                     else -> "Tu pedido está listo. Recógelo en la barra."
                 }
-            OrderState.DELIVERED -> "Pedido entregado. Buen provecho."
+            // En un lugar, «ya está en tu mesa» solo cuando el mesero marca que lo entregó, no al estar listo.
+            OrderState.DELIVERED -> SpaceCopy.deliveredInSpace(spaceType).takeIf { inSpace && !pickUpAtBar }
+                ?: "Pedido entregado. Buen provecho."
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."
             OrderState.EXPIRED -> "Tu pedido expiró."

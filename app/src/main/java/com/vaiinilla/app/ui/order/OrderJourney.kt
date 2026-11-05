@@ -239,6 +239,13 @@ internal fun journeyStepIndex(
                 order.arrivedAt != null -> 2
                 else -> 1
             }
+        // Mesa y cancha: listo se queda en «Listo»; «En tu mesa» se marca hasta que el mesero lo entrega.
+        OrderJourney.TABLE, OrderJourney.COURT_FOOD ->
+            when (state) {
+                OrderState.AWAITING_ACCEPTANCE, OrderState.PENDING_PAYMENT -> 0
+                OrderState.READY, OrderState.ON_THE_WAY -> 2
+                else -> 1
+            }
         // Asiento: listo ya es «En camino». Los demás: listo cierra «Listo» y espera el último paso (Doop P2, P7).
         OrderJourney.SEAT ->
             when (state) {
@@ -308,7 +315,7 @@ internal fun journeyHint(
             }
         OrderJourney.COURT_FOOD ->
             when {
-                state == OrderState.READY -> "Ya va a ${order.place()}. Lo dejan sin interrumpir el juego."
+                state == OrderState.READY -> "Está listo. Te lo llevan a ${order.place()} sin interrumpir el juego."
                 making -> "Te lo llevan a ${order.place()} sin interrumpir el juego."
                 else -> null
             }
@@ -667,7 +674,8 @@ internal fun journeyCaption(
             JourneyCaption(
                 when (journey) {
                     OrderJourney.DRIVE_THRU -> "Listo · en la ventanilla"
-                    OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Listo · va en camino"
+                    OrderJourney.TABLE, OrderJourney.COURT_FOOD -> "Listo · te lo llevan"
+                    OrderJourney.SEAT -> "Listo · va en camino"
                     OrderJourney.SCHOOL -> "Listo · en el comedor"
                     OrderJourney.PREORDER_PICKUP -> "Listo · pasa por él"
                     OrderJourney.HOME_DELIVERY -> "Listo · sale pronto"
@@ -771,7 +779,9 @@ internal fun journeyHeadline(
         state == OrderState.READY ->
             when (journey) {
                 OrderJourney.DRIVE_THRU -> "Ya está. Te lo dan en la ventanilla."
-                OrderJourney.TABLE, OrderJourney.SEAT, OrderJourney.COURT_FOOD -> "Ya va a $place."
+                // Listo no es entregado: el mesero aún tiene que recogerlo y llevarlo.
+                OrderJourney.TABLE, OrderJourney.COURT_FOOD -> "Está listo. Te lo llevan a $place."
+                OrderJourney.SEAT -> "Ya va a $place."
                 OrderJourney.SCHOOL -> "Ya está. Recógelo en el comedor."
                 OrderJourney.PREORDER_PICKUP -> "Ya está. Pasa por él."
                 OrderJourney.HOME_DELIVERY -> "Está listo. Pronto sale."

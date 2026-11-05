@@ -1228,7 +1228,7 @@ private fun ActiveOrderCard(
                     when {
                         rental != null -> rentalProgressIndex(rentalNow)
                         scheduled -> journeyStepIndex(order, journey)
-                        else -> foodProgressIndex(summary.state)
+                        else -> foodProgressIndex(order)
                     },
                 labels =
                     when {
@@ -1618,24 +1618,41 @@ private fun InlinePickupQr(order: OrderDetail) {
 private fun foodProgressSteps(order: OrderDetail): List<String> {
     val summary = order.summary
     val first = if (summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd) "Por pagar" else "Pagado"
-    val last =
-        when {
-            summary.pickUpAtBar -> "En la barra"
-            summary.space?.type == "mesa" -> "En tu mesa"
-            summary.space?.type == "cancha" -> "En tu ${Venue.court}"
-            else -> "Listo"
-        }
-    return listOf(first, "Recibido", "Preparando", last)
+    // Mesa o cancha: «Listo» y «En tu mesa» son pasos distintos; el último se marca hasta que el mesero lo entrega.
+    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", foodLastStep(summary))
+    return listOf(first, "Recibido", "Preparando", foodLastStep(summary))
 }
 
-private fun foodProgressIndex(state: OrderState): Int =
-    when (state) {
+/** Mesa o cancha sin «Pasa por él»: lo lleva el mesero. */
+private fun servedAtPlace(order: OrderDetail): Boolean =
+    !order.summary.pickUpAtBar && order.summary.space?.type in setOf("mesa", "cancha")
+
+private fun foodLastStep(summary: OrderSummary): String =
+    when {
+        summary.pickUpAtBar -> "En la barra"
+        summary.space?.type == "mesa" -> "En tu mesa"
+        summary.space?.type == "cancha" -> "En tu ${Venue.court}"
+        else -> "Listo"
+    }
+
+private fun foodProgressIndex(order: OrderDetail): Int {
+    val state = order.summary.state
+    if (servedAtPlace(order)) {
+        return when (state) {
+            OrderState.PENDING_PAYMENT, OrderState.AWAITING_ACCEPTANCE -> 0
+            OrderState.READY, OrderState.ON_THE_WAY -> 2
+            OrderState.DELIVERED -> 4
+            else -> 1
+        }
+    }
+    return when (state) {
         OrderState.PENDING_PAYMENT, OrderState.AWAITING_ACCEPTANCE -> 0
         OrderState.PREPARING -> 2
         OrderState.READY, OrderState.ON_THE_WAY -> 3
         OrderState.DELIVERED -> 4
         else -> 1
     }
+}
 
 private val RentalProgressSteps = listOf("Por pagar", "Reservada", "En juego", "Terminada")
 

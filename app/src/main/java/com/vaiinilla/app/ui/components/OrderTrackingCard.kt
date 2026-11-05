@@ -173,7 +173,8 @@ private fun spaceReadyTitle(
     when {
         state != OrderState.READY || destination != OrderDestination.IN_SPACE -> null
         pickUpAtBar -> "LISTO, PASA A LA BARRA"
-        else -> "EN CAMINO"
+        // Listo no es entregado ni «en camino»: el mesero todavía tiene que recogerlo.
+        else -> "LISTO"
     }
 
 /** Un pedido a la cuenta no se cobra al pedir: sus dos primeros pasos lo dicen así. */

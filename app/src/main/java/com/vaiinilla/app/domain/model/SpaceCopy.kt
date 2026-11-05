@@ -55,7 +55,15 @@ object SpaceCopy {
         if (type == "barra") {
             "Tu pedido está listo. Te lo entregamos en la barra."
         } else {
-            "Tu pedido está listo. Ya va a ${yourPlace(type)}."
+            "Tu pedido está listo. En un momento te lo llevan a ${yourPlace(type)}."
+        }
+
+    /** Aviso de pedido entregado en un espacio: el mesero ya lo dejó en el lugar del cliente. */
+    fun deliveredInSpace(type: String?): String =
+        if (type == "barra") {
+            "Pedido entregado. Buen provecho."
+        } else {
+            "Ya está en ${yourPlace(type)}. Buen provecho."
         }
 
     /** Subtítulo de la opción de destino en el carrito. Si el negocio solo entrega en barra, no se lleva al lugar. */

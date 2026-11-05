@@ -61,7 +61,10 @@ class OrderJourneyTest {
         assertEquals(listOf("Pagado", "Preparando", "Listo", "Entregado"), journeySteps(bar, OrderJourney.BAR))
         assertEquals(1, journeyStepIndex(bar, OrderJourney.BAR))
         // Listo cierra «Listo» y espera el último paso, como Doop P2 y P7; en asiento, listo ya es «En camino».
-        assertEquals(3, journeyStepIndex(order(OrderState.READY, space = "cancha"), OrderJourney.COURT_FOOD))
+        // Listo en mesa o cancha se queda en «Listo»: «En tu mesa» se marca hasta que el mesero lo entrega.
+        assertEquals(2, journeyStepIndex(order(OrderState.READY, space = "cancha"), OrderJourney.COURT_FOOD))
+        assertEquals(2, journeyStepIndex(order(OrderState.READY, space = "mesa"), OrderJourney.TABLE))
+        assertEquals(4, journeyStepIndex(order(OrderState.DELIVERED, space = "mesa"), OrderJourney.TABLE))
         assertEquals(3, journeyStepIndex(order(OrderState.READY), OrderJourney.COUNTER))
         assertEquals(2, journeyStepIndex(order(OrderState.READY, space = "asiento"), OrderJourney.SEAT))
 
@@ -147,7 +150,8 @@ class OrderJourneyTest {
         assertEquals("Paga en Caja y empiezan tu pedido.", journeyHeadline(cash, OrderJourney.COUNTER))
 
         val court = order(OrderState.READY, space = "cancha")
-        assertEquals("Ya va a tu Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))
+        assertEquals("Está listo. Te lo llevan a tu Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))
+        assertEquals("Listo · te lo llevan", journeyCaption(court, OrderJourney.COURT_FOOD).text)
 
         val canceled = order(OrderState.CANCELED)
         val byCashier = canceled.copy(summary = canceled.summary.copy(canceledByRole = "cajero"))
