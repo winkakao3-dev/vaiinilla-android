@@ -269,6 +269,19 @@ class ReservationsViewModel
             if (_uiState.value.playersReady) reserve()
         }
 
+        /** Hoja de «Rentar»: elige «Ahora» sin apartar todavía; se aparta con su botón, ya con tiempo y jugadores. */
+        fun pickRentNow() {
+            val state = _uiState.value
+            val day = state.day ?: return
+            val court = state.selectedCourt ?: return
+            val durations = ReservationSlots.availableDurations(day, court, day.now)
+            _uiState.value =
+                state.copy(
+                    rentNow = true,
+                    selectedStart = null,
+                    selectedDuration = state.selectedDuration?.takeIf { it in durations } ?: durations.firstOrNull(),
+                )
+        }
         fun selectStart(start: Instant) {
             val state = _uiState.value
             val day = state.day ?: return

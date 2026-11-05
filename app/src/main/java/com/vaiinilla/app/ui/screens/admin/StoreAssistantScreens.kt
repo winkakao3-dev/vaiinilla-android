@@ -6,14 +6,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -90,7 +87,6 @@ import com.vaiinilla.app.ui.screens.prepareStoreLogo
  * Bienvenida del admin nuevo (marco AS1): la tienda todavía no está lista y se ofrece armarla platicando con el
  * asistente o hacerlo a mano en Flujo de mi tienda. Se ve una sola vez por tienda; "Ahora no" también la cierra.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun StoreWelcome(
     placeName: String,
@@ -116,25 +112,21 @@ internal fun StoreWelcome(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 AdminRoundButton(Icons.Rounded.Close, "Ahora no", colors, onLater)
             }
-            Box(
-                Modifier
-                    .padding(top = 8.dp)
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.accentLime),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accentInk, modifier = Modifier.size(34.dp))
-            }
-            AdminCapsLabel("Bienvenido a Vaiinilla", colors, Modifier.padding(top = 22.dp), inset = false)
+            Text(
+                "Bienvenido a Vaiinilla",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (colors.isDark) colors.accentLime else colors.accentInk,
+                modifier = Modifier.padding(top = 12.dp),
+            )
             Text(
                 if (placeName.isBlank()) "Armemos tu tienda" else "Armemos tu tienda, $placeName",
                 fontSize = 32.sp,
-                lineHeight = 34.sp,
+                lineHeight = 36.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = (-0.8).sp,
                 color = colors.textPrimary,
-                modifier = Modifier.padding(top = 6.dp).semantics { heading() },
+                modifier = Modifier.padding(top = 4.dp).semantics { heading() },
             )
             Text(
                 "Antes de vender hay que decirle a la app cómo trabajas: cómo te pagan, cómo entregas y qué ve " +
@@ -147,34 +139,21 @@ internal fun StoreWelcome(
             )
             Column(
                 Modifier
-                    .padding(top = 26.dp)
+                    .padding(top = 24.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
                     .background(colors.accentLime)
                     .clickable(onClick = onAssistant)
                     .padding(18.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Platícalo con el asistente",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Black,
-                        color = colors.accentInk,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        "RECOMENDADO",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.8.sp,
-                        color = colors.accentInk,
-                        modifier =
-                            Modifier
-                                .clip(CircleShape)
-                                .background(colors.accentInk.copy(alpha = 0.12f))
-                                .padding(horizontal = 9.dp, vertical = 5.dp),
-                    )
-                }
+                Text("Recomendado", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentInk.copy(alpha = 0.85f))
+                Text(
+                    "Platícalo con el asistente",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accentInk,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
                 Text(
                     "Te hace unas preguntas sobre tu negocio y te deja todo armado. Tú lo revisas y lo aceptas.",
                     fontSize = 13.5.sp,
@@ -223,15 +202,25 @@ internal fun StoreWelcome(
                 color = colors.textSecondary,
                 modifier = Modifier.padding(start = 2.dp, top = 24.dp, bottom = 8.dp),
             )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOf("Tipo de negocio", "Cuándo pagan", "Cómo se entrega", "Horarios", "Cocina y barra").forEach {
-                    StaticChip(it, colors)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Rounded.Check,
+                            null,
+                            tint = if (colors.isDark) colors.accentLime else colors.accentInk,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            it,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                            modifier = Modifier.padding(start = 10.dp),
+                        )
+                    }
                 }
-            }
-            Text(
+            }            Text(
                 "Puedes cambiar todo después en Negocio › Flujo de mi tienda",
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -282,7 +271,6 @@ internal fun StoreAssistantScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AssistantChat(
     viewModel: AdminStoreViewModel,
@@ -304,30 +292,25 @@ private fun AssistantChat(
         list.animateScrollToItem((rows - 1).coerceAtLeast(0))
     }
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Regresar", colors, onClose)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                AdminCapsLabel("Flujo de mi tienda", colors, inset = false)
-                Text(
-                    "Asistente",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Black,
-                    color = colors.textPrimary,
-                    modifier = Modifier.semantics { heading() },
-                )
-            }
-            if (state.messages.size > 1) {
-                AdminRoundButton(Icons.Rounded.Refresh, "Empezar de nuevo", colors, viewModel::restartAssistant)
-            }
-        }
+        AssistantHeader(
+            title = "Asistente",
+            subtitle = "Armando tu tienda",
+            backLabel = "Regresar",
+            colors = colors,
+            onBack = onClose,
+            trailing = {
+                if (state.messages.size > 1) {
+                    AdminRoundButton(Icons.Rounded.Refresh, "Empezar de nuevo", colors, viewModel::restartAssistant)
+                } else {
+                    Spacer(Modifier.size(44.dp))
+                }
+            },
+        )
         LazyColumn(
             state = list,
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             itemsIndexed(state.messages, key = { index, _ -> index }) { _, message ->
                 Bubble(message, colors, photos = state.photos)
@@ -341,7 +324,7 @@ private fun AssistantChat(
                             muted = true,
                         )
                     state.error != null ->
-                        Column(Modifier.padding(start = 36.dp)) {
+                        Column {
                             Text(
                                 state.error,
                                 fontSize = 13.sp,
@@ -359,33 +342,13 @@ private fun AssistantChat(
                                 }
                             }
                         }
-                    state.options.isNotEmpty() ->
-                        FlowRow(
-                            Modifier.padding(start = 36.dp, top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(7.dp),
-                            verticalArrangement = Arrangement.spacedBy(7.dp),
-                        ) {
-                            state.options.forEach { option ->
-                                AdminFilterChip(option, selected = false, colors = colors, onClick = {
-                                    viewModel.sendToAssistant(option)
-                                })
-                            }
-                        }
                     else -> Spacer(Modifier.height(1.dp))
                 }
             }
             item(key = "propuesta") {
                 val proposal = state.proposal
                 if (proposal != null && !state.thinking) {
-                    AdminPrimaryButton(
-                        title = "Revisar la propuesta (${proposal.itemCount})",
-                        colors = colors,
-                        icon = Icons.Rounded.Check,
-                        fill = colors.accentLime,
-                        contentColor = colors.accentInk,
-                        modifier = Modifier.padding(top = 8.dp),
-                        onClick = { viewModel.reviewProposal(true) },
-                    )
+                    ProposalSoFar(proposal, colors)
                 } else {
                     Spacer(Modifier.height(1.dp))
                 }
@@ -424,6 +387,32 @@ private fun AssistantChat(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
         }
+        val proposal = state.proposal
+        if (proposal != null && !state.thinking) {
+            AdminPrimaryButton(
+                title = "Revisar la propuesta · ${countLabel(proposal.itemCount, "cambio", "cambios")}",
+                colors = colors,
+                fill = colors.accentLime,
+                contentColor = colors.accentInk,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                onClick = { viewModel.reviewProposal(true) },
+            )
+        }
+        if (!state.thinking && state.error == null && state.options.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                state.options.forEach { option ->
+                    AdminFilterChip(option, selected = false, colors = colors, onClick = {
+                        viewModel.sendToAssistant(option)
+                    })
+                }
+            }
+        }
         if (hasPhoto) {
             Column(Modifier.padding(top = 6.dp)) {
                 Text(
@@ -458,16 +447,19 @@ private fun AssistantChat(
             }
         }
         Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)
+                .heightIn(min = 56.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(colors.cardBackground)
+                .padding(6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
                 Modifier
-                    .size(50.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(colors.cardBackground)
-                    .border(1.dp, colors.cardBorder, CircleShape)
                     .clickable(enabled = state.canAddPhoto) { picker.launch("image/*") }
                     .semantics { contentDescription = "Mandar una foto" },
                 contentAlignment = Alignment.Center,
@@ -493,16 +485,10 @@ private fun AssistantChat(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .heightIn(min = 50.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(colors.cardBackground)
-                        .border(1.dp, colors.cardBorder, RoundedCornerShape(25.dp))
+                        .padding(horizontal = 6.dp)
                         .semantics { contentDescription = "Escribe tu respuesta" },
                 decorationBox = { field ->
-                    Box(
-                        Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
+                    Box(contentAlignment = Alignment.CenterStart) {
                         if (draft.isEmpty()) {
                             Text(
                                 "Escribe tu respuesta…",
@@ -518,9 +504,9 @@ private fun AssistantChat(
             val canSend = state.canSend && !tooLong && (draft.isNotBlank() || hasPhoto)
             Box(
                 Modifier
-                    .size(50.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (canSend) colors.accentLime else colors.cardBackground)
+                    .background(if (canSend) colors.accentLime else colors.cardBorder)
                     .clickable(enabled = canSend, onClick = send)
                     .semantics { contentDescription = "Enviar" },
                 contentAlignment = Alignment.Center,
@@ -537,6 +523,80 @@ private fun AssistantChat(
     }
 }
 
+/** Encabezado de la plática y de la revisión: regresar a la izquierda, título al centro y [trailing] a la derecha. */
+@Composable
+private fun AssistantHeader(
+    title: String,
+    subtitle: String,
+    backLabel: String,
+    colors: OperationalColors,
+    onBack: () -> Unit,
+    trailing: @Composable () -> Unit = { Spacer(Modifier.size(44.dp)) },
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, backLabel, colors, onBack)
+        Column(Modifier.weight(1f).padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(subtitle, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.textMuted)
+        }
+        trailing()
+    }
+}
+
+/** Lo que ya quedó en la propuesta, para ver avanzar la tienda mientras se platica (marco AS2c). */
+@Composable
+private fun ProposalSoFar(
+    proposal: AssistantProposal,
+    colors: OperationalColors,
+) {
+    Column(Modifier.padding(top = 4.dp)) {
+        Text(
+            "Hasta ahora llevas",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+        )
+        AdminPanel(colors, padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp)) {
+            val rows =
+                buildList {
+                    if (proposal.changes.isNotEmpty()) {
+                        add("Ajustes" to proposal.changes.joinToString(" · ") { it.title })
+                    }
+                    proposal.spaces.forEach { group ->
+                        add(AssistantLabels.spaceType(group.type) to "${group.prefix} 1 a ${group.prefix} ${group.count}")
+                    }
+                    if (proposal.productCount > 0) {
+                        add("Menú" to countLabel(proposal.productCount, "producto", "productos"))
+                    }
+                    val photoCount = proposal.productPhotos.size + proposal.storePhotos.size
+                    if (photoCount > 0) add("Fotos" to countLabel(photoCount, "foto", "fotos"))
+                    if (proposal.invites.isNotEmpty()) {
+                        add("Tu equipo" to countLabel(proposal.invites.size, "invitación", "invitaciones"))
+                    }
+                }
+            rows.forEachIndexed { index, (title, detail) ->
+                if (index > 0) AdminRowDivider(colors)
+                ItemRow(title, detail, colors)
+            }
+        }
+    }
+}
+
+private fun countLabel(
+    count: Int,
+    one: String,
+    many: String,
+) = "$count ${if (count == 1) one else many}"
 /** Cuenta de letras cuando el mensaje ya es largo; si pasa del tope, dice que se mande en partes. */
 @Composable
 private fun LetterCounter(
@@ -603,67 +663,56 @@ private fun Bubble(
             .replace(PHOTO_TOKEN, "")
             .replace(Regex(" {2,}"), " ")
             .trim()
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        if (!mine) {
-            Box(
-                Modifier
-                    .padding(end = 8.dp)
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(colors.accentLime),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accentInk, modifier = Modifier.size(16.dp))
-            }
-        }
-        Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+    if (mine) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
             photoIds.forEach { id ->
                 PhotoThumb(photos[id], colors, size = 150, modifier = Modifier.padding(bottom = 4.dp))
             }
             if (text.isNotEmpty()) {
-                BubbleText(text, mine, muted, colors)
+                Text(
+                    text,
+                    fontSize = 14.5.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.background,
+                    modifier =
+                        Modifier
+                            .widthIn(max = 290.dp)
+                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp))
+                            .background(colors.textPrimary)
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                )
+            }
+        }
+    } else {
+        Column(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val tint = if (colors.isDark) colors.accentLime else colors.accentInk
+                Icon(Icons.Rounded.AutoAwesome, null, tint = tint, modifier = Modifier.size(14.dp))
+                Text(
+                    "Asistente",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = tint,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+            photoIds.forEach { id ->
+                PhotoThumb(photos[id], colors, size = 150, modifier = Modifier.padding(top = 6.dp))
+            }
+            if (text.isNotEmpty()) {
+                Text(
+                    text,
+                    fontSize = 16.5.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (muted) colors.textMuted else colors.textPrimary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
     }
 }
-
-@Composable
-private fun BubbleText(
-    text: String,
-    mine: Boolean,
-    muted: Boolean,
-    colors: OperationalColors,
-) {
-    Text(
-        text,
-        fontSize = 14.5.sp,
-        lineHeight = 20.sp,
-        fontWeight = FontWeight.SemiBold,
-        color =
-            when {
-                mine -> colors.background
-                muted -> colors.textMuted
-                else -> colors.textPrimary
-            },
-        modifier =
-            Modifier
-                .widthIn(max = 290.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 20.dp,
-                        topEnd = 20.dp,
-                        bottomStart = if (mine) 20.dp else 6.dp,
-                        bottomEnd = if (mine) 6.dp else 20.dp,
-                    ),
-                ).background(if (mine) colors.textPrimary else colors.cardBackground)
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-    )
-}
-
 @Composable
 private fun AssistantReview(
     proposal: AssistantProposal,
@@ -676,22 +725,13 @@ private fun AssistantReview(
     val changes = proposal.changes
     val reasons = proposal.sectionReasons
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AdminRoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Seguir platicando", colors, onBack)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                AdminCapsLabel("Asistente", colors, inset = false)
-                Text(
-                    "Revisa tu configuración",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Black,
-                    color = colors.textPrimary,
-                    modifier = Modifier.semantics { heading() },
-                )
-            }
-        }
+        AssistantHeader(
+            title = "Revisa tu tienda",
+            subtitle = "Asistente",
+            backLabel = "Seguir platicando",
+            colors = colors,
+            onBack = onBack,
+        )
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -853,19 +893,17 @@ private fun AssistantReview(
                     }
                 }
             }
-            item {
-                Text(
-                    "${proposal.itemCount} ${if (proposal.itemCount == 1) "cosa" else "cosas"} por guardar · " +
-                        "Lo demás se queda como está",
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textMuted,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    textAlign = TextAlign.Center,
-                )
-            }
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                "${proposal.itemCount} ${if (proposal.itemCount == 1) "cosa" else "cosas"} por guardar · " +
+                    "Lo demás se queda como está",
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                textAlign = TextAlign.Center,
+            )
             (state.progress ?: state.error)?.let {
                 Text(
                     it,
@@ -916,10 +954,10 @@ private fun ReviewSection(
         title?.let {
             Text(
                 it,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = colors.textSecondary,
-                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp).semantics { heading() },
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp).semantics { heading() },
             )
         }
         AdminPanel(colors, padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) { content() }
@@ -1035,25 +1073,6 @@ private fun ChangeRow(
             }
         }
     }
-}
-
-@Composable
-private fun StaticChip(
-    label: String,
-    colors: OperationalColors,
-) {
-    Text(
-        label,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Bold,
-        color = colors.textSecondary,
-        modifier =
-            Modifier
-                .clip(CircleShape)
-                .background(colors.cardBackground)
-                .border(1.dp, colors.cardBorder, CircleShape)
-                .padding(horizontal = 13.dp, vertical = 8.dp),
-    )
 }
 
 /** En Flujo de mi tienda y en «Para dejar lista tu tienda»: abre el asistente. */
