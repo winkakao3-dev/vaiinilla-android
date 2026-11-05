@@ -1300,7 +1300,7 @@ private fun ProductGridCard(
                         } else {
                             "BARRA"
                         },
-                        fontSize = 8.5.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 0.6.sp,
                         color = colors.textSecondary,

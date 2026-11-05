@@ -308,11 +308,12 @@ fun OrderTrackingCard(
                                 (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
                                     .uppercase(),
                             color = if (isReady) colors.accentInk else Color(0xFF171812),
-                            fontSize = 8.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 0.55.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     Spacer(modifier = Modifier.height(7.dp))

@@ -1544,7 +1544,7 @@ private fun InlinePickupQr(order: OrderDetail) {
             token,
             color = OrderTrackingCardText.copy(alpha = 0.4f),
             fontFamily = FontFamily.Monospace,
-            fontSize = 9.sp,
+            fontSize = 11.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp),
         )
