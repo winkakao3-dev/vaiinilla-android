@@ -353,7 +353,7 @@ private fun SetupChecklist(
     }
 }
 
-/** «No quiero» (marco IN1): el paso opcional se va de la lista y ya no cuenta como pendiente. */
+/** «No quiero» (marco 07c): el paso opcional se va de la lista y ya no cuenta como pendiente. */
 @Composable
 private fun DeclineStepButton(
     title: String,
