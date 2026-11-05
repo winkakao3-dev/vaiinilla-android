@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -64,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.data.platform.PlatformStore
 import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.ui.components.TotpMfaChallengeForm
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.platform.PlatformPage
 import com.vaiinilla.app.ui.platform.PlatformUiState
 import com.vaiinilla.app.ui.platform.PlatformViewModel
@@ -373,7 +375,14 @@ private fun Kpi(
 ) {
     val colors = LocalVaiinillaColors.current
     Column(modifier.clip(RoundedCornerShape(18.dp)).background(colors.paper2).padding(12.dp)) {
-        Text(value, color = if (warn) colors.yolk else colors.ink, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(
+            value,
+            color = if (warn) colors.yolk else colors.ink,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 20.sp),
+        )
         Text(label, color = colors.muted, fontSize = 11.5.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 3.dp))
     }
 }
@@ -891,7 +900,7 @@ fun StoreAccessScreen(
             Modifier.size(72.dp).clip(RoundedCornerShape(22.dp)).background(colors.accent),
             contentAlignment = Alignment.Center,
         ) {
-            Text(storeName.take(1).uppercase(), color = colors.accentInk, fontSize = 30.sp, fontWeight = FontWeight.Black)
+            Text(initialOf(storeName), color = colors.accentInk, fontSize = 30.sp, fontWeight = FontWeight.Black)
         }
         Text(storeName.uppercase(), color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 26.dp))
         Text("Tienes acceso a esta tienda", color = colors.ink, fontSize = 34.sp, lineHeight = 36.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 8.dp).semantics { heading() })
