@@ -1,5 +1,11 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.data.inventory.InventoryMovement
 import com.vaiinilla.app.data.inventory.InventoryMovementType
 import com.vaiinilla.app.data.inventory.InventoryProduct
@@ -151,7 +158,16 @@ internal fun AdminInventorySection(
                     ) { next -> sheet = next to it }
                 }
             SupplySheet.EDIT ->
-                SupplyEditSheet(supply, state, colors, onDismiss = close) { input ->
+                SupplyEditSheet(
+                    supply,
+                    state,
+                    colors,
+                    onDismiss = close,
+                    onPickProduct = { product ->
+                        close()
+                        viewModel.openRecipe(product)
+                    },
+                ) { input ->
                     viewModel.saveSupply(supply, input) { sheet = null }
                 }
             SupplySheet.ENTRY, SupplySheet.WASTE, SupplySheet.ADJUST ->
@@ -623,6 +639,7 @@ private fun SupplyEditSheet(
     state: AdminInventoryUiState,
     colors: OperationalColors,
     onDismiss: () -> Unit,
+    onPickProduct: (InventoryProduct) -> Unit,
     onSave: (InventorySupplyInput) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf(supply?.name.orEmpty()) }
@@ -653,6 +670,7 @@ private fun SupplyEditSheet(
         onDismiss = onDismiss,
     ) {
         AdminTextField("Nombre", name, { name = it }, colors, placeholder = "Cerveza Corona 355 ml")
+        if (supply == null) MenuProductMatches(name, state.products, colors, onPickProduct)
         AdminTextField("Etiqueta", category, { category = it }, colors, placeholder = "Cervezas, Licores, Cocina…")
         AdminHint(
             if (supply == null) {
@@ -1075,6 +1093,71 @@ private fun localTime(iso: String): String =
             )
     }.getOrDefault(iso.take(16).replace('T', ' '))
 
+/** Bajo el Nombre de un insumo nuevo: los productos del menú que coinciden, para ir directo a sus insumos. */
+@Composable
+private fun MenuProductMatches(
+    query: String,
+    products: List<InventoryProduct>?,
+    colors: OperationalColors,
+    onPick: (InventoryProduct) -> Unit,
+) {
+    val matches = remember(query, products) { matchingMenuProducts(query, products) }
+    // Sin la última lista, las filas desaparecerían de golpe mientras el panel se cierra.
+    var lastMatches by remember { mutableStateOf(matches) }
+    if (matches.isNotEmpty() && matches != lastMatches) lastMatches = matches
+    AnimatedVisibility(
+        visible = query.isBlank(),
+        enter = expandVertically(spring()) + fadeIn(spring()),
+        exit = shrinkVertically(spring()) + fadeOut(spring()),
+    ) {
+        AdminHint("¿Ya está en tu menú? Escribe su nombre para ver o ponerle sus insumos.", colors)
+    }
+    AnimatedVisibility(
+        visible = matches.isNotEmpty(),
+        enter = expandVertically(spring()) + fadeIn(spring()),
+        exit = shrinkVertically(spring()) + fadeOut(spring()),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            AdminCapsLabel("Ya está en tu menú", colors)
+            AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
+                lastMatches.forEachIndexed { index, product ->
+                    if (index > 0) AdminRowDivider(colors)
+                    AdminRow(
+                        title = product.name,
+                        colors = colors,
+                        detail = recipeSummary(product),
+                        onClick = { onPick(product) },
+                    ) {
+                        Text(
+                            "Ver insumos",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Hasta [limit] productos cuyo nombre contiene [query], sin importar acentos; primero los que empiezan igual. */
+internal fun matchingMenuProducts(
+    query: String,
+    products: List<InventoryProduct>?,
+    limit: Int = 5,
+): List<InventoryProduct> {
+    val needle = query.normalizeForSearch()
+    if (needle.length < 2) return emptyList()
+    return products
+        .orEmpty()
+        .map { it to it.name.normalizeForSearch() }
+        .filter { (_, name) -> needle in name }
+        .sortedWith(compareBy({ (_, name) -> !name.startsWith(needle) }, { (_, name) -> name }))
+        .take(limit)
+        .map { (product, _) -> product }
+}
 /** Un renglón de «Lo usan»: un producto suelto o una categoría completa del menú (se expande al guardar). */
 private data class UseDraft(
     val productId: Int?,

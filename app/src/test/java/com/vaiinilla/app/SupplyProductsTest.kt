@@ -6,6 +6,7 @@ import com.vaiinilla.app.data.inventory.encodeSupplyProducts
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.ui.screens.admin.matchingMenuProducts
 import com.vaiinilla.app.ui.screens.admin.usesPicker
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
@@ -73,6 +74,30 @@ class SupplyProductsTest {
         assertEquals("Cervezas", picker.single().name)
     }
 
+    @Test
+    fun `busca productos sin importar acentos y primero los que empiezan igual`() {
+        val products =
+            listOf(
+                inventory(1, "Agua de papá", "Bebidas"),
+                inventory(2, "Papas fritas", "Botanas"),
+                inventory(3, "Nachos", "Botanas"),
+            )
+        assertEquals(listOf(2, 1), matchingMenuProducts("PAPA", products).map { it.id })
+    }
+
+    @Test
+    fun `con menos de dos letras o sin coincidencias no sugiere productos`() {
+        val products = listOf(inventory(1, "Papas", "Botanas"))
+        assertEquals(emptyList<InventoryProduct>(), matchingMenuProducts("p", products))
+        assertEquals(emptyList<InventoryProduct>(), matchingMenuProducts("cerveza", products))
+        assertEquals(emptyList<InventoryProduct>(), matchingMenuProducts("papas", null))
+    }
+
+    @Test
+    fun `sugiere como maximo cinco productos`() {
+        val products = (1..8).map { inventory(it, "Papas $it", "Botanas") }
+        assertEquals(5, matchingMenuProducts("pa", products).size)
+    }
     private fun inventory(
         id: Int,
         name: String,
