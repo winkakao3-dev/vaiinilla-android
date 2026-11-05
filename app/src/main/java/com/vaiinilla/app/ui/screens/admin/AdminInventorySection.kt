@@ -655,8 +655,13 @@ private fun SupplyEditSheet(
         AdminTextField("Nombre", name, { name = it }, colors, placeholder = "Cerveza Corona 355 ml")
         AdminTextField("Etiqueta", category, { category = it }, colors, placeholder = "Cervezas, Licores, Cocina…")
         AdminHint(
-            "Solo ordena tus insumos en esta lista; no es la categoría del menú. Para ligarlo a productos o a una " +
-                "categoría del menú usa «Lo usan».",
+            if (supply == null) {
+                "Solo ordena tus insumos en esta lista; no es la categoría del menú. Al guardar escoges qué " +
+                    "productos o categorías del menú lo usan."
+            } else {
+                "Solo ordena tus insumos en esta lista; no es la categoría del menú. Para ligarlo a productos o a " +
+                    "una categoría del menú usa «Lo usan»."
+            },
             colors,
         )
         if (categories.isNotEmpty()) {
@@ -725,7 +730,7 @@ private fun SupplyEditSheet(
             state.sheetError ?: badField?.let { "Revisa el $it: escribe 1500 o 1.5 (sin comas de miles)." },
         )
         AdminPrimaryButton(
-            title = "Guardar",
+            title = if (supply == null) "Guardar y escoger productos" else "Guardar",
             colors = colors,
             busy = state.saving,
             enabled = name.isNotBlank() && badField == null,
