@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.domain.mode.AuthorizedMode
+import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
@@ -39,6 +41,24 @@ data class JourneyVenue(
     /** El nombre del negocio, para la fila de arriba del seguimiento. */
     val name: String? = null,
 )
+
+/**
+ * Si el cliente pide en una escuela. El pedido no trae el tipo de negocio (`tipo_establecimiento` aún no sale del
+ * servidor) y el estado operativo puede no haber cargado al abrir Pedidos: el alumno veía su apartado como un
+ * encargo cualquiera (P08). Vale el `modo_escuela` del estado, el de su membresía de cliente en ese negocio, o la
+ * tutela; sin negocio a la vista, que todas sus membresías de cliente sean escuelas.
+ */
+internal fun inSchoolVenue(
+    statusSchool: Boolean?,
+    venueId: String?,
+    modes: List<AuthorizedMode>,
+    hasGuardian: Boolean = false,
+): Boolean {
+    if (statusSchool == true || hasGuardian) return true
+    val clientModes = modes.filter { it.role == OperationalRole.CLIENT }
+    if (venueId != null) return clientModes.any { it.establishmentId == venueId && it.isSchool }
+    return statusSchool == null && clientModes.isNotEmpty() && clientModes.all { it.isSchool }
+}
 
 internal fun orderJourney(
     order: OrderDetail,
@@ -186,6 +206,7 @@ internal fun journeySteps(
 internal fun journeyStepIndex(
     order: OrderDetail,
     journey: OrderJourney,
+    today: LocalDate = LocalDate.now(BusinessTime.zone),
 ): Int {
     val steps = journeySteps(order, journey)
     if (steps.isEmpty()) return -1
@@ -202,6 +223,14 @@ internal fun journeyStepIndex(
             when (state) {
                 OrderState.AWAITING_ACCEPTANCE -> 0
                 OrderState.READY, OrderState.ON_THE_WAY -> 3
+                else -> 2
+            }
+        // Apartado, Ese día, Listo, Recogido: hasta el día de recoger se queda en «Ese día», aunque ya esté listo.
+        OrderJourney.SCHOOL ->
+            when {
+                state == OrderState.AWAITING_ACCEPTANCE || state == OrderState.PENDING_PAYMENT -> 0
+                order.beforePickupDay(today) -> 1
+                state == OrderState.READY || state == OrderState.ON_THE_WAY -> 3
                 else -> 2
             }
         OrderJourney.DRIVE_THRU ->
@@ -579,6 +608,7 @@ private fun OrderDetail.depositPaid(): Boolean =
 internal fun journeyCaption(
     order: OrderDetail,
     journey: OrderJourney,
+    today: LocalDate = LocalDate.now(BusinessTime.zone),
 ): JourneyCaption {
     val state = order.summary.state
     val waiting = CaptionTone.WAITING
@@ -631,6 +661,8 @@ internal fun journeyCaption(
         order.rejectedItems().isNotEmpty() && state != OrderState.READY ->
             JourneyCaption("Preparando · un producto no se pudo", waiting)
         state == OrderState.ON_THE_WAY -> JourneyCaption("En camino", done)
+        state == OrderState.READY && journey == OrderJourney.SCHOOL && order.beforePickupDay(today) ->
+            JourneyCaption(journeySchedule(order)?.let { "Apartado · para el $it" } ?: "Apartado", done)
         state == OrderState.READY ->
             JourneyCaption(
                 when (journey) {

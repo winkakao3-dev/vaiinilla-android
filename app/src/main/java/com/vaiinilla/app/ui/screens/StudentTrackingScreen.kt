@@ -113,6 +113,7 @@ import com.vaiinilla.app.domain.repository.CallsUnavailableException
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.callWaiterSpaceId
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ArrivalNotice
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.OrderDetailSummary
@@ -144,12 +145,19 @@ import com.vaiinilla.app.ui.components.rentalStateLabel
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
+import com.vaiinilla.app.ui.order.OrderJourney
+import com.vaiinilla.app.ui.order.beforePickupDay
 import com.vaiinilla.app.ui.order.callRetrySeconds
 import com.vaiinilla.app.ui.order.canCancelMenuCall
 import com.vaiinilla.app.ui.order.cancellationMoneyNote
+import com.vaiinilla.app.ui.order.journeyStepIndex
+import com.vaiinilla.app.ui.order.journeySteps
 import com.vaiinilla.app.ui.order.orderCancellationNotice
+import com.vaiinilla.app.ui.order.orderJourney
+import com.vaiinilla.app.ui.order.scheduledPickupLine
 import com.vaiinilla.app.ui.order.spaceDelivery
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.SeaGlassButton
@@ -160,6 +168,7 @@ import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
@@ -187,6 +196,8 @@ fun StudentTrackingScreen(
     sharedTable: @Composable () -> Unit = {},
     /** Para «Mi código» en una renta: el QR personal con el que Caja cobra. */
     userId: String? = null,
+    /** Pide en una escuela: un pedido para otro día es un apartado del comedor, no un encargo (P08). */
+    school: Boolean = false,
 ) {
     val haptics = rememberVaiinillaHaptics()
     LaunchedEffect(Unit) {
@@ -535,6 +546,7 @@ fun StudentTrackingScreen(
                                                     onCurrentWaiterCall = onCurrentWaiterCall,
                                                     onCallWaiter = onCallWaiter,
                                                     onCancelWaiter = onCancelWaiter,
+                                                    school = school,
                                                 )
                                             }
                                         }
@@ -968,8 +980,31 @@ internal fun pastOrderStateLabel(order: OrderDetail): String {
     return destination?.let { "$base · $it" } ?: base
 }
 
+/** «Comedor» en un apartado de escuela; en lo demás, a dónde va, como antes. */
+private fun activeOrderPlace(
+    order: OrderDetail,
+    journey: OrderJourney,
+): String = if (journey == OrderJourney.SCHOOL) "Comedor" else destinationDisplayLabel(order)
+
+/** «Apartado» hasta el día de recoger; ese día, «Listo» cuando ya está, como en el seguimiento (P08). */
+internal fun schoolStateLabel(
+    order: OrderDetail,
+    today: LocalDate = LocalDate.now(BusinessTime.zone),
+): String {
+    val state = order.summary.state
+    return when {
+        state.isClosed -> orderStateLabel(order.summary)
+        state == OrderState.AWAITING_ACCEPTANCE || state == OrderState.PENDING_PAYMENT -> orderStateLabel(order.summary)
+        state == OrderState.READY && !order.beforePickupDay(today) -> "Listo"
+        else -> "Apartado"
+    }
+}
+
 /** «Pan francés y 2 Capuchino · te lo llevan a la mesa», lo que va en la tarjeta de AHORA (Doop L10). */
-private fun activeOrderLine(order: OrderDetail): String {
+private fun activeOrderLine(
+    order: OrderDetail,
+    journey: OrderJourney = OrderJourney.COUNTER,
+): String {
     val summary = order.summary
     val names = order.activeItems.map { if (it.quantity > 1) "${it.quantity} ${it.productName}" else it.productName }
     val what =
@@ -978,9 +1013,16 @@ private fun activeOrderLine(order: OrderDetail): String {
             1 -> names.first()
             else -> names.dropLast(1).joinToString(", ") + " y " + names.last()
         }
+    val readyToday =
+        summary.state == OrderState.READY && !order.beforePickupDay(LocalDate.now(BusinessTime.zone))
+    val scheduled = journey == OrderJourney.SCHOOL || journey == OrderJourney.PREORDER_PICKUP
     val step =
         if (order.reservation != null) {
             order.reservation?.let { rentalScheduleLabel(it) }
+        } else if (journey == OrderJourney.SCHOOL && readyToday) {
+            "recógelo en el comedor"
+        } else if (scheduled && !summary.state.isClosed) {
+            scheduledPickupLine(order, journey).replaceFirstChar { it.lowercase() }
         } else if (summary.pickUpAtBar && !summary.state.isTerminalWithoutDelivery) {
             "pasa por él a la barra"
         } else if (summary.space?.type == "mesa" && !summary.state.isTerminalWithoutDelivery) {
@@ -1092,10 +1134,14 @@ private fun ActiveOrderCard(
     onCurrentWaiterCall: (suspend (Int) -> Result<TableCall?>)? = null,
     onCallWaiter: (suspend (Int, CallReason, String?) -> Result<TableCall>)? = null,
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
+    school: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     val summary = order.summary
     val reduceMotion = reducedMotion()
+    // Un apartado o un encargo se cuenta con sus pasos y su «se recoge el…», no con los de la barra (P08).
+    val journey = orderJourney(order, JourneyVenue(school = school))
+    val scheduled = journey == OrderJourney.SCHOOL || journey == OrderJourney.PREORDER_PICKUP
     Surface(
         // Tocar la tarjeta abre el pedido; sus botones (mesero, seguimiento) siguen respondiendo aparte.
         modifier =
@@ -1128,7 +1174,7 @@ private fun ActiveOrderCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "AHORA · ${destinationDisplayLabel(order).uppercase()}",
+                    "AHORA · ${activeOrderPlace(order, journey).uppercase()}",
                     color = colors.accent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -1145,12 +1191,10 @@ private fun ActiveOrderCard(
                 )
             }
             Text(
-                if (summary.state == OrderState.PREPARING &&
-                    !order.isRental
-                ) {
-                    "En cocina"
-                } else {
-                    customerStateLabel(order)
+                when {
+                    journey == OrderJourney.SCHOOL -> schoolStateLabel(order)
+                    summary.state == OrderState.PREPARING && !order.isRental -> "En cocina"
+                    else -> customerStateLabel(order)
                 },
                 color = OrderTrackingCardText,
                 fontSize = 24.sp,
@@ -1159,7 +1203,7 @@ private fun ActiveOrderCard(
                 modifier = Modifier.padding(top = 6.dp),
             )
             Text(
-                activeOrderLine(order),
+                activeOrderLine(order, journey),
                 color = OrderTrackingCardText.copy(alpha = 0.62f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1180,8 +1224,18 @@ private fun ActiveOrderCard(
             val rental = order.reservation
             val rentalNow = rentalStep(order)
             SegmentedProgress(
-                currentIndex = if (rental != null) rentalProgressIndex(rentalNow) else foodProgressIndex(summary.state),
-                labels = if (rental != null) RentalProgressSteps else foodProgressSteps(order),
+                currentIndex =
+                    when {
+                        rental != null -> rentalProgressIndex(rentalNow)
+                        scheduled -> journeyStepIndex(order, journey)
+                        else -> foodProgressIndex(summary.state)
+                    },
+                labels =
+                    when {
+                        rental != null -> RentalProgressSteps
+                        scheduled -> journeySteps(order, journey)
+                        else -> foodProgressSteps(order)
+                    },
                 modifier = Modifier.padding(top = 12.dp),
             )
             if (summary.state == OrderState.READY && order.needsPickupQr(deliveryRequiresQr)) {

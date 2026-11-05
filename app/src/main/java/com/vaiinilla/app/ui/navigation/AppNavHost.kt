@@ -109,6 +109,7 @@ import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
+import com.vaiinilla.app.ui.order.inSchoolVenue
 import com.vaiinilla.app.ui.order.isEstablishmentSwitch
 import com.vaiinilla.app.ui.order.menuWaiterSpaceId
 import com.vaiinilla.app.ui.order.toRuntimeConfiguration
@@ -254,6 +255,14 @@ fun AppNavHost(
     val accountDeletionState by accountDeletionViewModel.state
     val currentVenueId = orderState.guestVenue?.establishment?.id
     val walletForVenue = walletRemoteState.visibleFor(currentVenueId)
+    // Un apartado de escuela se sigue como apartado aunque el estado operativo aún no cargue (P08).
+    val schoolVenue =
+        inSchoolVenue(
+            statusSchool = orderState.operationalStatus?.isSchool,
+            venueId = currentVenueId,
+            modes = authorizedAccessState.modes,
+            hasGuardian = guardianControlsViewModel.controls != null,
+        )
 
     // Quién usa la app en este momento; se lee al momento de usarlo porque «lista para pedir» vive en el repositorio.
     fun currentIdentity(): AppIdentity =
@@ -2547,7 +2556,7 @@ fun AppNavHost(
                         venue =
                             JourneyVenue(
                                 driveThru = orderState.operationalStatus?.isDriveThru == true,
-                                school = orderState.operationalStatus?.isSchool == true,
+                                school = schoolVenue,
                                 whatsappUrl = orderState.guestVenue?.establishment?.whatsappUrl,
                                 name = orderState.guestVenue?.establishment?.name,
                             ),
@@ -2674,6 +2683,7 @@ fun AppNavHost(
                                 )
                             },
                             userId = walletForVenue.data?.wallet?.userId,
+                            school = schoolVenue,
                         )
                     }
                 } else {
