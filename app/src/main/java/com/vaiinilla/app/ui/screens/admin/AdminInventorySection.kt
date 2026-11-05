@@ -1026,7 +1026,8 @@ private fun RecipeSheet(
                             }
                         },
                         onCancel = { adding = false },
-                    )                }
+                    )
+                }
             }
             val parsed = draft.map { it to parseQuantity(it.quantity) }
             val valid = parsed.all { (_, q) -> q != null && q >= MIN_QUANTITY }
@@ -1212,6 +1213,7 @@ private fun RecipeSupplyPicker(
     }
     AdminSecondaryButton(title = "Cancelar", colors = colors, onClick = onCancel)
 }
+
 /** Bajo el Nombre de un insumo nuevo: los productos del menú que coinciden, para ir directo a sus insumos. */
 @Composable
 private fun MenuProductMatches(
@@ -1277,6 +1279,7 @@ internal fun matchingMenuProducts(
         .take(limit)
         .map { (product, _) -> product }
 }
+
 /** Un renglón de «Lo usan»: un producto suelto o una categoría completa del menú (se expande al guardar). */
 private data class UseDraft(
     val productId: Int?,

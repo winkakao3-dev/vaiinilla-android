@@ -103,6 +103,7 @@ class SupplyProductsTest {
         val products = (1..8).map { inventory(it, "Papas $it", "Botanas") }
         assertEquals(5, matchingMenuProducts("pa", products).size)
     }
+
     @Test
     fun `avisa solo de lineas siempre con insumos en cero`() {
         val supplies = listOf(supply(1, "Papa", 0.0), supply(2, "Queso", 0.0), supply(3, "Sal", 2.0))
@@ -131,11 +132,13 @@ class SupplyProductsTest {
         assertEquals(2, filterUsesPicker(groups, "botanas").single().products.size)
         assertEquals(0, filterUsesPicker(groups, "cerveza").size)
     }
+
     private fun supply(
         id: Long,
         name: String,
         stock: Double,
     ) = InventorySupply(id, name, null, InventoryUnit.GRAM, stock, 0.0, 0.0, 0.0, false, true, 0)
+
     private fun inventory(
         id: Int,
         name: String,

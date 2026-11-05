@@ -342,7 +342,8 @@ class AdminInventoryViewModel
             }
         }
 
-        fun saveRecipe(lines: List<RecipeLine>) {            val product = _uiState.value.recipeProduct ?: return
+        fun saveRecipe(lines: List<RecipeLine>) {
+            val product = _uiState.value.recipeProduct ?: return
             if (_uiState.value.saving) return
             update { copy(saving = true, sheetError = null) }
             viewModelScope.launch {
