@@ -155,8 +155,10 @@ import com.vaiinilla.app.ui.order.homeDeliveryFee
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.isHomeDelivery
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
+import com.vaiinilla.app.ui.order.pickUpAtBarForOrder
 import com.vaiinilla.app.ui.order.requiresOperationalReady
 import com.vaiinilla.app.ui.order.selectedSpaceName
+import com.vaiinilla.app.ui.order.spaceDelivery
 import com.vaiinilla.app.ui.parentmode.LocalChildControls
 import com.vaiinilla.app.ui.parentmode.dailyLimitLine
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -363,6 +365,7 @@ fun CartScreen(
                                     },
                                     showInSpace = canChooseInSpace,
                                     spaceType = state.checkoutSpace?.type,
+                                    spaceDelivery = state.spaceDelivery,
                                 )
                             }
                         }
@@ -601,7 +604,8 @@ fun CartScreen(
                     walletBalance = walletBalance,
                     payAtEndAvailable = state.canPayAtEnd,
                     cardAvailable = state.canPayWithCard,
-                    toTable = state.checkoutDestination == OrderDestination.IN_SPACE,
+                    // «Pasa por él» (elegido o porque el negocio solo entrega en barra): no se lleva al lugar.
+                    toTable = state.checkoutDestination == OrderDestination.IN_SPACE && !state.pickUpAtBarForOrder,
                     spaceType = state.checkoutSpace?.type,
                     onDismiss = { paymentDialogOpen = false },
                     onSelectPayAtEnd = {

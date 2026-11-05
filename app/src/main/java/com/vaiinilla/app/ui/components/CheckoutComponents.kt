@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 @Composable
@@ -60,6 +61,7 @@ fun CheckoutDestinationPicker(
     modifier: Modifier = Modifier,
     showInSpace: Boolean = true,
     spaceType: String? = null,
+    spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -77,7 +79,7 @@ fun CheckoutDestinationPicker(
         if (showInSpace) {
             DestinationOption(
                 title = SpaceCopy.destinationTitle(spaceType),
-                subtitle = SpaceCopy.destinationSubtitle(spaceType),
+                subtitle = SpaceCopy.destinationSubtitle(spaceType, spaceDelivery),
                 detail = selectedSpaceName.ifBlank { "Dentro del establecimiento" },
                 icon = Icons.Outlined.Restaurant,
                 selected = selected == OrderDestination.IN_SPACE,

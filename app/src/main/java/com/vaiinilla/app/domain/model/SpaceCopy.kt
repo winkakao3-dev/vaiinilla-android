@@ -58,8 +58,16 @@ object SpaceCopy {
             "Tu pedido está listo. Ya va a ${yourPlace(type)}."
         }
 
-    fun destinationSubtitle(type: String?): String =
-        if (type == null) "Te lo llevamos a tu espacio" else "Te lo llevamos a ${yourPlace(type)}"
+    /** Subtítulo de la opción de destino en el carrito. Si el negocio solo entrega en barra, no se lleva al lugar. */
+    fun destinationSubtitle(
+        type: String?,
+        delivery: SpaceDelivery = SpaceDelivery.TABLE,
+    ): String =
+        when {
+            delivery == SpaceDelivery.BAR -> "Pides desde tu lugar y pasas por él a la barra"
+            type == null -> "Te lo llevamos a tu espacio"
+            else -> "Te lo llevamos a ${yourPlace(type)}"
+        }
 
     fun pickPrompt(type: String?): String =
         when (type) {
