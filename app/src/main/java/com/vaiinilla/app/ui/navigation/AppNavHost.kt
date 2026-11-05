@@ -170,6 +170,8 @@ import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screens.rememberReduceMotion
 import com.vaiinilla.app.ui.screens.rememberVenueArt
 import com.vaiinilla.app.ui.screens.scenePaletteForTheme
+import com.vaiinilla.app.ui.sharedtable.SHARED_TABLE_WATCHER_ORDERS
+import com.vaiinilla.app.ui.sharedtable.SHARED_TABLE_WATCHER_PAGE
 import com.vaiinilla.app.ui.sharedtable.SharedTableViewModel
 import com.vaiinilla.app.ui.support.SupportLastOrder
 import com.vaiinilla.app.ui.support.SupportScreen
@@ -1943,8 +1945,8 @@ fun AppNavHost(
 
             composable(Routes.SHARED_TABLE) {
                 WhileStarted(
-                    onStart = sharedTableViewModel::onVisible,
-                    onStop = sharedTableViewModel::onHidden,
+                    onStart = { sharedTableViewModel.onVisible(SHARED_TABLE_WATCHER_PAGE) },
+                    onStop = { sharedTableViewModel.onHidden(SHARED_TABLE_WATCHER_PAGE) },
                 )
                 val tableState = sharedTableViewModel.uiState.value
                 val table = tableState.table
@@ -2461,8 +2463,8 @@ fun AppNavHost(
                             sharedTable = {
                                 // Solo consulta la mesa mientras Mis pedidos está a la vista.
                                 WhileStarted(
-                                    onStart = sharedTableViewModel::onVisible,
-                                    onStop = sharedTableViewModel::onHidden,
+                                    onStart = { sharedTableViewModel.onVisible(SHARED_TABLE_WATCHER_ORDERS) },
+                                    onStop = { sharedTableViewModel.onHidden(SHARED_TABLE_WATCHER_ORDERS) },
                                 )
                                 val spaceToken = orderState.guestVenue?.space?.qrToken
                                 LaunchedEffect(spaceToken) { sharedTableViewModel.watchSpace(spaceToken) }
