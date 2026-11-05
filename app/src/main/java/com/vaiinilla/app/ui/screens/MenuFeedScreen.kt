@@ -713,8 +713,8 @@ private fun OrderPill(
                 .background(Lime)
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
                 .semantics {
-                    contentDescription =
-                        "Pedir: ${state.cartItemCount} artículos, ${moneyLabel(state.cartPreviewTotal)}"
+                    val count = if (state.cartItemCount == 1) "1 artículo" else "${state.cartItemCount} artículos"
+                    contentDescription = "Pedir: $count, ${moneyLabel(state.cartPreviewTotal)}"
                 }.padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),

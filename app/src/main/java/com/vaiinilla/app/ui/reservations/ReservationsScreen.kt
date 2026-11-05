@@ -898,7 +898,8 @@ private fun Summary(
             }
         }
         Text(
-            "Se aparta ${day.holdMinutes} minutos mientras pagas. Si cancelas, lo pagado no se devuelve.",
+            "Se aparta ${if (day.holdMinutes == 1) "1 minuto" else "${day.holdMinutes} minutos"} mientras pagas. " +
+                "Si cancelas, lo pagado no se devuelve.",
             color = colors.muted,
             fontSize = 12.sp,
             lineHeight = 17.sp,

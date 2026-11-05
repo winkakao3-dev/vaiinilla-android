@@ -543,7 +543,7 @@ private fun DailySales(
         AdminPanel(colors) {
             Row(Modifier.fillMaxWidth()) {
                 Text(
-                    "Últimos ${days.size} días",
+                    if (days.size == 1) "Último día" else "Últimos ${days.size} días",
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textMuted,
