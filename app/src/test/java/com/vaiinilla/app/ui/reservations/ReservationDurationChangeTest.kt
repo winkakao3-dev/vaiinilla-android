@@ -83,6 +83,39 @@ class ReservationDurationChangeTest {
         assertEquals(listOf("create ahora 60", "cancel r-1", "create ahora 120"), calls)
     }
 
+    @Test
+    fun `players from the payment sheet swap the hold and keep the time (U03)`() {
+        val viewModel = loadedViewModel()
+        viewModel.rentNow()
+        waitFor { viewModel.uiState.value.pending }
+
+        viewModel.changePendingPlayers(4)
+        val second = waitFor { viewModel.uiState.value.pending?.takeIf { it.players == 4 } }
+        viewModel.changePendingDuration(90)
+        val third = waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        viewModel.onHidden()
+
+        assertEquals(60, second.durationMinutes)
+        // Cambiar el tiempo conserva los jugadores.
+        assertEquals(4, third.players)
+        assertEquals(
+            listOf("create ahora 60", "cancel r-1", "create ahora 60 j4", "cancel r-2", "create ahora 90 j4"),
+            calls,
+        )
+    }
+
+    @Test
+    fun `a new hold does not inherit the players of the previous one`() {
+        val viewModel = loadedViewModel()
+        viewModel.selectPlayers(3)
+
+        viewModel.rentNow()
+        waitFor { viewModel.uiState.value.pending }
+        viewModel.onHidden()
+
+        assertEquals(0, viewModel.uiState.value.players)
+    }
+
     private fun loadedViewModel(): ReservationsViewModel {
         val context: Context = ApplicationProvider.getApplicationContext()
         val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
@@ -170,10 +203,12 @@ class ReservationDurationChangeTest {
             idempotencyKey: String,
             players: Int?,
         ): Result<Reservation> {
-            calls += "create ${start ?: "ahora"} $durationMinutes"
+            calls += "create ${start ?: "ahora"} $durationMinutes" + (players?.let { " j$it" } ?: "")
             if (failNextCreate) return Result.failure(IllegalStateException("Ese horario ya se tomó."))
             created++
-            return Result.success(reservation("r-$created", durationMinutes, ReservationState.PENDING_PAYMENT))
+            return Result.success(
+                reservation("r-$created", durationMinutes, ReservationState.PENDING_PAYMENT).copy(players = players),
+            )
         }
 
         override fun pay(

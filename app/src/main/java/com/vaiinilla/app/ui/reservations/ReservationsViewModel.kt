@@ -294,6 +294,8 @@ class ReservationsViewModel
                                 pendingStartsNow = state.rentNow,
                                 selectedStart = null,
                                 rentNow = false,
+                                // U03: los jugadores ya van en la reserva; la siguiente no hereda el número.
+                                players = 0,
                             )
                         refresh()
                     },
@@ -320,9 +322,26 @@ class ReservationsViewModel
          * aparta otro. Si el nuevo no se logra, la cancha ya quedó libre y se pide elegirla otra vez.
          */
         fun changePendingDuration(minutes: Int) {
+            val reservation = _uiState.value.pending ?: return
+            changePending(minutes, reservation.players)
+        }
+
+        /**
+         * U03: cuántos juegan, desde la hoja de pago («Rentar ahora» aparta sin pasar por el resumen). Como el
+         * tiempo, el servidor no lo edita en un apartado: se suelta y se aparta otro con el mismo horario.
+         */
+        fun changePendingPlayers(players: Int) {
+            val reservation = _uiState.value.pending ?: return
+            changePending(reservation.durationMinutes, players.coerceIn(0, 30).takeIf { it > 0 })
+        }
+
+        private fun changePending(
+            minutes: Int,
+            players: Int?,
+        ) {
             val state = _uiState.value
             val reservation = state.pending ?: return
-            if (state.working || minutes == reservation.durationMinutes) return
+            if (state.working || (minutes == reservation.durationMinutes && players == reservation.players)) return
             val access = reservationAccess ?: return
             _uiState.value = state.copy(working = true, error = null)
             viewModelScope.launch {
@@ -344,7 +363,7 @@ class ReservationsViewModel
                             customerName = null,
                             idempotencyKey = UUID.randomUUID().toString(),
                             // Cambiar el tiempo no borra cuántos juegan.
-                            players = reservation.players,
+                            players = players,
                         )
                     }
                 held.fold(

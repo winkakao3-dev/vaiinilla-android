@@ -46,6 +46,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -141,6 +142,10 @@ fun ReservationsScreen(
     onChangeDuration: (Int) -> Unit = {},
     /** "Tarjeta" solo si el dueño la activó en su panel. */
     cardAvailable: Boolean = false,
+    /** #8: "Saldo" solo si el negocio no lo apagó (`permite_saldo`); el backend lo rechaza si no. */
+    balanceAvailable: Boolean = true,
+    /** U03: cuántos juegan, desde la hoja de pago: suelta el apartado y aparta uno nuevo. */
+    onChangePlayers: (Int) -> Unit = {},
     /** Sin cuenta: se pide el nombre y se entra como invitado antes de ver horarios. */
     onGuestNameChange: (String) -> Unit = {},
     onEnterAsGuest: () -> Unit = {},
@@ -238,6 +243,7 @@ fun ReservationsScreen(
                         onReserve = onReserve,
                         onSelectPlayers = onSelectPlayers,
                         colors = colors,
+                        balanceAvailable = balanceAvailable,
                     )
                 }
             }
@@ -301,10 +307,11 @@ fun ReservationsScreen(
                 error = state.error,
                 // Sin cuenta no hay saldo ni tarjeta: el backend los rechaza para invitados.
                 cardAvailable = cardAvailable && !state.guestMode,
-                balanceAvailable = !state.guestMode,
+                balanceAvailable = balanceAvailable && !state.guestMode,
                 day = day,
                 startsNow = state.pendingStartsNow,
                 onChangeDuration = onChangeDuration,
+                onChangePlayers = onChangePlayers,
             )
         }
     }
@@ -383,6 +390,7 @@ private fun CourtCard(
     onReserve: () -> Unit,
     colors: VaiinillaColors,
     onSelectPlayers: (Int) -> Unit = {},
+    balanceAvailable: Boolean = true,
 ) {
     val selected = court.id == state.selectedCourtId
     val isToday = day.date == day.today
@@ -516,6 +524,7 @@ private fun CourtCard(
                     onReserve = onReserve,
                     onSelectPlayers = onSelectPlayers,
                     colors = colors,
+                    balanceAvailable = balanceAvailable,
                 )
             }
         }
@@ -851,6 +860,8 @@ private fun Summary(
     onReserve: () -> Unit,
     colors: VaiinillaColors,
     onSelectPlayers: (Int) -> Unit = {},
+    /** #8: sin saldo, el precio dice solo «en efectivo». */
+    balanceAvailable: Boolean = true,
 ) {
     val minutes = state.selectedDuration
     val end = minutes?.let { start.plusSeconds(it * 60L) }
@@ -898,7 +909,7 @@ private fun Summary(
                     color = colors.ink,
                 )
                 Text(
-                    "  con efectivo o saldo",
+                    if (balanceAvailable && !state.guestMode) "  con efectivo o saldo" else "  en efectivo",
                     color = colors.muted,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(bottom = 3.dp),
@@ -925,6 +936,9 @@ private fun Summary(
 }
 
 const val RESERVATION_PAY_TAG = "reservation-pay"
+
+/** Cuánto se espera tras el último toque de jugadores antes de volver a apartar. */
+private const val PLAYERS_SETTLE_MS = 700L
 
 /** Boliche: cuántos juegan en la pista, para tenerla lista con sus zapatos. */
 @Composable
@@ -984,8 +998,23 @@ internal fun ReservationPaymentContent(
     /** "Rentar ahora": el tiempo empezó al apartar, no a una hora elegida. */
     startsNow: Boolean = false,
     onChangeDuration: (Int) -> Unit = {},
+    /** U03: boliche, cuántos juegan; null no muestra el stepper. */
+    onChangePlayers: ((Int) -> Unit)? = null,
 ) {
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // Cambiar jugadores vuelve a apartar: los toques se juntan y se manda solo el último.
+    val askPlayers = Venue.isBowling && onChangePlayers != null
+    var players by remember(reservation.id) { mutableIntStateOf(reservation.players ?: 0) }
+    val playersDirty = askPlayers && players != (reservation.players ?: 0)
+    // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
+    LaunchedEffect(working) { if (!working) players = reservation.players ?: 0 }
+    if (askPlayers) {
+        LaunchedEffect(reservation.id, players) {
+            if (players == (reservation.players ?: 0)) return@LaunchedEffect
+            delay(PLAYERS_SETTLE_MS)
+            onChangePlayers?.invoke(players)
+        }
+    }
     LaunchedEffect(reservation.id) {
         while (true) {
             delay(1_000)
@@ -1067,7 +1096,7 @@ internal fun ReservationPaymentContent(
             priceFor = { minutes ->
                 if (minutes == held) heldPrice else hourPrice?.let { ReservationSlots.amountFor(it, minutes) }
             },
-            enabled = !working && !expired,
+            enabled = !working && !expired && !playersDirty,
             onSelect = { minutes ->
                 if (minutes != held) {
                     requested = minutes
@@ -1077,6 +1106,17 @@ internal fun ReservationPaymentContent(
             colors = colors,
             modifier = Modifier.padding(top = 10.dp).arrive(1),
         )
+        if (askPlayers) {
+            // U03: «Rentar ahora» aparta sin pasar por el resumen; aquí se anota cuántos juegan.
+            Box(Modifier.padding(horizontal = 20.dp).arrive(1)) {
+                PlayersRow(
+                    players = players,
+                    enabled = !working && !expired,
+                    onChange = { players = it },
+                    colors = colors,
+                )
+            }
+        }
         ClientCap("Cómo pagas", modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp))
         Column(
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
@@ -1122,13 +1162,13 @@ internal fun ReservationPaymentContent(
         ClientPillButton(
             text =
                 when {
-                    changing -> "Apartando…"
+                    changing || playersDirty -> "Apartando…"
                     working -> "Pagando…"
                     method == ReservationPaymentMethod.CASH -> "Pagar ${moneyLabel(heldPrice)} en caja"
                     else -> "Pagar ${moneyLabel(heldPrice)}"
                 },
             onClick = { onPay(method) },
-            enabled = !working && !expired,
+            enabled = !working && !expired && !playersDirty,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 22.dp).testTag(RESERVATION_PAY_TAG),
         )
     }

@@ -1943,6 +1943,8 @@ internal fun RentalCollectControls(
 ) {
     // Cada cambio vuelve a apartar: los toques del stepper se juntan y se manda solo el último.
     var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
+    // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
+    LaunchedEffect(enabled) { if (enabled) players = rental.players ?: 0 }
     if (onChange != null && Venue.isBowling) {
         LaunchedEffect(rental.id, players) {
             if (players == (rental.players ?: 0)) return@LaunchedEffect

@@ -1369,7 +1369,9 @@ fun AppNavHost(
                     onCancel = reservationsViewModel::cancel,
                     onDismissMessage = reservationsViewModel::dismissMessages,
                     onChangeDuration = reservationsViewModel::changePendingDuration,
+                    onChangePlayers = reservationsViewModel::changePendingPlayers,
                     cardAvailable = orderState.canPayWithCard,
+                    balanceAvailable = orderState.canPayWithBalance,
                     onGuestNameChange = reservationsViewModel::onGuestNameChange,
                     onEnterAsGuest = reservationsViewModel::enterAsGuest,
                     onSignIn =
