@@ -87,6 +87,8 @@ data class CourtDay(
     val courts: List<CourtSchedule>,
     /** El lugar no renta a invitados: hace falta una cuenta (`requiere_cuenta`). */
     val requiresAccount: Boolean = false,
+    /** Día sin servicio (`cerrado`): el servidor lo marca ocupado de punta a punta. */
+    val closed: Boolean = false,
 )
 
 data class Reservation(

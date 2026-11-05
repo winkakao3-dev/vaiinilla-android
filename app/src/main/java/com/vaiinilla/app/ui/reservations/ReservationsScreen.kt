@@ -105,6 +105,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.walletTile
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -234,7 +235,20 @@ fun ReservationsScreen(
                         colors = colors,
                     )
                 }
-                itemsIndexed(day.courts.filter { it.rentable }, key = { _, court -> "court-${court.id}" }) { index, court ->
+                // Un día sin servicio se dice una vez, no «Fuera de horario» en cada pista (en vivo, #16).
+                if (day.closed) {
+                    item(key = "closed-day") {
+                        Text(
+                            closedDayMessage(isToday = day.date == day.today),
+                            color = colors.muted,
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp,
+                            modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp).arrive(2),
+                        )
+                    }
+                }
+                val listed = if (day.closed) emptyList() else day.courts.filter { it.rentable }
+                itemsIndexed(listed, key = { _, court -> "court-${court.id}" }) { index, court ->
                     CourtCard(
                         court = court,
                         day = day,
@@ -456,10 +470,8 @@ private fun CourtCard(
                 modifier = Modifier.weight(1f),
             )
             CourtStatusTag(
-                isToday = isToday,
-                freeNow = canNow,
-                busyNow = busyUntil != null,
-                freeAllDay = court.busy.isEmpty(),
+                status = courtStatus(day = day, court = court, freeNow = canNow),
+                opensAt = day.opensAt.atZone(zone).format(HOUR),
                 colors = colors,
                 modifier = Modifier.padding(start = 10.dp),
             )
@@ -564,12 +576,54 @@ private fun CourtCard(
     }
 }
 
+/** Lo que dice la etiqueta de cada cancha o pista. */
+internal enum class CourtStatus {
+    BUSY,
+    FREE_NOW,
+    BUSY_SOON,
+    CLOSING_SOON,
+    OPENS_LATER,
+    CLOSED_FOR_TODAY,
+    FREE_ALL_DAY,
+    SOME_BUSY,
+}
+
+/**
+ * Hoy: ocupada si alguien la usa ahora; libre si se puede rentar ya; antes de abrir o después de cerrar, el horario;
+ * y dentro del horario sin caber la renta más corta, que se ocupa pronto o que ya va a cerrar. Una ocupada decía
+ * «Fuera de horario» (en vivo, #16).
+ */
+internal fun courtStatus(
+    day: CourtDay,
+    court: CourtSchedule,
+    freeNow: Boolean,
+): CourtStatus {
+    if (day.date != day.today) return if (court.busy.isEmpty()) CourtStatus.FREE_ALL_DAY else CourtStatus.SOME_BUSY
+    return when {
+        ReservationSlots.busyUntil(court, day.now) != null -> CourtStatus.BUSY
+        freeNow -> CourtStatus.FREE_NOW
+        day.now.isBefore(day.opensAt) -> CourtStatus.OPENS_LATER
+        !day.now.isBefore(day.closesAt) -> CourtStatus.CLOSED_FOR_TODAY
+        else -> {
+            val shortest = ReservationSlots.durationsFor(day, court).minOrNull() ?: day.blockMinutes
+            val until = day.now.plus(Duration.ofMinutes(shortest.toLong()))
+            val reservedSoon = court.busy.any { it.start.isAfter(day.now) && it.start.isBefore(until) }
+            if (reservedSoon) CourtStatus.BUSY_SOON else CourtStatus.CLOSING_SOON
+        }
+    }
+}
+
+internal fun closedDayMessage(isToday: Boolean): String =
+    if (isToday) {
+        "Hoy el lugar no abre: no se rentan ${Venue.courts}. Elige otro día para apartar."
+    } else {
+        "Ese día el lugar no abre. Elige otro día para apartar."
+    }
+
 @Composable
 private fun CourtStatusTag(
-    isToday: Boolean,
-    freeNow: Boolean,
-    busyNow: Boolean,
-    freeAllDay: Boolean,
+    status: CourtStatus,
+    opensAt: String,
     colors: VaiinillaColors,
     modifier: Modifier = Modifier,
 ) {
@@ -577,12 +631,15 @@ private fun CourtStatusTag(
     val busy = colors.coral.copy(alpha = 0.14f) to coralInk(colors)
     val quiet = colors.ink.copy(alpha = 0.08f) to colors.muted
     val (label, tone) =
-        when {
-            isToday && busyNow -> "Ocupada" to busy
-            isToday && freeNow -> "Libre ahora" to free
-            isToday -> "Fuera de horario" to quiet
-            freeAllDay -> "Libre todo el día" to free
-            else -> "Con horarios ocupados" to quiet
+        when (status) {
+            CourtStatus.BUSY -> "Ocupada" to busy
+            CourtStatus.FREE_NOW -> "Libre ahora" to free
+            CourtStatus.BUSY_SOON -> "Se ocupa pronto" to busy
+            CourtStatus.CLOSING_SOON -> "Cierra pronto" to quiet
+            CourtStatus.OPENS_LATER -> "Abre a las $opensAt" to quiet
+            CourtStatus.CLOSED_FOR_TODAY -> "Ya cerró por hoy" to quiet
+            CourtStatus.FREE_ALL_DAY -> "Libre todo el día" to free
+            CourtStatus.SOME_BUSY -> "Con horarios ocupados" to quiet
         }
     StatusTag(label = label, background = tone.first, content = tone.second, modifier = modifier)
 }

@@ -83,6 +83,8 @@ data class CourtDayDto(
     @SerialName("requiere_cuenta") val requiereCuenta: Boolean = false,
     /** «boliche» nombra pistas; un servidor anterior no lo manda. */
     @SerialName("tipo_establecimiento") val tipoEstablecimiento: String? = null,
+    /** Día sin servicio; un servidor anterior no lo manda. */
+    val cerrado: Boolean = false,
 )
 
 @Serializable
@@ -250,6 +252,7 @@ private fun CourtDayDto.toDomain(): CourtDay {
         holdMinutes = apartadoMin,
         now = Instant.parse(ahora),
         requiresAccount = requiereCuenta,
+        closed = cerrado,
         courts =
             canchas.map { court ->
                 CourtSchedule(
