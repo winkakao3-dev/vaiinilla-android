@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -130,6 +131,7 @@ private fun WelcomeTopBar(
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
             }
         }
+        // L01: con letra grande la marca se partía («Vaiinill/a.»): va entera en un renglón y lo que cede es el botón.
         Text(
             text = "Vaiinilla.",
             color = colors.ink,
@@ -137,31 +139,37 @@ private fun WelcomeTopBar(
             fontSize = 26.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = (-0.4).sp,
-            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(end = 12.dp),
         )
-        Box(
-            modifier =
-                Modifier
-                    .heightIn(min = 48.dp)
-                    .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onExplore)
-                    .semantics { role = Role.Button },
-            contentAlignment = Alignment.Center,
-        ) {
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             Box(
                 modifier =
                     Modifier
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(colors.paper2)
-                        .padding(horizontal = 14.dp),
+                        .heightIn(min = 48.dp)
+                        .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onExplore)
+                        .semantics { role = Role.Button },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "Ver menús sin cuenta",
-                    color = colors.ink2,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                )
+                Box(
+                    modifier =
+                        Modifier
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(percent = 50))
+                            .background(colors.paper2)
+                            .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Ver menús sin cuenta",
+                        color = colors.ink2,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

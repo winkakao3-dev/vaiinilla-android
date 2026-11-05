@@ -152,6 +152,7 @@ import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartLineTotal
 import com.vaiinilla.app.ui.order.cartTotalFor
+import com.vaiinilla.app.ui.order.cashbackLine
 import com.vaiinilla.app.ui.order.checkoutScheduleProblem
 import com.vaiinilla.app.ui.order.checkoutSpace
 import com.vaiinilla.app.ui.order.checkoutSpaces
@@ -459,6 +460,19 @@ fun CartScreen(
                             )
                         }
                     }
+                    // Con el cashback prendido, cuánto deja este pedido; apagado o sin cuenta no se menciona (24).
+                    val cashback = state.cashbackLine().takeUnless { guestCheckout }
+                    if (cashback != null) {
+                        item(key = "cashback") {
+                            Text(
+                                cashback,
+                                color = colors.ink2,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp),
+                            )
+                        }
+                    }
                     item(key = "limit") {
                         // El alumno con límite diario ve cuánto le queda hoy antes de pagar.
                         dailyLimitLine(
@@ -619,6 +633,7 @@ fun CartScreen(
                     // «Pasa por él» (elegido o porque el negocio solo entrega en barra): no se lleva al lugar.
                     toTable = state.checkoutDestination == OrderDestination.IN_SPACE && !state.pickUpAtBarForOrder,
                     spaceType = state.checkoutSpace?.type,
+                    cashbackLine = state.cashbackLine().takeUnless { guestCheckout },
                     onDismiss = { paymentDialogOpen = false },
                     onSelectPayAtEnd = {
                         paymentDialogOpen = false
@@ -674,6 +689,8 @@ private fun PaymentMethodOverlay(
     /** Comer en la mesa: nadie recoge en barra, se lo llevan. */
     toTable: Boolean = false,
     spaceType: String? = null,
+    /** «Ganas $4.60 de cashback (1%)…»; `null` con el cashback apagado (24). */
+    cashbackLine: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
@@ -835,6 +852,10 @@ private fun PaymentMethodOverlay(
                         },
                     )
                 }
+            }
+
+            cashbackLine?.let {
+                Text(it, color = colors.ink2, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
 
             // Action Button matching reference

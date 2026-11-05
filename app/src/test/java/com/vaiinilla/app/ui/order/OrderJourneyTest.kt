@@ -1,7 +1,9 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderHomeDelivery
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderItemRejection
 import com.vaiinilla.app.domain.model.OrderSpace
@@ -160,6 +162,23 @@ class OrderJourneyTest {
         val unpaidPreorder = canceled.copy(answerBy = Instant.parse("2026-11-03T23:30:00Z"))
         assertEquals("No te cobramos nada", journeyMoneyBack(unpaidPreorder))
         assertTrue(journeyFacts(unpaidPreorder, OrderJourney.HOME_DELIVERY).none { it.label == "Pagaste el anticipo" })
+    }
+
+    @Test
+    fun aCashHomeOrderSaysWhatIsPaidAtTheDoorNotThatItWasPaid() {
+        // S01: decía «Pagaste en efectivo $460» antes de pagar.
+        val cash = order(OrderState.PAID, PaymentMethod.CASH, home = true)
+        val atDoor =
+            cash.copy(
+                homeDelivery =
+                    OrderHomeDelivery(
+                        address = DeliveryAddress(address = "Av. Siempre Viva 742", phone = "5512345678"),
+                        dueOnArrival = "460.00",
+                    ),
+            )
+        val facts = journeyFacts(atDoor, OrderJourney.HOME_DELIVERY)
+        assertTrue(facts.none { it.label == "Pagaste en efectivo" })
+        assertEquals(JourneyFact("Pagas al recibir", moneyLabel("460.00"), FactTone.DUE), facts.last())
     }
 
     @Test

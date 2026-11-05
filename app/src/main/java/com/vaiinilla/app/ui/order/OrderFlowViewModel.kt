@@ -41,6 +41,7 @@ import com.vaiinilla.app.domain.model.StripePaymentStatus
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
+import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
@@ -93,6 +94,8 @@ class OrderFlowViewModel
         private val orderRepository: OrderRepository,
         private val lastOrderedPlaces: LastOrderedPlaceStore,
         private val sharedTables: SharedTableRepository,
+        /** Solo para leer la regla de cashback (`GET wallets/reglas-cashback`, que el cliente también puede leer). */
+        private val cashbackRules: AdminStoreRepository,
     ) : ViewModel() {
         private val _uiState =
             mutableStateOf(
@@ -367,7 +370,22 @@ class OrderFlowViewModel
                         operationalStatus = statusResult.getOrNull(),
                         errorMessage = errorMessage,
                     )
+                refreshCashbackRule(venueId = null)
             }
+        }
+
+        /**
+         * El carrito y la hoja de pago dicen cuánto cashback deja el pedido (24). Sin regla, sin permiso (invitado) o
+         * sin red queda `null` y no se menciona. [venueId] evita guardar la regla de un negocio que ya se dejó.
+         */
+        private suspend fun refreshCashbackRule(venueId: String?) {
+            val rule = withContext(Dispatchers.IO) { cashbackRules.cashbackRule() }.getOrNull()
+            val currentVenue =
+                _uiState.value.guestVenue
+                    ?.establishment
+                    ?.id
+            if (venueId != null && currentVenue != venueId) return
+            _uiState.value = _uiState.value.copy(cashbackRule = rule?.takeIf { it.active })
         }
 
         /**
@@ -475,6 +493,7 @@ class OrderFlowViewModel
                     return@launchTracked
                 }
                 _uiState.value = _uiState.value.copy(operationalStatus = status)
+                refreshCashbackRule(venueId = venue.establishment.id)
             }
             reconcileCartWithCatalog()
         }

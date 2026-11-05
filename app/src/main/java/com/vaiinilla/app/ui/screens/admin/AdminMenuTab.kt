@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -391,7 +391,8 @@ private fun MenuList(
                             AdminSecondaryButton(
                                 "Restaurar",
                                 colors,
-                                Modifier.width(102.dp),
+                                // L01: ancho mínimo, no fijo: con letra grande «Restaurar» ya no se corta.
+                                Modifier.widthIn(min = 102.dp),
                                 filled = true,
                                 enabled = !readOnly && !saving,
                             ) {
