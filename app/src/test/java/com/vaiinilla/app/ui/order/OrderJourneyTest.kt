@@ -2,10 +2,13 @@ package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
+import com.vaiinilla.app.domain.model.OrderItemRejection
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.ui.components.moneyLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -171,6 +174,57 @@ class OrderJourneyTest {
         val unpaid = noAnswer.copy(summary = noAnswer.summary.copy(cancelReasonCode = "anticipo_sin_pagar"))
         assertEquals("Venció el plazo de pago", journeyCaption(unpaid, OrderJourney.HOME_DELIVERY).text)
         assertTrue(journeyHeadline(unpaid, OrderJourney.HOME_DELIVERY).startsWith("Se pasó el plazo para pagar tu "))
+    }
+
+    @Test
+    fun removingAnItemFromAnUnpaidOrderPromisesNoRefund() {
+        // G07: Caja quita un artículo de un pedido que aún no se paga. No hay nada que regresar.
+        val tab =
+            withRejection(order(OrderState.PREPARING, PaymentMethod.CASH, space = "cancha")).let {
+                it.copy(summary = it.summary.copy(payAtEnd = true, paymentPending = true, amountPaid = "0.00"))
+            }
+        assertTrue(journeyFacts(tab, OrderJourney.COURT_FOOD).none { it.label == "Te regresamos" })
+        assertTrue(journeyFacts(tab, OrderJourney.COURT_FOOD).any { it.label == "Ya no se cobra" })
+        assertEquals("Lo que no se pudo ya no cuenta en tu total.", journeyLead(tab, OrderJourney.COURT_FOOD))
+
+        val cash =
+            withRejection(order(OrderState.PREPARING, PaymentMethod.CASH)).let {
+                it.copy(summary = it.summary.copy(amountPaid = "0.00", balanceDue = "10.00"))
+            }
+        val cashFacts = journeyFacts(cash, OrderJourney.COUNTER)
+        assertTrue(cashFacts.none { it.label == "Te regresamos" || it.label == "Pagaste en efectivo" })
+        assertTrue(cashFacts.any { it.label == "Total a pagar en Caja" })
+
+        val paid =
+            withRejection(order(OrderState.PREPARING)).let {
+                it.copy(summary = it.summary.copy(amountPaid = "10.00"))
+            }
+        assertTrue(journeyFacts(paid, OrderJourney.COUNTER).any { it.label == "Te regresamos" })
+        assertEquals(
+            "Te regresamos ${moneyLabel("25.00")} a tu cartera Vaiinilla. No tienes que hacer nada.",
+            journeyLead(paid, OrderJourney.COUNTER),
+        )
+    }
+
+    private fun withRejection(order: OrderDetail): OrderDetail {
+        val item =
+            OrderItem(
+                id = 1,
+                productId = 1,
+                productName = "Papas",
+                preparationStation = PreparationStation.KITCHEN,
+                quantity = 1,
+                unitDigitalPrice = "25.00",
+                subtotal = "25.00",
+                options = emptyList(),
+            )
+        return order.copy(
+            items =
+                listOf(
+                    item.copy(rejection = OrderItemRejection(reason = "Se acabó", amount = "25.00")),
+                    item.copy(id = 2, productName = "Refresco", subtotal = "10.00"),
+                ),
+        )
     }
 
     private fun order(
