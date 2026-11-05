@@ -1,6 +1,8 @@
 package com.vaiinilla.app
 
 import com.vaiinilla.app.data.inventory.InventoryProduct
+import com.vaiinilla.app.data.inventory.InventorySupply
+import com.vaiinilla.app.data.inventory.InventoryUnit
 import com.vaiinilla.app.data.inventory.decodeSupplyProducts
 import com.vaiinilla.app.data.inventory.encodeSupplyProducts
 import com.vaiinilla.app.domain.model.Category
@@ -8,6 +10,7 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.screens.admin.matchingMenuProducts
 import com.vaiinilla.app.ui.screens.admin.usesPicker
+import com.vaiinilla.app.ui.screens.admin.zeroStockWarning
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.int
@@ -98,6 +101,26 @@ class SupplyProductsTest {
         val products = (1..8).map { inventory(it, "Papas $it", "Botanas") }
         assertEquals(5, matchingMenuProducts("pa", products).size)
     }
+    @Test
+    fun `avisa solo de lineas siempre con insumos en cero`() {
+        val supplies = listOf(supply(1, "Papa", 0.0), supply(2, "Queso", 0.0), supply(3, "Sal", 2.0))
+        val warning = zeroStockWarning(listOf(1L to null, 2L to 7, 3L to null), supplies)
+        assertEquals(
+            "En cero: Papa. Al guardar, este producto se agota en el menú hasta que registres una entrada.",
+            warning,
+        )
+    }
+
+    @Test
+    fun `sin insumos en cero no avisa`() {
+        assertNull(zeroStockWarning(listOf(3L to null), listOf(supply(3, "Sal", 2.0))))
+    }
+
+    private fun supply(
+        id: Long,
+        name: String,
+        stock: Double,
+    ) = InventorySupply(id, name, null, InventoryUnit.GRAM, stock, 0.0, 0.0, 0.0, false, true, 0)
     private fun inventory(
         id: Int,
         name: String,

@@ -221,6 +221,7 @@ internal fun InventoryRecipeSheetHost(
             onDismiss = viewModel::closeRecipe,
             onRetry = { viewModel.openRecipe(product) },
             onSave = viewModel::saveRecipe,
+            onCreateSupply = viewModel::createSupplyForRecipe,
         )
     }
 }
@@ -871,6 +872,12 @@ private fun RecipeSheet(
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
     onSave: (List<RecipeLine>) -> Unit,
+    onCreateSupply: (
+        name: String,
+        unit: InventoryUnit,
+        stock: Double?,
+        onCreated: (InventorySupply) -> Unit,
+    ) -> Unit,
 ) {
     val loaded = state.recipe
     val draft = remember(product.id, loaded) { mutableStateListOf<DraftLine>() }
@@ -988,44 +995,32 @@ private fun RecipeSheet(
                             }
                         }
                     }
-                    Text("Elige el insumo", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.textPrimary)
-                    if (supplies.isEmpty()) {
-                        AdminHint("Primero da de alta insumos en Existencias.", colors)
-                    }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        supplies
-                            .filter { s -> draft.none { it.supplyId == s.id && it.optionId == addOption?.first } }
-                            .sortedBy { it.name.lowercase() }
-                            .forEach { s ->
-                                ChipButton(s.name, true, colors) {
-                                    draft.add(
-                                        DraftLine(
-                                            s.id,
-                                            s.name,
-                                            s.unit,
-                                            addOption?.first,
-                                            addOption?.second?.substringAfter(": "),
-                                            if (s.unit == InventoryUnit.PIECE ||
-                                                s.unit == InventoryUnit.BOTTLE
-                                            ) {
-                                                "1"
-                                            } else {
-                                                ""
-                                            },
-                                        ),
-                                    )
-                                    adding = false
-                                }
+                    RecipeSupplyPicker(
+                        available =
+                            supplies.filter { s ->
+                                draft.none { it.supplyId == s.id && it.optionId == addOption?.first }
+                            },
+                        known = state.supplies?.supplies.orEmpty(),
+                        saving = state.saving,
+                        colors = colors,
+                        onPick = { s ->
+                            draft.add(recipeDraftLine(s, addOption))
+                            adding = false
+                        },
+                        onCreate = { name, unit, stock ->
+                            onCreateSupply(name, unit, stock) { created ->
+                                draft.add(recipeDraftLine(created, addOption))
+                                adding = false
                             }
-                    }
-                    AdminSecondaryButton(title = "Cancelar", colors = colors) { adding = false }
-                }
+                        },
+                        onCancel = { adding = false },
+                    )                }
             }
             val parsed = draft.map { it to parseQuantity(it.quantity) }
             val valid = parsed.all { (_, q) -> q != null && q >= MIN_QUANTITY }
+            AdminSheetError(
+                zeroStockWarning(draft.map { it.supplyId to it.optionId }, state.supplies?.supplies.orEmpty()),
+            )
             AdminSheetError(
                 state.sheetError ?: if (!valid) "Cada insumo necesita una cantidad de al menos 0.001." else null,
             )
@@ -1093,6 +1088,118 @@ private fun localTime(iso: String): String =
             )
     }.getOrDefault(iso.take(16).replace('T', ' '))
 
+/** Una línea nueva de la receta; lo que se cuenta por pieza o botella ya trae 1. */
+private fun recipeDraftLine(
+    supply: InventorySupply,
+    option: Pair<Int, String>?,
+) = DraftLine(
+    supply.id,
+    supply.name,
+    supply.unit,
+    option?.first,
+    option?.second?.substringAfter(": "),
+    if (supply.unit == InventoryUnit.PIECE || supply.unit == InventoryUnit.BOTTLE) "1" else "",
+)
+
+/**
+ * El aviso antes de guardar una receta con insumos en cero. Solo cuentan las líneas «Siempre»: con ellas el servidor
+ * calcula para cuántos alcanza, y en cero agota el producto en el menú.
+ */
+internal fun zeroStockWarning(
+    lines: List<Pair<Long, Int?>>,
+    supplies: List<InventorySupply>,
+): String? {
+    val names =
+        lines
+            .filter { (_, optionId) -> optionId == null }
+            .mapNotNull { (supplyId, _) -> supplies.firstOrNull { it.id == supplyId && it.stock <= 0.0 }?.name }
+            .distinct()
+    if (names.isEmpty()) return null
+    return "En cero: ${names.joinToString(", ")}. Al guardar, este producto se agota en el menú hasta que registres " +
+        "una entrada."
+}
+
+/** El panel «Agregar insumo» de la receta: un solo campo para buscar entre los que hay o crear el que falta. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecipeSupplyPicker(
+    available: List<InventorySupply>,
+    known: List<InventorySupply>,
+    saving: Boolean,
+    colors: OperationalColors,
+    onPick: (InventorySupply) -> Unit,
+    onCreate: (name: String, unit: InventoryUnit, stock: Double?) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    var unit by remember { mutableStateOf(InventoryUnit.PIECE) }
+    var stock by remember { mutableStateOf("") }
+    val needle = query.normalizeForSearch()
+    val visible =
+        available
+            .map { it to it.name.normalizeForSearch() }
+            .filter { (_, name) -> needle in name }
+            .sortedBy { (_, name) -> name }
+            .map { (supply, _) -> supply }
+    val sameName = known.firstOrNull { it.name.normalizeForSearch() == needle }
+    val canCreate = needle.isNotEmpty() && sameName == null
+    val stockInvalid = stock.isNotBlank() && parseQuantity(stock) == null
+
+    AdminTextField("Busca o crea un insumo", query, { query = it }, colors, placeholder = "Papa, Clamato, Corona…")
+    when {
+        known.isEmpty() && needle.isEmpty() ->
+            AdminHint("Aún no hay insumos. Escribe el nombre del primero para crearlo.", colors)
+        sameName != null && !sameName.active ->
+            AdminHint("Ya existe y está inactivo. Actívalo en Existencias para usarlo.", colors)
+        sameName != null && sameName !in available -> AdminHint("Ya está en esta receta.", colors)
+    }
+    if (visible.isNotEmpty()) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            visible.forEach { supply ->
+                ChipButton(supply.name, true, colors) { onPick(supply) }
+            }
+        }
+    }
+    AnimatedVisibility(
+        visible = canCreate,
+        enter = expandVertically(spring()) + fadeIn(spring()),
+        exit = shrinkVertically(spring()) + fadeOut(spring()),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            AdminChoice(
+                question = "¿En qué se cuenta ${query.trim()}?",
+                options = InventoryUnit.entries.map { it to it.label },
+                selected = unit,
+                colors = colors,
+                enabled = !saving,
+            ) { unit = it }
+            AdminTextField(
+                "Hay ahorita (${unit.short})",
+                stock,
+                { stock = it },
+                colors,
+                keyboardType = KeyboardType.Decimal,
+                placeholder = "0",
+            )
+            if (stockInvalid) AdminSheetError("Revisa la existencia: escribe 1500 o 1.5 (sin comas de miles).")
+            AdminHint(
+                "Queda disponible para tus otros productos. El mínimo y el costo se ponen en Existencias.",
+                colors,
+            )
+            AdminSecondaryButton(
+                title = "Crear y agregar",
+                colors = colors,
+                outlined = true,
+                icon = Icons.Outlined.Add,
+                enabled = !saving && !stockInvalid,
+            ) { onCreate(query.trim(), unit, parseQuantity(stock)) }
+        }
+    }
+    AdminSecondaryButton(title = "Cancelar", colors = colors, onClick = onCancel)
+}
 /** Bajo el Nombre de un insumo nuevo: los productos del menú que coinciden, para ir directo a sus insumos. */
 @Composable
 private fun MenuProductMatches(
