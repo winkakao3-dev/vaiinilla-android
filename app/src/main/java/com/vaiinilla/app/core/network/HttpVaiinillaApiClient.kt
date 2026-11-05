@@ -505,7 +505,7 @@ class HttpVaiinillaApiClient
             const val CONNECT_TIMEOUT_MS = 15_000
             const val READ_TIMEOUT_MS = 20_000
             const val MULTIPART_READ_TIMEOUT_MS = 60_000
-            const val SLOW_READ_TIMEOUT_MS = 55_000
+            const val SLOW_READ_TIMEOUT_MS = 60_000
             const val SLOW_PATH = "establecimiento/asistente"
         }
     }
