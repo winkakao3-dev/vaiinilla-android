@@ -1436,41 +1436,50 @@ private fun FlowForm(
         }
         val fund = flow.suggestedFloat
         val phone = flow.contactPhone
-        if (fund != null || phone != null) {
-            StoreQuestion("Caja y contacto", colors, Modifier.padding(top = 18.dp))
-            AdminPanel(colors) {
-                if (fund != null) {
-                    AdminTextField(
-                        label = "Fondo sugerido para abrir caja",
-                        value = fund,
-                        onValueChange = { flow = flow.copy(suggestedFloat = it.take(12)) },
-                        colors = colors,
-                        placeholder = "500",
-                        keyboardType = KeyboardType.Decimal,
-                        enabled = enabled,
-                        prefix = "$",
+        // El teléfono siempre tiene su lugar: si el servidor aún no lo guarda se dice, en vez de no enseñar nada
+        // (en vivo, Z05: «no hay dónde ver ni guardar el teléfono»).
+        StoreQuestion("Caja y contacto", colors, Modifier.padding(top = 18.dp))
+        AdminPanel(colors) {
+            if (phone == null) {
+                Box(Modifier.padding(bottom = if (fund != null) 14.dp else 0.dp)) {
+                    AdminHint(
+                        "Teléfono de contacto: tu servidor todavía no lo guarda. Aparecerá aquí para editarlo en " +
+                            "cuanto se actualice.",
+                        colors,
                     )
-                    Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
-                        AdminHint(
-                            "Caja lo ve ya escrito al abrir el turno. Déjalo vacío si cambia cada día.",
-                            colors,
-                        )
-                    }
                 }
-                if (phone != null) {
-                    AdminTextField(
-                        label = "Teléfono de contacto",
-                        value = phone,
-                        onValueChange = { flow = flow.copy(contactPhone = it.take(20)) },
-                        colors = colors,
-                        modifier = if (fund != null) Modifier.padding(top = 14.dp) else Modifier,
-                        placeholder = "55 1234 5678",
-                        keyboardType = KeyboardType.Phone,
-                        enabled = enabled,
+            }
+            if (fund != null) {
+                AdminTextField(
+                    label = "Fondo sugerido para abrir caja",
+                    value = fund,
+                    onValueChange = { flow = flow.copy(suggestedFloat = it.take(12)) },
+                    colors = colors,
+                    placeholder = "500",
+                    keyboardType = KeyboardType.Decimal,
+                    enabled = enabled,
+                    prefix = "$",
+                )
+                Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
+                    AdminHint(
+                        "Caja lo ve ya escrito al abrir el turno. Déjalo vacío si cambia cada día.",
+                        colors,
                     )
-                    Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
-                        AdminHint("Aparece en tu ficha pública para que tus clientes te llamen.", colors)
-                    }
+                }
+            }
+            if (phone != null) {
+                AdminTextField(
+                    label = "Teléfono de contacto",
+                    value = phone,
+                    onValueChange = { flow = flow.copy(contactPhone = it.take(20)) },
+                    colors = colors,
+                    modifier = if (fund != null) Modifier.padding(top = 14.dp) else Modifier,
+                    placeholder = "55 1234 5678",
+                    keyboardType = KeyboardType.Phone,
+                    enabled = enabled,
+                )
+                Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
+                    AdminHint("Aparece en tu ficha pública para que tus clientes te llamen.", colors)
                 }
             }
         }
