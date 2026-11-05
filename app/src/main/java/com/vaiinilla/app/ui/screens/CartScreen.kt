@@ -148,6 +148,7 @@ import com.vaiinilla.app.ui.order.asksSpaceDelivery
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canDeliverHome
 import com.vaiinilla.app.ui.order.canPayAtEnd
+import com.vaiinilla.app.ui.order.canPayAtRegister
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartLineTotal
@@ -636,6 +637,7 @@ fun CartScreen(
                     walletBalance = walletBalance,
                     payAtEndAvailable = state.canPayAtEnd,
                     cardAvailable = state.canPayWithCard,
+                    cashAvailable = state.canPayAtRegister,
                     // «Pasa por él» (elegido o porque el negocio solo entrega en barra): no se lleva al lugar.
                     toTable = state.checkoutDestination == OrderDestination.IN_SPACE && !state.pickUpAtBarForOrder,
                     spaceType = state.checkoutSpace?.type,
@@ -692,6 +694,8 @@ private fun PaymentMethodOverlay(
     onSelect: (PaymentMethod) -> Unit,
     /** "Pago con Stripe" solo si el dueño activó la tarjeta en su panel (el cobro sigue intacto). */
     cardAvailable: Boolean = false,
+    /** «Pago en caja» solo si el dueño no lo apagó (`permite_pago_en_caja`). */
+    cashAvailable: Boolean = true,
     /** Comer en la mesa: nadie recoge en barra, se lo llevan. */
     toTable: Boolean = false,
     spaceType: String? = null,
@@ -702,7 +706,7 @@ private fun PaymentMethodOverlay(
     // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
     val initialAllowed =
         when (initialMethod) {
-            PaymentMethod.CASH -> true
+            PaymentMethod.CASH -> cashAvailable
             PaymentMethod.BALANCE -> showBalance && balanceAffordable
             PaymentMethod.STRIPE -> cardAvailable
         }
@@ -811,19 +815,21 @@ private fun PaymentMethodOverlay(
                         },
                     )
                 }
-                PaymentMethodCardOption(
-                    icon = Icons.Outlined.Payments,
-                    title = "Pago en caja",
-                    subtitle =
-                        if (toTable) SpaceCopy.payAtCashierHint(spaceType) else "Pagas en caja antes de recogerlo",
-                    selected = selectedMethod == PaymentMethod.CASH,
-                    enabled = !selectionLocked,
-                    onClick = {
-                        selectionTouched = true
-                        payAtEndSelected = false
-                        selectedMethod = PaymentMethod.CASH
-                    },
-                )
+                if (cashAvailable) {
+                    PaymentMethodCardOption(
+                        icon = Icons.Outlined.Payments,
+                        title = "Pago en caja",
+                        subtitle =
+                            if (toTable) SpaceCopy.payAtCashierHint(spaceType) else "Pagas en caja antes de recogerlo",
+                        selected = selectedMethod == PaymentMethod.CASH,
+                        enabled = !selectionLocked,
+                        onClick = {
+                            selectionTouched = true
+                            payAtEndSelected = false
+                            selectedMethod = PaymentMethod.CASH
+                        },
+                    )
+                }
                 // El saldo es de la cuenta: un invitado no lo ve.
                 if (showBalance) {
                     PaymentMethodCardOption(

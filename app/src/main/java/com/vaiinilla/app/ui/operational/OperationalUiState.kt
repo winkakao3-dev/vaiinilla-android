@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
+import com.vaiinilla.app.data.cashcut.DayCut
+import com.vaiinilla.app.data.cashcut.PaymentLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -65,6 +67,8 @@ data class OperationalUiState(
     val unsyncedOfflineCash: Int = 0,
     /** Hoja «Movimientos del cajón» y desglose del cierre: el resumen y los renglones de la sesión abierta. */
     val cashDrawer: CashDrawerUi = CashDrawerUi(),
+    /** «Cobrado hoy» con todos los métodos (GET /sesiones-caja/cortes); null hasta que llega o si falla. */
+    val collectedToday: CollectedToday? = null,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
@@ -219,3 +223,24 @@ internal fun OperationalUiState.keepKnownStaffState(
         lastRefreshOk = if (restoreOrders && lastRefreshOk == null) known.lastRefreshOk else lastRefreshOk,
         lastSyncedAt = lastSyncedAt ?: known.lastSyncedAt,
     )
+
+/** Lo cobrado en el día con todos los métodos, y por método lo que sí tuvo algo. */
+data class CollectedToday(
+    val total: String,
+    val payments: List<PaymentLine>,
+) {
+    /** «Efectivo $820 · Tarjeta $410 · Saldo $95», del método con más a menos; null si no hay desglose. */
+    fun breakdownLine(money: (String) -> String): String? =
+        payments
+            .sortedByDescending { it.amount.toBigDecimalOrNull() }
+            .joinToString(" · ") { "${it.label} ${money(it.amount)}" }
+            .ifBlank { null }
+
+    companion object {
+        fun of(cut: DayCut): CollectedToday =
+            CollectedToday(
+                total = cut.breakdown.summary.sales,
+                payments = cut.breakdown.payments.filter { (it.amount.toBigDecimalOrNull()?.signum() ?: 0) > 0 },
+            )
+    }
+}

@@ -117,6 +117,8 @@ class AdminBusinessJson {
             put("entrega_requiere_qr", flow.deliveryRequiresQr)
             put("permite_pago_al_final", flow.allowsPayAtEnd)
             put("permite_saldo", flow.allowsBalance)
+            // Solo si el servidor lo conoce: uno anterior rechaza la clave.
+            flow.allowsCashAtRegister?.let { put("permite_pago_en_caja", it) }
             put("gracia_liberacion_min", flow.releaseGraceMinutes)
             put("cocina_prepara_sin_cobrar", flow.kitchenPreparesUnpaid)
             // Solo si el servidor lo conoce: uno anterior rechaza la clave.
@@ -454,6 +456,7 @@ private data class StoreConfigDto(
     @SerialName("entrega_requiere_qr") val entregaRequiereQr: Boolean = true,
     @SerialName("permite_pago_al_final") val permitePagoAlFinal: Boolean = false,
     @SerialName("permite_saldo") val permiteSaldo: Boolean = true,
+    @SerialName("permite_pago_en_caja") val permitePagoEnCaja: Boolean? = null,
     @SerialName("gracia_liberacion_min") val graciaLiberacionMin: Int = 5,
     @SerialName("franjas_pedido") val franjasPedido: List<WindowDto> = emptyList(),
     @SerialName("videos_local") val videosLocal: List<VideoDto> = emptyList(),
@@ -488,6 +491,7 @@ private data class StoreConfigDto(
             deliveryRequiresQr = entregaRequiereQr,
             allowsPayAtEnd = permitePagoAlFinal,
             allowsBalance = permiteSaldo,
+            allowsCashAtRegister = permitePagoEnCaja,
             releaseGraceMinutes = graciaLiberacionMin,
             orderWindows = franjasPedido.map { OrderWindow(it.desde.take(5), it.hasta.take(5)) },
             videos = videosLocal.map { StoreVideo(it.titulo, it.url) },

@@ -23,6 +23,8 @@ data class OperationalStatus(
     val acceptsCard: Boolean = false,
     /** Si es false, el dueño apagó los pagos con saldo: el servidor rechaza `metodo_pago: saldo`. */
     val allowsBalance: Boolean = true,
+    /** Si es false, el cliente no puede elegir «Pago en caja»: POST /pedidos responde CASH_AT_REGISTER_NOT_ALLOWED. */
+    val allowsCashAtRegister: Boolean = true,
     /** Lo que el dueño dice que es el negocio (`drive_thru`, `restaurante`, `padel`…). */
     val businessType: String = "cafeteria",
     /** Franjas en las que se reciben pedidos; vacía = sin límite. */

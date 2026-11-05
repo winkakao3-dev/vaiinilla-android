@@ -1382,6 +1382,18 @@ private fun FlowForm(
                 detail = "El cliente usa su wallet al pagar",
                 enabled = enabled,
             )
+            // Un servidor anterior no lo conoce: no se ofrece (el guardado lo rechazaría).
+            flow.allowsCashAtRegister?.let { cashAtRegister ->
+                AdminRowDivider(colors)
+                AdminToggleRow(
+                    title = "Pago en caja",
+                    checked = cashAtRegister,
+                    colors = colors,
+                    onChange = { flow = flow.copy(allowsCashAtRegister = it) },
+                    detail = "El cliente pide en la app y paga en efectivo en caja",
+                    enabled = enabled,
+                )
+            }
         }
         AdminPanel(
             colors,

@@ -189,6 +189,8 @@ data class StoreConfig(
     val contactPhone: String? = null,
     /** Pausar pedidos y reservas si el local se queda sin internet; null si el servidor no lo conoce. */
     val pauseWhenOffline: Boolean? = null,
+    /** «Pago en caja» desde la app (`permite_pago_en_caja`); null si el servidor no lo conoce. */
+    val allowsCashAtRegister: Boolean? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -205,6 +207,7 @@ data class StoreConfig(
             suggestedFloat = suggestedFloat,
             contactPhone = contactPhone,
             pauseWhenOffline = pauseWhenOffline,
+            allowsCashAtRegister = allowsCashAtRegister,
             // asistente_modo no va en cada guardado: solo cuando el dueño lo cambia (si no, pisaría lo que Vaiinilla
             // cambió mientras tanto, y un servidor sin la migración 180 rechazaría todo el flujo).
         )
@@ -229,6 +232,8 @@ data class StoreFlow(
     val contactPhone: String? = null,
     /** null: el servidor no lo conoce y no se envía. */
     val pauseWhenOffline: Boolean? = null,
+    /** «Pago en caja» desde la app. null: el servidor no lo conoce y no se envía. */
+    val allowsCashAtRegister: Boolean? = null,
 ) {
     fun applying(template: StoreTemplate): StoreFlow =
         copy(

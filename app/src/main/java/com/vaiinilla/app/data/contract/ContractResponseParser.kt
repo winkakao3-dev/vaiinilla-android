@@ -59,6 +59,7 @@ class ContractResponseParser
                 spaceDelivery = SpaceDelivery.fromWire(envelope.data.spaceDelivery),
                 acceptsCard = envelope.data.acceptsCard,
                 allowsBalance = envelope.data.allowsBalance,
+                allowsCashAtRegister = envelope.data.allowsCashAtRegister,
                 businessType = envelope.data.businessType,
                 orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
                 withinOrderWindow = envelope.data.withinOrderWindow,
