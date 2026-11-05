@@ -85,6 +85,8 @@ data class OrderHomeDelivery(
     val deposit: String? = null,
     /** Lo que se cobra en la puerta; "0.00" si ya está pagado. */
     val dueOnArrival: String? = null,
+    /** Con qué se cobró en la puerta (`efectivo`, `terminal`, `transferencia`…); null si aún no. */
+    val collectedAtDoorMethod: String? = null,
     /** Los 4 dígitos que el cliente dicta al recibir: solo le llegan a él y desde `en_camino`. */
     val code: String? = null,
     /** Quien lo lleva. El servidor aún no lo manda: sin nombre se dice «quien te lo lleve». */

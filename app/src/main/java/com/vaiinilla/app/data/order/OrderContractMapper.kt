@@ -161,6 +161,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     fee = deliveryFee?.flexibleText(),
                     deposit = deposit?.flexibleText(),
                     dueOnArrival = dueOnArrival?.flexibleText(),
+                    collectedAtDoorMethod = collectedAtDoor?.method?.trim()?.takeIf { it.isNotEmpty() },
                     code = deliveryCode?.flexibleText(),
                     courierName = courierName?.trim()?.takeIf { it.isNotEmpty() },
                 )

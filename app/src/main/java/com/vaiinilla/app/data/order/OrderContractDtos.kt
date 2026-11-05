@@ -253,11 +253,19 @@ data class OrderDetailDto(
     @SerialName("costo_envio") val deliveryFee: JsonPrimitive? = null,
     @SerialName("anticipo") val deposit: JsonPrimitive? = null,
     @SerialName("por_cobrar_al_entregar") val dueOnArrival: JsonPrimitive? = null,
+    /** Con qué se cobró en la puerta; null si aún no se cobra o un servidor anterior no lo envía (R39). */
+    @SerialName("cobrado_al_entregar") val collectedAtDoor: CollectedAtDoorDto? = null,
     @SerialName("codigo_entrega") val deliveryCode: JsonPrimitive? = null,
     @SerialName("repartidor_nombre") val courierName: String? = null,
     /** Plazos de un encargo (EQUIPO-53); un servidor anterior no los envía. */
     @SerialName("aceptar_antes_de") val answerBy: String? = null,
     @SerialName("pagar_antes_de") val payBy: String? = null,
+)
+
+@Serializable
+data class CollectedAtDoorDto(
+    @SerialName("metodo") val method: String? = null,
+    @SerialName("en") val at: String? = null,
 )
 
 @Serializable

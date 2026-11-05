@@ -21,6 +21,7 @@ fun paymentWireLabel(method: String): String =
         "saldo" -> "Saldo"
         "stripe" -> "Tarjeta"
         "mixto" -> "Mixto"
+        "transferencia" -> "Transferencia"
         else -> method.replaceFirstChar { it.uppercase() }
     }
 

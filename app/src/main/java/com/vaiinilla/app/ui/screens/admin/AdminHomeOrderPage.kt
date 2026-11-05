@@ -67,6 +67,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.paymentWireLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -499,7 +500,8 @@ private fun DeliveredAndPaid(
             .toBigDecimalOrNull()
             ?.minus(deposit?.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO)
             ?.takeIf { it.signum() > 0 && deposit != null }
-    val method = order.summary.chargedMethod?.lowercase()
+    // El método de la puerta, no el agregado del pedido: con anticipo y cobro en la puerta siempre es «mixto» (R39).
+    val method = home?.collectedAtDoorMethod?.let(::paymentWireLabel)
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
         contentPadding =
