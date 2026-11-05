@@ -1618,14 +1618,16 @@ private fun WaiterTile(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Box(Modifier.size(7.dp).clip(CircleShape).background(tone))
+                // L01: con letra grande «POR PREPARAR» se cortaba: se encoge y, si no, pasa a dos renglones.
                 Text(
                     status.label,
                     color = tone,
                     fontWeight = FontWeight.Black,
-                    fontSize = 11.5.sp,
                     letterSpacing = 0.6.sp,
-                    maxLines = 1,
+                    lineHeight = 13.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.5.sp, stepSize = 0.5.sp),
                 )
             }
             status.detail?.let {
