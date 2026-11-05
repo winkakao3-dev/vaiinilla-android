@@ -757,6 +757,18 @@ internal fun WaiterSpaceSection(
                         }
                     }
                     if (confirmingRelease) {
+                        // #19: antes de liberar se dice qué pasa con lo pagado; nadie lo tenía claro.
+                        val accountPaid = account?.paid?.moneyOrZero() ?: BigDecimal.ZERO
+                        val rentPaid = detail.rent?.paid?.moneyOrZero() ?: BigDecimal.ZERO
+                        Text(
+                            releaseOutcomeText(
+                                somethingPaid = accountPaid.signum() > 0 || rentPaid.signum() > 0,
+                                timeLeft = (millisUntil(session.endsAt) ?: 0L) > 0L,
+                            ),
+                            color = colors.textSecondary,
+                            fontSize = 12.5.sp,
+                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        )
                         TextButton(
                             onClick = { confirmingRelease = false },
                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -769,6 +781,24 @@ internal fun WaiterSpaceSection(
         }
     }
 }
+
+/**
+ * Lo que pasa con lo pagado al liberar (#19): lo cobrado se queda en la caja del turno (el backend solo cierra la
+ * sesión, no devuelve nada), el tiempo que quedaba de una renta se pierde y el siguiente cliente empieza cuenta nueva.
+ */
+internal fun releaseOutcomeText(
+    somethingPaid: Boolean,
+    timeLeft: Boolean,
+): String =
+    buildString {
+        if (somethingPaid) {
+            append("Lo que ya se cobró se queda en la caja del turno: liberar no lo devuelve.")
+        } else {
+            append("No hay nada cobrado en esta cuenta.")
+        }
+        if (timeLeft) append(" El tiempo que le quedaba se pierde.")
+        append(" La cuenta se cierra y el siguiente cliente empieza una nueva.")
+    }
 
 @Composable
 private fun SectionCard(
@@ -885,7 +915,8 @@ internal fun CollectionResultCard(
             color = colors.textSecondary,
             modifier = Modifier.padding(top = 10.dp),
         )
-        if (collection.method == AccountPaymentMethod.CASH) {
+        // #19: sin cambio que dar, «Entrega de cambio $0» solo confundía.
+        if (collection.method == AccountPaymentMethod.CASH && collection.change.moneyOrZero().signum() > 0) {
             Text(
                 "Entrega de cambio",
                 fontSize = 12.sp,
