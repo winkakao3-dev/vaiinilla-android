@@ -781,7 +781,10 @@ fun WaiterOperationalScreen(
                 itemsSummary = order.itemsSummary,
                 acting = state.acting,
                 charge = deliveringCharge,
-                onDismiss = { delivering = null },
+                onDismiss = {
+                    delivering = null
+                    deliveringCharge = null
+                },
                 onConfirm = { code ->
                     deliverSent = true
                     onDeliver(order, code)
