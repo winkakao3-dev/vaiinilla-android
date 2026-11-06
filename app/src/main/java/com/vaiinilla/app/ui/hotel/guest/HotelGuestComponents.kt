@@ -315,10 +315,8 @@ internal fun hotelErrorMessage(
         HotelErrors.DND_DISABLED -> "Este hotel no tiene «No molestar» desde la app."
         HotelErrors.LATE_CHECKOUT_UNAVAILABLE -> "La salida tardía no está disponible."
         HotelErrors.RATE_LIMITED -> "Demasiados intentos seguidos. Espera un momento y vuelve a escribir tu código."
-        HotelErrors.STAY_GUEST_LIMIT -> "Esta habitación ya tiene ligadas todas las cuentas que permite el hotel. Pídelo en recepción." else ->
-            error
-                .toUserFacingMessage(
-                    fallback,
-                )
+        HotelErrors.STAY_GUEST_LIMIT ->
+            "Esta habitación ya tiene ligadas todas las cuentas que permite el hotel. Pídelo en recepción."
+        else -> error.toUserFacingMessage(fallback)
     }
 }
