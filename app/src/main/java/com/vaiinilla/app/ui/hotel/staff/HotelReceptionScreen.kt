@@ -55,6 +55,8 @@ fun HotelReceptionScreen(
                 onCharge = { viewModel.open(ReceptionPane.Charge(it.id)) },
                 onBack = onBack,
                 modifier = modifier,
+                onArrive = viewModel::confirmArrival,
+                onCancel = viewModel::cancelReservation,
             )
         ReceptionPane.CheckIn ->
             HotelCheckInScreen(
@@ -98,6 +100,8 @@ internal fun HotelReceptionContent(
     onCharge: (Stay) -> Unit,
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    onArrive: (Stay) -> Unit = {},
+    onCancel: (Stay) -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
     val leavingToday = state.inHouse.filter { (hotelDate(it.checkOut) ?: today) <= today }
@@ -119,9 +123,9 @@ internal fun HotelReceptionContent(
         },
     ) {
         state.error?.let { HotelNotice(it) }
-        StaySection("SALEN HOY", leavingToday, onCheckout, onCharge)
-        StaySection("EN CASA", staying, onCheckout, onCharge)
-        StaySection("POR LLEGAR", state.arriving, onCheckout, onCharge)
+        StaySection("SALEN HOY", leavingToday, onCheckout, onCharge, onArrive, onCancel, state.busy)
+        StaySection("EN CASA", staying, onCheckout, onCharge, onArrive, onCancel, state.busy)
+        StaySection("POR LLEGAR", state.arriving, onCheckout, onCharge, onArrive, onCancel, state.busy)
         if (state.loaded && state.stays.none { it.status == StayStatus.IN_HOUSE || it.status == StayStatus.RESERVED }) {
             Text(
                 "No hay huéspedes por ahora.",
@@ -140,17 +144,23 @@ private fun StaySection(
     stays: List<Stay>,
     onCheckout: (Stay) -> Unit,
     onCharge: (Stay) -> Unit,
+    onArrive: (Stay) -> Unit,
+    onCancel: (Stay) -> Unit,
+    busy: Boolean,
 ) {
     if (stays.isEmpty()) return
     HotelCaps("$label · ${stays.size}", modifier = Modifier.padding(start = 6.dp, top = 4.dp))
-    stays.forEach { stay -> StayRow(stay, onCheckout, onCharge) }
+    stays.forEach { stay -> StayRow(stay, busy, onCheckout, onCharge, onArrive, onCancel) }
 }
 
 @Composable
 private fun StayRow(
     stay: Stay,
+    busy: Boolean,
     onCheckout: (Stay) -> Unit,
     onCharge: (Stay) -> Unit,
+    onArrive: (Stay) -> Unit,
+    onCancel: (Stay) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     val inHouse = stay.status == StayStatus.IN_HOUSE
@@ -171,6 +181,11 @@ private fun StayRow(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 HotelButton("Cargo", onClick = { onCharge(stay) }, kind = HotelButtonKind.Outline, height = 38.dp, fontSize = 13)
                 HotelButton("Check-out", onClick = { onCheckout(stay) }, height = 38.dp, fontSize = 13)
+            }
+        } else if (stay.status == StayStatus.RESERVED) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                HotelButton("Cancelar", onClick = { onCancel(stay) }, kind = HotelButtonKind.Outline, enabled = !busy, height = 38.dp, fontSize = 13)
+                HotelButton("Llegó", onClick = { onArrive(stay) }, enabled = !busy, height = 38.dp, fontSize = 13)
             }
         }
     }

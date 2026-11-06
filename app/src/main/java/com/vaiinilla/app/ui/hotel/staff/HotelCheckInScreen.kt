@@ -125,7 +125,7 @@ internal fun HotelCheckInContent(
             )
         },
     ) {
-        HotelCard(padding = 16.dp) {
+        HotelCard() {
             HotelCaps("HUÉSPED", modifier = Modifier.padding(bottom = 10.dp))
             OperationalField(value = name, onValueChange = { name = it }, label = "Nombre", colors = operational, placeholder = "Laura Ramos")
             OperationalField(
@@ -136,7 +136,7 @@ internal fun HotelCheckInContent(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        HotelCard(padding = 16.dp) {
+        HotelCard() {
             HotelCaps("HABITACIÓN LIBRE", modifier = Modifier.padding(bottom = 10.dp))
             if (rooms.isEmpty()) {
                 Text("No hay habitaciones libres.", color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -146,12 +146,12 @@ internal fun HotelCheckInContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     rooms.forEach { room ->
-                        HotelChip(hotelRoomNumber(room.name), selected = room.id == roomId, onClick = { roomId = room.id })
+                        HotelChip(hotelRoomNumber(room.name), selected = room.id == roomId, onClick = { roomId = room.id }, onCard = true)
                     }
                 }
             }
         }
-        HotelCard(padding = 16.dp) {
+        HotelCard() {
             HotelCaps("NOCHES Y TARIFA", modifier = Modifier.padding(bottom = 10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),

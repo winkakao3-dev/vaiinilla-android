@@ -171,8 +171,9 @@ private fun RoomTile(
             tone.label,
             color = color,
             fontSize = 10.5.sp,
+            lineHeight = 12.sp,
             fontWeight = FontWeight.ExtraBold,
-            maxLines = 1,
+            maxLines = 2,
             modifier = Modifier.padding(top = 6.dp),
         )
     }

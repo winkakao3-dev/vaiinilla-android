@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
+import com.vaiinilla.app.domain.hotel.HotelErrors
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRoom
 import com.vaiinilla.app.domain.hotel.NewStay
@@ -106,8 +107,11 @@ class HotelReceptionViewModel
         fun setMethod(method: CheckoutMethod) = _state.update { it.copy(method = method) }
 
         /** La cuenta completa de una estancia, con cargos y pedidos, para S04. */
-        fun loadDetail(stayId: String) {
-            if (_state.value.detail?.id == stayId) return
+        fun loadDetail(
+            stayId: String,
+            force: Boolean = false,
+        ) {
+            if (!force && _state.value.detail?.id == stayId) return
             _state.update { it.copy(detailLoading = true, detail = null, error = null) }
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.stay(stayId) }
@@ -134,6 +138,25 @@ class HotelReceptionViewModel
                     )
                 }
                 if (result.isSuccess) refresh()
+            }
+        }
+
+        /** Una reserva que llegó pasa a «en casa» y ya puede pedir con su código. */
+        fun confirmArrival(stay: Stay) = changeStay(stay, "No se pudo registrar la llegada.") { id, key -> repository.confirmArrival(id, stay.version, key) }
+
+        fun cancelReservation(stay: Stay) = changeStay(stay, "No se pudo cancelar la reserva.") { id, key -> repository.cancelStay(id, stay.version, key) }
+
+        private fun changeStay(
+            stay: Stay,
+            fallback: String,
+            call: (String, String) -> Result<Stay>,
+        ) {
+            if (_state.value.busy) return
+            _state.update { it.copy(busy = true, error = null) }
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { call(stay.id, UUID.randomUUID().toString()) }
+                _state.update { it.copy(busy = false, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, fallback) }) }
+                refresh()
             }
         }
 
@@ -166,17 +189,36 @@ class HotelReceptionViewModel
         ) {
             if (_state.value.busy) return
             val method = _state.value.method
+            val seen = _state.value.detail?.takeIf { it.id == stayId }
+            // Se manda el total que recepción tiene a la vista: si la cuenta cambió, el servidor responde ACCOUNT_TOTAL_CHANGED.
+            val total = seen?.let { checkoutBreakdown(it).total.setScale(2, RoundingMode.HALF_UP).toPlainString() }
             _state.update { it.copy(busy = true, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.checkout(stayId, method, UUID.randomUUID().toString()) }
+                val result =
+                    withContext(Dispatchers.IO) {
+                        repository.checkout(
+                            stayId = stayId,
+                            method = method,
+                            idempotencyKey = UUID.randomUUID().toString(),
+                            receivedAmount = total.takeIf { method == CheckoutMethod.CASH },
+                            expectedTotal = total,
+                            expectedVersion = seen?.version,
+                        )
+                    }
+                val changed = hotelErrorCode(result.exceptionOrNull()) == HotelErrors.ACCOUNT_TOTAL_CHANGED
                 _state.update {
                     it.copy(
                         busy = false,
                         pane = if (result.isSuccess) ReceptionPane.Overview else it.pane,
                         detail = if (result.isSuccess) null else it.detail,
-                        error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo cerrar la cuenta.") },
+                        error =
+                            when {
+                                changed -> "La cuenta cambió mientras la revisabas. Ya está al día; revisa el total y vuelve a cerrarla."
+                                else -> result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo cerrar la cuenta.") }
+                            },
                     )
                 }
+                if (changed) loadDetail(stayId, force = true)
                 if (result.isSuccess) {
                     refresh()
                     onDone()

@@ -98,14 +98,14 @@ internal fun HotelCheckoutContent(
             )
         },
     ) {
-        HotelCard(padding = 16.dp) {
+        HotelCard() {
             HotelCaps("ESTANCIA", modifier = Modifier.padding(bottom = 6.dp))
             HotelRow(
                 left = "$nights × ${hotelMoneyShort(bill.rate)}",
                 right = hotelMoney(bill.stayAmount),
             )
         }
-        HotelCard(padding = 16.dp) {
+        HotelCard() {
             HotelCaps("CARGOS A LA HABITACIÓN", modifier = Modifier.padding(bottom = 6.dp))
             if (bill.roomServiceCount > 0) {
                 HotelRow(left = "Room service (${bill.roomServiceCount})", right = hotelMoney(bill.roomServiceTotal))
@@ -124,7 +124,8 @@ internal fun HotelCheckoutContent(
             Text(hotelMoney(bill.total), color = colors.ink, fontSize = 40.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.8).sp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            CheckoutMethod.entries.forEach { option ->
+            // El servidor solo acepta efectivo o tarjeta en el check-out.
+            CheckoutMethod.entries.filter { it != CheckoutMethod.TRANSFER }.forEach { option ->
                 PayOption(option.label, selected = option == method, onClick = { onMethod(option) }, modifier = Modifier.weight(1f))
             }
         }

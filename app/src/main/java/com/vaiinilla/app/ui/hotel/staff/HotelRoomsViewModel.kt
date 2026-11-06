@@ -135,7 +135,7 @@ class HotelRoomsViewModel
             if (_state.value.busyId != null) return
             _state.update { it.copy(busyId = request.id, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.transition(request.id, action, UUID.randomUUID().toString()) }
+                val result = withContext(Dispatchers.IO) { repository.transition(request.id, action, UUID.randomUUID().toString(), request.version) }
                 _state.update { it.copy(busyId = null, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo guardar.") }) }
                 refresh()
             }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -156,7 +157,7 @@ internal fun HotelStaffPage(
 internal fun HotelCard(
     modifier: Modifier = Modifier,
     border: Color? = null,
-    padding: Dp = 18.dp,
+    padding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -295,6 +296,7 @@ internal fun HotelChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onCard: Boolean = false,
 ) {
     val colors = LocalVaiinillaColors.current
     Box(
@@ -302,7 +304,7 @@ internal fun HotelChip(
             modifier
                 .height(34.dp)
                 .clip(CircleShape)
-                .background(if (selected) colors.ink else colors.paper2)
+                .background(if (selected) colors.ink else if (onCard) colors.paper else colors.paper2)
                 .physicalPress(onClick = onClick)
                 .semantics { role = Role.Button }
                 .padding(horizontal = 14.dp),
@@ -333,6 +335,10 @@ internal fun HotelNotice(
         modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp),
     )
 }
+
+/** El código de un `HotelException` del servidor, si el error es de hotel. */
+internal fun hotelErrorCode(error: Throwable?): String? =
+    generateSequence(error) { it.cause }.filterIsInstance<HotelException>().firstOrNull()?.code
 
 /** El texto del error para el personal: el que mandó el servidor si es del hotel, o el general de la app. */
 internal fun staffErrorMessage(

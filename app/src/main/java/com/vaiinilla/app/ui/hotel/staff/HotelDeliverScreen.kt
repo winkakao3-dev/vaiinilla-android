@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -115,7 +116,7 @@ internal fun HotelDeliverContent(
         HotelCard {
             HotelCaps("LLEVAS")
             Column(modifier = Modifier.padding(top = 2.dp)) {
-                lines.forEach { HotelRow(left = it, right = null, modifier = Modifier.padding(vertical = 5.dp)) }
+                lines.forEach { HotelRow(left = it, right = null) }
                 if (note != null) HotelRow(left = "Nota: $note", right = null, muted = true)
             }
             if (charge != null) {
@@ -123,7 +124,7 @@ internal fun HotelDeliverContent(
                 HotelRow(left = "Cargo a la habitación", right = hotelMoney(charge))
             }
         }
-        HotelCard(padding = 16.dp) {
+        HotelCard(padding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 16.dp)) {
             HotelCaps("CÓDIGO QUE TE DICE EL HUÉSPED")
             Row(modifier = Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 repeat(CODE_LENGTH) { index ->
