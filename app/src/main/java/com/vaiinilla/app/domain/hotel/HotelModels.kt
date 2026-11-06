@@ -8,8 +8,11 @@ data class HotelConfig(
     val chargeToRoom: Boolean = true,
     /** El huésped puede pagar con tarjeta al pedir. */
     val cardAtOrderEnabled: Boolean = false,
-    /** El pedido se entrega con el código de 4 dígitos del huésped. */
-    val deliveryCode: Boolean = true,
+    /**
+     * Preferencia guardada en el servidor, que no la exige: la entrega a una habitación nunca pide código (decisión de
+     * Naev). La app la conserva solo para no pisar lo que ya había al guardar la configuración.
+     */
+    val deliveryCode: Boolean = false,
     /** «HH:mm» desde y hasta cuándo la cocina recibe pedidos a las habitaciones; null = sin horario propio. */
     val kitchenFrom: String? = null,
     val kitchenTo: String? = null,

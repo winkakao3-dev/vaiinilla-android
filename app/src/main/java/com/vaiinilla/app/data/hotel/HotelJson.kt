@@ -503,7 +503,7 @@ data class HotelConfigDto(
     val activo: Boolean = true,
     @SerialName("cargo_habitacion_activo") val cargoHabitacionActivo: Boolean = true,
     @SerialName("tarjeta_al_pedir") val tarjetaAlPedir: Boolean = false,
-    @SerialName("codigo_entrega_activo") val codigoEntregaActivo: Boolean = true,
+    @SerialName("codigo_entrega_activo") val codigoEntregaActivo: Boolean = false,
     @SerialName("cocina_desde") val cocinaDesde: String? = null,
     @SerialName("cocina_hasta") val cocinaHasta: String? = null,
     @SerialName("solicitudes_activas") val solicitudesActivas: Boolean = true,
