@@ -82,9 +82,11 @@ import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.skipsKitchen
 import com.vaiinilla.app.ui.components.ASSISTANT_ANCHOR_KITCHEN_CARD
@@ -821,9 +823,15 @@ private fun KitchenOrderCard(
 ) {
     val tab = kitchenTabOf(order)
     val summary = order.summary
+    // S01: en un hotel la comanda se llama por la habitación («Hab. 304»); el folio pasa a la línea de abajo.
+    val roomSpace =
+        summary.space?.takeIf {
+            Venue.isHotel && summary.destination == OrderDestination.IN_SPACE && SpaceCopy.isRoom(it.type)
+        }
+    val title = roomSpace?.let { SpaceCopy.short(it.type, it.name) } ?: "#${summary.folio}"
     val place =
         buildList {
-            add(SpaceCopy.staffDestination(summary.destination, summary.space))
+            add(if (roomSpace != null) "#${summary.folio}" else SpaceCopy.staffDestination(summary.destination, summary.space))
             staffCustomerName(order)?.let(::add)
             when {
                 summary.state == OrderState.PENDING_PAYMENT && !summary.payAtEnd -> add("falta pagar")
@@ -840,7 +848,7 @@ private fun KitchenOrderCard(
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
-                        "#${summary.folio}",
+                        title,
                         fontSize = 30.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = (-1).sp,
