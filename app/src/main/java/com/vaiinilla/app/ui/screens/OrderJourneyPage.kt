@@ -1314,6 +1314,18 @@ private fun JourneyButton(
     }
 }
 
+/** El servidor entrega aunque falte cobrar (queda en «Me deben»): el recibo no puede decir que ya está pagado (S03). */
+internal fun deliveredReceiptSubtitle(
+    courierName: String?,
+    hasAmountDue: Boolean,
+): String =
+    when {
+        hasAmountDue && courierName != null -> "$courierName lo entregó. Todavía falta pagar."
+        hasAmountDue -> "Ya quedó entregado. Todavía falta pagar."
+        courierName != null -> "$courierName lo entregó y ya quedó pagado."
+        else -> "Ya quedó entregado y pagado."
+    }
+
 /** Entregado a domicilio (marco D5): un recibo que se puede mandar y, abajo, pedir otra vez. */
 @Composable
 private fun DeliveredReceipt(
@@ -1361,7 +1373,7 @@ private fun DeliveredReceipt(
             modifier = Modifier.padding(top = 6.dp),
         )
         Text(
-            order.homeDelivery?.courierName?.let { "$it lo entregó y ya quedó pagado." } ?: "Ya quedó entregado y pagado.",
+            deliveredReceiptSubtitle(order.homeDelivery?.courierName, order.homeDelivery?.hasAmountDue == true),
             color = colors.ink2,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
@@ -1385,7 +1397,12 @@ private fun DeliveredReceipt(
                 ReceiptRow("Al recibir", moneyLabel(rest.toPlainString()), colors)
             }
             Divider(colors)
-            ReceiptRow("Pagaste en total", moneyLabel(summary.total), colors, strong = true)
+            ReceiptRow(
+                if (order.homeDelivery?.hasAmountDue == true) "Total del pedido" else "Pagaste en total",
+                moneyLabel(summary.total),
+                colors,
+                strong = true,
+            )
         }
         Row(Modifier.padding(top = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             JourneyButton(
