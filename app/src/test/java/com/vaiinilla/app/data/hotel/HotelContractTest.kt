@@ -245,4 +245,16 @@ class HotelContractTest {
         val error = hotel.createRequest(RequestType.CLEANING, 1, null, "k4").exceptionOrNull() as HotelException
         assertEquals(HotelErrors.ROOM_REQUIRES_STAY, error.code)
     }
+
+    @Test
+    fun `a check-in for today leaves the date out and a config without checkout time does not send null`() {
+        val today = Json.parseToJsonElement(json.encodeCheckIn(NewStay("Ana", null, 12, null, "2026-11-11", "1200.00"))).jsonObject
+        assertFalse(today.containsKey("entrada"))
+        assertEquals("2026-11-11", today["salida"]!!.jsonPrimitive.content)
+
+        val withoutTime = Json.parseToJsonElement(json.encodeHotelConfig(HotelConfig(checkoutTime = null))).jsonObject
+        assertFalse(withoutTime.containsKey("hora_checkout"))
+        val withTime = Json.parseToJsonElement(json.encodeHotelConfig(HotelConfig(checkoutTime = "12:00"))).jsonObject
+        assertEquals("12:00", withTime["hora_checkout"]!!.jsonPrimitive.content)
+    }
 }

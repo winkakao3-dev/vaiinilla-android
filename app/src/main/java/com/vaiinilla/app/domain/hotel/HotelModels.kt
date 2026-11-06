@@ -8,8 +8,11 @@ data class HotelConfig(
     val chargeToRoom: Boolean = true,
     /** El huésped puede pagar con tarjeta al pedir. */
     val cardAtOrderEnabled: Boolean = false,
-    /** El pedido se entrega con el código de 4 dígitos del huésped. */
-    val deliveryCode: Boolean = true,
+    /**
+     * Preferencia guardada en el servidor, que no la exige: la entrega a una habitación nunca pide código (decisión de
+     * Naev). La app la conserva solo para no pisar lo que ya había al guardar la configuración.
+     */
+    val deliveryCode: Boolean = false,
     /** «HH:mm» desde y hasta cuándo la cocina recibe pedidos a las habitaciones; null = sin horario propio. */
     val kitchenFrom: String? = null,
     val kitchenTo: String? = null,
@@ -193,7 +196,8 @@ data class NewStay(
     val guestName: String,
     val contact: String?,
     val roomId: Int,
-    val checkIn: String,
+    /** `null` = llega hoy: el servidor usa el día del hotel, no el del teléfono, y la estancia queda en casa. */
+    val checkIn: String?,
     val checkOut: String,
     val nightlyRate: String?,
 )
@@ -288,7 +292,12 @@ object HotelErrors {
 
     /** La cuenta cambió desde que recepción la vio: el error trae el total real. */
     const val ACCOUNT_TOTAL_CHANGED = "ACCOUNT_TOTAL_CHANGED"
-    const val CASH_REGISTER_CLOSED = "CASH_REGISTER_CLOSED"
+
+    /** Cerrar una cuenta con pedidos por cobrar exige la caja abierta. */
+    const val ESTABLISHMENT_NOT_RECEIVING = "ESTABLISHMENT_NOT_RECEIVING"
+    const val RATE_LIMITED = "RATE_LIMITED"
+    const val STAY_GUEST_LIMIT = "STAY_GUEST_LIMIT"
+    const val HOTEL_TYPE_LOCKED = "HOTEL_TYPE_LOCKED"
     const val ROOM_CHARGE_DISABLED = "ROOM_CHARGE_DISABLED"
     const val CARD_AT_ORDER_DISABLED = "CARD_AT_ORDER_DISABLED"
     const val OUTSIDE_ORDER_HOURS = "OUTSIDE_ORDER_HOURS"
