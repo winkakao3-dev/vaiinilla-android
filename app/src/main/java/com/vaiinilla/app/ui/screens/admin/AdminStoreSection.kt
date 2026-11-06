@@ -91,6 +91,8 @@ import com.vaiinilla.app.domain.admin.StripeStep
 import com.vaiinilla.app.domain.admin.stripeStep
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.ui.hotel.admin.HotelSettingsAdminSection
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
@@ -105,7 +107,7 @@ import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.launch
 
 /** Las páginas que abre la portada de Flujo de mi tienda (marcos 02a, 42, 43 y 44). */
-private enum class StorePage { PAYMENTS, FLOW, PRESENCE, DELIVERY }
+private enum class StorePage { PAYMENTS, FLOW, PRESENCE, DELIVERY, HOTEL }
 
 /**
  * Flujo de mi tienda como el lienzo de Doop: arriba la foto y el logo, después cómo funciona la tienda y los pagos
@@ -151,6 +153,7 @@ internal fun AdminStoreSection(
             StorePage.FLOW -> StoreFlowPage(viewModel, colors, readOnly) { page = null }
             StorePage.PRESENCE -> StorePresencePage(viewModel, colors, readOnly) { page = null }
             StorePage.DELIVERY -> StoreDeliveryPage(viewModel, colors, readOnly) { page = null }
+            StorePage.HOTEL -> HotelSettingsAdminSection(colors, readOnly, onBack = { page = null })
         }
     }
     LaunchedEffect(state.config == null) { if (state.config == null && state.configError == null) viewModel.refresh() }
@@ -265,6 +268,20 @@ private fun StoreCover(
             AdminPanel(colors, Modifier.adminRise(3)) {
                 PanelTitle("Pagos con tarjeta", colors) { onOpen(StorePage.PAYMENTS) }
                 StripeQuick(viewModel, colors, enabled)
+            }
+        }
+        if (Venue.isHotel || config.type == BusinessType.HOTEL) {
+            item(key = "hotel") {
+                AdminPanel(colors, Modifier.adminRise(3)) {
+                    PanelTitle("Hotel", colors) { onOpen(StorePage.HOTEL) }
+                    Text(
+                        "Room service, salida y lo que piden los huéspedes",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
         if (showsDelivery(config)) {
