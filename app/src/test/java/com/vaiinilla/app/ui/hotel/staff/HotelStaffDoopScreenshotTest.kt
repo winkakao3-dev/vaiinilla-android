@@ -170,22 +170,6 @@ class HotelStaffDoopScreenshotTest {
                 acting = false,
                 onConfirm = {},
                 onBack = null,
-                initialCode = "48",
-            )
-        }
-    }
-
-    @Test
-    fun s02_entrega_sin_codigo() {
-        capture("doop_hotel_s02_entrega_sin_codigo.png") {
-            HotelDeliverContent(
-                room = "Hab. 304",
-                floor = 3,
-                lines = deliveryLines("1× Chilaquiles verdes, 1× Café americano"),
-                charge = "236.50",
-                acting = false,
-                onConfirm = {},
-                onBack = null,
             )
         }
     }

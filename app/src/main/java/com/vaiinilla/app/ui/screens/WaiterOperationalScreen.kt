@@ -785,9 +785,9 @@ fun WaiterOperationalScreen(
                     delivering = null
                     deliveringCharge = null
                 },
-                onConfirm = { code ->
+                onConfirm = {
                     deliverSent = true
-                    onDeliver(order, code)
+                    onDeliver(order, null)
                 },
             )
             return@let

@@ -346,7 +346,11 @@ internal fun staffErrorMessage(
     fallback: String,
 ): String {
     val hotel = generateSequence(error) { it.cause }.filterIsInstance<HotelException>().firstOrNull()
-    return hotel?.message?.takeIf { it.isNotBlank() } ?: error.toUserFacingMessage(fallback)
+    return when (hotel?.code) {
+        // Cerrar una cuenta con pedidos por cobrar usa la caja: sin sesión abierta el servidor no la deja cobrar.
+        "ESTABLISHMENT_NOT_RECEIVING" -> "Abre la caja para cerrar esta cuenta: tiene pedidos por cobrar."
+        else -> hotel?.message?.takeIf { it.isNotBlank() } ?: error.toUserFacingMessage(fallback)
+    }
 }
 
 private val money = DecimalFormat("#,##0.00", DecimalFormatSymbols(Locale.US))
