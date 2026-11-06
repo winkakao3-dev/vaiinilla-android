@@ -50,8 +50,7 @@ class FakeHotelRepository : HotelRepository {
             config = HotelConfig(lateCheckoutTime = "14:00", lateCheckoutPrice = "350.00", checkoutTime = "12:00")
         }
 
-    override fun myStay(): Result<Stay?> =
-        synchronized(lock) { Result.success(guestStay()?.withTotal()) }
+    override fun myStay(): Result<Stay?> = synchronized(lock) { Result.success(guestStay()?.withTotal()) }
 
     override fun linkStay(
         code: String,
@@ -62,7 +61,11 @@ class FakeHotelRepository : HotelRepository {
             val stay = stays.firstOrNull { it.code == code.trim() && it.status != StayStatus.CHECKED_OUT }
             when {
                 stay == null -> failure(HotelErrors.STAY_NOT_FOUND, "Ese código no coincide con ninguna estancia.")
-                spaceId != null && stay.roomId != spaceId -> failure(HotelErrors.STAY_NOT_FOUND, "Ese código no coincide con ninguna estancia.")
+                spaceId != null && stay.roomId != spaceId ->
+                    failure(
+                        HotelErrors.STAY_NOT_FOUND,
+                        "Ese código no coincide con ninguna estancia.",
+                    )
                 else -> {
                     linked = true
                     guestStayId = stay.id
@@ -113,7 +116,9 @@ class FakeHotelRepository : HotelRepository {
     ): Result<HotelRequest> = updateRequest(requestId) { it.copy(status = RequestStatus.CANCELED) }
 
     override fun stays(status: StayStatus?): Result<List<Stay>> =
-        synchronized(lock) { Result.success(stays.filter { status == null || it.status == status }.map { it.withTotal() }) }
+        synchronized(
+            lock,
+        ) { Result.success(stays.filter { status == null || it.status == status }.map { it.withTotal() }) }
 
     override fun stay(stayId: String): Result<Stay> =
         synchronized(lock) {
@@ -126,7 +131,9 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<Stay> =
         synchronized(lock) {
-            val room = rooms.firstOrNull { it.id == draft.roomId } ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
+            val room =
+                rooms.firstOrNull { it.id == draft.roomId }
+                    ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
             if (room.occupied) return failure(HotelErrors.ROOM_OCCUPIED, "La ${room.name} ya tiene un huésped.")
             val stay =
                 Stay(
@@ -137,14 +144,26 @@ class FakeHotelRepository : HotelRepository {
                     roomId = room.id,
                     roomName = room.name,
                     floor = room.floor,
-                    checkIn = draft.checkIn ?: java.time.LocalDate.now().toString(),
+                    checkIn =
+                        draft.checkIn ?: java.time.LocalDate
+                            .now()
+                            .toString(),
                     checkOut = draft.checkOut,
                     nightlyRate = draft.nightlyRate,
                     status = StayStatus.IN_HOUSE,
                     nights = 1,
                 )
             stays = stays + stay
-            rooms = rooms.map { if (it.id == room.id) it.copy(occupied = true, stayId = stay.id, guestName = stay.guestName) else it }
+            rooms =
+                rooms.map {
+                    if (it.id ==
+                        room.id
+                    ) {
+                        it.copy(occupied = true, stayId = stay.id, guestName = stay.guestName)
+                    } else {
+                        it
+                    }
+                }
             Result.success(stay.withTotal())
         }
 
@@ -156,7 +175,9 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<StayCharge> =
         synchronized(lock) {
-            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
+            val stay =
+                stays.firstOrNull { it.id == stayId }
+                    ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
             val charge = StayCharge("C${nextId++}", concept.trim(), amount, category, NOW)
             replaceStay(stay.copy(charges = stay.charges + charge))
             Result.success(charge)
@@ -171,13 +192,21 @@ class FakeHotelRepository : HotelRepository {
         expectedVersion: Int?,
     ): Result<Stay> =
         synchronized(lock) {
-            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
+            val stay =
+                stays.firstOrNull { it.id == stayId }
+                    ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
             val closed = stay.copy(status = StayStatus.CHECKED_OUT, paymentMethod = method.wire, paidAt = NOW)
             replaceStay(closed)
             rooms =
                 rooms.map {
                     if (it.id == stay.roomId) {
-                        it.copy(occupied = false, stayId = null, guestName = null, cleaning = RoomCleaning.DIRTY, doNotDisturb = false)
+                        it.copy(
+                            occupied = false,
+                            stayId = null,
+                            guestName = null,
+                            cleaning = RoomCleaning.DIRTY,
+                            doNotDisturb = false,
+                        )
                     } else {
                         it
                     }
@@ -195,8 +224,14 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<Stay> =
         synchronized(lock) {
-            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
-            if (stay.status != StayStatus.RESERVED) return failure(HotelErrors.STAY_INVALID_STATE, "Solo una estancia por llegar.")
+            val stay =
+                stays.firstOrNull { it.id == stayId }
+                    ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
+            if (stay.status !=
+                StayStatus.RESERVED
+            ) {
+                return failure(HotelErrors.STAY_INVALID_STATE, "Solo una estancia por llegar.")
+            }
             val arrived = stay.copy(status = StayStatus.IN_HOUSE, version = stay.version + 1)
             replaceStay(arrived)
             Result.success(arrived.withTotal())
@@ -208,8 +243,14 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<Stay> =
         synchronized(lock) {
-            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
-            if (stay.status != StayStatus.RESERVED) return failure(HotelErrors.STAY_INVALID_STATE, "Solo una estancia por llegar.")
+            val stay =
+                stays.firstOrNull { it.id == stayId }
+                    ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
+            if (stay.status !=
+                StayStatus.RESERVED
+            ) {
+                return failure(HotelErrors.STAY_INVALID_STATE, "Solo una estancia por llegar.")
+            }
             val canceled = stay.copy(status = StayStatus.CANCELED, version = stay.version + 1)
             replaceStay(canceled)
             Result.success(canceled.withTotal())
@@ -236,7 +277,9 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<HotelRoom> =
         synchronized(lock) {
-            val room = rooms.firstOrNull { it.id == roomId } ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
+            val room =
+                rooms.firstOrNull { it.id == roomId }
+                    ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
             val updated = room.copy(cleaning = cleaning)
             rooms = rooms.map { if (it.id == roomId) updated else it }
             Result.success(updated)
@@ -292,7 +335,16 @@ class FakeHotelRepository : HotelRepository {
                 if (rooms.any { it.name == name }) {
                     omitted += name
                 } else {
-                    rooms = rooms + HotelRoom(id = number, name = name, floor = floor, category = category, qrToken = "qr-$number", qrUrl = "https://vaiinilla.app/q/qr-$number")
+                    rooms =
+                        rooms +
+                        HotelRoom(
+                            id = number,
+                            name = name,
+                            floor = floor,
+                            category = category,
+                            qrToken = "qr-$number",
+                            qrUrl = "https://vaiinilla.app/q/qr-$number",
+                        )
                     created++
                 }
             }
@@ -306,7 +358,9 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<HotelRoom> =
         synchronized(lock) {
-            val room = rooms.firstOrNull { it.id == roomId } ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
+            val room =
+                rooms.firstOrNull { it.id == roomId }
+                    ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
             val updated = room.copy(floor = floor, category = category?.trim()?.ifEmpty { null })
             rooms = rooms.map { if (it.id == roomId) updated else it }
             Result.success(updated)
@@ -317,7 +371,9 @@ class FakeHotelRepository : HotelRepository {
         change: (HotelRequest) -> HotelRequest,
     ): Result<HotelRequest> =
         synchronized(lock) {
-            val request = requests.firstOrNull { it.id == requestId } ?: return failure("SOLICITUD_NO_ENCONTRADA", "No existe esa solicitud.")
+            val request =
+                requests.firstOrNull { it.id == requestId }
+                    ?: return failure("SOLICITUD_NO_ENCONTRADA", "No existe esa solicitud.")
             val updated = change(request)
             requests = requests.map { if (it.id == requestId) updated else it }
             refreshRoomCounts()
@@ -325,12 +381,18 @@ class FakeHotelRepository : HotelRepository {
         }
 
     private fun refreshRoomCounts() {
-        rooms = rooms.map { room -> room.copy(openRequests = requests.count { it.roomId == room.id && it.status.isOpen }) }
+        rooms =
+            rooms.map { room -> room.copy(openRequests = requests.count { it.roomId == room.id && it.status.isOpen }) }
     }
 
     /** La estancia vigente de esta cuenta: ligada y sin check-out. */
     private fun guestStay(): Stay? =
-        stays.firstOrNull { it.id == guestStayId && linked && it.status != StayStatus.CHECKED_OUT && it.status != StayStatus.CANCELED }
+        stays.firstOrNull {
+            it.id == guestStayId &&
+                linked &&
+                it.status != StayStatus.CHECKED_OUT &&
+                it.status != StayStatus.CANCELED
+        }
 
     private fun replaceStay(stay: Stay) {
         stays = stays.map { if (it.id == stay.id) stay else it }
@@ -361,8 +423,25 @@ class FakeHotelRepository : HotelRepository {
             listOf(
                 HotelRoom(301, "Habitación 301", 3, "doble"),
                 HotelRoom(302, "Habitación 302", 3, "doble", RoomCleaning.DIRTY),
-                HotelRoom(304, "Habitación 304", 3, "suite", occupied = true, stayId = GUEST_STAY_ID, guestName = "Laura Méndez", openRequests = 2),
-                HotelRoom(305, "Habitación 305", 3, "doble", occupied = true, stayId = "S2", guestName = "Carlos Ibarra"),
+                HotelRoom(
+                    304,
+                    "Habitación 304",
+                    3,
+                    "suite",
+                    occupied = true,
+                    stayId = GUEST_STAY_ID,
+                    guestName = "Laura Méndez",
+                    openRequests = 2,
+                ),
+                HotelRoom(
+                    305,
+                    "Habitación 305",
+                    3,
+                    "doble",
+                    occupied = true,
+                    stayId = "S2",
+                    guestName = "Carlos Ibarra",
+                ),
                 HotelRoom(201, "Habitación 201", 2, "doble"),
                 HotelRoom(202, "Habitación 202", 2, "suite", RoomCleaning.DIRTY),
             )
@@ -384,7 +463,18 @@ class FakeHotelRepository : HotelRepository {
                     status = StayStatus.IN_HOUSE,
                     nights = 2,
                     charges = listOf(StayCharge("C1", "Minibar", "180.00", ChargeCategory.MINIBAR, NOW)),
-                    orders = listOf(StayOrder("P1", "A-041", "320.00", "entregado", NOW, "Club sándwich", pendingPayment = true)),
+                    orders =
+                        listOf(
+                            StayOrder(
+                                "P1",
+                                "A-041",
+                                "320.00",
+                                "entregado",
+                                NOW,
+                                "Club sándwich",
+                                pendingPayment = true,
+                            ),
+                        ),
                 ),
                 Stay(
                     id = "S2",
@@ -403,8 +493,32 @@ class FakeHotelRepository : HotelRepository {
 
         fun seedRequests() =
             listOf(
-                HotelRequest("R1", GUEST_STAY_ID, 304, "Habitación 304", 3, RequestType.TOWELS, 2, null, RequestStatus.PENDING, null, NOW),
-                HotelRequest("R2", GUEST_STAY_ID, 304, "Habitación 304", 3, RequestType.CLEANING, 1, "Después de las 11", RequestStatus.TAKEN, "Ama de llaves", NOW),
+                HotelRequest(
+                    "R1",
+                    GUEST_STAY_ID,
+                    304,
+                    "Habitación 304",
+                    3,
+                    RequestType.TOWELS,
+                    2,
+                    null,
+                    RequestStatus.PENDING,
+                    null,
+                    NOW,
+                ),
+                HotelRequest(
+                    "R2",
+                    GUEST_STAY_ID,
+                    304,
+                    "Habitación 304",
+                    3,
+                    RequestType.CLEANING,
+                    1,
+                    "Después de las 11",
+                    RequestStatus.TAKEN,
+                    "Ama de llaves",
+                    NOW,
+                ),
             )
     }
 }

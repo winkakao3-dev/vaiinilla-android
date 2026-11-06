@@ -157,8 +157,7 @@ class RemoteHotelRepository(
                 "solicitudes-hotel/$requestId/transiciones",
                 json.encodeTransition(action, expectedVersion),
                 key(idempotencyKey),
-            )
-            .mapCatching(json::parseRequest)
+            ).mapCatching(json::parseRequest)
             .mapApiErrors()
 
     override fun rooms(): Result<List<HotelRoom>> =
