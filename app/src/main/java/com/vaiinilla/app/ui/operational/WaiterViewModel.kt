@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.localhub.LocalTicket
+import com.vaiinilla.app.domain.localhub.LocalTicketItem
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -153,6 +155,7 @@ class WaiterViewModel
         private val buildCreateOrderRequest: BuildCreateOrderRequestUseCase,
         private val createOrder: CreateRemoteOrderUseCase,
         private val offlineOrders: OfflineStaffOrderQueue,
+        private val localHub: LocalHubCoordinator,
         private val rescuer: OfflineStaffOrderRescuer,
     ) : ViewModel() {
         private val _uiState = mutableStateOf(WaiterUiState())
@@ -677,7 +680,7 @@ class WaiterViewModel
 
         /**
          * Sin internet el pedido no se pierde: se guarda en el teléfono con un folio local y se manda solo al volver la
-         * red. Cocina todavía no lo ve (eso llega con el concentrador del local, fase 2), así que el aviso lo dice.
+         * red. Mientras tanto Cocina lo ve como comanda a través de la Caja del local ([LocalHubCoordinator]).
          */
         private fun keepOffline(
             request: CreateOrderRequest,
@@ -705,6 +708,8 @@ class WaiterViewModel
                     _uiState.value.copy(counterOrderError = "Sin internet. Revisa la conexión e inténtalo de nuevo.")
                 return
             }
+            // La comanda va a la Caja por el Wi‑Fi del local para que Cocina la prepare ya (fase 2).
+            localHub.sendTicket(localTicketOf(saved, lines, takenBy = if (cashier != null) "Caja" else "Mesero"))
             counterOrderKey = null
             _uiState.value =
                 _uiState.value.copy(
@@ -1186,6 +1191,34 @@ internal fun abonoIdempotencyKey(
 data class CashierContext(
     val cashOpen: Boolean?,
 )
+
+/** La comanda que Cocina ve sin internet: mismo id y folio que el pedido guardado, con opciones y nota juntas. */
+internal fun localTicketOf(
+    order: OfflineStaffOrder,
+    lines: List<CartLine>,
+    takenBy: String,
+): LocalTicket =
+    LocalTicket(
+        id = order.id,
+        localFolio = order.localFolio,
+        placeLabel = order.placeLabel,
+        items =
+            lines.map { line ->
+                val options =
+                    line.product.optionGroups
+                        .flatMap { it.options }
+                        .filter { it.id in line.selectedOptionIds }
+                        .map { it.name }
+                LocalTicketItem(
+                    name = line.product.name,
+                    quantity = line.quantity,
+                    notes = (options + listOfNotNull(line.notes.takeIf { it.isNotBlank() })).joinToString(" · "),
+                    station = line.product.preparationStation.wireValue,
+                )
+            },
+        capturedAt = order.capturedAt,
+        takenBy = takenBy,
+    )
 
 internal fun offlineSummary(lines: List<CartLine>): String =
     lines.joinToString(", ") { "${it.quantity}× ${it.product.name}" }.take(OFFLINE_SUMMARY_MAX)

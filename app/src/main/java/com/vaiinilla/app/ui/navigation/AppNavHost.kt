@@ -99,6 +99,7 @@ import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
 import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CashierUnpaidViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
+import com.vaiinilla.app.ui.operational.LocalHubViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
@@ -136,6 +137,8 @@ import com.vaiinilla.app.ui.screens.FloorTable
 import com.vaiinilla.app.ui.screens.HomeCheckoutActions
 import com.vaiinilla.app.ui.screens.InvitationAcceptanceScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
+import com.vaiinilla.app.ui.screens.LocalTicketsCard
+import com.vaiinilla.app.ui.screens.kitchenLocalTickets
 import com.vaiinilla.app.ui.screens.LocalScene
 import com.vaiinilla.app.ui.screens.LocalVenueArt
 import com.vaiinilla.app.ui.screens.MenuFeedScreen
@@ -285,6 +288,15 @@ fun AppNavHost(
     val unsyncedOfflineCash = waiterState.offlineOrders.unregisteredCash.size
     LaunchedEffect(unsyncedOfflineCash, operationalState.role) {
         operationalViewModel.setUnsyncedOfflineCash(unsyncedOfflineCash)
+    }
+    // Sin internet la Caja reparte las comandas por el Wi‑Fi del local; Mesero y Cocina la buscan (fase 2).
+    val localHubViewModel: LocalHubViewModel = viewModel()
+    val localHubState by localHubViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(authorizedAccessState.activeContext?.role, authorizedAccessState.activeContext?.establishmentId) {
+        localHubViewModel.bind(
+            authorizedAccessState.activeContext?.role,
+            authorizedAccessState.activeContext?.establishmentId,
+        )
     }
     // Pedidos guardados sin internet de un modo que ya no está abierto (app reiniciada, otro modo): salen solos.
     LaunchedEffect(authorizedAccessState.modes, authorizedAccessState.activeContext?.membershipId) {
@@ -2929,6 +2941,19 @@ fun AppNavHost(
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "kitchen",
+                        localTicketsEntry =
+                            kitchenLocalTickets(
+                                tickets = localHubState.tickets,
+                                knownOrderIds = operationalState.orders.map { it.summary.id }.toSet(),
+                            ).takeIf { it.isNotEmpty() }?.let { tickets ->
+                                {
+                                    LocalTicketsCard(
+                                        tickets = tickets,
+                                        connected = localHubState.connected,
+                                        onReady = localHubViewModel::markReady,
+                                    )
+                                }
+                            },
                         reservedEntry =
                             if (reservedState.isSchool) {
                                 {
