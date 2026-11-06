@@ -474,10 +474,13 @@ class OrderFlowViewModel
                 val result = withContext(Dispatchers.IO) { hotelRepository.linkStay(code, space?.id, space?.qrToken) }
                 result.fold(
                     onSuccess = {
-                        _uiState.value = _uiState.value.copy(needsStayCode = false, stayCodeError = null, linkingStay = false)
+                        _uiState.value =
+                            _uiState.value.copy(needsStayCode = false, stayCodeError = null, linkingStay = false)
                         submitOrder()
                     },
-                    onFailure = { _uiState.value = _uiState.value.copy(stayCodeError = hotelErrorMessage(it), linkingStay = false) },
+                    onFailure = {
+                        _uiState.value = _uiState.value.copy(stayCodeError = hotelErrorMessage(it), linkingStay = false)
+                    },
                 )
             }
         }
