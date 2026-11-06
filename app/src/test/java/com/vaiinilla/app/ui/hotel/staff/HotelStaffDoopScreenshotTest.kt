@@ -113,18 +113,44 @@ class HotelStaffDoopScreenshotTest {
     @Test
     fun s01_cocina() {
         val base = ScreenshotFixtures.sampleOrder(state = OrderState.PAID, destination = OrderDestination.IN_SPACE, spaceId = 304)
-        val order =
-            base.copy(
-                summary = base.summary.copy(space = OrderSpace(304, "Habitación 304", "mesa")),
-                items =
-                    listOf(
-                        base.items.first().copy(productName = "Chilaquiles verdes", quantity = 1, rejection = null),
-                        base.items.first().copy(id = 99, productName = "Café americano", quantity = 1, rejection = null),
-                    ),
+
+        fun order(
+            id: String,
+            folio: Int,
+            roomNumber: Int,
+            state: OrderState,
+            minutesAgo: Long,
+            lines: List<Pair<Int, String>>,
+            notes: String = "",
+            slot: String? = null,
+            allergies: List<String> = emptyList(),
+        ) = base.copy(
+            summary =
+                base.summary.copy(
+                    id = id,
+                    folio = folio,
+                    state = state,
+                    space = OrderSpace(roomNumber, "Habitación $roomNumber", "mesa"),
+                    createdAt = Instant.now().minusSeconds(minutesAgo * 60).toString(),
+                    deliveryDate = slot?.let { LocalDate.now().plusDays(1).toString() },
+                    deliverySlot = slot,
+                ),
+            kitchenNotes = notes,
+            user = base.user?.copy(allergies = allergies),
+            items =
+                lines.mapIndexed { index, (quantity, name) ->
+                    base.items.first().copy(id = 900 + index, productName = name, quantity = quantity, options = emptyList(), rejection = null)
+                },
+        )
+        val orders =
+            listOf(
+                order("a", 412, 304, OrderState.PREPARING, 25, listOf(1 to "Chilaquiles verdes", 1 to "Café americano"), notes = "Piso 3 · bebé durmiendo, tocar suave"),
+                order("b", 413, 112, OrderState.PAID, 3, listOf(2 to "Desayuno continental", 1 to "Jugo de naranja"), slot = "08:30-09:00"),
+                order("c", 414, 408, OrderState.PAID, 2, listOf(1 to "Hot cakes con miel"), allergies = listOf("nueces")),
             )
         capture("doop_hotel_s01_cocina.png") {
             KitchenOperationalScreen(
-                state = OperationalUiState(orders = listOf(order), lastRefreshOk = true),
+                state = OperationalUiState(orders = orders, lastRefreshOk = true),
                 onBack = {},
                 onStart = { _, _ -> },
                 onReady = { _, _ -> },
