@@ -1,13 +1,14 @@
 package com.vaiinilla.app.data.hotel
 
 /**
- * Qué repositorio de hotel usa la app. Mientras la APK apunte a un backend sin el modo Hotel, usa
- * [FakeHotelRepository]; una APK apuntada a un backend de hotel (su URL lleva `hotel`, por ejemplo
- * `hotel.169-58-43-188.sslip.io`) habla con el servidor real sin cambiar código.
+ * Qué repositorio de hotel usa la app. El servidor real es siempre el valor por omisión: [FakeHotelRepository]
+ * inventa estancias y cargos, así que solo se usa en una compilación que no es de producción y solo si alguien
+ * pone [forceFake] en `true` a propósito (una demo sin servidor de hotel). La URL ya no lo decide: un backend de
+ * pruebas que adopte las rutas del hotel no puede volver a servir datos falsos a quien lo prueba.
  */
 object HotelBackend {
-    /** Pone `true` o `false` para forzarlo (pruebas); `null` lo decide la URL. */
+    /** `true` pide el repositorio en memoria (demo o pruebas); `null` o `false` usan el servidor. */
     var forceFake: Boolean? = null
 
-    fun useFake(apiBaseUrl: String): Boolean = forceFake ?: !apiBaseUrl.contains("hotel", ignoreCase = true)
+    fun useFake(production: Boolean): Boolean = !production && forceFake == true
 }
