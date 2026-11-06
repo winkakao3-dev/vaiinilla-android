@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.hotel
 
 import com.vaiinilla.app.data.admin.AdminBusinessJson
+import com.vaiinilla.app.data.discovery.SpaceResolveEnvelope
+import com.vaiinilla.app.data.discovery.toDomain
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.admin.StoreTemplate
@@ -14,6 +16,7 @@ import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.domain.hotel.RequestType
 import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.StayStatus
+import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.json.Json
@@ -287,6 +290,28 @@ class HotelContractTest {
         )
         val error = hotel.createRequest(RequestType.CLEANING, 1, null, "k4").exceptionOrNull() as HotelException
         assertEquals(HotelErrors.ROOM_REQUIRES_STAY, error.code)
+    }
+
+    @Test
+    fun `a table of the hotel restaurant is not a room when the server says so`() {
+        val room = Json { ignoreUnknownKeys = true }.decodeFromString<SpaceResolveEnvelope>(
+            """{"data":{"establecimiento":{"id":"e1","nombre":"Hotel","slug":"hotel","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":7,"nombre":"Habitación 304","tipo":"mesa","es_habitacion":true}}}""",
+        ).data.espacio!!.toDomain()
+        val restaurant = room.copy(id = 9, name = "Mesa 2", isRoom = false)
+        val other = Json { ignoreUnknownKeys = true }.decodeFromString<SpaceResolveEnvelope>(
+            """{"data":{"establecimiento":{"id":"e2","nombre":"Cafe","slug":"cafe","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":3,"nombre":"Mesa 1","tipo":"mesa"}}}""",
+        ).data.espacio!!.toDomain()
+        assertEquals(true, room.isRoom)
+        assertNull(other.isRoom)
+
+        Venue.update(Venue.HOTEL)
+        assertTrue(SpaceCopy.isRoom(room))
+        assertFalse(SpaceCopy.isRoom(restaurant))
+        // Sin el dato, en un hotel toda mesa se trata como habitación, como antes; sin espacio no hay habitación.
+        assertTrue(SpaceCopy.isRoom(other))
+        assertFalse(SpaceCopy.isRoom(null as PublicSpace?))
+        Venue.update("cafeteria")
+        assertFalse(SpaceCopy.isRoom(room))
     }
 
     @Test
