@@ -318,6 +318,13 @@ class HotelContractTest {
         assertFalse(SpaceCopy.isRoom(null as PublicSpace?))
         Venue.update("cafeteria")
         assertFalse(SpaceCopy.isRoom(room))
+
+        Venue.markSpace(restaurant.id, restaurant.isRoom)
+        Venue.markSpace(room.id, room.isRoom)
+        assertTrue(Venue.isHotelTable(restaurant.id))
+        assertFalse(Venue.isHotelTable(room.id))
+        Venue.markSpace(restaurant.id, null)
+        assertFalse(Venue.isHotelTable(restaurant.id))
     }
 
     @Test

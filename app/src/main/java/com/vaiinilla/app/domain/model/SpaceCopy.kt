@@ -17,9 +17,14 @@ object SpaceCopy {
      */
     fun isRoom(space: PublicSpace?): Boolean = space != null && isRoom(space.type) && space.isRoom != false
 
-    /** ¿El pedido va a una habitación? `estancia_id` solo lo tiene un pedido que se carga a una estancia. */
-    fun isRoomOrder(order: OrderDetail): Boolean =
-        Venue.isHotel && order.summary.space?.let { isRoomType(it.type) } == true && order.stayId != null
+    /**
+     * ¿El pedido va a una habitación? El pedido no dice si su espacio lo es: en un hotel cuenta como habitación salvo
+     * que el servidor haya dicho que ese espacio es una mesa del restaurante ([Venue.markSpace]).
+     */
+    fun isRoomOrder(order: OrderDetail): Boolean {
+        val space = order.summary.space ?: return false
+        return Venue.isHotel && isRoomType(space.type) && !Venue.isHotelTable(space.id)
+    }
 
     /**
      * El espacio como lo dice el personal en una etiqueta corta: «Hab. 304» para una habitación (el servidor la

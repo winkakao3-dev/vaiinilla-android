@@ -25,6 +25,23 @@ object Venue {
         if (type != businessType) businessType = type
     }
 
+    /**
+     * Espacios que el servidor dijo que NO son habitación en un hotel (`es_habitacion: false`): las mesas de su
+     * restaurante. El pedido no trae ese dato, así que se recuerda por id del espacio.
+     */
+    private var hotelTables: Set<Int> by mutableStateOf(emptySet())
+
+    /** Anota lo que el servidor dijo de un espacio: `false` es una mesa del hotel; `true` o `null`, no lo es. */
+    fun markSpace(
+        id: Int,
+        isRoom: Boolean?,
+    ) {
+        val isTable = isRoom == false
+        if (isTable != (id in hotelTables)) hotelTables = if (isTable) hotelTables + id else hotelTables - id
+    }
+
+    fun isHotelTable(id: Int?): Boolean = id != null && id in hotelTables
+
     /** «cancha» o «pista». */
     val court: String get() = if (isBowling) "pista" else "cancha"
 
