@@ -23,6 +23,9 @@ interface CashSessionRepository {
      */
     val lastClose: CashLastClose? get() = null
 
+    /** Olvida el último cierre guardado: otro negocio no puede mostrar el cierre del anterior (Z05). */
+    fun forgetLastClose() {}
+
     /** Id de la sesión de caja abierta, o null si no hay. */
     fun activeSessionId(): Result<String?>
 
