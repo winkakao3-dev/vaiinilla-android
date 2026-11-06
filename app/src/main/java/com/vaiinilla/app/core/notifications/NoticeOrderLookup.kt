@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -82,7 +83,7 @@ class NoticeOrderLookup
             ): NoticeOrderSummary =
                 NoticeOrderSummary(
                     establishmentName = mode.establishmentName,
-                    readAs = "${mode.role.label} en ${mode.establishmentName}",
+                    readAs = "${Venue.roleLabel(mode.role, mode.isSchool)} en ${mode.establishmentName}",
                     folio = order.summary.folio,
                     status = order.summary.state.label,
                     stateWire = order.summary.state.wireValue,

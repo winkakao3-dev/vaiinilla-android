@@ -56,6 +56,8 @@ data class NoticeMembership(
     val role: OperationalRole,
     val establishmentId: String,
     val establishmentName: String,
+    /** Lo guardado antes de este campo se lee como no escuela. */
+    val isSchool: Boolean = false,
 )
 
 @Serializable
