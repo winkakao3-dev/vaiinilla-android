@@ -327,7 +327,12 @@ internal fun HotelSettingsPage(
                                 config.copy(lateCheckoutTime = null)
                             }
                     },
-                    detail = if (lateOn) "Hasta las ${config.lateCheckoutTime} · el precio lo pones tú" else "No se ofrece",
+                    detail =
+                        if (lateOn) {
+                            "Hasta las ${config.lateCheckoutTime} · el precio lo pones tú"
+                        } else {
+                            "No se ofrece"
+                        },
                     enabled = enabled,
                 )
                 if (lateOn) {
