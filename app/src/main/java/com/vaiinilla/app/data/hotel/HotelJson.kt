@@ -110,7 +110,7 @@ class HotelJson {
             put("espacio_id", draft.roomId)
             put("huesped_nombre", draft.guestName.trim())
             draft.contact?.trim()?.takeIf { it.isNotEmpty() }?.let { put("contacto", it) }
-            put("entrada", draft.checkIn)
+            draft.checkIn?.let { put("entrada", it) }
             put("salida", draft.checkOut)
             draft.nightlyRate?.let { put("tarifa_noche", it) }
         }.toString()
@@ -187,7 +187,8 @@ class HotelJson {
             put("no_molestar_activo", config.doNotDisturbEnabled)
             put("salida_tardia_hora", config.lateCheckoutTime?.let { JsonPrimitive(it) } ?: JsonNull)
             put("salida_tardia_precio", config.lateCheckoutPrice?.let { JsonPrimitive(it) } ?: JsonNull)
-            put("hora_checkout", config.checkoutTime?.let { JsonPrimitive(it) } ?: JsonNull)
+            // El servidor rechaza `hora_checkout: null` (400): sin hora, la clave no se manda.
+            config.checkoutTime?.let { put("hora_checkout", it) }
         }.toString()
 
     // endregion
