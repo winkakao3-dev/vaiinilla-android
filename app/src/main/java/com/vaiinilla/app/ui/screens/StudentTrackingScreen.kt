@@ -1576,7 +1576,7 @@ private fun InlinePickupQr(order: OrderDetail) {
 /** «Pagado, Recibido, Preparando, En tu mesa» (Doop L10): el último paso dice dónde termina. */
 private fun foodProgressSteps(order: OrderDetail): List<String> {
     val summary = order.summary
-    val toRoom = SpaceCopy.isRoom(summary.space?.type)
+    val toRoom = SpaceCopy.isRoomOrder(order)
     val first =
         when {
             toRoom && summary.payAtEnd -> "Cargado"

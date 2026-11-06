@@ -391,7 +391,7 @@ private fun CatalogContent(
 
     val cartShortcutVisible = onOpenCart != null && state.cartItemCount > 0 && state.selectedProduct == null
     // En el cuarto de un hotel el menú es el room service de Doop (H02): cabecera propia y barra «Ver pedido».
-    val hotelRoom = SpaceCopy.isRoom(state.guestVenue?.space?.type)
+    val hotelRoom = SpaceCopy.isRoom(state.guestVenue?.space)
     val hotelCartBar = hotelRoom && cartShortcutVisible
 
     val scene = scenePaletteForTheme()
@@ -762,7 +762,7 @@ private fun MenuHero(
                 venue?.space?.let { space ->
                     Text(
                         text =
-                            if (SpaceCopy.isRoom(space.type)) {
+                            if (SpaceCopy.isRoom(space)) {
                                 "${space.name} · se lleva a tu puerta"
                             } else {
                                 "${space.name} · ${space.type}"
@@ -778,7 +778,7 @@ private fun MenuHero(
             }
             WholeWordTitle(
                 // En el cuarto de un hotel el menú es el room service, no el nombre del hotel (Doop H02).
-                text = if (SpaceCopy.isRoom(venue?.space?.type)) "ROOM SERVICE" else name.uppercase(),
+                text = if (SpaceCopy.isRoom(venue?.space)) "ROOM SERVICE" else name.uppercase(),
                 color = colors.ink,
                 fontSize = 46.sp,
                 lineHeight = 44.sp,

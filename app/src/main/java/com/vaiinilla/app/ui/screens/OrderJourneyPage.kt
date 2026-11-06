@@ -218,7 +218,7 @@ internal fun OrderJourneyPage(
             null
         }
     // Un pedido a una habitación de hotel se sigue como el marco H04 de Doop.
-    if (Venue.isHotel && SpaceCopy.isRoom(order.summary.space?.type)) {
+    if (SpaceCopy.isRoomOrder(order)) {
         HotelTrackingContent(
             order = order,
             onCallReception = waiter?.let { call -> { call.tap() } },

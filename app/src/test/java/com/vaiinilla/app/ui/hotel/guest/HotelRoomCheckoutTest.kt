@@ -25,6 +25,7 @@ class HotelRoomCheckoutTest {
     private fun state(
         type: String,
         config: HotelConfig?,
+        isRoom: Boolean? = null,
     ) = OrderFlowUiState(
         checkoutDestination = OrderDestination.IN_SPACE,
         guestVenue =
@@ -38,7 +39,7 @@ class HotelRoomCheckoutTest {
                         clientIdRequired = false,
                         allowsPayAtEnd = false,
                     ),
-                space = PublicSpace(id = 304, name = "Habitación 304", type = type),
+                space = PublicSpace(id = 304, name = "Habitación 304", type = type, isRoom = isRoom),
             ),
         hotelConfig = config,
     )
@@ -49,6 +50,15 @@ class HotelRoomCheckoutTest {
         assertTrue(state("mesa", HotelConfig(chargeToRoom = true)).isHotelRoomOrder)
         assertTrue(state("mesa", HotelConfig(chargeToRoom = true)).canPayAtEnd)
         assertFalse(state("mesa", HotelConfig(chargeToRoom = false)).canPayAtEnd)
+    }
+
+    @Test
+    fun `una mesa del restaurante del hotel no es una habitacion aunque el negocio sea hotel`() {
+        Venue.update(Venue.HOTEL)
+        assertTrue(state("mesa", HotelConfig(chargeToRoom = true), isRoom = true).isHotelRoomOrder)
+        val restaurant = state("mesa", HotelConfig(chargeToRoom = true), isRoom = false)
+        assertFalse(restaurant.isHotelRoomOrder)
+        assertFalse(restaurant.canPayAtEnd)
     }
 
     @Test

@@ -105,7 +105,7 @@ internal fun celebrationMessage(
 ): String =
     when {
         kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED -> "Tu pago fue autorizado y tu pedido ya está en marcha."
-        order.summary.payAtEnd && SpaceCopy.isRoom(order.summary.space?.type) ->
+        order.summary.payAtEnd && SpaceCopy.isRoomOrder(order) ->
             "Se carga a tu ${Venue.room}: la pagas al salir."
         order.summary.payAtEnd -> "Va a tu cuenta: la pagas al final."
         order.summary.destination == OrderDestination.HOME_DELIVERY ->
@@ -348,7 +348,7 @@ val OrderFlowUiState.canPayAtEnd: Boolean
 
 /** ¿El pedido va a la habitación de un hotel? Ahí el pago y los textos cambian. */
 val OrderFlowUiState.isHotelRoomOrder: Boolean
-    get() = Venue.isHotel && checkoutDestination == OrderDestination.IN_SPACE && SpaceCopy.isRoom(checkoutSpace?.type)
+    get() = Venue.isHotel && checkoutDestination == OrderDestination.IN_SPACE && SpaceCopy.isRoom(checkoutSpace)
 
 /** Cómo entrega el negocio en mesa o lugar; el invitado sin sesión lo lee de la ficha pública. */
 val OrderFlowUiState.spaceDelivery: SpaceDelivery

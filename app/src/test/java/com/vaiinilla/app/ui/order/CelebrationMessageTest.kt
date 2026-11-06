@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Venue
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -26,8 +27,28 @@ class CelebrationMessageTest {
         )
     }
 
-    private fun order(payAtEnd: Boolean) =
-        OrderDetail(
+    @Test
+    fun `en un hotel solo un pedido con estancia dice que se carga a la habitacion`() {
+        Venue.update(Venue.HOTEL)
+        try {
+            assertEquals(
+                "Se carga a tu habitación: la pagas al salir.",
+                celebrationMessage(order(payAtEnd = true, stayId = "s1"), PurchaseCelebrationKind.ORDER_RECEIVED),
+            )
+            // Una mesa del restaurante del hotel no tiene estancia.
+            assertEquals(
+                "Va a tu cuenta: la pagas al final.",
+                celebrationMessage(order(payAtEnd = true), PurchaseCelebrationKind.ORDER_RECEIVED),
+            )
+        } finally {
+            Venue.update(null)
+        }
+    }
+
+    private fun order(
+        payAtEnd: Boolean,
+        stayId: String? = null,
+    ) = OrderDetail(
             summary =
                 OrderSummary(
                     id = "1",
@@ -50,5 +71,6 @@ class CelebrationMessageTest {
             user = null,
             kitchenNotes = "",
             items = emptyList(),
+            stayId = stayId,
         )
 }
