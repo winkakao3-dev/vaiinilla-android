@@ -342,6 +342,8 @@ data class DeliveryPolicyDto(
     @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
     /** El tipo de negocio (`hotel`, `boliche`…): el vocabulario del personal depende de él. */
     @SerialName("tipo") val businessType: String? = null,
+    /** Una escuela es una cafetería con este ajuste; el aviso dice «alumno» solo ahí. */
+    @SerialName("modo_escuela") val isSchool: Boolean? = null,
 )
 
 @Serializable

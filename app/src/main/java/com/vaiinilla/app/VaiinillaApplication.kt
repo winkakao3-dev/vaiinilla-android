@@ -5,6 +5,7 @@ import android.net.http.HttpResponseCache
 import android.util.Log
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.vaiinilla.app.core.error.GlobalCrashReporterInstaller
+import com.vaiinilla.app.core.notifications.VenueVocabularyStore
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
 
@@ -12,6 +13,7 @@ import java.io.File
 class VaiinillaApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        VenueVocabularyStore.install(this)
         installCrashReporting()
         installGlobalCrashReporter()
         installHttpResponseCache()

@@ -113,7 +113,7 @@ class RemoteWaiterRepository(
             }.getOrNull()
         if (fetched != null) {
             storePolicyCache = now to fetched
-            fetched.businessType?.let { Venue.update(it) }
+            fetched.businessType?.let { Venue.update(it, fetched.isSchool) }
         }
         return fetched ?: storePolicyCache?.second ?: DeliveryPolicyDto()
     }
