@@ -137,7 +137,7 @@ class FakeHotelRepository : HotelRepository {
                     roomId = room.id,
                     roomName = room.name,
                     floor = room.floor,
-                    checkIn = draft.checkIn,
+                    checkIn = draft.checkIn ?: java.time.LocalDate.now().toString(),
                     checkOut = draft.checkOut,
                     nightlyRate = draft.nightlyRate,
                     status = StayStatus.IN_HOUSE,
