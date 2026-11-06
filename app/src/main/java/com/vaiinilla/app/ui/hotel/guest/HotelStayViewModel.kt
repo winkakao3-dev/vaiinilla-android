@@ -37,7 +37,9 @@ class HotelStayViewModel
             _state.value = _state.value.copy(loading = true, error = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.myStay() }
-                val config = withContext(Dispatchers.IO) { repository.config() }.getOrNull()
+                val config =
+                    result.getOrNull()?.settings
+                        ?: withContext(Dispatchers.IO) { repository.config() }.getOrNull()
                 _state.value =
                     result.fold(
                         onSuccess = { _state.value.copy(loading = false, stay = it, config = config ?: _state.value.config) },

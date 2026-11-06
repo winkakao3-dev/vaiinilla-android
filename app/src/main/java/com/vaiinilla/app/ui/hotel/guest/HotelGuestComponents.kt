@@ -260,8 +260,14 @@ internal fun hotelErrorMessage(
     val hotel = generateSequence(error) { it.cause }.filterIsInstance<HotelException>().firstOrNull()
     return when (hotel?.code) {
         HotelErrors.ROOM_REQUIRES_STAY -> "Primero escribe el código de estancia que te dio recepción."
-        "CODIGO_INVALIDO" -> "Ese código no coincide. Revísalo con recepción."
+        HotelErrors.STAY_NOT_FOUND, "CODIGO_INVALIDO" -> "Ese código no coincide o ya venció. Revísalo con recepción."
         "HABITACION_DISTINTA" -> "Ese código es de otra habitación."
+        HotelErrors.ROOM_CHARGE_DISABLED -> "Este hotel no carga pedidos a la habitación. Elige otra forma de pago."
+        HotelErrors.CARD_AT_ORDER_DISABLED -> "Este hotel no cobra con tarjeta al pedir."
+        HotelErrors.OUTSIDE_ORDER_HOURS -> "La cocina no recibe pedidos a esta hora."
+        HotelErrors.REQUESTS_DISABLED -> "Este hotel no recibe solicitudes desde la app."
+        HotelErrors.DND_DISABLED -> "Este hotel no tiene «No molestar» desde la app."
+        HotelErrors.LATE_CHECKOUT_UNAVAILABLE -> "La salida tardía no está disponible."
         else -> error.toUserFacingMessage(fallback)
     }
 }

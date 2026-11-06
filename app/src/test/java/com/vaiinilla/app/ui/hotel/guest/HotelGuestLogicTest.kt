@@ -58,7 +58,7 @@ class HotelGuestLogicTest {
                 checkOut = "2026-11-09",
                 nightlyRate = "1650.00",
                 nights = 3,
-                orders = listOf(StayOrder("P1", 412, "236.50", "entregado", null), StayOrder("P0", 398, "548.00", "entregado", null)),
+                orders = listOf(StayOrder("P1", "A-412", "236.50", "entregado", null), StayOrder("P0", "A-398", "548.00", "entregado", null)),
                 charges =
                     listOf(
                         StayCharge("C1", "Minibar", "90.00", ChargeCategory.MINIBAR),
@@ -67,7 +67,7 @@ class HotelGuestLogicTest {
             )
         assertEquals(BigDecimal("1184.50"), roomCharges(stay))
         assertEquals(BigDecimal("4950.00"), stayCost(stay))
-        assertEquals("Room service · pedido #412", accountLines(stay).first().title)
+        assertEquals("Room service · pedido A-412", accountLines(stay).first().title)
     }
 
     @Test

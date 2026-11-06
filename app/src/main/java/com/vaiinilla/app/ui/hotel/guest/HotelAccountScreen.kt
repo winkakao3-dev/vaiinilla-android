@@ -55,7 +55,7 @@ internal data class AccountLine(
 internal fun accountLines(stay: Stay): List<AccountLine> {
     val orders =
         stay.orders.map {
-            val title = it.folio?.let { folio -> "Room service · pedido #$folio" } ?: "Room service"
+            val title = it.itemsSummary?.takeIf { items -> items.isNotBlank() } ?: it.folio?.let { folio -> "Room service · pedido $folio" } ?: "Room service"
             AccountLine(title, listOfNotNull(it.createdAt?.let(::cremeMoment), "room service").joinToString(" · "), it.total.toBigDecimalOrNull() ?: BigDecimal.ZERO)
         }
     val charges =
@@ -66,10 +66,20 @@ internal fun accountLines(stay: Stay): List<AccountLine> {
     return orders + charges
 }
 
-/** Lo que lleva cargado a la habitación: room service y cargos de recepción. La estancia se muestra aparte. */
-internal fun roomCharges(stay: Stay): BigDecimal = accountLines(stay).fold(BigDecimal.ZERO) { sum, line -> sum + line.amount }
+/**
+ * Lo que lleva cargado a la habitación: room service y cargos de recepción. La estancia se muestra aparte. Si el
+ * servidor mandó la cuenta calculada se usa esa; si no, la suma de las líneas.
+ */
+internal fun roomCharges(stay: Stay): BigDecimal {
+    val orders = stay.account?.ordersTotal?.toBigDecimalOrNull()
+    val charges = stay.account?.chargesTotal?.toBigDecimalOrNull()
+    if (orders != null && charges != null) return orders + charges
+    return accountLines(stay).fold(BigDecimal.ZERO) { sum, line -> sum + line.amount }
+}
 
-internal fun stayCost(stay: Stay): BigDecimal? = stay.nightlyRate?.toBigDecimalOrNull()?.multiply(BigDecimal(stay.nights))
+internal fun stayCost(stay: Stay): BigDecimal? =
+    stay.account?.nightsTotal?.toBigDecimalOrNull()
+        ?: stay.nightlyRate?.toBigDecimalOrNull()?.multiply(BigDecimal(stay.nights))
 
 @Composable
 fun HotelAccountContent(

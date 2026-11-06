@@ -56,8 +56,8 @@ class HotelGuestScreenshotTest {
             nights = 3,
             orders =
                 listOf(
-                    StayOrder("P1", 412, "236.50", "entregado", "2026-11-06T14:02:00Z"),
-                    StayOrder("P0", 398, "548.00", "entregado", "2026-11-05T03:10:00Z"),
+                    StayOrder("P1", "A-412", "236.50", "entregado", "2026-11-06T14:02:00Z", itemsSummary = "Chilaquiles y café"),
+                    StayOrder("P0", "A-398", "548.00", "entregado", "2026-11-05T03:10:00Z", itemsSummary = "Cena · pasta y vino"),
                 ),
             charges =
                 listOf(

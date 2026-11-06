@@ -52,7 +52,7 @@ class HotelRequestsViewModel
             viewModelScope.launch {
                 val stay = withContext(Dispatchers.IO) { repository.myStay() }.getOrNull()
                 val open = withContext(Dispatchers.IO) { repository.myRequests() }.getOrNull().orEmpty().filter { it.status.isOpen }
-                val config = withContext(Dispatchers.IO) { repository.config() }.getOrNull()
+                val config = stay?.settings ?: withContext(Dispatchers.IO) { repository.config() }.getOrNull()
                 val dnd = stay?.doNotDisturb ?: false
                 _state.value =
                     _state.value.copy(
