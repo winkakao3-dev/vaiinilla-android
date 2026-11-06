@@ -141,8 +141,7 @@ import com.vaiinilla.app.ui.order.asksForDeliveryDate
 import com.vaiinilla.app.ui.order.asksSpaceDelivery
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canDeliverHome
-import com.vaiinilla.app.ui.hotel.guest.HotelStayCodeSheet
-import com.vaiinilla.app.ui.hotel.guest.activityOrderFlow
+import com.vaiinilla.app.ui.hotel.guest.HotelCheckoutRoute
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.isHotelRoomOrder
 import com.vaiinilla.app.ui.order.canPayWithBalance
@@ -208,6 +207,19 @@ fun CartScreen(
     /** A domicilio y encargos (CASA-05 a 08); sin `reparto` en el estado de la tienda no se ve nada de esto. */
     home: HomeCheckoutActions = HomeCheckoutActions(),
 ) {
+    // El pedido a una habitación de hotel se arma como el marco H03 de Doop.
+    if (state.isHotelRoomOrder && state.cartLines.isNotEmpty()) {
+        HotelCheckoutRoute(
+            state = state,
+            onNotesChange = onNotesChange,
+            onPayAtEnd = onPayAtEnd,
+            onPaymentChange = onPaymentChange,
+            onConfirm = onConfirm,
+            onCheckoutOpened = onCheckoutOpened,
+            onResolvePendingStripePayment = onResolvePendingStripePayment,
+        )
+        return
+    }
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val density = LocalDensity.current
@@ -592,17 +604,6 @@ fun CartScreen(
                         )
                     }
                 }
-            }
-
-            if (state.needsStayCode) {
-                // El servidor pidió la estancia: se escribe el código aquí y el mismo pedido se reintenta.
-                val flow = activityOrderFlow()
-                HotelStayCodeSheet(
-                    linking = state.creatingOrder,
-                    error = state.stayCodeError,
-                    onSubmit = { code -> flow?.linkStayAndRetry(code) },
-                    onDismiss = { flow?.dismissStayCode() },
-                )
             }
 
             if (paymentDialogOpen) {

@@ -100,6 +100,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
@@ -124,6 +125,8 @@ import com.vaiinilla.app.ui.components.cremeHeroBrush
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.guest.HotelCartBar
+import com.vaiinilla.app.ui.hotel.guest.HotelMenuHeader
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
@@ -387,6 +390,9 @@ private fun CatalogContent(
         }
 
     val cartShortcutVisible = onOpenCart != null && state.cartItemCount > 0 && state.selectedProduct == null
+    // En el cuarto de un hotel el menú es el room service de Doop (H02): cabecera propia y barra «Ver pedido».
+    val hotelRoom = SpaceCopy.isRoom(state.guestVenue?.space?.type)
+    val hotelCartBar = hotelRoom && cartShortcutVisible
 
     val scene = scenePaletteForTheme()
     val shelfColors =
@@ -471,16 +477,20 @@ private fun CatalogContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        CatalogHeader(
-                            state = state,
-                            onSearchChange = onSearchChange,
-                            onChangeVenue = onChangeVenue,
-                            onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
-                            profileInitials = profileInitials,
-                            onOpenAccount = onOpenAccount,
-                            pageColor = colors.paper,
-                            onOpenFeed = onOpenFeed,
-                        )
+                        if (hotelRoom) {
+                            HotelMenuHeader(roomName = state.guestVenue?.space?.name ?: Venue.roomTitle)
+                        } else {
+                            CatalogHeader(
+                                state = state,
+                                onSearchChange = onSearchChange,
+                                onChangeVenue = onChangeVenue,
+                                onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
+                                profileInitials = profileInitials,
+                                onOpenAccount = onOpenAccount,
+                                pageColor = colors.paper,
+                                onOpenFeed = onOpenFeed,
+                            )
+                        }
                     }
                     state.menuNotice?.let { notice ->
                         item(key = "closed-notice", span = { GridItemSpan(maxLineSpan) }) {
@@ -576,7 +586,7 @@ private fun CatalogContent(
         MenuCartShortcut(
             count = state.cartItemCount,
             total = moneyLabel(state.cartPreviewTotal),
-            visible = cartShortcutVisible && waiterLayer == null,
+            visible = cartShortcutVisible && waiterLayer == null && !hotelCartBar,
             onClick = { onOpenCart?.invoke() },
             modifier =
                 Modifier
@@ -585,15 +595,26 @@ private fun CatalogContent(
                     .padding(end = VaiinillaBottomNavSideMargin, bottom = VaiinillaBottomNavTop + 10.dp),
         )
 
+        if (hotelCartBar) {
+            HotelCartBar(
+                count = state.cartItemCount,
+                total = moneyLabel(state.cartPreviewTotal),
+                onClick = { onOpenCart?.invoke() },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+
         // Se esconde con la ficha de un platillo abierta, como "Pedir ya"; en Pedidos queda el botón de la tarjeta.
-        waiterLayer?.invoke(
-            if (cartShortcutVisible) {
-                MenuCartBar(state.cartItemCount, moneyLabel(state.cartPreviewTotal)) { onOpenCart?.invoke() }
-            } else {
-                null
-            },
-            state.selectedProduct == null,
-        )
+        if (!hotelCartBar) {
+            waiterLayer?.invoke(
+                if (cartShortcutVisible) {
+                    MenuCartBar(state.cartItemCount, moneyLabel(state.cartPreviewTotal)) { onOpenCart?.invoke() }
+                } else {
+                    null
+                },
+                state.selectedProduct == null,
+            )
+        }
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
