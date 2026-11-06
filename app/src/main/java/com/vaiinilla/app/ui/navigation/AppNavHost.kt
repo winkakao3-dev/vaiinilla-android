@@ -551,7 +551,7 @@ fun AppNavHost(
     // La habitación de un hotel es una mesa del servidor: solo se sabe que es un hotel cuando llega el estado
     // operativo del lugar, así que el QR abre el catálogo y de ahí se pasa a la bienvenida del hotel (o al código).
     var hotelEntryDone by rememberSaveable { mutableStateOf(false) }
-    val roomSpaceId = orderState.guestVenue?.space?.takeIf { SpaceCopy.isRoomType(it.type) }?.id
+    val roomSpaceId = orderState.guestVenue?.space?.takeIf { SpaceCopy.isRoom(it) }?.id
     val statusIsHotel = orderState.operationalStatus?.businessType == Venue.HOTEL
     LaunchedEffect(roomSpaceId, statusIsHotel, hotelEntryDone) {
         if (roomSpaceId != null && statusIsHotel && !hotelEntryDone) {
