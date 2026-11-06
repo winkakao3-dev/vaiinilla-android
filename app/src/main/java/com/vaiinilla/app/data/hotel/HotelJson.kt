@@ -51,7 +51,10 @@ class HotelJson {
 
     /** `GET estancias` responde `{ hoy, estancias: [...] }`. */
     fun parseStays(raw: String): List<Stay> =
-        json.decodeFromString<Envelope<StayListDto>>(raw).data.estancias.map { it.toDomain() }
+        json
+            .decodeFromString<Envelope<StayListDto>>(raw)
+            .data.estancias
+            .map { it.toDomain() }
 
     /** `POST estancias/:id/cargos` responde la estancia con el cargo: el recién agregado es el último. */
     fun parseAddedCharge(raw: String): StayCharge =
@@ -65,7 +68,10 @@ class HotelJson {
     /** Sirve también para `POST habitaciones/:id/limpieza`, que solo trae `id`, `nombre` y `limpieza`. */
     fun parseRoom(raw: String): HotelRoom = json.decodeFromString<Envelope<RoomDto>>(raw).data.toDomain()
 
-    fun parseRooms(raw: String): List<HotelRoom> = json.decodeFromString<Envelope<List<RoomDto>>>(raw).data.map { it.toDomain() }
+    fun parseRooms(raw: String): List<HotelRoom> =
+        json.decodeFromString<Envelope<List<RoomDto>>>(raw).data.map {
+            it.toDomain()
+        }
 
     fun parseRoomBatch(raw: String): RoomBatchResult =
         json.decodeFromString<Envelope<RoomBatchDto>>(raw).data.let {
@@ -109,7 +115,10 @@ class HotelJson {
         buildJsonObject {
             put("espacio_id", draft.roomId)
             put("huesped_nombre", draft.guestName.trim())
-            draft.contact?.trim()?.takeIf { it.isNotEmpty() }?.let { put("contacto", it) }
+            draft.contact
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { put("contacto", it) }
             draft.checkIn?.let { put("entrada", it) }
             put("salida", draft.checkOut)
             draft.nightlyRate?.let { put("tarifa_noche", it) }
@@ -199,7 +208,14 @@ private data class Envelope<T>(
     val data: T,
 )
 
-private fun JsonPrimitive?.text(): String? = if (this == null || this is JsonNull) null else contentOrNull?.trim()?.ifEmpty { null }
+private fun JsonPrimitive?.text(): String? =
+    if (this == null ||
+        this is JsonNull
+    ) {
+        null
+    } else {
+        contentOrNull?.trim()?.ifEmpty { null }
+    }
 
 @Serializable
 private data class StayListDto(
@@ -481,7 +497,12 @@ private data class SummaryDto(
             arrivalsToday = llegadasHoy,
             departures =
                 salidasHoy.map {
-                    HotelDeparture(it.estanciaId.text().orEmpty(), it.huespedNombre, it.habitacion?.nombre.orEmpty(), it.salidaPrevista)
+                    HotelDeparture(
+                        it.estanciaId.text().orEmpty(),
+                        it.huespedNombre,
+                        it.habitacion?.nombre.orEmpty(),
+                        it.salidaPrevista,
+                    )
                 },
         )
 }
@@ -494,7 +515,11 @@ private fun minutesSince(
     runCatching {
         val start = Instant.parse(since ?: return null)
         val end = now?.let(Instant::parse) ?: Instant.now()
-        Duration.between(start, end).toMinutes().toInt().coerceAtLeast(0)
+        Duration
+            .between(start, end)
+            .toMinutes()
+            .toInt()
+            .coerceAtLeast(0)
     }.getOrNull()
 
 /** `GET hotel/configuracion` y los `ajustes` del huésped; ninguna respuesta que ya existía lleva estos campos. */
