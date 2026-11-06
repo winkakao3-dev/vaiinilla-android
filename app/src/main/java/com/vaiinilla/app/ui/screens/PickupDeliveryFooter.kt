@@ -128,7 +128,7 @@ internal fun PickupDeliveryFooter(
         }
         if (onCantScan != null) {
             Text(
-                "¿No lee? Búscalo por nombre, folio o teléfono",
+                "¿No lee? Búscalo por nombre o folio",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textSecondary,
