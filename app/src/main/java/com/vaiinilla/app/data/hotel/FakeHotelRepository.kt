@@ -384,7 +384,7 @@ class FakeHotelRepository : HotelRepository {
                     status = StayStatus.IN_HOUSE,
                     nights = 2,
                     charges = listOf(StayCharge("C1", "Minibar", "180.00", ChargeCategory.MINIBAR, NOW)),
-                    orders = listOf(StayOrder("P1", "A-041", "320.00", "entregado", NOW, "Club sándwich")),
+                    orders = listOf(StayOrder("P1", "A-041", "320.00", "entregado", NOW, "Club sándwich", pendingPayment = true)),
                 ),
                 Stay(
                     id = "S2",
