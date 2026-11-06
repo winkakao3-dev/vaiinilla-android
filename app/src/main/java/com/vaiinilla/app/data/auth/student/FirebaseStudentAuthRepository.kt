@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuthMultiFactorException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.MultiFactorResolver
 import com.google.firebase.auth.TotpMultiFactorGenerator
+import com.google.firebase.auth.TotpSecret
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.runCatchingCancellable
@@ -18,6 +19,7 @@ import com.vaiinilla.app.domain.auth.student.StudentAuthMfaOperation
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaResolution
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
+import com.vaiinilla.app.domain.auth.student.TotpEnrollmentData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -36,6 +38,7 @@ class FirebaseStudentAuthRepository
     ) : StudentAuthRepository {
         private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
         private val pendingMfa = ConcurrentHashMap<String, PendingMfa>()
+        private var pendingTotpSecret: TotpSecret? = null
 
         override fun peekSession(): StudentAuthSession? = auth.currentUser?.toSession()
 
@@ -267,9 +270,52 @@ class FirebaseStudentAuthRepository
             pendingMfa.remove(challengeId)
         }
 
+        override suspend fun startTotpEnrollment(): Result<TotpEnrollmentData> =
+            withContext(Dispatchers.IO) {
+                runCatchingCancellable {
+                    val user = auth.currentUser ?: throw IllegalStateException("No hay una sesión activa.")
+                    val session = user.multiFactor.session.await()
+                    val secret = TotpMultiFactorGenerator.generateSecret(session).await()
+                    pendingTotpSecret = secret
+                    val email = user.email.orEmpty().ifBlank { "vaiinilla" }
+                    TotpEnrollmentData(
+                        sharedSecretKey = secret.sharedSecretKey,
+                        qrCodeUrl = secret.generateQrCodeUrl(email, "Vaiinilla"),
+                    )
+                }.recoverCatching { error ->
+                    throw IllegalStateException(firebaseAuthUserMessage(error))
+                }
+            }
+
+        override suspend fun finalizeTotpEnrollment(code: String): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                runCatchingCancellable {
+                    val secret =
+                        pendingTotpSecret
+                            ?: throw IllegalStateException("No hay un enrolamiento de autenticador en curso.")
+                    val user = auth.currentUser ?: throw IllegalStateException("No hay una sesión activa.")
+                    val normalizedCode = code.trim()
+                    require(normalizedCode.length == 6 && normalizedCode.all(Char::isDigit)) {
+                        "El código debe tener 6 dígitos."
+                    }
+                    val assertion = TotpMultiFactorGenerator.getAssertionForEnrollment(secret, normalizedCode)
+                    user.multiFactor.enroll(assertion, "Autenticador").await()
+                    pendingTotpSecret = null
+                    user.reload().await()
+                    Unit
+                }.recoverCatching { error ->
+                    throw IllegalStateException(firebaseAuthUserMessage(error))
+                }
+            }
+
+        override fun cancelTotpEnrollment() {
+            pendingTotpSecret = null
+        }
+
         override suspend fun signOut() {
             withContext(Dispatchers.IO) {
                 pendingMfa.clear()
+                pendingTotpSecret = null
                 auth.signOut()
                 preferences.clear()
                 refreshCoordinator.clearSession()

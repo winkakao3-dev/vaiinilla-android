@@ -40,5 +40,13 @@ interface StudentAuthRepository {
 
     fun cancelMfa(challengeId: String) = Unit
 
+    suspend fun startTotpEnrollment(): Result<TotpEnrollmentData> =
+        Result.failure(UnsupportedOperationException("Enrolamiento TOTP no soportado."))
+
+    suspend fun finalizeTotpEnrollment(code: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Enrolamiento TOTP no soportado."))
+
+    fun cancelTotpEnrollment() = Unit
+
     suspend fun signOut()
 }
