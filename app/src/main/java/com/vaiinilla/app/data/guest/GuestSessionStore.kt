@@ -52,7 +52,8 @@ class GuestSessionStore
                         name = prefs.getString(KEY_SPACE_NAME, "") ?: "",
                         type = prefs.getString(KEY_SPACE_TYPE, "mesa") ?: "mesa",
                         qrToken = prefs.getString(KEY_SPACE_QR_TOKEN, null),
-                        isRoom = if (prefs.contains(KEY_SPACE_IS_ROOM)) prefs.getBoolean(KEY_SPACE_IS_ROOM, false) else null,
+                        isRoom =
+                            if (prefs.contains(KEY_SPACE_IS_ROOM)) prefs.getBoolean(KEY_SPACE_IS_ROOM, false) else null,
                     )
                 }
             return GuestVenueContext(
