@@ -179,6 +179,8 @@ data class OrderDetail(
     val answerBy: Instant? = null,
     /** Encargo aceptado con tarjeta: hasta cuándo paga el cliente antes de que se cancele. */
     val payBy: Instant? = null,
+    /** Hotel: la estancia a cuya cuenta se carga el pedido (room service); null en los demás pedidos. */
+    val stayId: String? = null,
 )
 
 /** Cómo quedó el dinero de un pedido o artículo pagado que se canceló: lo que Caja debe hacer o ya no. */

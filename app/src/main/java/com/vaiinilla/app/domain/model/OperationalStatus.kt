@@ -43,6 +43,8 @@ data class OperationalStatus(
     val homeDelivery: HomeDeliveryOffer? = null,
     /** `null`: no toma encargos para otro día. */
     val preorders: PreorderOffer? = null,
+    /** Solo en un hotel (`tipo: hotel`): lo que el dueño configuró; null si el servidor no lo manda. */
+    val hotelConfig: com.vaiinilla.app.domain.hotel.HotelConfig? = null,
 ) {
     /** Lo que el resumen del admin dice de Caja: la ventana de 2 min si el servidor la manda. */
     val cashierPresent: Boolean get() = cashierConnected ?: cashierOnline

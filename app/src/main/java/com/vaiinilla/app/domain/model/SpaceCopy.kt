@@ -1,10 +1,26 @@
 package com.vaiinilla.app.domain.model
 
 /**
- * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`, `asiento`).
+ * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`, `asiento`, `habitacion`).
  * Sin tipo o con `mesa` se conserva el texto de siempre.
  */
 object SpaceCopy {
+    const val ROOM = "habitacion"
+
+    /**
+     * El espacio como lo dice el personal en una etiqueta corta: «Hab. 304» para una habitación (el servidor la
+     * guarda como «Habitación 304»), el nombre tal cual para los demás.
+     */
+    fun short(
+        type: String?,
+        name: String,
+    ): String =
+        if (type == ROOM) {
+            name.trim().replace(Regex("^Habitaci[óo]n\\s*", RegexOption.IGNORE_CASE), "Hab. ")
+        } else {
+            name
+        }
+
     /** Nombre corto del tipo para el personal: "Mesa", "Cancha"... */
     fun kindLabel(type: String?): String =
         when (type) {
@@ -12,6 +28,7 @@ object SpaceCopy {
             "barra" -> "Barra"
             "drive_thru" -> "Carril"
             "asiento" -> "Asiento"
+            ROOM -> Venue.roomTitle
             else -> "Mesa"
         }
 
@@ -28,6 +45,7 @@ object SpaceCopy {
             "barra" -> "la barra"
             "drive_thru" -> "tu auto"
             "asiento" -> "tu asiento"
+            ROOM -> "tu ${Venue.room}"
             null, "mesa" -> "tu mesa"
             else -> "tu espacio"
         }
@@ -39,6 +57,7 @@ object SpaceCopy {
             "barra" -> "En la barra"
             "drive_thru" -> "En tu auto"
             "asiento" -> "En tu asiento"
+            ROOM -> "A tu ${Venue.room}"
             else -> "Comer aquí"
         }
 
@@ -46,6 +65,8 @@ object SpaceCopy {
     fun payAtCashierHint(type: String?): String =
         if (type == "barra") {
             "Pagas en caja y te lo entregamos en la barra"
+        } else if (type == ROOM) {
+            "Se carga a tu ${Venue.room} y te lo llevamos a tu puerta"
         } else {
             "Pagas en caja y te lo llevamos a ${yourPlace(type)}"
         }
@@ -67,17 +88,21 @@ object SpaceCopy {
             "barra" -> "Selecciona tu lugar en la barra"
             "drive_thru" -> "Selecciona tu carril"
             "asiento" -> "Selecciona tu asiento"
+            ROOM -> "Selecciona tu ${Venue.room}"
             else -> "Selecciona tu mesa"
         }
 
-    /** Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). */
+    /**
+     * Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1").
+     * En una habitación el personal lee «A la habitación · Hab. 304», no «A tu habitación».
+     */
     fun staffDestination(
         destination: OrderDestination,
         space: OrderSpace?,
     ): String {
         if (destination != OrderDestination.IN_SPACE) return "Para llevar"
-        val title = destinationTitle(space?.type)
-        val name = space?.name?.takeIf { it.isNotBlank() } ?: return title
+        val title = if (space?.type == ROOM) "A la ${Venue.room}" else destinationTitle(space?.type)
+        val name = space?.name?.takeIf { it.isNotBlank() }?.let { short(space.type, it) } ?: return title
         return "$title · $name"
     }
 }

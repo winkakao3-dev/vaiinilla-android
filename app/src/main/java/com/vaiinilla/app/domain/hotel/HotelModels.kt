@@ -1,0 +1,223 @@
+package com.vaiinilla.app.domain.hotel
+
+/** Lo que el dueño configura del hotel (`hotel_config` del establecimiento); null en el modelo = servidor sin hotel. */
+data class HotelConfig(
+    /** El huésped puede pedir toallas, limpieza y demás desde la app. */
+    val requestsEnabled: Boolean = true,
+    /** El huésped puede poner «No molestar». */
+    val doNotDisturbEnabled: Boolean = true,
+    /** «HH:mm» hasta cuándo se puede pedir salida tardía; null = no se ofrece. */
+    val lateCheckoutTime: String? = null,
+    /** Precio de la salida tardía, como texto con punto decimal. */
+    val lateCheckoutPrice: String? = null,
+    /** «HH:mm» de la salida normal. */
+    val checkoutTime: String? = null,
+)
+
+enum class StayStatus(
+    val wire: String,
+    val label: String,
+) {
+    RESERVED("reservada", "Por llegar"),
+    IN_HOUSE("en_casa", "En casa"),
+    CHECKED_OUT("salio", "Salió"),
+    CANCELED("cancelada", "Cancelada"),
+    ;
+
+    companion object {
+        fun fromWire(value: String?): StayStatus = entries.firstOrNull { it.wire == value } ?: IN_HOUSE
+    }
+}
+
+enum class ChargeCategory(
+    val wire: String,
+    val label: String,
+) {
+    MINIBAR("minibar", "Minibar"),
+    SPA("spa", "Spa"),
+    LATE_CHECKOUT("salida_tardia", "Salida tardía"),
+    OTHER("otro", "Otro"),
+    ;
+
+    companion object {
+        fun fromWire(value: String?): ChargeCategory = entries.firstOrNull { it.wire == value } ?: OTHER
+    }
+}
+
+/** Cómo pagó el huésped al salir. «Tarjeta» es el registro de una terminal externa, no un cobro de la app. */
+enum class CheckoutMethod(
+    val wire: String,
+    val label: String,
+) {
+    CARD("tarjeta", "Tarjeta"),
+    CASH("efectivo", "Efectivo"),
+    TRANSFER("transferencia", "Transferencia"),
+}
+
+enum class RequestType(
+    val wire: String,
+    val label: String,
+) {
+    TOWELS("toallas", "Toallas"),
+    PILLOWS("almohadas", "Almohadas"),
+    CLEANING("limpieza", "Limpieza"),
+    CHARGER("cargador", "Cargador"),
+    LATE_CHECKOUT("salida_tardia", "Salida tardía"),
+    OTHER("otro", "Otra cosa"),
+    ;
+
+    companion object {
+        fun fromWire(value: String?): RequestType = entries.firstOrNull { it.wire == value } ?: OTHER
+    }
+}
+
+enum class RequestStatus(
+    val wire: String,
+    val label: String,
+) {
+    PENDING("pendiente", "Pendiente"),
+    TAKEN("tomada", "En camino"),
+    RESOLVED("resuelta", "Resuelta"),
+    CANCELED("cancelada", "Cancelada"),
+    ;
+
+    val isOpen: Boolean get() = this == PENDING || this == TAKEN
+
+    companion object {
+        fun fromWire(value: String?): RequestStatus = entries.firstOrNull { it.wire == value } ?: PENDING
+    }
+}
+
+/** `POST solicitudes-hotel/:id/transiciones`: tomar, resolver o aprobar (la salida tardía suma un cargo). */
+enum class RequestAction(
+    val wire: String,
+) {
+    TAKE("tomar"),
+    RESOLVE("resolver"),
+    APPROVE("aprobar"),
+}
+
+enum class RoomCleaning(
+    val wire: String,
+    val label: String,
+) {
+    READY("lista", "Lista"),
+    DIRTY("por_limpiar", "Por limpiar"),
+    ;
+
+    companion object {
+        fun fromWire(value: String?): RoomCleaning = entries.firstOrNull { it.wire == value } ?: READY
+    }
+}
+
+/** Dinero siempre como texto con punto decimal, como lo manda el servidor. */
+data class StayCharge(
+    val id: String,
+    val concept: String,
+    val amount: String,
+    val category: ChargeCategory,
+    val createdAt: String? = null,
+)
+
+/** Un pedido de room service que va a la cuenta de la estancia. */
+data class StayOrder(
+    val orderId: String,
+    val folio: Int?,
+    val total: String,
+    val state: String,
+    val createdAt: String? = null,
+)
+
+data class Stay(
+    val id: String,
+    val guestName: String,
+    val contact: String? = null,
+    val userId: String? = null,
+    /** Código de 6 dígitos que recepción le da al huésped. */
+    val code: String? = null,
+    val roomId: Int? = null,
+    val roomName: String? = null,
+    val floor: Int? = null,
+    /** Fechas ISO (`yyyy-MM-dd` o instante). */
+    val checkIn: String,
+    val checkOut: String,
+    val nightlyRate: String? = null,
+    val status: StayStatus = StayStatus.IN_HOUSE,
+    val nights: Int = 1,
+    val charges: List<StayCharge> = emptyList(),
+    val orders: List<StayOrder> = emptyList(),
+    /** Cuenta completa (noches, cargos y room service); null si el servidor no la calcula. */
+    val total: String? = null,
+    val paymentMethod: String? = null,
+    val paidAt: String? = null,
+    val doNotDisturb: Boolean = false,
+)
+
+data class NewStay(
+    val guestName: String,
+    val contact: String?,
+    val roomId: Int,
+    val checkIn: String,
+    val checkOut: String,
+    val nightlyRate: String?,
+)
+
+data class HotelRequest(
+    val id: String,
+    val stayId: String? = null,
+    val roomId: Int? = null,
+    val roomName: String? = null,
+    val floor: Int? = null,
+    val type: RequestType,
+    val quantity: Int = 1,
+    val note: String? = null,
+    val status: RequestStatus = RequestStatus.PENDING,
+    /** Quién la tomó (personal); el huésped no ve el nombre. */
+    val takenBy: String? = null,
+    val createdAt: String? = null,
+)
+
+data class HotelRoom(
+    val id: Int,
+    val name: String,
+    val floor: Int? = null,
+    /** «doble», «suite»… tal como la escribe el dueño. */
+    val category: String? = null,
+    val cleaning: RoomCleaning = RoomCleaning.READY,
+    val occupied: Boolean = false,
+    val doNotDisturb: Boolean = false,
+    val openRequests: Int = 0,
+    val stayId: String? = null,
+    val guestName: String? = null,
+)
+
+data class HotelTopItem(
+    val name: String,
+    val quantity: Int,
+    val total: String? = null,
+)
+
+/** `GET hotel/resumen` para el inicio del admin (A03). */
+data class HotelSummary(
+    val occupied: Int,
+    val totalRooms: Int,
+    val roomServiceToday: String? = null,
+    val roomOrdersToday: Int = 0,
+    val inKitchenNow: Int = 0,
+    val openRequests: Int = 0,
+    val oldestRequestMinutes: Int? = null,
+    val topItems: List<HotelTopItem> = emptyList(),
+    val departuresToday: Int = 0,
+)
+
+/** Códigos de error del servidor que las pantallas del hotel distinguen. */
+object HotelErrors {
+    /** Pedir a una habitación sin estancia vigente ligada a la cuenta (`403`). */
+    const val ROOM_REQUIRES_STAY = "ROOM_REQUIRES_STAY"
+}
+
+class HotelException(
+    val code: String,
+    message: String,
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)

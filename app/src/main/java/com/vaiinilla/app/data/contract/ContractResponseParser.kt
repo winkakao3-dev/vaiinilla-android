@@ -92,6 +92,7 @@ class ContractResponseParser
                             answerMinutes = envelope.data.answerMinutes,
                         )
                     },
+                hotelConfig = envelope.data.hotelConfig?.toDomain(),
             )
         }
 

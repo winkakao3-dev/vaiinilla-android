@@ -151,6 +151,9 @@ class RemoteAdminStoreRepository(
     override fun saveHomeDelivery(delivery: HomeDeliverySettings): Result<StoreConfig> =
         patchConfig(json.encodeHomeDelivery(delivery))
 
+    override fun saveHotelConfig(config: com.vaiinilla.app.domain.hotel.HotelConfig): Result<StoreConfig> =
+        patchConfig(json.encodeHotelConfig(config))
+
     override fun savePreorders(preorders: PreorderSettings): Result<StoreConfig> =
         patchConfig(json.encodePreorders(preorders))
 
@@ -255,9 +258,11 @@ class RemoteAdminSpacesRepository(
         type: SpaceType,
         idempotencyKey: String,
         capacity: Int?,
+        floor: Int?,
+        category: String?,
     ): Result<ManagedSpace> =
         apiClient
-            .post("espacios", json.encodeNewSpace(name, type.wire, capacity), key(idempotencyKey))
+            .post("espacios", json.encodeNewSpace(name, type.wire, capacity, floor, category), key(idempotencyKey))
             .mapCatching(json::parseSpace)
             .mapApiErrors()
 
@@ -268,9 +273,11 @@ class RemoteAdminSpacesRepository(
         to: Int,
         idempotencyKey: String,
         capacity: Int?,
+        floor: Int?,
+        category: String?,
     ): Result<SpaceBatchResult> =
         apiClient
-            .post("espacios/lote", json.encodeBatch(type.wire, prefix, from, to, capacity), key(idempotencyKey))
+            .post("espacios/lote", json.encodeBatch(type.wire, prefix, from, to, capacity, floor, category), key(idempotencyKey))
             .mapCatching(json::parseBatch)
             .mapApiErrors()
 

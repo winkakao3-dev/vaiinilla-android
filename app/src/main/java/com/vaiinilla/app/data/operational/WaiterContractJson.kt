@@ -340,6 +340,9 @@ data class DeliveryPolicyDto(
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
     /** «Te lo llevamos», «Pasa por él» o ambas; un servidor anterior no lo envía. */
     @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
+    /** El tipo de negocio (`hotel`, `boliche`…): el vocabulario del personal depende de él. */
+    @SerialName("tipo") val businessType: String? = null,
+    @SerialName("hotel_config") val hotelConfig: com.vaiinilla.app.data.hotel.HotelConfigDto? = null,
 )
 
 @Serializable

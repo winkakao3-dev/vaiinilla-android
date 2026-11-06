@@ -165,6 +165,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
             },
         answerBy = answerBy?.let(::serverInstant),
         payBy = payBy?.let(::serverInstant),
+        stayId = stayId?.flexibleText(),
     )
 
 // El servidor lee estas fechas de to_jsonb: llegan con desfase ("…+00:00"), no con Z.

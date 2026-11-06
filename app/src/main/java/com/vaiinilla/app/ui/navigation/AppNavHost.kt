@@ -88,6 +88,13 @@ import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.discovery.QrScannerTableCode
+import com.vaiinilla.app.ui.hotel.HotelEntryScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelAccountScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelRequestsScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelStayCodeScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelWelcomeScreen
+import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
+import com.vaiinilla.app.ui.hotel.staff.HotelRoomsScreen
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
@@ -547,7 +554,9 @@ fun AppNavHost(
         }
         orderFlowViewModel.enterGuestVenue(venue)
         orderFlowViewModel.clearMenuFilters()
-        navController.navigate(Routes.CATALOG) {
+        // El QR de una habitación abre el hotel (bienvenida o código de estancia); el catálogo se pide desde ahí.
+        val enteringRoom = venue.space?.type == SpaceCopy.ROOM
+        navController.navigate(if (enteringRoom) Routes.HOTEL_ENTRY else Routes.CATALOG) {
             launchSingleTop = true
         }
         // Con el QR de una mesa, la entrada se vuelve el plano del lugar con tu mesa marcada.
@@ -1404,6 +1413,36 @@ fun AppNavHost(
                     onConsumeCreateOrderError = orderFlowViewModel::clearCreateOrderError,
                 )
             }
+
+            composable(Routes.HOTEL_ENTRY) {
+                HotelEntryScreen(
+                    onHome = {
+                        navController.navigate(Routes.HOTEL_HOME) { popUpTo(Routes.HOTEL_ENTRY) { inclusive = true } }
+                    },
+                    onCode = {
+                        navController.navigate(Routes.HOTEL_CODE) { popUpTo(Routes.HOTEL_ENTRY) { inclusive = true } }
+                    },
+                )
+            }
+            composable(Routes.HOTEL_HOME) {
+                HotelWelcomeScreen(
+                    onOrder = { navController.navigate(Routes.CATALOG) { launchSingleTop = true } },
+                    onRequests = { navController.navigate(Routes.HOTEL_REQUESTS) },
+                    onAccount = { navController.navigate(Routes.HOTEL_ACCOUNT) },
+                )
+            }
+            composable(Routes.HOTEL_REQUESTS) { HotelRequestsScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.HOTEL_ACCOUNT) { HotelAccountScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.HOTEL_CODE) {
+                HotelStayCodeScreen(
+                    onLinked = {
+                        navController.navigate(Routes.HOTEL_HOME) { popUpTo(Routes.HOTEL_CODE) { inclusive = true } }
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.HOTEL_HOUSEKEEPING) { HotelRoomsScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.HOTEL_RECEPTION) { HotelReceptionScreen(onBack = { navController.popBackStack() }) }
 
             composable(Routes.RESERVATIONS) {
                 val reservationsVenueSlug = orderState.guestVenue?.establishment?.slug

@@ -589,7 +589,7 @@ private fun CreateSheet(
         )
         Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            (if (many) SpaceType.batchTypes else SpaceType.entries).forEach { option ->
+            SpaceType.creatable(batch = many).forEach { option ->
                 ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option == type) {
                     if (prefix == type.label) prefix = option.label
                     type = option
@@ -768,7 +768,7 @@ private fun EditSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SpaceType.entries.forEach { option ->
+                SpaceType.creatable().forEach { option ->
                     ChipButton(
                         label = option.label,
                         enabled = !saving,

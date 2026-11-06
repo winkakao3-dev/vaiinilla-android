@@ -69,6 +69,8 @@ data class OperationalStatusDto(
     @SerialName("encargos_minutos_aceptar") val answerMinutes: Int? = null,
     @SerialName("dias_adelanto_pedido") val daysAhead: Int? = null,
     @SerialName("hora_corte_pedido") val cutoff: String? = null,
+    /** Solo un hotel; un servidor anterior no lo envía. */
+    @SerialName("hotel_config") val hotelConfig: com.vaiinilla.app.data.hotel.HotelConfigDto? = null,
 )
 
 @Serializable

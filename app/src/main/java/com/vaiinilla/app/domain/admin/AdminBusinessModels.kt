@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain.admin
 
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.Venue
@@ -103,15 +104,18 @@ enum class BusinessType(
 
     /** Pistas que se rentan como canchas, con bar y restaurante en la misma cuenta. */
     BOWLING("boliche", "Boliche"),
+
+    /** Habitaciones con QR, room service y cargo a la habitación. */
+    HOTEL("hotel", "Hotel"),
     ;
 
     companion object {
         fun fromWire(value: String): BusinessType? = entries.firstOrNull { it.wire == value }
 
-        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria` ni `boliche`). */
+        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria`, `boliche` ni `hotel`). */
         fun offered(available: List<String>?): List<BusinessType> =
             if (available == null) {
-                entries.filter { it != HOME_BAKERY && it != BOWLING }
+                entries.filter { it != HOME_BAKERY && it != BOWLING && it != HOTEL }
             } else {
                 entries.filter { it.wire in available }
             }
@@ -131,6 +135,7 @@ enum class StoreTemplate(
     BAR("Bar o cantina", BusinessType.BAR, false, true),
     PADEL("Club de pádel", BusinessType.PADEL, false, true),
     BOWLING("Boliche con bar", BusinessType.BOWLING, false, true),
+    HOTEL("Hotel con room service", BusinessType.HOTEL, false, true),
     FOOD_TRUCK("Food truck o puesto", BusinessType.FOOD_TRUCK, true, false),
     DRIVE_THRU("Drive-thru", BusinessType.DRIVE_THRU, true, false),
     CANTEEN("Comedor de empresa", BusinessType.CANTEEN, true, false),
@@ -180,6 +185,8 @@ data class StoreConfig(
     val location: StoreLocation? = null,
     /** «Te lo llevamos», «Pasa por él» o ambas; null si el servidor todavía no lo conoce. */
     val spaceDelivery: SpaceDelivery? = null,
+    /** Solo un hotel; null si el servidor todavía no conoce el modo hotel. */
+    val hotelConfig: HotelConfig? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -422,6 +429,9 @@ enum class SpaceType(
     COURT("cancha", "Cancha"),
     DRIVE_THRU("drive_thru", "Drive-thru"),
     SEAT("asiento", "Asiento"),
+
+    /** Solo en un hotel; ver [creatable]. */
+    ROOM("habitacion", "Habitación"),
     ;
 
     /** En un boliche la cancha se llama pista ([Venue]). */
@@ -431,7 +441,20 @@ enum class SpaceType(
         fun fromWire(value: String): SpaceType? = entries.firstOrNull { it.wire == value }
 
         /** Los que se pueden crear en lote; en el dibujo va primero lo más común. */
-        val batchTypes = listOf(TABLE, BAR, COURT, SEAT, DRIVE_THRU)
+        val batchTypes = listOf(TABLE, BAR, COURT, SEAT, DRIVE_THRU, ROOM)
+
+        /**
+         * Los tipos que se ofrecen al crear o cambiar un espacio: la habitación solo en un hotel, y en un hotel
+         * va primero porque es lo que el dueño crea.
+         */
+        fun creatable(batch: Boolean = false): List<SpaceType> {
+            val base = if (batch) batchTypes else entries
+            return if (Venue.isHotel) {
+                listOf(ROOM) + base.filter { it != ROOM }
+            } else {
+                base.filter { it != ROOM }
+            }
+        }
     }
 }
 
@@ -452,9 +475,14 @@ data class ManagedSpace(
     val minimumMinutes: Int? = null,
     val sport: String? = null,
     val surface: String? = null,
+    /** Habitaciones: piso, categoría («doble», «suite») y limpieza (`lista` o `por_limpiar`); null en los demás espacios. */
+    val floor: Int? = null,
+    val category: String? = null,
+    val cleaning: String? = null,
 ) {
     val type: SpaceType? get() = SpaceType.fromWire(typeWire)
     val isCourt: Boolean get() = type == SpaceType.COURT
+    val isRoom: Boolean get() = type == SpaceType.ROOM
 }
 
 data class SpaceBatchResult(
@@ -482,6 +510,10 @@ data class SpacePatch(
     val sport: String? = null,
     val surface: String? = null,
     val setsSportAndSurface: Boolean = false,
+    /** Habitaciones: con [setsRoom] se guardan piso y categoría (null los quita). */
+    val floor: Int? = null,
+    val category: String? = null,
+    val setsRoom: Boolean = false,
 )
 
 /** Lo que el dueño edita de un espacio en una sola hoja (marco 48). */
