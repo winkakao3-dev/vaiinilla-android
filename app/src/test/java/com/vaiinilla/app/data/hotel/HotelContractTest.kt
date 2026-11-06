@@ -4,9 +4,11 @@ import com.vaiinilla.app.data.admin.AdminBusinessJson
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.admin.StoreTemplate
+import com.vaiinilla.app.domain.hotel.CheckoutMethod
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelErrors
 import com.vaiinilla.app.domain.hotel.HotelException
+import com.vaiinilla.app.domain.hotel.NewStay
 import com.vaiinilla.app.domain.hotel.RequestAction
 import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.domain.hotel.RequestType
@@ -38,7 +40,10 @@ class HotelContractTest {
             {"data":{"id":"e1","huesped":"Laura Méndez","codigo":482916,"espacio_id":304,"espacio_nombre":"Habitación 304",
               "piso":3,"entrada":"2026-11-06","salida":"2026-11-08","tarifa_noche":"1850.00","estado":"en_casa","noches":2,
               "cargos":[{"id":7,"concepto":"Minibar","monto":180,"categoria":"minibar"}],
-              "pedidos":[{"pedido_id":"p1","folio":41,"total":"320.00","estado":"entregado"}],"total":"4200.00",
+              "pedidos":[{"id":"p1","folio":"A-014","total":"320.00","estado":"pendiente","por_cobrar":true,"items_resumen":"2x Agua"}],
+              "total":"4200.00","version":3,"categoria":"Doble","salida_prevista":"2026-11-08T18:00:00.000Z",
+              "cuenta":{"noches_total":"3700.00","cargos_total":"180.00","pedidos_total":"320.00","total":"4200.00","pedidos_pendientes":1},
+              "ajustes":{"activo":true,"tarjeta_al_pedir":true,"hora_checkout":"12:00"},
               "campo_nuevo":true}}
             """.trimIndent()
         val stay = json.parseStay(raw)
@@ -47,7 +52,13 @@ class HotelContractTest {
         assertEquals(304, stay.roomId)
         assertEquals("180", stay.charges.single().amount)
         assertEquals("p1", stay.orders.single().orderId)
+        assertEquals("A-014", stay.orders.single().folio)
+        assertTrue(stay.orders.single().pendingPayment)
         assertEquals("4200.00", stay.total)
+        assertEquals(3, stay.version)
+        assertEquals(1, stay.account!!.pendingOrders)
+        assertTrue(stay.settings!!.cardAtOrderEnabled)
+        assertEquals("12:00", stay.settings!!.checkoutTime)
     }
 
     @Test
@@ -59,8 +70,13 @@ class HotelContractTest {
     fun `requests and rooms read their wire values`() {
         val requests =
             json.parseRequests(
-                """{"data":[{"id":"r1","tipo":"toallas","cantidad":2,"estado":"tomada","espacio_nombre":"Habitación 304"}]}""",
+                """{"data":[{"id":"r1","tipo":"toallas","cantidad":2,"estado":"tomada","version":2,
+                    "habitacion":{"id":12,"nombre":"Habitación 101","piso":1},"huesped":{"nombre":"Ana"},
+                    "tomada_por":{"nombre":"Personal del hotel"}}]}""",
             )
+        assertEquals("Habitación 101", requests.single().roomName)
+        assertEquals(2, requests.single().version)
+        assertEquals("Personal del hotel", requests.single().takenBy)
         assertEquals(RequestType.TOWELS, requests.single().type)
         assertEquals(RequestStatus.TAKEN, requests.single().status)
         assertTrue(requests.single().status.isOpen)
@@ -68,10 +84,13 @@ class HotelContractTest {
         val room =
             json
                 .parseRooms(
-                    """{"data":[{"id":304,"nombre":"Habitación 304","piso":3,"categoria":"suite","limpieza":"por_limpiar","ocupada":true}]}""",
+                    """{"data":[{"id":304,"nombre":"Habitación 304","piso":3,"categoria":"suite","limpieza":"por_limpiar","ocupada":true,
+                    "estancia":{"id":"e1","huesped_nombre":"Laura","salida_prevista":"2026-11-08T18:00:00.000Z"},"pedidos_en_curso":2}]}""",
                 ).single()
         assertEquals(RoomCleaning.DIRTY, room.cleaning)
         assertTrue(room.occupied)
+        assertEquals("Laura", room.guestName)
+        assertEquals(2, room.ordersInProgress)
     }
 
     @Test
@@ -79,7 +98,7 @@ class HotelContractTest {
         val body = Json.parseToJsonElement(json.encodeRequest(RequestType.LATE_CHECKOUT, 1, "  a las 2  ")).jsonObject
         assertEquals("salida_tardia", body["tipo"]!!.jsonPrimitive.content)
         assertEquals("a las 2", body["nota"]!!.jsonPrimitive.content)
-        assertEquals("aprobar", Json.parseToJsonElement(json.encodeTransition(RequestAction.APPROVE)).jsonObject["accion"]!!.jsonPrimitive.content)
+        assertEquals("aprobar", Json.parseToJsonElement(json.encodeTransition(RequestAction.APPROVE, 4)).jsonObject["accion"]!!.jsonPrimitive.content)
     }
 
     @Test
@@ -120,7 +139,7 @@ class HotelContractTest {
 
     @Test
     fun `hotel config is read and saved only through hotel configuracion`() {
-        val config = json.parseConfig("""{"data":{"solicitudes_activas":false,"salida_tardia_hora":"14:00:00","salida_tardia_precio":350}}""")
+        val config = json.parseConfig("""{"data":{"activo":true,"solicitudes_activas":false,"salida_tardia_hora":"14:00:00","salida_tardia_precio":350}}""")
         assertFalse(config.requestsEnabled)
         assertTrue(config.doNotDisturbEnabled)
         assertEquals("14:00", config.lateCheckoutTime)
@@ -143,6 +162,42 @@ class HotelContractTest {
         assertEquals("Tu pedido está listo. Ya va a tu habitación.", SpaceCopy.readyInSpace("mesa"))
         assertEquals("Hab. 304", SpaceCopy.short("mesa", "Habitación 304"))
         assertEquals("tu cancha", SpaceCopy.yourPlace("cancha"))
+    }
+
+    @Test
+    fun `checkin, checkout and the summary use the names of the backend contract`() {
+        val checkIn = Json.parseToJsonElement(json.encodeCheckIn(NewStay("Ana", " a@x.mx ", 12, "2026-11-09", "2026-11-11", "1200.00"))).jsonObject
+        assertEquals("Ana", checkIn["huesped_nombre"]!!.jsonPrimitive.content)
+        assertEquals("2026-11-11", checkIn["salida"]!!.jsonPrimitive.content)
+        assertFalse(checkIn.containsKey("huesped"))
+        val checkout = Json.parseToJsonElement(json.encodeCheckout(CheckoutMethod.CASH, "3000.00", "2650.00", 3)).jsonObject
+        assertEquals("efectivo", checkout["metodo_pago"]!!.jsonPrimitive.content)
+        assertEquals("2650.00", checkout["total_esperado"]!!.jsonPrimitive.content)
+        assertEquals("3", checkout["version_esperada"]!!.jsonPrimitive.content)
+
+        val summary =
+            json.parseSummary(
+                """{"data":{"habitaciones":{"total":20,"ocupadas":12,"por_limpiar":3,"sin_molestar":1},
+                    "room_service":{"pedidos_hoy":9,"ventas_hoy":"1840.00","pedidos_a_cuartos":2,"en_cocina_ahora":1},
+                    "solicitudes":{"abiertas":4,"mas_vieja_desde":"2026-11-09T14:10:00.000Z"},
+                    "lo_mas_pedido":[{"producto":"Hamburguesa","cantidad":7}],"llegadas_hoy":3,
+                    "salidas_hoy":[{"estancia_id":"e1","huesped_nombre":"Ana","habitacion":{"id":12,"nombre":"Habitación 101"},"salida_prevista":"x"}],
+                    "consultado_en":"2026-11-09T14:40:00.000Z"}}""",
+            )
+        assertEquals(12, summary.occupied)
+        assertEquals("1840.00", summary.roomServiceToday)
+        assertEquals(30, summary.oldestRequestMinutes)
+        assertEquals("Hamburguesa", summary.topItems.single().name)
+        assertEquals("Habitación 101", summary.departures.single().roomName)
+        assertEquals(3, summary.arrivalsToday)
+    }
+
+    @Test
+    fun `the stay list comes inside hoy and estancias and a charge comes back inside the stay`() {
+        val stays = json.parseStays("""{"data":{"hoy":"2026-11-09","estancias":[{"id":"e1","huesped":"Ana","estado":"reservada"}]}}""")
+        assertEquals(StayStatus.RESERVED, stays.single().status)
+        val charge = json.parseAddedCharge("""{"data":{"id":"e1","huesped":"Ana","cargos":[{"id":"c1","concepto":"Minibar","monto":"150.00","categoria":"minibar"}]}}""")
+        assertEquals("150.00", charge.amount)
     }
 
     @Test
@@ -175,7 +230,7 @@ class HotelContractTest {
         val hotel = FakeHotelRepository()
         hotel.reset(linkedGuest = false)
         assertNull(hotel.myStay().getOrThrow())
-        assertEquals("CODIGO_INVALIDO", (hotel.linkStay("000000").exceptionOrNull() as HotelException).code)
+        assertEquals(HotelErrors.STAY_NOT_FOUND, (hotel.linkStay("000000").exceptionOrNull() as HotelException).code)
         val stay = hotel.linkStay("482916", spaceId = 304).getOrThrow()
         assertEquals("Habitación 304", stay.roomName)
         assertNotNull(hotel.myStay().getOrThrow())
@@ -184,7 +239,7 @@ class HotelContractTest {
         assertEquals(RequestStatus.TAKEN, hotel.transition(request.id, RequestAction.TAKE, "k2").getOrThrow().status)
         assertTrue(hotel.openRequests().getOrThrow().any { it.id == request.id })
 
-        val closed = hotel.checkout(stay.id, com.vaiinilla.app.domain.hotel.CheckoutMethod.CARD, "k3").getOrThrow()
+        val closed = hotel.checkout(stay.id, CheckoutMethod.CARD, "k3").getOrThrow()
         assertEquals(StayStatus.CHECKED_OUT, closed.status)
         assertEquals(RoomCleaning.DIRTY, hotel.rooms().getOrThrow().first { it.id == 304 }.cleaning)
         val error = hotel.createRequest(RequestType.CLEANING, 1, null, "k4").exceptionOrNull() as HotelException

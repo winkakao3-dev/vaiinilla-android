@@ -42,12 +42,13 @@ interface HotelRepository {
 
     fun stay(stayId: String): Result<Stay>
 
-    /** Check-in: la respuesta trae el código de estancia para el huésped. */
+    /** Check-in (alta de la estancia): la respuesta trae el código de estancia para el huésped. */
     fun checkIn(
         draft: NewStay,
         idempotencyKey: String,
     ): Result<Stay>
 
+    /** Registra el cargo en la cuenta (no mueve dinero); devuelve el cargo recién agregado. */
     fun addCharge(
         stayId: String,
         concept: String,
@@ -56,10 +57,31 @@ interface HotelRepository {
         idempotencyKey: String,
     ): Result<StayCharge>
 
-    /** Cobra lo pendiente de la cuenta, cierra la estancia y deja la habitación por limpiar. */
+    /**
+     * Cobra lo pendiente de la cuenta, cierra la estancia y deja la habitación por limpiar.
+     * [expectedTotal] es lo que recepción vio en pantalla: si la cuenta cambió el servidor responde
+     * `ACCOUNT_TOTAL_CHANGED`. [receivedAmount] solo aplica a efectivo.
+     */
     fun checkout(
         stayId: String,
         method: CheckoutMethod,
+        idempotencyKey: String,
+        receivedAmount: String? = null,
+        expectedTotal: String? = null,
+        expectedVersion: Int? = null,
+    ): Result<Stay>
+
+    /** `POST estancias/:id/check-in`: una estancia `reservada` pasa a `en_casa`. */
+    fun confirmArrival(
+        stayId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+    ): Result<Stay>
+
+    /** `POST estancias/:id/cancelaciones`: solo una `reservada`. */
+    fun cancelStay(
+        stayId: String,
+        expectedVersion: Int,
         idempotencyKey: String,
     ): Result<Stay>
 
@@ -70,6 +92,7 @@ interface HotelRepository {
         requestId: String,
         action: RequestAction,
         idempotencyKey: String,
+        expectedVersion: Int? = null,
     ): Result<HotelRequest>
 
     fun rooms(): Result<List<HotelRoom>>

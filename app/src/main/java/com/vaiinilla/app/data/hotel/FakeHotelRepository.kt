@@ -61,8 +61,8 @@ class FakeHotelRepository : HotelRepository {
         synchronized(lock) {
             val stay = stays.firstOrNull { it.code == code.trim() && it.status != StayStatus.CHECKED_OUT }
             when {
-                stay == null -> failure("CODIGO_INVALIDO", "Ese código no coincide con ninguna estancia.")
-                spaceId != null && stay.roomId != spaceId -> failure("HABITACION_DISTINTA", "Ese código es de otra habitación.")
+                stay == null -> failure(HotelErrors.STAY_NOT_FOUND, "Ese código no coincide con ninguna estancia.")
+                spaceId != null && stay.roomId != spaceId -> failure(HotelErrors.STAY_NOT_FOUND, "Ese código no coincide con ninguna estancia.")
                 else -> {
                     linked = true
                     guestStayId = stay.id
@@ -118,7 +118,7 @@ class FakeHotelRepository : HotelRepository {
     override fun stay(stayId: String): Result<Stay> =
         synchronized(lock) {
             stays.firstOrNull { it.id == stayId }?.let { Result.success(it.withTotal()) }
-                ?: failure("ESTANCIA_NO_ENCONTRADA", "No existe esa estancia.")
+                ?: failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
         }
 
     override fun checkIn(
@@ -127,7 +127,7 @@ class FakeHotelRepository : HotelRepository {
     ): Result<Stay> =
         synchronized(lock) {
             val room = rooms.firstOrNull { it.id == draft.roomId } ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
-            if (room.occupied) return failure("HABITACION_OCUPADA", "La ${room.name} ya tiene un huésped.")
+            if (room.occupied) return failure(HotelErrors.ROOM_OCCUPIED, "La ${room.name} ya tiene un huésped.")
             val stay =
                 Stay(
                     id = "S${nextId++}",
@@ -156,7 +156,7 @@ class FakeHotelRepository : HotelRepository {
         idempotencyKey: String,
     ): Result<StayCharge> =
         synchronized(lock) {
-            val stay = stays.firstOrNull { it.id == stayId } ?: return failure("ESTANCIA_NO_ENCONTRADA", "No existe esa estancia.")
+            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
             val charge = StayCharge("C${nextId++}", concept.trim(), amount, category, NOW)
             replaceStay(stay.copy(charges = stay.charges + charge))
             Result.success(charge)
@@ -166,9 +166,12 @@ class FakeHotelRepository : HotelRepository {
         stayId: String,
         method: CheckoutMethod,
         idempotencyKey: String,
+        receivedAmount: String?,
+        expectedTotal: String?,
+        expectedVersion: Int?,
     ): Result<Stay> =
         synchronized(lock) {
-            val stay = stays.firstOrNull { it.id == stayId } ?: return failure("ESTANCIA_NO_ENCONTRADA", "No existe esa estancia.")
+            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
             val closed = stay.copy(status = StayStatus.CHECKED_OUT, paymentMethod = method.wire, paidAt = NOW)
             replaceStay(closed)
             rooms =
@@ -186,10 +189,37 @@ class FakeHotelRepository : HotelRepository {
     override fun openRequests(): Result<List<HotelRequest>> =
         synchronized(lock) { Result.success(requests.filter { it.status.isOpen }) }
 
+    override fun confirmArrival(
+        stayId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+    ): Result<Stay> =
+        synchronized(lock) {
+            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
+            if (stay.status != StayStatus.RESERVED) return failure(HotelErrors.STAY_INVALID_STATE, "Solo una estancia por llegar.")
+            val arrived = stay.copy(status = StayStatus.IN_HOUSE, version = stay.version + 1)
+            replaceStay(arrived)
+            Result.success(arrived.withTotal())
+        }
+
+    override fun cancelStay(
+        stayId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+    ): Result<Stay> =
+        synchronized(lock) {
+            val stay = stays.firstOrNull { it.id == stayId } ?: return failure(HotelErrors.STAY_NOT_FOUND, "No existe esa estancia.")
+            if (stay.status != StayStatus.RESERVED) return failure(HotelErrors.STAY_INVALID_STATE, "Solo una estancia por llegar.")
+            val canceled = stay.copy(status = StayStatus.CANCELED, version = stay.version + 1)
+            replaceStay(canceled)
+            Result.success(canceled.withTotal())
+        }
+
     override fun transition(
         requestId: String,
         action: RequestAction,
         idempotencyKey: String,
+        expectedVersion: Int?,
     ): Result<HotelRequest> =
         updateRequest(requestId) {
             when (action) {
@@ -354,7 +384,7 @@ class FakeHotelRepository : HotelRepository {
                     status = StayStatus.IN_HOUSE,
                     nights = 2,
                     charges = listOf(StayCharge("C1", "Minibar", "180.00", ChargeCategory.MINIBAR, NOW)),
-                    orders = listOf(StayOrder("P1", 41, "320.00", "entregado", NOW)),
+                    orders = listOf(StayOrder("P1", "A-041", "320.00", "entregado", NOW, "Club sándwich")),
                 ),
                 Stay(
                     id = "S2",
