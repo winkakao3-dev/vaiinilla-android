@@ -260,7 +260,9 @@ internal fun checkoutBreakdown(stay: Stay): CheckoutBreakdown {
     val nights = stay.nights.coerceAtLeast(1)
     val rate = stay.nightlyRate?.toBigDecimalOrNull() ?: BigDecimal.ZERO
     val stayAmount = rate.multiply(BigDecimal(nights))
-    val roomService = stay.orders.fold(BigDecimal.ZERO) { sum, order -> sum + (order.total.toBigDecimalOrNull() ?: BigDecimal.ZERO) }
+    // Solo lo que el check-out cobra: un pedido que alguien ya pagó aparte no entra en el total del servidor.
+    val roomOrders = stay.orders.filter { it.pendingPayment }
+    val roomService = roomOrders.fold(BigDecimal.ZERO) { sum, order -> sum + (order.total.toBigDecimalOrNull() ?: BigDecimal.ZERO) }
     val grouped =
         stay.charges
             .groupBy { if (it.category == ChargeCategory.OTHER) it.concept else it.category.label }
@@ -270,7 +272,7 @@ internal fun checkoutBreakdown(stay: Stay): CheckoutBreakdown {
         nights = nights,
         rate = stay.nightlyRate,
         stayAmount = stayAmount,
-        roomServiceCount = stay.orders.size,
+        roomServiceCount = roomOrders.size,
         roomServiceTotal = roomService,
         charges = grouped,
         total = stay.total?.toBigDecimalOrNull() ?: computed,

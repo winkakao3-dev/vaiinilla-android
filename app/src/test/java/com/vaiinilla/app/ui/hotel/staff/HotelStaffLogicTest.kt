@@ -107,7 +107,12 @@ class HotelStaffLogicTest {
                 checkOut = "2026-11-09",
                 nightlyRate = "1650.00",
                 nights = 3,
-                orders = listOf(StayOrder("a", "A-001", "236.50", "entregado"), StayOrder("b", "A-002", "548.00", "entregado")),
+                orders =
+                    listOf(
+                        StayOrder("a", "A-001", "236.50", "entregado", pendingPayment = true),
+                        StayOrder("b", "A-002", "548.00", "entregado", pendingPayment = true),
+                        StayOrder("c", "A-003", "55.00", "entregado", pendingPayment = false),
+                    ),
                 charges =
                     listOf(
                         StayCharge("c1", "Minibar", "40.00", ChargeCategory.MINIBAR),
