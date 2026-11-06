@@ -4,6 +4,7 @@ import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelException
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRequest
@@ -12,6 +13,7 @@ import com.vaiinilla.app.domain.hotel.HotelSummary
 import com.vaiinilla.app.domain.hotel.NewStay
 import com.vaiinilla.app.domain.hotel.RequestAction
 import com.vaiinilla.app.domain.hotel.RequestType
+import com.vaiinilla.app.domain.hotel.RoomBatchResult
 import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayCharge
@@ -138,6 +140,42 @@ class RemoteHotelRepository(
 
     override fun summary(): Result<HotelSummary> =
         apiClient.get("hotel/resumen").mapCatching(json::parseSummary).mapApiErrors()
+
+    override fun hotelConfig(): Result<HotelConfig> =
+        apiClient.get("hotel/configuracion").mapCatching(json::parseConfig).mapApiErrors()
+
+    override fun saveHotelConfig(
+        config: HotelConfig,
+        idempotencyKey: String,
+    ): Result<HotelConfig> =
+        apiClient
+            .put("hotel/configuracion", json.encodeHotelConfig(config), key(idempotencyKey))
+            .mapCatching(json::parseConfig)
+            .mapApiErrors()
+
+    override fun createRooms(
+        prefix: String,
+        from: Int,
+        to: Int,
+        floor: Int?,
+        category: String?,
+        idempotencyKey: String,
+    ): Result<RoomBatchResult> =
+        apiClient
+            .post("habitaciones/lote", json.encodeRoomBatch(prefix, from, to, floor, category), key(idempotencyKey))
+            .mapCatching(json::parseRoomBatch)
+            .mapApiErrors()
+
+    override fun updateRoom(
+        roomId: Int,
+        floor: Int?,
+        category: String?,
+        idempotencyKey: String,
+    ): Result<HotelRoom> =
+        apiClient
+            .patch("habitaciones/$roomId", json.encodeRoomUpdate(floor, category), key(idempotencyKey))
+            .mapCatching(json::parseRoom)
+            .mapApiErrors()
 
     private fun key(idempotencyKey: String) = mapOf("Idempotency-Key" to idempotencyKey)
 

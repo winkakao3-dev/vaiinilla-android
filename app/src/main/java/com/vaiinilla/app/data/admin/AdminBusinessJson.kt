@@ -1,7 +1,5 @@
 package com.vaiinilla.app.data.admin
 
-import com.vaiinilla.app.data.hotel.HotelConfigDto
-import com.vaiinilla.app.data.hotel.HotelJson
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
@@ -106,9 +104,6 @@ class AdminBusinessJson {
                 },
             )
         }.toString()
-
-    /** `hotel_config` completo; el servidor lo guarda con el mismo PATCH de la configuración. */
-    fun encodeHotelConfig(config: com.vaiinilla.app.domain.hotel.HotelConfig): String = HotelJson().encodeHotelConfig(config)
 
     fun encodeHomeDelivery(delivery: HomeDeliverySettings): String =
         buildJsonObject {
@@ -438,7 +433,6 @@ private data class StoreConfigDto(
     @SerialName("cocina_prepara_sin_cobrar") val cocinaPreparaSinCobrar: Boolean = true,
     @SerialName("tipos_disponibles") val tiposDisponibles: List<String>? = null,
     @SerialName("entrega_en_espacio") val entregaEnEspacio: String? = null,
-    @SerialName("hotel_config") val hotelConfig: HotelConfigDto? = null,
     // Repostería (CASA-02, CASA-03); un servidor anterior no los envía y la app se comporta como siempre.
     @SerialName("reparto_activo") val repartoActivo: Boolean? = null,
     @SerialName("reparto_radio_km") val repartoRadioKm: JsonPrimitive? = null,
@@ -472,7 +466,6 @@ private data class StoreConfigDto(
             kitchenPreparesUnpaid = cocinaPreparaSinCobrar,
             availableTypes = tiposDisponibles,
             spaceDelivery = entregaEnEspacio?.let(SpaceDelivery::fromWire),
-            hotelConfig = hotelConfig?.toDomain(),
             homeDelivery =
                 repartoActivo?.let { enabled ->
                     HomeDeliverySettings(
@@ -617,9 +610,6 @@ private data class ManagedSpaceDto(
     @SerialName("reserva_minima_min") val reservaMinimaMin: Int? = null,
     val deporte: String? = null,
     val superficie: String? = null,
-    val piso: Int? = null,
-    val categoria: String? = null,
-    val limpieza: String? = null,
 ) {
     fun toDomain() =
         ManagedSpace(
@@ -637,9 +627,6 @@ private data class ManagedSpaceDto(
             minimumMinutes = reservaMinimaMin,
             sport = deporte,
             surface = superficie,
-            floor = piso,
-            category = categoria,
-            cleaning = limpieza,
         )
 }
 

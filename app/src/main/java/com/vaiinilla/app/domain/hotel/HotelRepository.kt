@@ -86,5 +86,35 @@ interface HotelRepository {
 
     fun summary(): Result<HotelSummary>
 
+    /** `GET hotel/configuracion`: solicitudes, no molestar, salida tardía y hora de salida. */
+    fun hotelConfig(): Result<HotelConfig>
+
+    /** Lo mismo que [hotelConfig]; el huésped (H03) lo lee para saber si ofrece «tarjeta ahora». */
+    fun config(): Result<HotelConfig> = hotelConfig()
+
+    /** `PUT hotel/configuracion`: guarda la configuración completa. */
+    fun saveHotelConfig(
+        config: HotelConfig,
+        idempotencyKey: String,
+    ): Result<HotelConfig>
+
+    /** `POST habitaciones/lote`: crea «prefijo desde»…«prefijo hasta» con piso y categoría. */
+    fun createRooms(
+        prefix: String,
+        from: Int,
+        to: Int,
+        floor: Int?,
+        category: String?,
+        idempotencyKey: String,
+    ): Result<RoomBatchResult>
+
+    /** `PATCH habitaciones/:id`: cambia el piso y la categoría. */
+    fun updateRoom(
+        roomId: Int,
+        floor: Int?,
+        category: String?,
+        idempotencyKey: String,
+    ): Result<HotelRoom>
+
     // endregion
 }

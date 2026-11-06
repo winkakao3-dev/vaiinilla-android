@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.hotel
 
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelErrors
 import com.vaiinilla.app.domain.hotel.HotelException
 import com.vaiinilla.app.domain.hotel.HotelRepository
@@ -13,6 +14,7 @@ import com.vaiinilla.app.domain.hotel.NewStay
 import com.vaiinilla.app.domain.hotel.RequestAction
 import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.domain.hotel.RequestType
+import com.vaiinilla.app.domain.hotel.RoomBatchResult
 import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayCharge
@@ -32,6 +34,7 @@ class FakeHotelRepository : HotelRepository {
     private var rooms = seedRooms()
     private var stays = seedStays()
     private var requests = seedRequests()
+    private var config = HotelConfig(lateCheckoutTime = "14:00", lateCheckoutPrice = "350.00", checkoutTime = "12:00")
 
     /** El huésped de esta cuenta; arranca en la 304 ya ligado. Con `linked = false` se prueba el código de estancia. */
     var guestStayId: String = GUEST_STAY_ID
@@ -44,6 +47,7 @@ class FakeHotelRepository : HotelRepository {
             rooms = seedRooms()
             stays = seedStays()
             requests = seedRequests()
+            config = HotelConfig(lateCheckoutTime = "14:00", lateCheckoutPrice = "350.00", checkoutTime = "12:00")
         }
 
     override fun myStay(): Result<Stay?> =
@@ -230,6 +234,54 @@ class FakeHotelRepository : HotelRepository {
             )
         }
 
+    override fun hotelConfig(): Result<HotelConfig> = synchronized(lock) { Result.success(config) }
+
+    override fun saveHotelConfig(
+        config: HotelConfig,
+        idempotencyKey: String,
+    ): Result<HotelConfig> =
+        synchronized(lock) {
+            this.config = config
+            Result.success(config)
+        }
+
+    override fun createRooms(
+        prefix: String,
+        from: Int,
+        to: Int,
+        floor: Int?,
+        category: String?,
+        idempotencyKey: String,
+    ): Result<RoomBatchResult> =
+        synchronized(lock) {
+            if (to < from) return failure("RANGO_INVALIDO", "El rango no es válido.")
+            val omitted = mutableListOf<String>()
+            var created = 0
+            for (number in from..to) {
+                val name = "${prefix.trim()} $number"
+                if (rooms.any { it.name == name }) {
+                    omitted += name
+                } else {
+                    rooms = rooms + HotelRoom(id = number, name = name, floor = floor, category = category, qrToken = "qr-$number", qrUrl = "https://vaiinilla.app/q/qr-$number")
+                    created++
+                }
+            }
+            Result.success(RoomBatchResult(created, omitted))
+        }
+
+    override fun updateRoom(
+        roomId: Int,
+        floor: Int?,
+        category: String?,
+        idempotencyKey: String,
+    ): Result<HotelRoom> =
+        synchronized(lock) {
+            val room = rooms.firstOrNull { it.id == roomId } ?: return failure("HABITACION_NO_ENCONTRADA", "No existe esa habitación.")
+            val updated = room.copy(floor = floor, category = category?.trim()?.ifEmpty { null })
+            rooms = rooms.map { if (it.id == roomId) updated else it }
+            Result.success(updated)
+        }
+
     private fun updateRequest(
         requestId: String,
         change: (HotelRequest) -> HotelRequest,
@@ -273,6 +325,9 @@ class FakeHotelRepository : HotelRepository {
         const val NOW = "2026-11-06T20:00:00Z"
 
         fun seedRooms() =
+            rawRooms().map { it.copy(qrToken = "qr-${it.id}", qrUrl = "https://vaiinilla.app/q/qr-${it.id}") }
+
+        private fun rawRooms() =
             listOf(
                 HotelRoom(301, "Habitación 301", 3, "doble"),
                 HotelRoom(302, "Habitación 302", 3, "doble", RoomCleaning.DIRTY),

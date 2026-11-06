@@ -3,12 +3,11 @@ package com.vaiinilla.app.domain.model
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.vaiinilla.app.domain.hotel.HotelConfig
 
 /**
  * Cómo se llama lo que se renta en el negocio abierto. En un boliche (`tipo: boliche`) las
  * canchas del servidor son pistas: mismo contrato (`tipo: cancha`), otro nombre y otro dibujo.
- * En un hotel (`tipo: hotel`) los espacios son habitaciones (`tipo: habitacion`).
+ * En un hotel (`tipo: hotel`) las habitaciones son espacios `mesa` que la app llama «Habitación».
  * Se actualiza con cada estado operativo; es estado de Compose para que las pantallas cambien solas.
  */
 object Venue {
@@ -18,20 +17,12 @@ object Venue {
     var businessType: String? by mutableStateOf(null)
         private set
 
-    /** Lo que el dueño configuró del hotel; null fuera de un hotel o si el servidor no lo manda. */
-    var hotelConfig: HotelConfig? by mutableStateOf(null)
-        private set
-
     val isBowling: Boolean get() = businessType == BOWLING
 
     val isHotel: Boolean get() = businessType == HOTEL
 
-    fun update(
-        type: String?,
-        hotel: HotelConfig? = null,
-    ) {
+    fun update(type: String?) {
         if (type != businessType) businessType = type
-        if (hotel != hotelConfig) hotelConfig = hotel
     }
 
     /** «cancha» o «pista». */

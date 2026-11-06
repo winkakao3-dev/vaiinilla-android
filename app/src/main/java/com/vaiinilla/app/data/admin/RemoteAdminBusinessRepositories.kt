@@ -151,9 +151,6 @@ class RemoteAdminStoreRepository(
     override fun saveHomeDelivery(delivery: HomeDeliverySettings): Result<StoreConfig> =
         patchConfig(json.encodeHomeDelivery(delivery))
 
-    override fun saveHotelConfig(config: com.vaiinilla.app.domain.hotel.HotelConfig): Result<StoreConfig> =
-        patchConfig(json.encodeHotelConfig(config))
-
     override fun savePreorders(preorders: PreorderSettings): Result<StoreConfig> =
         patchConfig(json.encodePreorders(preorders))
 

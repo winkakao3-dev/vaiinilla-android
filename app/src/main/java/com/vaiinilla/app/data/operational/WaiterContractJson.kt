@@ -342,7 +342,6 @@ data class DeliveryPolicyDto(
     @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
     /** El tipo de negocio (`hotel`, `boliche`…): el vocabulario del personal depende de él. */
     @SerialName("tipo") val businessType: String? = null,
-    @SerialName("hotel_config") val hotelConfig: com.vaiinilla.app.data.hotel.HotelConfigDto? = null,
 )
 
 @Serializable

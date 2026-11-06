@@ -1,6 +1,5 @@
 package com.vaiinilla.app.domain.admin
 
-import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.Venue
@@ -105,7 +104,7 @@ enum class BusinessType(
     /** Pistas que se rentan como canchas, con bar y restaurante en la misma cuenta. */
     BOWLING("boliche", "Boliche"),
 
-    /** Habitaciones con QR, room service y cargo a la habitación. */
+    /** Habitaciones con QR, room service y cargo a la habitación. El negocio se vuelve hotel desde Plataforma. */
     HOTEL("hotel", "Hotel"),
     ;
 
@@ -135,7 +134,6 @@ enum class StoreTemplate(
     BAR("Bar o cantina", BusinessType.BAR, false, true),
     PADEL("Club de pádel", BusinessType.PADEL, false, true),
     BOWLING("Boliche con bar", BusinessType.BOWLING, false, true),
-    HOTEL("Hotel con room service", BusinessType.HOTEL, false, true),
     FOOD_TRUCK("Food truck o puesto", BusinessType.FOOD_TRUCK, true, false),
     DRIVE_THRU("Drive-thru", BusinessType.DRIVE_THRU, true, false),
     CANTEEN("Comedor de empresa", BusinessType.CANTEEN, true, false),
@@ -185,8 +183,6 @@ data class StoreConfig(
     val location: StoreLocation? = null,
     /** «Te lo llevamos», «Pasa por él» o ambas; null si el servidor todavía no lo conoce. */
     val spaceDelivery: SpaceDelivery? = null,
-    /** Solo un hotel; null si el servidor todavía no conoce el modo hotel. */
-    val hotelConfig: HotelConfig? = null,
 ) {
     val type: BusinessType? get() = BusinessType.fromWire(typeWire)
 
@@ -429,32 +425,22 @@ enum class SpaceType(
     COURT("cancha", "Cancha"),
     DRIVE_THRU("drive_thru", "Drive-thru"),
     SEAT("asiento", "Asiento"),
-
-    /** Solo en un hotel; ver [creatable]. */
-    ROOM("habitacion", "Habitación"),
     ;
 
-    /** En un boliche la cancha se llama pista ([Venue]). */
-    val label: String get() = if (this == COURT) Venue.courtTitle else baseLabel
+    /** En un boliche la cancha se llama pista y en un hotel la mesa se llama habitación ([Venue]). */
+    val label: String
+        get() =
+            when {
+                this == COURT -> Venue.courtTitle
+                this == TABLE && Venue.isHotel -> Venue.roomTitle
+                else -> baseLabel
+            }
 
     companion object {
         fun fromWire(value: String): SpaceType? = entries.firstOrNull { it.wire == value }
 
         /** Los que se pueden crear en lote; en el dibujo va primero lo más común. */
-        val batchTypes = listOf(TABLE, BAR, COURT, SEAT, DRIVE_THRU, ROOM)
-
-        /**
-         * Los tipos que se ofrecen al crear o cambiar un espacio: la habitación solo en un hotel, y en un hotel
-         * va primero porque es lo que el dueño crea.
-         */
-        fun creatable(batch: Boolean = false): List<SpaceType> {
-            val base = if (batch) batchTypes else entries
-            return if (Venue.isHotel) {
-                listOf(ROOM) + base.filter { it != ROOM }
-            } else {
-                base.filter { it != ROOM }
-            }
-        }
+        val batchTypes = listOf(TABLE, BAR, COURT, SEAT, DRIVE_THRU)
     }
 }
 
@@ -475,14 +461,12 @@ data class ManagedSpace(
     val minimumMinutes: Int? = null,
     val sport: String? = null,
     val surface: String? = null,
-    /** Habitaciones: piso, categoría («doble», «suite») y limpieza (`lista` o `por_limpiar`); null en los demás espacios. */
-    val floor: Int? = null,
-    val category: String? = null,
-    val cleaning: String? = null,
 ) {
     val type: SpaceType? get() = SpaceType.fromWire(typeWire)
     val isCourt: Boolean get() = type == SpaceType.COURT
-    val isRoom: Boolean get() = type == SpaceType.ROOM
+
+    /** En un hotel, la mesa es una habitación; su piso, categoría y limpieza salen de `/habitaciones`. */
+    val isRoom: Boolean get() = Venue.isHotel && type == SpaceType.TABLE
 }
 
 data class SpaceBatchResult(

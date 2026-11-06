@@ -2,6 +2,15 @@ package com.vaiinilla.app.domain.hotel
 
 /** Lo que el dueño configura del hotel (`hotel_config` del establecimiento); null en el modelo = servidor sin hotel. */
 data class HotelConfig(
+    /** El huésped puede cargar el room service a su habitación. */
+    val chargeToRoom: Boolean = true,
+    /** El huésped puede pagar con tarjeta al pedir. */
+    val cardAtOrderEnabled: Boolean = false,
+    /** El pedido se entrega con el código de 4 dígitos del huésped. */
+    val deliveryCode: Boolean = true,
+    /** «HH:mm» desde y hasta cuándo la cocina recibe pedidos a las habitaciones; null = sin horario propio. */
+    val kitchenFrom: String? = null,
+    val kitchenTo: String? = null,
     /** El huésped puede pedir toallas, limpieza y demás desde la app. */
     val requestsEnabled: Boolean = true,
     /** El huésped puede poner «No molestar». */
@@ -189,6 +198,15 @@ data class HotelRoom(
     val openRequests: Int = 0,
     val stayId: String? = null,
     val guestName: String? = null,
+    /** El QR permanente de la puerta: el token y la URL que se imprime o se comparte; null si el servidor no los manda. */
+    val qrToken: String? = null,
+    val qrUrl: String? = null,
+)
+
+/** Lo que dejó `POST habitaciones/lote`: cuántas se crearon y cuáles se omitieron (ya existían). */
+data class RoomBatchResult(
+    val created: Int,
+    val omitted: List<String> = emptyList(),
 )
 
 data class HotelTopItem(

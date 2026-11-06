@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.hotel.NewStay
 import com.vaiinilla.app.domain.hotel.RequestAction
 import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.domain.hotel.RequestType
+import com.vaiinilla.app.domain.hotel.RoomBatchResult
 import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayCharge
@@ -56,6 +57,11 @@ class HotelJson {
     fun parseRoom(raw: String): HotelRoom = json.decodeFromString<Envelope<RoomDto>>(raw).data.toDomain()
 
     fun parseRooms(raw: String): List<HotelRoom> = json.decodeFromString<Envelope<List<RoomDto>>>(raw).data.map { it.toDomain() }
+
+    fun parseRoomBatch(raw: String): RoomBatchResult =
+        json.decodeFromString<Envelope<RoomBatchDto>>(raw).data.let { RoomBatchResult(it.creadas, it.omitidas) }
+
+    fun parseConfig(raw: String): HotelConfig = json.decodeFromString<Envelope<HotelConfigDto>>(raw).data.toDomain()
 
     fun parseSummary(raw: String): HotelSummary = json.decodeFromString<Envelope<SummaryDto>>(raw).data.toDomain()
 
@@ -114,18 +120,42 @@ class HotelJson {
 
     fun encodeCleaning(cleaning: RoomCleaning): String = buildJsonObject { put("limpieza", cleaning.wire) }.toString()
 
+    fun encodeRoomBatch(
+        prefix: String,
+        from: Int,
+        to: Int,
+        floor: Int?,
+        category: String?,
+    ): String =
+        buildJsonObject {
+            put("prefijo", prefix.trim())
+            put("desde", from)
+            put("hasta", to)
+            floor?.let { put("piso", it) }
+            category?.trim()?.takeIf { it.isNotEmpty() }?.let { put("categoria", it) }
+        }.toString()
+
+    fun encodeRoomUpdate(
+        floor: Int?,
+        category: String?,
+    ): String =
+        buildJsonObject {
+            put("piso", floor?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("categoria", category?.trim()?.takeIf { it.isNotEmpty() }?.let { JsonPrimitive(it) } ?: JsonNull)
+        }.toString()
+
     fun encodeHotelConfig(config: HotelConfig): String =
         buildJsonObject {
-            put(
-                "hotel_config",
-                buildJsonObject {
-                    put("solicitudes_activas", config.requestsEnabled)
-                    put("no_molestar_activo", config.doNotDisturbEnabled)
-                    put("salida_tardia_hora", config.lateCheckoutTime?.let { JsonPrimitive(it) } ?: JsonNull)
-                    put("salida_tardia_precio", config.lateCheckoutPrice?.let { JsonPrimitive(it) } ?: JsonNull)
-                    put("hora_checkout", config.checkoutTime?.let { JsonPrimitive(it) } ?: JsonNull)
-                },
-            )
+            put("cargo_habitacion_activo", config.chargeToRoom)
+            put("tarjeta_al_pedir", config.cardAtOrderEnabled)
+            put("codigo_entrega_activo", config.deliveryCode)
+            put("cocina_desde", config.kitchenFrom?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("cocina_hasta", config.kitchenTo?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("solicitudes_activas", config.requestsEnabled)
+            put("no_molestar_activo", config.doNotDisturbEnabled)
+            put("salida_tardia_hora", config.lateCheckoutTime?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("salida_tardia_precio", config.lateCheckoutPrice?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("hora_checkout", config.checkoutTime?.let { JsonPrimitive(it) } ?: JsonNull)
         }.toString()
 
     // endregion
@@ -263,6 +293,8 @@ private data class RoomDto(
     @SerialName("solicitudes_abiertas") val solicitudesAbiertas: Int? = null,
     @SerialName("estancia_id") val estanciaId: JsonPrimitive? = null,
     val huesped: String? = null,
+    @SerialName("qr_token") val qrToken: String? = null,
+    @SerialName("qr_url") val qrUrl: String? = null,
 ) {
     fun toDomain() =
         HotelRoom(
@@ -276,8 +308,16 @@ private data class RoomDto(
             openRequests = solicitudesAbiertas ?: 0,
             stayId = estanciaId.text(),
             guestName = huesped,
+            qrToken = qrToken,
+            qrUrl = qrUrl,
         )
 }
+
+@Serializable
+private data class RoomBatchDto(
+    val creadas: Int = 0,
+    val omitidas: List<String> = emptyList(),
+)
 
 @Serializable
 private data class TopItemDto(
@@ -312,9 +352,14 @@ private data class SummaryDto(
         )
 }
 
-/** `hotel_config` dentro de la configuración del negocio y del estado operativo. */
+/** `GET hotel/configuracion`; la configuración del hotel no viaja en ninguna respuesta que ya existía. */
 @Serializable
 data class HotelConfigDto(
+    @SerialName("cargo_habitacion_activo") val cargoHabitacionActivo: Boolean = true,
+    @SerialName("tarjeta_al_pedir") val tarjetaAlPedir: Boolean = false,
+    @SerialName("codigo_entrega_activo") val codigoEntregaActivo: Boolean = true,
+    @SerialName("cocina_desde") val cocinaDesde: String? = null,
+    @SerialName("cocina_hasta") val cocinaHasta: String? = null,
     @SerialName("solicitudes_activas") val solicitudesActivas: Boolean = true,
     @SerialName("no_molestar_activo") val noMolestarActivo: Boolean = true,
     @SerialName("salida_tardia_hora") val salidaTardiaHora: String? = null,
@@ -323,6 +368,11 @@ data class HotelConfigDto(
 ) {
     fun toDomain() =
         HotelConfig(
+            chargeToRoom = cargoHabitacionActivo,
+            cardAtOrderEnabled = tarjetaAlPedir,
+            deliveryCode = codigoEntregaActivo,
+            kitchenFrom = cocinaDesde?.take(5)?.ifBlank { null },
+            kitchenTo = cocinaHasta?.take(5)?.ifBlank { null },
             requestsEnabled = solicitudesActivas,
             doNotDisturbEnabled = noMolestarActivo,
             lateCheckoutTime = salidaTardiaHora?.take(5)?.ifBlank { null },

@@ -83,27 +83,26 @@ class HotelContractTest {
     }
 
     @Test
-    fun `hotel space and business type are offered only to a server that knows them`() {
-        assertEquals("habitacion", SpaceType.ROOM.wire)
+    fun `hotel is a business type but is never offered as a template`() {
+        assertEquals(BusinessType.HOTEL, BusinessType.fromWire("hotel"))
         assertFalse(BusinessType.offered(null).contains(BusinessType.HOTEL))
-        assertTrue(BusinessType.offered(listOf("restaurante", "hotel")).contains(BusinessType.HOTEL))
-        assertTrue(StoreTemplate.HOTEL.allowsPayAtEnd)
-        assertFalse(StoreTemplate.HOTEL.deliveryRequiresQr)
+        assertTrue(StoreTemplate.entries.none { it.type == BusinessType.HOTEL })
     }
 
     @Test
-    fun `rooms are creatable only in a hotel and come first there`() {
-        assertFalse(SpaceType.creatable().contains(SpaceType.ROOM))
-        assertFalse(SpaceType.creatable(batch = true).contains(SpaceType.ROOM))
+    fun `a table is a room only in a hotel`() {
+        assertEquals("Mesa", SpaceType.TABLE.label)
+        assertFalse(SpaceCopy.isRoom("mesa"))
         Venue.update(Venue.HOTEL)
-        assertEquals(SpaceType.ROOM, SpaceType.creatable(batch = true).first())
-        assertTrue(Venue.isHotel)
+        assertEquals("Habitación", SpaceType.TABLE.label)
+        assertTrue(SpaceCopy.isRoom("mesa"))
+        assertFalse(SpaceCopy.isRoom("barra"))
     }
 
     @Test
     fun `room batch sends floor and category and a plain batch does not`() {
         val admin = AdminBusinessJson()
-        val hotel = Json.parseToJsonElement(admin.encodeBatch("habitacion", "Habitación", 301, 310, null, 3, "doble")).jsonObject
+        val hotel = Json.parseToJsonElement(admin.encodeBatch("mesa", "Habitación", 301, 310, null, 3, "doble")).jsonObject
         assertEquals("3", hotel["piso"]!!.jsonPrimitive.content)
         assertEquals("doble", hotel["categoria"]!!.jsonPrimitive.content)
         val plain = Json.parseToJsonElement(admin.encodeBatch("mesa", "Mesa", 1, 5)).jsonObject
@@ -112,38 +111,63 @@ class HotelContractTest {
     }
 
     @Test
-    fun `managed rooms keep floor, category and cleaning`() {
-        val space =
-            AdminBusinessJson()
-                .parseSpace(
-                    """{"data":{"id":9,"nombre":"Habitación 304","tipo":"habitacion","piso":3,"categoria":"suite","limpieza":"lista"}}""",
-                )
+    fun `a managed table counts as a room only in a hotel`() {
+        val space = AdminBusinessJson().parseSpace("""{"data":{"id":9,"nombre":"Habitación 304","tipo":"mesa"}}""")
+        assertFalse(space.isRoom)
+        Venue.update(Venue.HOTEL)
         assertTrue(space.isRoom)
-        assertEquals(3, space.floor)
-        assertEquals("suite", space.category)
     }
 
     @Test
-    fun `hotel config round trips through the store config contract`() {
-        val admin = AdminBusinessJson()
-        val config = admin.parseStoreConfig("""{"data":{"tipo":"hotel","hotel_config":{"solicitudes_activas":false,"salida_tardia_hora":"14:00:00","salida_tardia_precio":350}}}""").hotelConfig
-        assertNotNull(config)
-        assertFalse(config!!.requestsEnabled)
+    fun `hotel config is read and saved only through hotel configuracion`() {
+        val config = json.parseConfig("""{"data":{"solicitudes_activas":false,"salida_tardia_hora":"14:00:00","salida_tardia_precio":350}}""")
+        assertFalse(config.requestsEnabled)
         assertTrue(config.doNotDisturbEnabled)
         assertEquals("14:00", config.lateCheckoutTime)
         assertEquals("350", config.lateCheckoutPrice)
-        val sent = Json.parseToJsonElement(admin.encodeHotelConfig(HotelConfig(lateCheckoutTime = "14:00"))).jsonObject["hotel_config"]!!.jsonObject
+        val sent = Json.parseToJsonElement(json.encodeHotelConfig(HotelConfig(lateCheckoutTime = "14:00"))).jsonObject
         assertEquals("14:00", sent["salida_tardia_hora"]!!.jsonPrimitive.content)
+        assertFalse(sent.containsKey("hotel_config"))
     }
 
     @Test
-    fun `a room speaks as a room to guests and as Hab to staff`() {
-        assertEquals("tu habitación", SpaceCopy.yourPlace("habitacion"))
-        assertEquals("A tu habitación", SpaceCopy.destinationTitle("habitacion"))
-        assertEquals("Selecciona tu habitación", SpaceCopy.pickPrompt("habitacion"))
-        assertEquals("Tu pedido está listo. Ya va a tu habitación.", SpaceCopy.readyInSpace("habitacion"))
-        assertEquals("Hab. 304", SpaceCopy.short("habitacion", "Habitación 304"))
+    fun `a table speaks as a room only in a hotel`() {
+        assertEquals("tu mesa", SpaceCopy.yourPlace("mesa"))
+        assertEquals("Comer aquí", SpaceCopy.destinationTitle("mesa"))
         assertEquals("Mesa 4", SpaceCopy.short("mesa", "Mesa 4"))
+
+        Venue.update(Venue.HOTEL)
+        assertEquals("tu habitación", SpaceCopy.yourPlace("mesa"))
+        assertEquals("A tu habitación", SpaceCopy.destinationTitle("mesa"))
+        assertEquals("Selecciona tu habitación", SpaceCopy.pickPrompt("mesa"))
+        assertEquals("Tu pedido está listo. Ya va a tu habitación.", SpaceCopy.readyInSpace("mesa"))
+        assertEquals("Hab. 304", SpaceCopy.short("mesa", "Habitación 304"))
+        assertEquals("tu cancha", SpaceCopy.yourPlace("cancha"))
+    }
+
+    @Test
+    fun `rooms are created in a batch and edited through habitaciones`() {
+        val body = Json.parseToJsonElement(json.encodeRoomBatch(" Habitación ", 301, 310, 3, "doble")).jsonObject
+        assertEquals("Habitación", body["prefijo"]!!.jsonPrimitive.content)
+        assertEquals("3", body["piso"]!!.jsonPrimitive.content)
+        val result = json.parseRoomBatch("""{"data":{"creadas":9,"omitidas":["Habitación 305"]}}""")
+        assertEquals(9, result.created)
+        assertEquals(listOf("Habitación 305"), result.omitted)
+        val room = json.parseRoom("""{"data":{"id":304,"nombre":"Habitación 304","qr_token":"abc","qr_url":"https://x.mx/q/abc"}}""")
+        assertEquals("abc", room.qrToken)
+        assertEquals("https://x.mx/q/abc", room.qrUrl)
+    }
+
+    @Test
+    fun `the fake creates rooms, skips repeated ones and keeps the saved config`() {
+        val hotel = FakeHotelRepository()
+        val batch = hotel.createRooms("Habitación", 304, 306, 3, "doble", "k").getOrThrow()
+        assertEquals(1, batch.created)
+        assertEquals(listOf("Habitación 304", "Habitación 305"), batch.omitted)
+        assertEquals("suite", hotel.updateRoom(304, 4, " suite ", "k").getOrThrow().category)
+        val saved = hotel.saveHotelConfig(HotelConfig(cardAtOrderEnabled = true, kitchenFrom = "07:00", kitchenTo = "23:00"), "k").getOrThrow()
+        assertTrue(hotel.config().getOrThrow().cardAtOrderEnabled)
+        assertEquals("23:00", saved.kitchenTo)
     }
 
     @Test

@@ -80,10 +80,6 @@ interface AdminStoreRepository {
     fun saveHomeDelivery(delivery: HomeDeliverySettings): Result<StoreConfig> =
         Result.failure(UnsupportedOperationException("Entregas a domicilio no soportadas"))
 
-    /** Configuración del hotel (`hotel_config`): solicitudes, no molestar, salida tardía y hora de salida. */
-    fun saveHotelConfig(config: com.vaiinilla.app.domain.hotel.HotelConfig): Result<StoreConfig> =
-        Result.failure(UnsupportedOperationException("Hotel no soportado"))
-
     /** Encargos para otro día (CASA-03). */
     fun savePreorders(preorders: PreorderSettings): Result<StoreConfig> =
         Result.failure(UnsupportedOperationException("Encargos no soportados"))

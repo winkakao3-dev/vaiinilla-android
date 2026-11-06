@@ -1,11 +1,15 @@
 package com.vaiinilla.app.domain.model
 
 /**
- * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`, `asiento`, `habitacion`).
- * Sin tipo o con `mesa` se conserva el texto de siempre.
+ * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`, `asiento`).
+ * Sin tipo o con `mesa` se conserva el texto de siempre, salvo en un hotel ([Venue.isHotel]): ahí la mesa del
+ * servidor es una habitación y la app dice «habitación».
  */
 object SpaceCopy {
-    const val ROOM = "habitacion"
+    /** En un hotel las habitaciones son espacios `mesa` (o sin tipo): el servidor no tiene un tipo propio. */
+    fun isRoomType(type: String?): Boolean = type == null || type == "mesa"
+
+    fun isRoom(type: String?): Boolean = Venue.isHotel && isRoomType(type)
 
     /**
      * El espacio como lo dice el personal en una etiqueta corta: «Hab. 304» para una habitación (el servidor la
@@ -15,7 +19,7 @@ object SpaceCopy {
         type: String?,
         name: String,
     ): String =
-        if (type == ROOM) {
+        if (isRoom(type)) {
             name.trim().replace(Regex("^Habitaci[óo]n\\s*", RegexOption.IGNORE_CASE), "Hab. ")
         } else {
             name
@@ -28,8 +32,7 @@ object SpaceCopy {
             "barra" -> "Barra"
             "drive_thru" -> "Carril"
             "asiento" -> "Asiento"
-            ROOM -> Venue.roomTitle
-            else -> "Mesa"
+            else -> if (isRoom(type)) Venue.roomTitle else "Mesa"
         }
 
     /** El nombre que le puso el negocio con su artículo: «la Mesa 4», «el Asiento 3». */
@@ -45,8 +48,7 @@ object SpaceCopy {
             "barra" -> "la barra"
             "drive_thru" -> "tu auto"
             "asiento" -> "tu asiento"
-            ROOM -> "tu ${Venue.room}"
-            null, "mesa" -> "tu mesa"
+            null, "mesa" -> if (isRoom(type)) "tu ${Venue.room}" else "tu mesa"
             else -> "tu espacio"
         }
 
@@ -57,15 +59,14 @@ object SpaceCopy {
             "barra" -> "En la barra"
             "drive_thru" -> "En tu auto"
             "asiento" -> "En tu asiento"
-            ROOM -> "A tu ${Venue.room}"
-            else -> "Comer aquí"
+            else -> if (isRoom(type)) "A tu ${Venue.room}" else "Comer aquí"
         }
 
     /** Carrito en efectivo con destino a un espacio. En la barra se entrega ahí; no "se lleva". */
     fun payAtCashierHint(type: String?): String =
         if (type == "barra") {
             "Pagas en caja y te lo entregamos en la barra"
-        } else if (type == ROOM) {
+        } else if (isRoom(type)) {
             "Se carga a tu ${Venue.room} y te lo llevamos a tu puerta"
         } else {
             "Pagas en caja y te lo llevamos a ${yourPlace(type)}"
@@ -88,8 +89,7 @@ object SpaceCopy {
             "barra" -> "Selecciona tu lugar en la barra"
             "drive_thru" -> "Selecciona tu carril"
             "asiento" -> "Selecciona tu asiento"
-            ROOM -> "Selecciona tu ${Venue.room}"
-            else -> "Selecciona tu mesa"
+            else -> if (isRoom(type)) "Selecciona tu ${Venue.room}" else "Selecciona tu mesa"
         }
 
     /**
@@ -101,7 +101,7 @@ object SpaceCopy {
         space: OrderSpace?,
     ): String {
         if (destination != OrderDestination.IN_SPACE) return "Para llevar"
-        val title = if (space?.type == ROOM) "A la ${Venue.room}" else destinationTitle(space?.type)
+        val title = if (isRoom(space?.type)) "A la ${Venue.room}" else destinationTitle(space?.type)
         val name = space?.name?.takeIf { it.isNotBlank() }?.let { short(space.type, it) } ?: return title
         return "$title · $name"
     }

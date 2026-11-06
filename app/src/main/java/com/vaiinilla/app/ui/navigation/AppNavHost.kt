@@ -60,6 +60,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
@@ -547,6 +548,18 @@ fun AppNavHost(
         entrance = StoreEntrance(code = code?.trim()?.takeIf { it.isNotEmpty() })
     }
 
+    // La habitación de un hotel es una mesa del servidor: solo se sabe que es un hotel cuando llega el estado
+    // operativo del lugar, así que el QR abre el catálogo y de ahí se pasa a la bienvenida del hotel (o al código).
+    var hotelEntryDone by remember { mutableStateOf(false) }
+    val roomSpaceId = orderState.guestVenue?.space?.takeIf { SpaceCopy.isRoomType(it.type) }?.id
+    val statusIsHotel = orderState.operationalStatus?.businessType == Venue.HOTEL
+    LaunchedEffect(roomSpaceId, statusIsHotel, hotelEntryDone) {
+        if (roomSpaceId != null && statusIsHotel && !hotelEntryDone) {
+            hotelEntryDone = true
+            navController.navigate(Routes.HOTEL_ENTRY) { launchSingleTop = true }
+        }
+    }
+
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
         if (switchingEstablishment) {
@@ -554,9 +567,8 @@ fun AppNavHost(
         }
         orderFlowViewModel.enterGuestVenue(venue)
         orderFlowViewModel.clearMenuFilters()
-        // El QR de una habitación abre el hotel (bienvenida o código de estancia); el catálogo se pide desde ahí.
-        val enteringRoom = venue.space?.type == SpaceCopy.ROOM
-        navController.navigate(if (enteringRoom) Routes.HOTEL_ENTRY else Routes.CATALOG) {
+        hotelEntryDone = false
+        navController.navigate(Routes.CATALOG) {
             launchSingleTop = true
         }
         // Con el QR de una mesa, la entrada se vuelve el plano del lugar con tu mesa marcada.
