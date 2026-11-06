@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.hotel
 
 import com.vaiinilla.app.data.admin.AdminBusinessJson
+import com.vaiinilla.app.data.discovery.SpaceResolveEnvelope
+import com.vaiinilla.app.data.discovery.toDomain
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.admin.StoreTemplate
@@ -14,6 +16,7 @@ import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.domain.hotel.RequestType
 import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.StayStatus
+import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.json.Json
@@ -98,7 +101,14 @@ class HotelContractTest {
         val body = Json.parseToJsonElement(json.encodeRequest(RequestType.LATE_CHECKOUT, 1, "  a las 2  ")).jsonObject
         assertEquals("salida_tardia", body["tipo"]!!.jsonPrimitive.content)
         assertEquals("a las 2", body["nota"]!!.jsonPrimitive.content)
-        assertEquals("aprobar", Json.parseToJsonElement(json.encodeTransition(RequestAction.APPROVE, 4)).jsonObject["accion"]!!.jsonPrimitive.content)
+        assertEquals(
+            "aprobar",
+            Json
+                .parseToJsonElement(
+                    json.encodeTransition(RequestAction.APPROVE, 4),
+                ).jsonObject["accion"]!!
+                .jsonPrimitive.content,
+        )
     }
 
     @Test
@@ -121,7 +131,11 @@ class HotelContractTest {
     @Test
     fun `room batch sends floor and category and a plain batch does not`() {
         val admin = AdminBusinessJson()
-        val hotel = Json.parseToJsonElement(admin.encodeBatch("mesa", "Habitación", 301, 310, null, 3, "doble")).jsonObject
+        val hotel =
+            Json
+                .parseToJsonElement(
+                    admin.encodeBatch("mesa", "Habitación", 301, 310, null, 3, "doble"),
+                ).jsonObject
         assertEquals("3", hotel["piso"]!!.jsonPrimitive.content)
         assertEquals("doble", hotel["categoria"]!!.jsonPrimitive.content)
         val plain = Json.parseToJsonElement(admin.encodeBatch("mesa", "Mesa", 1, 5)).jsonObject
@@ -139,7 +153,10 @@ class HotelContractTest {
 
     @Test
     fun `hotel config is read and saved only through hotel configuracion`() {
-        val config = json.parseConfig("""{"data":{"activo":true,"solicitudes_activas":false,"salida_tardia_hora":"14:00:00","salida_tardia_precio":350}}""")
+        val config =
+            json.parseConfig(
+                """{"data":{"activo":true,"solicitudes_activas":false,"salida_tardia_hora":"14:00:00","salida_tardia_precio":350}}""",
+            )
         assertFalse(config.requestsEnabled)
         assertTrue(config.doNotDisturbEnabled)
         assertEquals("14:00", config.lateCheckoutTime)
@@ -166,11 +183,19 @@ class HotelContractTest {
 
     @Test
     fun `checkin, checkout and the summary use the names of the backend contract`() {
-        val checkIn = Json.parseToJsonElement(json.encodeCheckIn(NewStay("Ana", " a@x.mx ", 12, "2026-11-09", "2026-11-11", "1200.00"))).jsonObject
+        val checkIn =
+            Json
+                .parseToJsonElement(
+                    json.encodeCheckIn(NewStay("Ana", " a@x.mx ", 12, "2026-11-09", "2026-11-11", "1200.00")),
+                ).jsonObject
         assertEquals("Ana", checkIn["huesped_nombre"]!!.jsonPrimitive.content)
         assertEquals("2026-11-11", checkIn["salida"]!!.jsonPrimitive.content)
         assertFalse(checkIn.containsKey("huesped"))
-        val checkout = Json.parseToJsonElement(json.encodeCheckout(CheckoutMethod.CASH, "3000.00", "2650.00", 3)).jsonObject
+        val checkout =
+            Json
+                .parseToJsonElement(
+                    json.encodeCheckout(CheckoutMethod.CASH, "3000.00", "2650.00", 3),
+                ).jsonObject
         assertEquals("efectivo", checkout["metodo_pago"]!!.jsonPrimitive.content)
         assertEquals("2650.00", checkout["total_esperado"]!!.jsonPrimitive.content)
         assertEquals("3", checkout["version_esperada"]!!.jsonPrimitive.content)
@@ -194,9 +219,15 @@ class HotelContractTest {
 
     @Test
     fun `the stay list comes inside hoy and estancias and a charge comes back inside the stay`() {
-        val stays = json.parseStays("""{"data":{"hoy":"2026-11-09","estancias":[{"id":"e1","huesped":"Ana","estado":"reservada"}]}}""")
+        val stays =
+            json.parseStays(
+                """{"data":{"hoy":"2026-11-09","estancias":[{"id":"e1","huesped":"Ana","estado":"reservada"}]}}""",
+            )
         assertEquals(StayStatus.RESERVED, stays.single().status)
-        val charge = json.parseAddedCharge("""{"data":{"id":"e1","huesped":"Ana","cargos":[{"id":"c1","concepto":"Minibar","monto":"150.00","categoria":"minibar"}]}}""")
+        val charge =
+            json.parseAddedCharge(
+                """{"data":{"id":"e1","huesped":"Ana","cargos":[{"id":"c1","concepto":"Minibar","monto":"150.00","categoria":"minibar"}]}}""",
+            )
         assertEquals("150.00", charge.amount)
     }
 
@@ -208,7 +239,10 @@ class HotelContractTest {
         val result = json.parseRoomBatch("""{"data":{"creadas":9,"omitidas":["Habitación 305"]}}""")
         assertEquals(9, result.created)
         assertEquals(listOf("Habitación 305"), result.omitted)
-        val room = json.parseRoom("""{"data":{"id":304,"nombre":"Habitación 304","qr_token":"abc","qr_url":"https://x.mx/q/abc"}}""")
+        val room =
+            json.parseRoom(
+                """{"data":{"id":304,"nombre":"Habitación 304","qr_token":"abc","qr_url":"https://x.mx/q/abc"}}""",
+            )
         assertEquals("abc", room.qrToken)
         assertEquals("https://x.mx/q/abc", room.qrUrl)
     }
@@ -220,7 +254,12 @@ class HotelContractTest {
         assertEquals(1, batch.created)
         assertEquals(listOf("Habitación 304", "Habitación 305"), batch.omitted)
         assertEquals("suite", hotel.updateRoom(304, 4, " suite ", "k").getOrThrow().category)
-        val saved = hotel.saveHotelConfig(HotelConfig(cardAtOrderEnabled = true, kitchenFrom = "07:00", kitchenTo = "23:00"), "k").getOrThrow()
+        val saved =
+            hotel
+                .saveHotelConfig(
+                    HotelConfig(cardAtOrderEnabled = true, kitchenFrom = "07:00", kitchenTo = "23:00"),
+                    "k",
+                ).getOrThrow()
         assertTrue(hotel.config().getOrThrow().cardAtOrderEnabled)
         assertEquals("23:00", saved.kitchenTo)
     }
@@ -241,14 +280,47 @@ class HotelContractTest {
 
         val closed = hotel.checkout(stay.id, CheckoutMethod.CARD, "k3").getOrThrow()
         assertEquals(StayStatus.CHECKED_OUT, closed.status)
-        assertEquals(RoomCleaning.DIRTY, hotel.rooms().getOrThrow().first { it.id == 304 }.cleaning)
+        assertEquals(
+            RoomCleaning.DIRTY,
+            hotel
+                .rooms()
+                .getOrThrow()
+                .first { it.id == 304 }
+                .cleaning,
+        )
         val error = hotel.createRequest(RequestType.CLEANING, 1, null, "k4").exceptionOrNull() as HotelException
         assertEquals(HotelErrors.ROOM_REQUIRES_STAY, error.code)
     }
 
     @Test
+    fun `a table of the hotel restaurant is not a room when the server says so`() {
+        val room = Json { ignoreUnknownKeys = true }.decodeFromString<SpaceResolveEnvelope>(
+            """{"data":{"establecimiento":{"id":"e1","nombre":"Hotel","slug":"hotel","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":7,"nombre":"Habitación 304","tipo":"mesa","es_habitacion":true}}}""",
+        ).data.espacio!!.toDomain()
+        val restaurant = room.copy(id = 9, name = "Mesa 2", isRoom = false)
+        val other = Json { ignoreUnknownKeys = true }.decodeFromString<SpaceResolveEnvelope>(
+            """{"data":{"establecimiento":{"id":"e2","nombre":"Cafe","slug":"cafe","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":3,"nombre":"Mesa 1","tipo":"mesa"}}}""",
+        ).data.espacio!!.toDomain()
+        assertEquals(true, room.isRoom)
+        assertNull(other.isRoom)
+
+        Venue.update(Venue.HOTEL)
+        assertTrue(SpaceCopy.isRoom(room))
+        assertFalse(SpaceCopy.isRoom(restaurant))
+        // Sin el dato, en un hotel toda mesa se trata como habitación, como antes; sin espacio no hay habitación.
+        assertTrue(SpaceCopy.isRoom(other))
+        assertFalse(SpaceCopy.isRoom(null as PublicSpace?))
+        Venue.update("cafeteria")
+        assertFalse(SpaceCopy.isRoom(room))
+    }
+
+    @Test
     fun `a check-in for today leaves the date out and a config without checkout time does not send null`() {
-        val today = Json.parseToJsonElement(json.encodeCheckIn(NewStay("Ana", null, 12, null, "2026-11-11", "1200.00"))).jsonObject
+        val today =
+            Json
+                .parseToJsonElement(
+                    json.encodeCheckIn(NewStay("Ana", null, 12, null, "2026-11-11", "1200.00")),
+                ).jsonObject
         assertFalse(today.containsKey("entrada"))
         assertEquals("2026-11-11", today["salida"]!!.jsonPrimitive.content)
 

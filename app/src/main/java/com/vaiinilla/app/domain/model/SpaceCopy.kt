@@ -12,6 +12,16 @@ object SpaceCopy {
     fun isRoom(type: String?): Boolean = Venue.isHotel && isRoomType(type)
 
     /**
+     * ¿Este espacio es una habitación? Con el dato del servidor (`es_habitacion`) manda: una mesa del restaurante del
+     * hotel no lo es. Sin el dato, en un hotel toda mesa lo es, como antes. Sin espacio, no.
+     */
+    fun isRoom(space: PublicSpace?): Boolean = space != null && isRoom(space.type) && space.isRoom != false
+
+    /** ¿El pedido va a una habitación? `estancia_id` solo lo tiene un pedido que se carga a una estancia. */
+    fun isRoomOrder(order: OrderDetail): Boolean =
+        Venue.isHotel && order.summary.space?.let { isRoomType(it.type) } == true && order.stayId != null
+
+    /**
      * El espacio como lo dice el personal en una etiqueta corta: «Hab. 304» para una habitación (el servidor la
      * guarda como «Habitación 304»), el nombre tal cual para los demás.
      */
