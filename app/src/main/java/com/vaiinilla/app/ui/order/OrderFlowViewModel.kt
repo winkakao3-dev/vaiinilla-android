@@ -451,7 +451,11 @@ class OrderFlowViewModel
 
         /** Dentro de un hotel, lo que ofrece al pedir (cargo a la habitación, tarjeta); se conserva lo último si falla. */
         private fun loadHotelConfig() {
-            if (!Venue.isHotel) return
+            if (!Venue.isHotel) {
+                // Lo que ofrecía el hotel anterior no vale en otro negocio.
+                if (_uiState.value.hotelConfig != null) _uiState.value = _uiState.value.copy(hotelConfig = null)
+                return
+            }
             launchTracked {
                 val config = withContext(Dispatchers.IO) { hotelRepository.config() }.getOrNull() ?: return@launchTracked
                 _uiState.value = _uiState.value.copy(hotelConfig = config)
@@ -463,16 +467,17 @@ class OrderFlowViewModel
          * recepción y se reintenta el mismo pedido con la misma llave de idempotencia.
          */
         fun linkStayAndRetry(code: String) {
+            if (_uiState.value.linkingStay) return
             val space = _uiState.value.checkoutSpace
-            _uiState.value = _uiState.value.copy(stayCodeError = null)
+            _uiState.value = _uiState.value.copy(stayCodeError = null, linkingStay = true)
             launchTracked {
                 val result = withContext(Dispatchers.IO) { hotelRepository.linkStay(code, space?.id, space?.qrToken) }
                 result.fold(
                     onSuccess = {
-                        _uiState.value = _uiState.value.copy(needsStayCode = false, stayCodeError = null)
+                        _uiState.value = _uiState.value.copy(needsStayCode = false, stayCodeError = null, linkingStay = false)
                         submitOrder()
                     },
-                    onFailure = { _uiState.value = _uiState.value.copy(stayCodeError = hotelErrorMessage(it)) },
+                    onFailure = { _uiState.value = _uiState.value.copy(stayCodeError = hotelErrorMessage(it), linkingStay = false) },
                 )
             }
         }

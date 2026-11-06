@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,7 +84,8 @@ fun HotelCheckoutContent(
     onResolvePendingPayment: () -> Unit = {},
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(modifier = modifier.fillMaxSize().background(colors.paper)) {
+    // El teclado de la nota no tapa el campo ni el botón: igual que el carrito de siempre.
+    Box(modifier = modifier.fillMaxSize().background(colors.paper).imePadding()) {
         Column(
             modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -314,7 +316,7 @@ fun HotelCheckoutRoute(
     if (state.needsStayCode) {
         val flow = activityOrderFlow()
         HotelStayCodeSheet(
-            linking = state.creatingOrder,
+            linking = state.creatingOrder || state.linkingStay,
             error = state.stayCodeError,
             onSubmit = { code -> flow?.linkStayAndRetry(code) },
             onDismiss = { flow?.dismissStayCode() },

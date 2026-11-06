@@ -83,6 +83,8 @@ data class OrderFlowUiState(
     /** El servidor pidió la estancia (ROOM_REQUIRES_STAY): se abre el código de estancia dentro del carrito. */
     val needsStayCode: Boolean = false,
     val stayCodeError: String? = null,
+    /** El código de estancia se está ligando: la hoja no deja mandarlo dos veces. */
+    val linkingStay: Boolean = false,
 )
 
 /** A one-shot visual confirmation for the order currently being created. */

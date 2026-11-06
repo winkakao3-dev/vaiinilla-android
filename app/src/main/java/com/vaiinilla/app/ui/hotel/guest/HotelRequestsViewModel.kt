@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRequest
@@ -12,7 +13,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 import javax.inject.Inject
 
 /** Lo que se puede pedir por cantidad; el resto se pide o no se pide. */
@@ -45,8 +45,10 @@ class HotelRequestsViewModel
         private val _state = mutableStateOf(HotelRequestsUiState())
         val state: State<HotelRequestsUiState> = _state
 
-        // Un reintento de lo mismo no crea otra solicitud: la llave sigue hasta que el servidor la acepta.
-        private val keys = mutableMapOf<RequestType, String>()
+        // Un reintento de lo mismo no crea otra solicitud: la llave sigue hasta que el servidor la acepta. Si cambia la
+        // cantidad es otra solicitud y estrena llave: la misma llave con otro cuerpo el servidor la rechaza.
+        private val retryKeys = RetryKeys()
+        private var cancelling = false
 
         fun load() {
             viewModelScope.launch {
@@ -89,10 +91,11 @@ class HotelRequestsViewModel
                 var sent = 0
                 var failure: Throwable? = null
                 for ((type, quantity) in _state.value.picked) {
-                    val key = keys.getOrPut(type) { UUID.randomUUID().toString() }
-                    val result = withContext(Dispatchers.IO) { repository.createRequest(type, quantity, null, key) }
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            retryKeys.withKey("request", type, quantity) { key -> repository.createRequest(type, quantity, null, key) }
+                        }
                     if (result.isSuccess) {
-                        keys.remove(type)
                         sent++
                         _state.value = _state.value.copy(picked = _state.value.picked - type)
                     } else {
@@ -124,9 +127,14 @@ class HotelRequestsViewModel
         }
 
         fun cancel(requestId: String) {
+            if (cancelling) return
+            cancelling = true
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) { repository.cancelRequest(requestId, UUID.randomUUID().toString()) }
+                    withContext(Dispatchers.IO) {
+                        retryKeys.withKey("cancel", requestId) { key -> repository.cancelRequest(requestId, key) }
+                    }
+                cancelling = false
                 _state.value =
                     result.fold(
                         onSuccess = { _state.value.copy(open = _state.value.open.filterNot { it.id == requestId }) },
