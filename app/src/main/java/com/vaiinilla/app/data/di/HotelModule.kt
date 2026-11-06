@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.di
 
+import com.vaiinilla.app.BuildConfig
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.hotel.FakeHotelRepository
 import com.vaiinilla.app.data.hotel.HotelBackend
@@ -14,9 +15,9 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object HotelModule {
-    /** Punto de extensión: [HotelBackend.USE_FAKE] elige entre el repositorio en memoria y el servidor. */
+    /** Punto de extensión: [HotelBackend.useFake] elige entre el repositorio en memoria y el servidor por la URL de la APK. */
     @Provides
     @Singleton
     fun provideHotelRepository(apiClient: VaiinillaApiClient): HotelRepository =
-        if (HotelBackend.USE_FAKE) FakeHotelRepository() else RemoteHotelRepository(apiClient)
+        if (HotelBackend.useFake(BuildConfig.API_BASE_URL)) FakeHotelRepository() else RemoteHotelRepository(apiClient)
 }

@@ -2,6 +2,8 @@ package com.vaiinilla.app.domain.hotel
 
 /** Lo que el dueño configura del hotel (`hotel_config` del establecimiento); null en el modelo = servidor sin hotel. */
 data class HotelConfig(
+    /** `false` en un negocio que no es hotel: la app no muestra nada de hotel. */
+    val active: Boolean = true,
     /** El huésped puede cargar el room service a su habitación. */
     val chargeToRoom: Boolean = true,
     /** El huésped puede pagar con tarjeta al pedir. */
@@ -60,6 +62,8 @@ enum class CheckoutMethod(
 ) {
     CARD("tarjeta", "Tarjeta"),
     CASH("efectivo", "Efectivo"),
+
+    /** El servidor todavía no lo acepta (`metodo_pago` es efectivo o tarjeta): no ofrecerlo. */
     TRANSFER("transferencia", "Transferencia"),
 }
 
@@ -131,10 +135,23 @@ data class StayCharge(
 /** Un pedido de room service que va a la cuenta de la estancia. */
 data class StayOrder(
     val orderId: String,
-    val folio: Int?,
+    /** El folio como lo manda el servidor («A-014»). */
+    val folio: String?,
     val total: String,
     val state: String,
     val createdAt: String? = null,
+    val itemsSummary: String? = null,
+    /** Todavía no se cobra: se cobra en el check-out. */
+    val pendingPayment: Boolean = false,
+)
+
+/** La cuenta de la estancia: noches, cargos y room service. */
+data class StayAccount(
+    val nightsTotal: String? = null,
+    val chargesTotal: String? = null,
+    val ordersTotal: String? = null,
+    val total: String? = null,
+    val pendingOrders: Int = 0,
 )
 
 data class Stay(
@@ -160,6 +177,16 @@ data class Stay(
     val paymentMethod: String? = null,
     val paidAt: String? = null,
     val doNotDisturb: Boolean = false,
+    val category: String? = null,
+    /** Para `version_esperada` al cambiar la estancia (check-in, cancelar, check-out). */
+    val version: Int = 1,
+    /** Instante de la salida prevista (ISO). */
+    val expectedDeparture: String? = null,
+    val linkedUsers: Int = 0,
+    val account: StayAccount? = null,
+    val totalCharged: String? = null,
+    /** Solo al huésped: los ajustes del hotel (`ajustes`, la misma forma que `hotel/configuracion`). */
+    val settings: HotelConfig? = null,
 )
 
 data class NewStay(
@@ -184,6 +211,9 @@ data class HotelRequest(
     /** Quién la tomó (personal); el huésped no ve el nombre. */
     val takenBy: String? = null,
     val createdAt: String? = null,
+    /** Para `version_esperada` en las transiciones. */
+    val version: Int = 1,
+    val guestName: String? = null,
 )
 
 data class HotelRoom(
@@ -201,12 +231,17 @@ data class HotelRoom(
     /** El QR permanente de la puerta: el token y la URL que se imprime o se comparte; null si el servidor no los manda. */
     val qrToken: String? = null,
     val qrUrl: String? = null,
+    /** Salida prevista de la estancia en curso (ISO). */
+    val stayDeparture: String? = null,
+    val ordersInProgress: Int = 0,
 )
 
 /** Lo que dejó `POST habitaciones/lote`: cuántas se crearon y cuáles se omitieron (ya existían). */
 data class RoomBatchResult(
     val created: Int,
     val omitted: List<String> = emptyList(),
+    /** Mesas que ya existían con ese nombre y se convirtieron en habitación. */
+    val converted: Int = 0,
 )
 
 data class HotelTopItem(
@@ -226,12 +261,42 @@ data class HotelSummary(
     val oldestRequestMinutes: Int? = null,
     val topItems: List<HotelTopItem> = emptyList(),
     val departuresToday: Int = 0,
+    val dirtyRooms: Int = 0,
+    val doNotDisturbRooms: Int = 0,
+    val ordersToRooms: Int = 0,
+    val arrivalsToday: Int = 0,
+    val departures: List<HotelDeparture> = emptyList(),
+)
+
+data class HotelDeparture(
+    val stayId: String,
+    val guestName: String,
+    val roomName: String,
+    val expectedDeparture: String? = null,
 )
 
 /** Códigos de error del servidor que las pantallas del hotel distinguen. */
 object HotelErrors {
     /** Pedir a una habitación sin estancia vigente ligada a la cuenta (`403`). */
     const val ROOM_REQUIRES_STAY = "ROOM_REQUIRES_STAY"
+
+    /** El código no existe, venció o no es de esa habitación (el servidor no distingue). */
+    const val STAY_NOT_FOUND = "STAY_NOT_FOUND"
+    const val STAY_INVALID_STATE = "STAY_INVALID_STATE"
+    const val ROOM_OCCUPIED = "ROOM_OCCUPIED"
+    const val SPACE_NOT_ROOM = "SPACE_NOT_ROOM"
+
+    /** La cuenta cambió desde que recepción la vio: el error trae el total real. */
+    const val ACCOUNT_TOTAL_CHANGED = "ACCOUNT_TOTAL_CHANGED"
+    const val CASH_REGISTER_CLOSED = "CASH_REGISTER_CLOSED"
+    const val ROOM_CHARGE_DISABLED = "ROOM_CHARGE_DISABLED"
+    const val CARD_AT_ORDER_DISABLED = "CARD_AT_ORDER_DISABLED"
+    const val OUTSIDE_ORDER_HOURS = "OUTSIDE_ORDER_HOURS"
+    const val REQUESTS_DISABLED = "REQUESTS_DISABLED"
+    const val DND_DISABLED = "DND_DISABLED"
+    const val LATE_CHECKOUT_UNAVAILABLE = "LATE_CHECKOUT_UNAVAILABLE"
+    const val REQUEST_VERSION_CONFLICT = "REQUEST_VERSION_CONFLICT"
+    const val REQUEST_INVALID_STATE = "REQUEST_INVALID_STATE"
 }
 
 class HotelException(

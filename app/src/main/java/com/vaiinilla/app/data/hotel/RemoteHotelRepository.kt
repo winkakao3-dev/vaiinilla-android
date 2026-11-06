@@ -60,7 +60,12 @@ class RemoteHotelRepository(
             .mapCatching(json::parseRequest)
             .mapApiErrors()
 
-    override fun myRequests(): Result<List<HotelRequest>> = openRequests()
+    /** El huésped ve sus solicitudes abiertas y las cerradas. */
+    override fun myRequests(): Result<List<HotelRequest>> =
+        apiClient
+            .get("solicitudes-hotel", mapOf("estado" to "pendiente,tomada,resuelta,cancelada"))
+            .mapCatching(json::parseRequests)
+            .mapApiErrors()
 
     override fun cancelRequest(
         requestId: String,
@@ -98,16 +103,42 @@ class RemoteHotelRepository(
     ): Result<StayCharge> =
         apiClient
             .post("estancias/$stayId/cargos", json.encodeCharge(concept, amount, category), key(idempotencyKey))
-            .mapCatching(json::parseCharge)
+            .mapCatching(json::parseAddedCharge)
             .mapApiErrors()
 
     override fun checkout(
         stayId: String,
         method: CheckoutMethod,
         idempotencyKey: String,
+        receivedAmount: String?,
+        expectedTotal: String?,
+        expectedVersion: Int?,
     ): Result<Stay> =
         apiClient
-            .post("estancias/$stayId/checkout", json.encodeCheckout(method), key(idempotencyKey))
+            .post(
+                "estancias/$stayId/checkout",
+                json.encodeCheckout(method, receivedAmount, expectedTotal, expectedVersion),
+                key(idempotencyKey),
+            ).mapCatching(json::parseStay)
+            .mapApiErrors()
+
+    override fun confirmArrival(
+        stayId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+    ): Result<Stay> =
+        apiClient
+            .post("estancias/$stayId/check-in", json.encodeExpectedVersion(expectedVersion), key(idempotencyKey))
+            .mapCatching(json::parseStay)
+            .mapApiErrors()
+
+    override fun cancelStay(
+        stayId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+    ): Result<Stay> =
+        apiClient
+            .post("estancias/$stayId/cancelaciones", json.encodeExpectedVersion(expectedVersion), key(idempotencyKey))
             .mapCatching(json::parseStay)
             .mapApiErrors()
 
@@ -119,9 +150,14 @@ class RemoteHotelRepository(
         requestId: String,
         action: RequestAction,
         idempotencyKey: String,
+        expectedVersion: Int?,
     ): Result<HotelRequest> =
         apiClient
-            .post("solicitudes-hotel/$requestId/transiciones", json.encodeTransition(action), key(idempotencyKey))
+            .post(
+                "solicitudes-hotel/$requestId/transiciones",
+                json.encodeTransition(action, expectedVersion),
+                key(idempotencyKey),
+            )
             .mapCatching(json::parseRequest)
             .mapApiErrors()
 
