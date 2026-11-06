@@ -545,6 +545,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.summaryBlocks(
             }
         }
     }
+    val tips = summary.tips
+    val canceled = summary.canceledOrders
+    if (tips != null || canceled != null) {
+        item(key = "propinas-cancelados") {
+            Row(Modifier.adminRise(5), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                tips?.let { AdminCountTile(moneyLabel(it), "Propinas", colors, Modifier.weight(1f)) }
+                canceled?.let {
+                    AdminCountTile("$it", if (it == 1) "Cancelado" else "Cancelados", colors, Modifier.weight(1f))
+                }
+            }
+        }
+    }
     if (summary.dailySales.size > 1) {
         item(key = "por-dia") { DailySales(summary, colors, Modifier.adminRise(6)) }
     }
