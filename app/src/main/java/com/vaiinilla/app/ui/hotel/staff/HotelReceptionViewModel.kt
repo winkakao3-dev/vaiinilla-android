@@ -92,7 +92,10 @@ class HotelReceptionViewModel
             viewModelScope.launch {
                 val stays = withContext(Dispatchers.IO) { repository.stays(null) }
                 val rooms = withContext(Dispatchers.IO) { repository.rooms() }
-                val failure = (stays.exceptionOrNull() ?: rooms.exceptionOrNull())?.let { staffErrorMessage(it, "No se pudo actualizar.") }
+                val failure =
+                    (stays.exceptionOrNull() ?: rooms.exceptionOrNull())?.let {
+                        staffErrorMessage(it, "No se pudo actualizar.")
+                    }
                 _state.update { current ->
                     current.copy(
                         stays = stays.getOrDefault(current.stays),
@@ -111,7 +114,8 @@ class HotelReceptionViewModel
             if (pane is ReceptionPane.Checkout) loadDetail(pane.stayId)
         }
 
-        fun close() = _state.update { it.copy(pane = ReceptionPane.Overview, error = null, created = null, detail = null) }
+        fun close() =
+            _state.update { it.copy(pane = ReceptionPane.Overview, error = null, created = null, detail = null) }
 
         fun setMethod(method: CheckoutMethod) = _state.update { it.copy(method = method) }
 
@@ -127,7 +131,12 @@ class HotelReceptionViewModel
                 val result = withContext(Dispatchers.IO) { repository.stay(stayId) }
                 val failure = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo abrir la cuenta.") }
                 _state.update {
-                    it.copy(detailLoading = false, detail = result.getOrNull(), error = failure ?: if (keepError) it.error else null)
+                    it.copy(
+                        detailLoading = false,
+                        detail = result.getOrNull(),
+                        error =
+                            failure ?: if (keepError) it.error else null,
+                    )
                 }
             }
         }
@@ -136,12 +145,18 @@ class HotelReceptionViewModel
             if (_state.value.busy) return
             _state.update { it.copy(busy = true, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { retryKeys.withKey("check-in", draft) { key -> repository.checkIn(draft, key) } }
+                val result =
+                    withContext(
+                        Dispatchers.IO,
+                    ) { retryKeys.withKey("check-in", draft) { key -> repository.checkIn(draft, key) } }
                 _state.update {
                     it.copy(
                         busy = false,
                         created = result.getOrNull(),
-                        error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo hacer el check-in.") },
+                        error =
+                            result.exceptionOrNull()?.let { e ->
+                                staffErrorMessage(e, "No se pudo hacer el check-in.")
+                            },
                     )
                 }
                 if (result.isSuccess) refresh()
@@ -150,10 +165,18 @@ class HotelReceptionViewModel
 
         /** Una reserva que llegó pasa a «en casa» y ya puede pedir con su código. */
         fun confirmArrival(stay: Stay) =
-            changeStay(stay, "arrival", "No se pudo registrar la llegada.") { id, key -> repository.confirmArrival(id, stay.version, key) }
+            changeStay(
+                stay,
+                "arrival",
+                "No se pudo registrar la llegada.",
+            ) { id, key -> repository.confirmArrival(id, stay.version, key) }
 
         fun cancelReservation(stay: Stay) =
-            changeStay(stay, "cancel", "No se pudo cancelar la reserva.") { id, key -> repository.cancelStay(id, stay.version, key) }
+            changeStay(
+                stay,
+                "cancel",
+                "No se pudo cancelar la reserva.",
+            ) { id, key -> repository.cancelStay(id, stay.version, key) }
 
         private fun changeStay(
             stay: Stay,
@@ -164,8 +187,19 @@ class HotelReceptionViewModel
             if (_state.value.busy) return
             _state.update { it.copy(busy = true, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { retryKeys.withKey(operation, stay.id, stay.version) { key -> call(stay.id, key) } }
-                _state.update { it.copy(busy = false, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, fallback) }) }
+                val result =
+                    withContext(
+                        Dispatchers.IO,
+                    ) { retryKeys.withKey(operation, stay.id, stay.version) { key -> call(stay.id, key) } }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        error =
+                            result.exceptionOrNull()?.let { e ->
+                                staffErrorMessage(e, fallback)
+                            },
+                    )
+                }
                 refresh()
             }
         }
@@ -189,7 +223,10 @@ class HotelReceptionViewModel
                     it.copy(
                         busy = false,
                         pane = if (result.isSuccess) ReceptionPane.Overview else it.pane,
-                        error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo agregar el cargo.") },
+                        error =
+                            result.exceptionOrNull()?.let { e ->
+                                staffErrorMessage(e, "No se pudo agregar el cargo.")
+                            },
                     )
                 }
                 if (result.isSuccess) refresh()
@@ -231,7 +268,10 @@ class HotelReceptionViewModel
                         error =
                             when {
                                 changed -> "La cuenta cambió mientras la revisabas. Ya está al día; revisa el total y vuelve a cerrarla."
-                                else -> result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo cerrar la cuenta.") }
+                                else ->
+                                    result.exceptionOrNull()?.let { e ->
+                                        staffErrorMessage(e, "No se pudo cerrar la cuenta.")
+                                    }
                             },
                     )
                 }
@@ -262,11 +302,18 @@ internal fun checkoutBreakdown(stay: Stay): CheckoutBreakdown {
     val stayAmount = rate.multiply(BigDecimal(nights))
     // Solo lo que el check-out cobra: un pedido que alguien ya pagó aparte no entra en el total del servidor.
     val roomOrders = stay.orders.filter { it.pendingPayment }
-    val roomService = roomOrders.fold(BigDecimal.ZERO) { sum, order -> sum + (order.total.toBigDecimalOrNull() ?: BigDecimal.ZERO) }
+    val roomService =
+        roomOrders.fold(BigDecimal.ZERO) { sum, order ->
+            sum +
+                (order.total.toBigDecimalOrNull() ?: BigDecimal.ZERO)
+        }
     val grouped =
         stay.charges
             .groupBy { if (it.category == ChargeCategory.OTHER) it.concept else it.category.label }
-            .map { (label, items) -> label to items.fold(BigDecimal.ZERO) { sum, c -> sum + (c.amount.toBigDecimalOrNull() ?: BigDecimal.ZERO) } }
+            .map { (label, items) ->
+                label to
+                    items.fold(BigDecimal.ZERO) { sum, c -> sum + (c.amount.toBigDecimalOrNull() ?: BigDecimal.ZERO) }
+            }
     val computed = stayAmount + roomService + grouped.fold(BigDecimal.ZERO) { sum, line -> sum + line.second }
     return CheckoutBreakdown(
         nights = nights,

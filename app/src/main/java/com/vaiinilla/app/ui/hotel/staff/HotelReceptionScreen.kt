@@ -65,7 +65,12 @@ fun HotelReceptionScreen(
                 modifier = modifier,
             )
         is ReceptionPane.Checkout ->
-            HotelCheckoutScreen(stayId = pane.stayId, onDone = viewModel::close, modifier = modifier, viewModel = viewModel)
+            HotelCheckoutScreen(
+                stayId = pane.stayId,
+                onDone = viewModel::close,
+                modifier = modifier,
+                viewModel = viewModel,
+            )
         is ReceptionPane.Charge -> {
             HotelReceptionContent(
                 state = state,
@@ -163,13 +168,22 @@ private fun StayRow(
     val colors = LocalVaiinillaColors.current
     val inHouse = stay.status == StayStatus.IN_HOUSE
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.paper2).padding(horizontal = 16.dp, vertical = 14.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(22.dp),
+                ).background(colors.paper2)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
             Text(stay.guestName, color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.Black)
             Text(
-                listOfNotNull(stay.roomName, hotelDateRange(stay.checkIn, stay.checkOut).ifBlank { null }).joinToString(" · "),
+                listOfNotNull(
+                    stay.roomName,
+                    hotelDateRange(stay.checkIn, stay.checkOut).ifBlank { null },
+                ).joinToString(" · "),
                 color = colors.muted,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -177,12 +191,20 @@ private fun StayRow(
         }
         if (inHouse) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                HotelButton("Cargo", onClick = { onCharge(stay) }, kind = HotelButtonKind.Outline, height = 38.dp, fontSize = 13)
+                HotelButton(
+                    "Cargo",
+                    onClick = { onCharge(stay) },
+                    kind = HotelButtonKind.Outline,
+                    height = 38.dp,
+                    fontSize = 13,
+                )
                 HotelButton("Check-out", onClick = { onCheckout(stay) }, height = 38.dp, fontSize = 13)
             }
         } else if (stay.status == StayStatus.RESERVED) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                HotelButton("Cancelar", onClick = { onCancel(stay) }, kind = HotelButtonKind.Outline, enabled = !busy, height = 38.dp, fontSize = 13)
+                HotelButton("Cancelar", onClick = {
+                    onCancel(stay)
+                }, kind = HotelButtonKind.Outline, enabled = !busy, height = 38.dp, fontSize = 13)
                 HotelButton("Llegó", onClick = { onArrive(stay) }, enabled = !busy, height = 38.dp, fontSize = 13)
             }
         }

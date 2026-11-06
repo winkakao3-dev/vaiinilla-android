@@ -19,9 +19,9 @@ import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
-import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.After
 import org.junit.Before
@@ -72,7 +72,14 @@ class HotelStaffDoopScreenshotTest {
         cleaning: RoomCleaning = RoomCleaning.READY,
         occupied: Boolean = false,
         dnd: Boolean = false,
-    ) = HotelRoom(id = number, name = "Habitación $number", floor = 3, cleaning = cleaning, occupied = occupied, doNotDisturb = dnd)
+    ) = HotelRoom(
+        id = number,
+        name = "Habitación $number",
+        floor = 3,
+        cleaning = cleaning,
+        occupied = occupied,
+        doNotDisturb = dnd,
+    )
 
     private val floor3 =
         listOf(
@@ -102,7 +109,11 @@ class HotelStaffDoopScreenshotTest {
             checkOut = "2026-11-09",
             nightlyRate = "1650.00",
             nights = 3,
-            orders = listOf(StayOrder("a", "A-001", "236.50", "entregado"), StayOrder("b", "A-002", "548.00", "entregado")),
+            orders =
+                listOf(
+                    StayOrder("a", "A-001", "236.50", "entregado"),
+                    StayOrder("b", "A-002", "548.00", "entregado"),
+                ),
             charges =
                 listOf(
                     StayCharge("c1", "Minibar", "90.00", ChargeCategory.MINIBAR),
@@ -112,7 +123,12 @@ class HotelStaffDoopScreenshotTest {
 
     @Test
     fun s01_cocina() {
-        val base = ScreenshotFixtures.sampleOrder(state = OrderState.PAID, destination = OrderDestination.IN_SPACE, spaceId = 304)
+        val base =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PAID,
+                destination = OrderDestination.IN_SPACE,
+                spaceId = 304,
+            )
 
         fun order(
             id: String,
@@ -139,14 +155,44 @@ class HotelStaffDoopScreenshotTest {
             user = base.user?.copy(allergies = allergies),
             items =
                 lines.mapIndexed { index, (quantity, name) ->
-                    base.items.first().copy(id = 900 + index, productName = name, quantity = quantity, options = emptyList(), rejection = null)
+                    base.items.first().copy(
+                        id = 900 + index,
+                        productName = name,
+                        quantity = quantity,
+                        options = emptyList(),
+                        rejection = null,
+                    )
                 },
         )
         val orders =
             listOf(
-                order("a", 412, 304, OrderState.PREPARING, 25, listOf(1 to "Chilaquiles verdes", 1 to "Café americano"), notes = "Piso 3 · bebé durmiendo, tocar suave"),
-                order("b", 413, 112, OrderState.PAID, 3, listOf(2 to "Desayuno continental", 1 to "Jugo de naranja"), slot = "08:30-09:00"),
-                order("c", 414, 408, OrderState.PAID, 2, listOf(1 to "Hot cakes con miel"), allergies = listOf("nueces")),
+                order(
+                    "a",
+                    412,
+                    304,
+                    OrderState.PREPARING,
+                    25,
+                    listOf(1 to "Chilaquiles verdes", 1 to "Café americano"),
+                    notes = "Piso 3 · bebé durmiendo, tocar suave",
+                ),
+                order(
+                    "b",
+                    413,
+                    112,
+                    OrderState.PAID,
+                    3,
+                    listOf(2 to "Desayuno continental", 1 to "Jugo de naranja"),
+                    slot = "08:30-09:00",
+                ),
+                order(
+                    "c",
+                    414,
+                    408,
+                    OrderState.PAID,
+                    2,
+                    listOf(1 to "Hot cakes con miel"),
+                    allergies = listOf("nueces"),
+                ),
             )
         capture("doop_hotel_s01_cocina.png") {
             KitchenOperationalScreen(
@@ -178,8 +224,20 @@ class HotelStaffDoopScreenshotTest {
     fun s03_ama_de_llaves() {
         val requests =
             listOf(
-                HotelRequest("1", roomName = "Habitación 304", type = RequestType.TOWELS, quantity = 2, createdAt = "2026-11-06T20:00:00Z"),
-                HotelRequest("2", roomName = "Habitación 309", type = RequestType.CLEANING, note = "Después de las 11:00", createdAt = "2026-11-06T19:40:00Z"),
+                HotelRequest(
+                    "1",
+                    roomName = "Habitación 304",
+                    type = RequestType.TOWELS,
+                    quantity = 2,
+                    createdAt = "2026-11-06T20:00:00Z",
+                ),
+                HotelRequest(
+                    "2",
+                    roomName = "Habitación 309",
+                    type = RequestType.CLEANING,
+                    note = "Después de las 11:00",
+                    createdAt = "2026-11-06T19:40:00Z",
+                ),
                 HotelRequest(
                     "3",
                     roomName = "Habitación 312",
@@ -221,9 +279,24 @@ class HotelStaffDoopScreenshotTest {
 
     @Test
     fun recepcion() {
-        val second = stay.copy(id = "S2", guestName = "Marcos Peña", roomName = "Habitación 112", checkIn = "2026-11-06", checkOut = "2026-11-08")
+        val second =
+            stay.copy(
+                id = "S2",
+                guestName = "Marcos Peña",
+                roomName = "Habitación 112",
+                checkIn = "2026-11-06",
+                checkOut = "2026-11-08",
+            )
         val third = stay.copy(id = "S3", guestName = "Ana Torres", roomName = "Habitación 408", checkOut = "2026-11-11")
-        val arriving = stay.copy(id = "S4", guestName = "Iván Soto", roomName = "Habitación 210", checkIn = "2026-11-09", checkOut = "2026-11-12", status = com.vaiinilla.app.domain.hotel.StayStatus.RESERVED)
+        val arriving =
+            stay.copy(
+                id = "S4",
+                guestName = "Iván Soto",
+                roomName = "Habitación 210",
+                checkIn = "2026-11-09",
+                checkOut = "2026-11-12",
+                status = com.vaiinilla.app.domain.hotel.StayStatus.RESERVED,
+            )
         capture("doop_hotel_recepcion.png") {
             HotelReceptionContent(
                 state = HotelReceptionUiState(stays = listOf(second, third, arriving), loaded = true),
@@ -256,7 +329,8 @@ class HotelStaffDoopScreenshotTest {
     @Test
     fun checkin_codigo() {
         capture("doop_hotel_checkin_codigo.png") {
-            HotelCheckInContent(rooms = emptyList(), created = stay, busy = false, error = null, today = today, onSubmit = {}, onBack = {})
+            HotelCheckInContent(rooms = emptyList(), created = stay, busy = false, error = null, today = today, onSubmit = {
+            }, onBack = {})
         }
     }
 

@@ -47,7 +47,13 @@ internal fun HotelManualChargeSheet(
         containerColor = colors.paper,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        HotelManualChargeContent(stay = stay, busy = busy, error = error, onSave = onSave, modifier = Modifier.imePadding().navigationBarsPadding())
+        HotelManualChargeContent(
+            stay = stay,
+            busy = busy,
+            error = error,
+            onSave = onSave,
+            modifier = Modifier.imePadding().navigationBarsPadding(),
+        )
     }
 }
 
@@ -79,7 +85,10 @@ internal fun HotelManualChargeContent(
             fontWeight = FontWeight.Black,
             letterSpacing = (-1).sp,
         )
-        Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             ChargeCategory.entries.forEach { option ->
                 HotelChip(option.label, selected = option == category, onClick = { category = option })
             }
@@ -99,7 +108,14 @@ internal fun HotelManualChargeContent(
             placeholder = "90.00",
             keyboardType = KeyboardType.Decimal,
             isError = amount.isNotBlank() && parsed == null,
-            supporting = if (amount.isNotBlank() && parsed == null) "Escribe un importe mayor a cero, con hasta dos decimales." else null,
+            supporting =
+                if (amount.isNotBlank() &&
+                    parsed == null
+                ) {
+                    "Escribe un importe mayor a cero, con hasta dos decimales."
+                } else {
+                    null
+                },
         )
         error?.let { HotelNotice(it) }
         HotelButton(

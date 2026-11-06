@@ -67,11 +67,19 @@ internal fun HotelCheckInContent(
     val colors = LocalVaiinillaColors.current
     val operational = rememberOperationalColors()
     if (created != null) {
-        HotelStaffPage(kicker = "Recepción · Check-in", title = "Listo, ${created.guestName}", modifier = modifier, onBack = onBack) {
+        HotelStaffPage(
+            kicker = "Recepción · Check-in",
+            title = "Listo, ${created.guestName}",
+            modifier = modifier,
+            onBack = onBack,
+        ) {
             HotelCard {
                 HotelCaps("CÓDIGO DE ESTANCIA", modifier = Modifier.padding(bottom = 6.dp))
                 Text(
-                    created.code.orEmpty().chunked(3).joinToString(" "),
+                    created.code
+                        .orEmpty()
+                        .chunked(3)
+                        .joinToString(" "),
                     color = colors.ink,
                     fontSize = 44.sp,
                     fontWeight = FontWeight.Black,
@@ -85,7 +93,13 @@ internal fun HotelCheckInContent(
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
-            HotelButton("Listo", onClick = onBack, kind = HotelButtonKind.Lime, height = 56.dp, modifier = Modifier.fillMaxWidth())
+            HotelButton(
+                "Listo",
+                onClick = onBack,
+                kind = HotelButtonKind.Lime,
+                height = 56.dp,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
         return
     }
@@ -125,9 +139,11 @@ internal fun HotelCheckInContent(
             )
         },
     ) {
-        HotelCard() {
+        HotelCard {
             HotelCaps("HUÉSPED", modifier = Modifier.padding(bottom = 10.dp))
-            OperationalField(value = name, onValueChange = { name = it }, label = "Nombre", colors = operational, placeholder = "Laura Ramos")
+            OperationalField(value = name, onValueChange = {
+                name = it
+            }, label = "Nombre", colors = operational, placeholder = "Laura Ramos")
             OperationalField(
                 value = contact,
                 onValueChange = { contact = it },
@@ -136,22 +152,32 @@ internal fun HotelCheckInContent(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        HotelCard() {
+        HotelCard {
             HotelCaps("HABITACIÓN LIBRE", modifier = Modifier.padding(bottom = 10.dp))
             if (rooms.isEmpty()) {
-                Text("No hay habitaciones libres.", color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "No hay habitaciones libres.",
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     rooms.forEach { room ->
-                        HotelChip(hotelRoomNumber(room.name), selected = room.id == roomId, onClick = { roomId = room.id }, onCard = true)
+                        HotelChip(
+                            hotelRoomNumber(room.name),
+                            selected = room.id == roomId,
+                            onClick = { roomId = room.id },
+                            onCard = true,
+                        )
                     }
                 }
             }
         }
-        HotelCard() {
+        HotelCard {
             HotelCaps("NOCHES Y TARIFA", modifier = Modifier.padding(bottom = 10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -159,14 +185,29 @@ internal fun HotelCheckInContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "${if (nights == 1) "1 noche" else "$nights noches"} · sale el ${hotelDateRange(today.plusDays(nights.toLong()).toString(), null)}",
+                    "${if (nights == 1) "1 noche" else "$nights noches"} · sale el ${hotelDateRange(
+                        today.plusDays(nights.toLong()).toString(),
+                        null,
+                    )}",
                     color = colors.ink,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
-                HotelButton("−", onClick = { if (nights > 1) nights -= 1 }, kind = HotelButtonKind.Outline, height = 38.dp, modifier = Modifier.padding(end = 8.dp))
-                HotelButton("+", onClick = { if (nights < 60) nights += 1 }, kind = HotelButtonKind.Outline, height = 38.dp)
+                HotelButton("−", onClick = {
+                    if (nights >
+                        1
+                    ) {
+                        nights -= 1
+                    }
+                }, kind = HotelButtonKind.Outline, height = 38.dp, modifier = Modifier.padding(end = 8.dp))
+                HotelButton("+", onClick = {
+                    if (nights <
+                        60
+                    ) {
+                        nights += 1
+                    }
+                }, kind = HotelButtonKind.Outline, height = 38.dp)
             }
             OperationalField(
                 value = rate,

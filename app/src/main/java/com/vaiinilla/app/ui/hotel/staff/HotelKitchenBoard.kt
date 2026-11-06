@@ -93,17 +93,37 @@ internal fun HotelKitchenCard(
     val (items, _) = kitchenSplitItems(order.activeItems)
     val alert =
         buildList {
-            order.user?.allergies?.takeIf { it.isNotEmpty() }?.let { add("Alergia: ${it.joinToString(", ")}") }
-            order.kitchenNotes.trim().takeIf { it.isNotEmpty() }?.let(::add)
+            order.user
+                ?.allergies
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { add("Alergia: ${it.joinToString(", ")}") }
+            order.kitchenNotes
+                .trim()
+                .takeIf { it.isNotEmpty() }
+                ?.let(::add)
         }.joinToString(" · ")
     HotelCard(modifier = modifier, border = if (age == KitchenAge.LATE && !scheduled) colors.coral else null) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(room, color = colors.ink, fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.8).sp)
+                Text(
+                    room,
+                    color = colors.ink,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-0.8).sp,
+                )
             }
             when {
                 scheduled ->
-                    HotelTag("Programado ${summary.deliverySlot!!.substringBefore('-').trim().trimStart('0')}", HotelAmber.copy(alpha = 0.18f), HotelAmber)
+                    HotelTag(
+                        "Programado ${summary.deliverySlot!!.substringBefore('-').trim().trimStart('0')}",
+                        HotelAmber.copy(alpha = 0.18f),
+                        HotelAmber,
+                    )
                 age == KitchenAge.LATE -> HotelTag(ageText(elapsed), colors.coral, Color.White)
                 age == KitchenAge.WAITING -> HotelTag(ageText(elapsed), HotelAmber.copy(alpha = 0.18f), HotelAmber)
                 else -> HotelTag(ageText(elapsed), colors.ink.copy(alpha = 0.1f), colors.muted)
@@ -135,7 +155,13 @@ internal fun HotelKitchenCard(
                 }
             }
             if (alert.isNotEmpty()) {
-                Text(alert, color = HotelAmber, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    alert,
+                    color = HotelAmber,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
         if (readyDeadline != null) {
@@ -182,7 +208,13 @@ private fun UndoReady(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("Marcada como lista", color = colors.accent, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-        HotelButton("Deshacer · ${left}s", onClick = onUndo, kind = HotelButtonKind.Outline, height = 40.dp, fontSize = 13)
+        HotelButton(
+            "Deshacer · ${left}s",
+            onClick = onUndo,
+            kind = HotelButtonKind.Outline,
+            height = 40.dp,
+            fontSize = 13,
+        )
     }
 }
 

@@ -22,7 +22,18 @@ class HotelStaffLogicTest {
         cleaning: RoomCleaning = RoomCleaning.READY,
         occupied: Boolean = false,
         dnd: Boolean = false,
-    ) = HotelRoom(id = name.filter { it.isDigit() }.toInt(), name = name, floor = floor, cleaning = cleaning, occupied = occupied, doNotDisturb = dnd)
+    ) = HotelRoom(
+        id =
+            name
+                .filter {
+                    it.isDigit()
+                }.toInt(),
+        name = name,
+        floor = floor,
+        cleaning = cleaning,
+        occupied = occupied,
+        doNotDisturb = dnd,
+    )
 
     @Test
     fun `el tono de una habitacion sale de su estado`() {
@@ -93,8 +104,14 @@ class HotelStaffLogicTest {
         val now = Instant.parse("2026-11-06T20:06:00Z")
         val fresh = HotelRequest(id = "1", type = RequestType.TOWELS, createdAt = "2026-11-06T20:00:00Z")
         assertEquals("Pedido hace 6 min", requestSubtitle(fresh, now))
-        assertEquals("Pedido hace 6 min · Después de las 11:00", requestSubtitle(fresh.copy(note = "Después de las 11:00"), now))
-        assertEquals("Tomada por Rosa", requestSubtitle(fresh.copy(status = RequestStatus.TAKEN, takenBy = "Rosa"), now))
+        assertEquals(
+            "Pedido hace 6 min · Después de las 11:00",
+            requestSubtitle(fresh.copy(note = "Después de las 11:00"), now),
+        )
+        assertEquals(
+            "Tomada por Rosa",
+            requestSubtitle(fresh.copy(status = RequestStatus.TAKEN, takenBy = "Rosa"), now),
+        )
     }
 
     @Test
@@ -130,7 +147,15 @@ class HotelStaffLogicTest {
 
     @Test
     fun `el total del servidor manda sobre el calculado`() {
-        val stay = Stay(id = "S1", guestName = "A", checkIn = "2026-11-06", checkOut = "2026-11-07", nightlyRate = "100.00", total = "999.00")
+        val stay =
+            Stay(
+                id = "S1",
+                guestName = "A",
+                checkIn = "2026-11-06",
+                checkOut = "2026-11-07",
+                nightlyRate = "100.00",
+                total = "999.00",
+            )
         assertEquals(BigDecimal("999.00"), checkoutBreakdown(stay).total)
     }
 
@@ -154,6 +179,9 @@ class HotelStaffLogicTest {
         assertEquals("30 de oct al 2 de nov", hotelDateRange("2026-10-30", "2026-11-02"))
         assertEquals("304", hotelRoomNumber("Habitación 304"))
         assertEquals("304", hotelRoomNumber("Hab. 304"))
-        assertEquals(listOf("1 × Chilaquiles verdes", "2 × Café americano"), deliveryLines("1× Chilaquiles verdes, 2× Café americano"))
+        assertEquals(
+            listOf("1 × Chilaquiles verdes", "2 × Café americano"),
+            deliveryLines("1× Chilaquiles verdes, 2× Café americano"),
+        )
     }
 }

@@ -1,13 +1,13 @@
 package com.vaiinilla.app.ui.hotel.staff
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,7 +69,13 @@ internal fun HotelCheckoutContent(
 ) {
     val colors = LocalVaiinillaColors.current
     if (stay == null) {
-        HotelStaffPage(kicker = "Recepción · Check-out", title = "Cuenta", modifier = modifier, titleSize = 36, onBack = onBack) {
+        HotelStaffPage(
+            kicker = "Recepción · Check-out",
+            title = "Cuenta",
+            modifier = modifier,
+            titleSize = 36,
+            onBack = onBack,
+        ) {
             HotelNotice(
                 text = error ?: if (loading) "Abriendo la cuenta…" else "No encontramos esa cuenta.",
                 tone = if (error != null) colors.coral else colors.muted,
@@ -82,7 +88,14 @@ internal fun HotelCheckoutContent(
     HotelStaffPage(
         kicker = "Recepción · Check-out",
         title = stay.guestName,
-        subtitle = listOfNotNull(stay.roomName, hotelDateRange(stay.checkIn, stay.checkOut).ifBlank { null }, nights).joinToString(" · "),
+        subtitle =
+            listOfNotNull(
+                stay.roomName,
+                hotelDateRange(stay.checkIn, stay.checkOut).ifBlank {
+                    null
+                },
+                nights,
+            ).joinToString(" · "),
         modifier = modifier,
         titleSize = 36,
         onBack = onBack,
@@ -98,14 +111,14 @@ internal fun HotelCheckoutContent(
             )
         },
     ) {
-        HotelCard() {
+        HotelCard {
             HotelCaps("ESTANCIA", modifier = Modifier.padding(bottom = 6.dp))
             HotelRow(
                 left = "$nights × ${hotelMoneyShort(bill.rate)}",
                 right = hotelMoney(bill.stayAmount),
             )
         }
-        HotelCard() {
+        HotelCard {
             HotelCaps("CARGOS A LA HABITACIÓN", modifier = Modifier.padding(bottom = 6.dp))
             if (bill.roomServiceCount > 0) {
                 HotelRow(left = "Room service (${bill.roomServiceCount})", right = hotelMoney(bill.roomServiceTotal))
@@ -121,12 +134,23 @@ internal fun HotelCheckoutContent(
             verticalAlignment = Alignment.Bottom,
         ) {
             Text("Total a cobrar", color = colors.muted, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-            Text(hotelMoney(bill.total), color = colors.ink, fontSize = 40.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.8).sp)
+            Text(
+                hotelMoney(bill.total),
+                color = colors.ink,
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1.8).sp,
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             // El servidor solo acepta efectivo o tarjeta en el check-out.
             CheckoutMethod.entries.filter { it != CheckoutMethod.TRANSFER }.forEach { option ->
-                PayOption(option.label, selected = option == method, onClick = { onMethod(option) }, modifier = Modifier.weight(1f))
+                PayOption(
+                    option.label,
+                    selected = option == method,
+                    onClick = { onMethod(option) },
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
         error?.let { HotelNotice(it) }

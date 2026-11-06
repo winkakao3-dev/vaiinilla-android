@@ -44,8 +44,8 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.File
 import java.net.URLEncoder
@@ -90,19 +90,48 @@ class HotelStaffLiveTest {
             headers: Map<String, String> = emptyMap(),
             query: Map<String, String> = emptyMap(),
         ): Result<String> {
-            val qs = if (query.isEmpty()) "" else "?" + query.entries.joinToString("&") { "${it.key}=${URLEncoder.encode(it.value, "UTF-8")}" }
+            val qs =
+                if (query.isEmpty()) {
+                    ""
+                } else {
+                    "?" +
+                        query.entries.joinToString("&") { "${it.key}=${URLEncoder.encode(it.value, "UTF-8")}" }
+                }
             // curl: el classpath de las pruebas es el de Android y no trae java.net.http ni PATCH en HttpURLConnection.
             val command =
-                mutableListOf("curl", "-s", "-m", "30", "-X", method, "-w", "\n%{http_code}", "-H", "Authorization: Bearer $bearer", "-H", "Content-Type: application/json")
+                mutableListOf(
+                    "curl",
+                    "-s",
+                    "-m",
+                    "30",
+                    "-X",
+                    method,
+                    "-w",
+                    "\n%{http_code}",
+                    "-H",
+                    "Authorization: Bearer $bearer",
+                    "-H",
+                    "Content-Type: application/json",
+                )
             headers.forEach { (k, v) -> command += listOf("-H", "$k: $v") }
             if (body != null) command += listOf("--data-binary", body)
             command += baseUrl + path.trimStart('/') + qs
             val process = ProcessBuilder(command).redirectErrorStream(true).start()
             val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
-            val response = Response(output.substringBeforeLast("\n"), output.substringAfterLast("\n").trim().toIntOrNull() ?: 0)
+            val response =
+                Response(
+                    output.substringBeforeLast("\n"),
+                    output.substringAfterLast("\n").trim().toIntOrNull() ?: 0,
+                )
             if (response.status in 200..299) return Result.success(response.body)
-            val error = runCatching { Json.parseToJsonElement(response.body).jsonObject["error"] as? JsonObject }.getOrNull()
+            val error =
+                runCatching {
+                    Json
+                        .parseToJsonElement(
+                            response.body,
+                        ).jsonObject["error"] as? JsonObject
+                }.getOrNull()
             return Result.failure(
                 ApiClientException(
                     code = error?.get("code")?.jsonPrimitive?.content ?: "HTTP_${response.status}",
@@ -145,7 +174,8 @@ class HotelStaffLiveTest {
 
     private fun hotel(role: String) = RemoteHotelRepository(client(role))
 
-    private fun orders(role: String) = RemoteOrderRepository(client(role), OrderContractJson(), InMemoryPickupTokenStore())
+    private fun orders(role: String) =
+        RemoteOrderRepository(client(role), OrderContractJson(), InMemoryPickupTokenStore())
 
     private fun waiter(role: String) = RemoteWaiterRepository(client(role), WaiterContractJson(), OrderContractJson())
 
@@ -166,7 +196,11 @@ class HotelStaffLiveTest {
 
     private fun <T> Result<T>.ok(what: String): T = getOrElse { throw AssertionError("$what: ${it.message}") }
 
-    private fun <T> Result<T>.errorCode(): String? = exceptionOrNull()?.let { (it as? HotelException)?.code ?: it.javaClass.simpleName }
+    private fun <T> Result<T>.errorCode(): String? =
+        exceptionOrNull()?.let {
+            (it as? HotelException)?.code
+                ?: it.javaClass.simpleName
+        }
 
     @Test
     fun recorrido_s01_a_s04_contra_vps2() {
@@ -191,7 +225,11 @@ class HotelStaffLiveTest {
         val reception = HotelReceptionViewModel(cajero)
         reception.refresh()
         await("lista de recepción") { reception.state.value.loaded }
-        assertTrue("recepción ve habitaciones libres", reception.state.value.freeRooms.any { it.id == room.id })
+        assertTrue(
+            "recepción ve habitaciones libres",
+            reception.state.value.freeRooms
+                .any { it.id == room.id },
+        )
         val today = LocalDate.now()
         reception.checkIn(
             NewStay("Prueba A2 $ts", null, room.id, today.toString(), today.plusDays(2).toString(), "1500.00"),
@@ -206,37 +244,78 @@ class HotelStaffLiveTest {
         try {
             // El huésped se vincula y pide toallas.
             cliente.linkStay(stay.code!!, spaceId = room.id).ok("vincular")
-            val request: HotelRequest = cliente.createRequest(RequestType.TOWELS, 2, "prueba A2", UUID.randomUUID().toString()).ok("solicitud")
+            val request: HotelRequest =
+                cliente
+                    .createRequest(
+                        RequestType.TOWELS,
+                        2,
+                        "prueba A2",
+                        UUID.randomUUID().toString(),
+                    ).ok("solicitud")
 
             // S03 · el ama de llaves la ve, la toma y la resuelve.
             val board = HotelRoomsViewModel(mesero)
             board.refresh()
             await("tablero") { board.state.value.loaded }
             assertNotNull("el tablero muestra un piso", board.state.value.floorShown)
-            val seen = board.state.value.requests.firstOrNull { it.id == request.id }
+            val seen =
+                board.state.value.requests
+                    .firstOrNull { it.id == request.id }
             assertNotNull("la solicitud aparece en el tablero", seen)
             assertTrue("el título lleva cantidad y tipo", requestTitle(seen!!).endsWith("2 toallas"))
             board.take(seen)
-            await("tomar") { board.state.value.busyId == null && board.state.value.requests.firstOrNull { it.id == request.id }?.status == RequestStatus.TAKEN }
-            val taken = board.state.value.requests.first { it.id == request.id }
+            await("tomar") {
+                board.state.value.busyId == null &&
+                    board.state.value.requests
+                        .firstOrNull { it.id == request.id }
+                        ?.status == RequestStatus.TAKEN
+            }
+            val taken =
+                board.state.value.requests
+                    .first { it.id == request.id }
             assertTrue("tomada con la versión nueva", taken.version > seen.version)
             board.resolve(taken)
-            await("resolver") { board.state.value.busyId == null && board.state.value.requests.none { it.id == request.id } }
+            await("resolver") {
+                board.state.value.busyId == null &&
+                    board.state.value.requests
+                        .none { it.id == request.id }
+            }
 
             // S03 · una habitación libre alterna limpia y por limpiar, y se restaura.
-            val spareNow = board.state.value.rooms.first { it.id == spare.id }
+            val spareNow =
+                board.state.value.rooms
+                    .first { it.id == spare.id }
             board.toggleCleaning(spareNow)
             val flipped = if (spareNow.cleaning == RoomCleaning.DIRTY) RoomCleaning.READY else RoomCleaning.DIRTY
-            await("limpieza") { board.state.value.busyId == null && board.state.value.rooms.first { it.id == spare.id }.cleaning == flipped }
-            board.toggleCleaning(board.state.value.rooms.first { it.id == spare.id })
-            await("limpieza restaurada") { board.state.value.busyId == null && board.state.value.rooms.first { it.id == spare.id }.cleaning == spareNow.cleaning }
+            await("limpieza") {
+                board.state.value.busyId == null &&
+                    board.state.value.rooms
+                        .first { it.id == spare.id }
+                        .cleaning == flipped
+            }
+            board.toggleCleaning(
+                board.state.value.rooms
+                    .first { it.id == spare.id },
+            )
+            await("limpieza restaurada") {
+                board.state.value.busyId == null &&
+                    board.state.value.rooms
+                        .first { it.id == spare.id }
+                        .cleaning == spareNow.cleaning
+            }
 
             // S01/S02 · un pedido a la habitación: cocina lo ve y el mesero lo entrega sin código.
             val catalog = client("cliente").get("catalogo").ok("catálogo")
-            val product = Json.parseToJsonElement(catalog).jsonObject["data"]!!.jsonObject["productos"]!!.jsonArray.first { p ->
-                p.jsonObject["estacion_preparacion"]?.jsonPrimitive?.content == "cocina" &&
-                    p.jsonObject["disponible"]?.jsonPrimitive?.content == "true"
-            }.jsonObject
+            val product =
+                Json
+                    .parseToJsonElement(catalog)
+                    .jsonObject["data"]!!
+                    .jsonObject["productos"]!!
+                    .jsonArray
+                    .first { p ->
+                        p.jsonObject["estacion_preparacion"]?.jsonPrimitive?.content == "cocina" &&
+                            p.jsonObject["disponible"]?.jsonPrimitive?.content == "true"
+                    }.jsonObject
             val productId = product["id"]!!.jsonPrimitive.content.toInt()
             val created =
                 orders("cliente")
@@ -251,7 +330,10 @@ class HotelStaffLiveTest {
                         UUID.randomUUID().toString(),
                     ).ok("pedido a la habitación")
             val orderId = created.summary.id
-            assertTrue("el pedido a habitación va a la cuenta", created.summary.payAtEnd || created.summary.paymentPending)
+            assertTrue(
+                "el pedido a habitación va a la cuenta",
+                created.summary.payAtEnd || created.summary.paymentPending,
+            )
 
             // S01 · cocina: el pedido llega con la habitación como espacio de tipo mesa.
             val kitchen = orders("cocina").listOrders(OperationalRole.KITCHEN).ok("pedidos de cocina")
@@ -261,7 +343,12 @@ class HotelStaffLiveTest {
             assertNotNull(space)
             assertTrue("el espacio se reconoce como habitación", SpaceCopy.isRoom(space!!.type))
             assertEquals("Hab. " + room.name.filter { it.isDigit() }, SpaceCopy.short(space.type, space.name))
-            assertTrue("cocina lo mete a su fila", com.vaiinilla.app.ui.screens.kitchenQueue(listOf(inKitchen!!)).isNotEmpty())
+            assertTrue(
+                "cocina lo mete a su fila",
+                com.vaiinilla.app.ui.screens
+                    .kitchenQueue(listOf(inKitchen!!))
+                    .isNotEmpty(),
+            )
 
             // Cocina empieza y marca listo.
             var current = inKitchen!!
@@ -295,19 +382,46 @@ class HotelStaffLiveTest {
             await("cargo manual") { !reception.state.value.busy }
             assertNull("cargo sin error: ${reception.state.value.error}", reception.state.value.error)
             reception.open(ReceptionPane.Checkout(stay.id))
-            await("detalle de la cuenta") { reception.state.value.detail?.id == stay.id }
+            await("detalle de la cuenta") {
+                reception.state.value.detail
+                    ?.id == stay.id
+            }
             val detail = reception.state.value.detail!!
             val bill = checkoutBreakdown(detail)
-            assertTrue("la cuenta trae el minibar", bill.charges.any { it.first == "Minibar" && it.second.compareTo(java.math.BigDecimal("90.00")) == 0 })
+            assertTrue(
+                "la cuenta trae el minibar",
+                bill.charges.any {
+                    it.first == "Minibar" &&
+                        it.second.compareTo(java.math.BigDecimal("90.00")) == 0
+                },
+            )
             assertEquals("3000.00", bill.stayAmount.setScale(2).toPlainString())
-            val independent = bill.stayAmount + bill.roomServiceTotal + bill.charges.fold(java.math.BigDecimal.ZERO) { s, l -> s + l.second }
-            assertEquals("el total de la cuenta coincide con la suma de sus partes", 0, independent.compareTo(bill.total))
+            val independent =
+                bill.stayAmount + bill.roomServiceTotal +
+                    bill.charges.fold(java.math.BigDecimal.ZERO) { s, l -> s + l.second }
+            assertEquals(
+                "el total de la cuenta coincide con la suma de sus partes",
+                0,
+                independent.compareTo(bill.total),
+            )
 
             // Con pedidos por cobrar y sin sesión de caja, el servidor no deja cerrar; la pantalla lo dice con claridad.
             if (!cashWasOpen) {
-                val noCash = hotel("cajero").checkout(stay.id, CheckoutMethod.CARD, UUID.randomUUID().toString(), expectedTotal = bill.total.setScale(2).toPlainString(), expectedVersion = detail.version)
+                val noCash =
+                    hotel(
+                        "cajero",
+                    ).checkout(
+                        stay.id,
+                        CheckoutMethod.CARD,
+                        UUID.randomUUID().toString(),
+                        expectedTotal = bill.total.setScale(2).toPlainString(),
+                        expectedVersion = detail.version,
+                    )
                 assertEquals("ESTABLISHMENT_NOT_RECEIVING", noCash.errorCode())
-                assertTrue("el mensaje manda abrir la caja", staffErrorMessage(noCash.exceptionOrNull(), "x").contains("caja", ignoreCase = true))
+                assertTrue(
+                    "el mensaje manda abrir la caja",
+                    staffErrorMessage(noCash.exceptionOrNull(), "x").contains("caja", ignoreCase = true),
+                )
                 cash.openSession("500.00", UUID.randomUUID().toString()).ok("abrir caja")
                 openedCash = true
             }
@@ -315,7 +429,16 @@ class HotelStaffLiveTest {
             // El servidor no acepta transferencia, y un total viejo se rechaza con el total real.
             val badMethod = hotel("cajero").checkout(stay.id, CheckoutMethod.TRANSFER, UUID.randomUUID().toString())
             assertTrue("transferencia debe fallar", badMethod.isFailure)
-            val stale = hotel("cajero").checkout(stay.id, CheckoutMethod.CARD, UUID.randomUUID().toString(), expectedTotal = "1.00", expectedVersion = detail.version)
+            val stale =
+                hotel(
+                    "cajero",
+                ).checkout(
+                    stay.id,
+                    CheckoutMethod.CARD,
+                    UUID.randomUUID().toString(),
+                    expectedTotal = "1.00",
+                    expectedVersion = detail.version,
+                )
             assertEquals(HotelErrors.ACCOUNT_TOTAL_CHANGED, stale.errorCode())
 
             // S04 · cerrar la cuenta con tarjeta (terminal externa) con el ViewModel.
@@ -332,13 +455,21 @@ class HotelStaffLiveTest {
             assertFalse(after.occupied)
         } finally {
             // Deja la habitación como estaba: lista y sin estancia.
-            if (!openedCash && !cashWasOpen) cash.openSession("500.00", UUID.randomUUID().toString()).onSuccess { openedCash = true }
+            if (!openedCash &&
+                !cashWasOpen
+            ) {
+                cash.openSession("500.00", UUID.randomUUID().toString()).onSuccess { openedCash = true }
+            }
             val still = hotel("cajero").stay(stay.id).getOrNull()
             if (still != null && still.status == StayStatus.IN_HOUSE) {
                 hotel("cajero").checkout(stay.id, CheckoutMethod.CARD, UUID.randomUUID().toString())
             }
             hotel("mesero").setCleaning(room.id, RoomCleaning.READY, UUID.randomUUID().toString())
-            if (openedCash) cash.activeSessionId().getOrNull()?.let { cash.closeSession(it, "500.00", UUID.randomUUID().toString()) }
+            if (openedCash) {
+                cash.activeSessionId().getOrNull()?.let {
+                    cash.closeSession(it, "500.00", UUID.randomUUID().toString())
+                }
+            }
         }
     }
 }

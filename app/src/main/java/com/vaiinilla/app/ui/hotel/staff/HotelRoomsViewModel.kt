@@ -2,12 +2,12 @@ package com.vaiinilla.app.ui.hotel.staff
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.HotelRoom
 import com.vaiinilla.app.domain.hotel.RequestAction
 import com.vaiinilla.app.domain.hotel.RoomCleaning
-import com.vaiinilla.app.core.network.RetryKeys
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,7 +108,10 @@ class HotelRoomsViewModel
             viewModelScope.launch {
                 val rooms = withContext(Dispatchers.IO) { repository.rooms() }
                 val requests = withContext(Dispatchers.IO) { repository.openRequests() }
-                val failure = (rooms.exceptionOrNull() ?: requests.exceptionOrNull())?.let { staffErrorMessage(it, "No se pudo actualizar.") }
+                val failure =
+                    (rooms.exceptionOrNull() ?: requests.exceptionOrNull())?.let {
+                        staffErrorMessage(it, "No se pudo actualizar.")
+                    }
                 _state.update { current ->
                     current.copy(
                         rooms = rooms.getOrDefault(current.rooms),
@@ -150,7 +153,15 @@ class HotelRoomsViewModel
                             repository.transition(request.id, action, key, request.version)
                         }
                     }
-                _state.update { it.copy(busyId = null, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo guardar.") }) }
+                _state.update {
+                    it.copy(
+                        busyId = null,
+                        error =
+                            result.exceptionOrNull()?.let { e ->
+                                staffErrorMessage(e, "No se pudo guardar.")
+                            },
+                    )
+                }
                 refresh()
             }
         }
@@ -162,8 +173,22 @@ class HotelRoomsViewModel
             _state.update { it.copy(busyId = "room-${room.id}", error = null) }
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) { retryKeys.withKey("cleaning", room.id, next) { key -> repository.setCleaning(room.id, next, key) } }
-                _state.update { it.copy(busyId = null, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo guardar.") }) }
+                    withContext(Dispatchers.IO) {
+                        retryKeys.withKey(
+                            "cleaning",
+                            room.id,
+                            next,
+                        ) { key -> repository.setCleaning(room.id, next, key) }
+                    }
+                _state.update {
+                    it.copy(
+                        busyId = null,
+                        error =
+                            result.exceptionOrNull()?.let { e ->
+                                staffErrorMessage(e, "No se pudo guardar.")
+                            },
+                    )
+                }
                 refresh()
             }
         }

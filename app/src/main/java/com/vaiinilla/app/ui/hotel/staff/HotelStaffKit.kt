@@ -5,8 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -157,7 +157,12 @@ internal fun HotelStaffPage(
                                 .semantics { contentDescription = "Cerrar" },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.Close, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = null,
+                            tint = colors.ink,
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                 }
             }
@@ -235,9 +240,21 @@ internal fun HotelRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(left, color = ink, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
+        Text(
+            left,
+            color = ink,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f, fill = false),
+        )
         if (right != null) {
-            Text(right, color = ink, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp))
+            Text(
+                right,
+                color = ink,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 12.dp),
+            )
         }
     }
 }
@@ -263,7 +280,12 @@ internal fun HotelTag(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.height(26.dp).clip(CircleShape).background(background).padding(horizontal = 11.dp),
+        modifier =
+            modifier
+                .height(26.dp)
+                .clip(CircleShape)
+                .background(background)
+                .padding(horizontal = 11.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, color = foreground, fontSize = 12.sp, fontWeight = FontWeight.Black, maxLines = 1)
@@ -334,8 +356,15 @@ internal fun HotelChip(
             modifier
                 .height(34.dp)
                 .clip(CircleShape)
-                .background(if (selected) colors.ink else if (onCard) colors.paper else colors.paper2)
-                .physicalPress(onClick = onClick)
+                .background(
+                    if (selected) {
+                        colors.ink
+                    } else if (onCard) {
+                        colors.paper
+                    } else {
+                        colors.paper2
+                    },
+                ).physicalPress(onClick = onClick)
                 .semantics { role = Role.Button }
                 .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
@@ -396,13 +425,19 @@ private val moneyShort = DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.U
 internal fun hotelMoney(value: String?): String = value?.toBigDecimalOrNull()?.let { "$" + money.format(it) } ?: "$0.00"
 
 /** «1650.00» → «$1,650»: el precio de una noche, sin centavos cuando no hay. */
-internal fun hotelMoneyShort(value: String?): String = value?.toBigDecimalOrNull()?.let { "$" + moneyShort.format(it) } ?: "$0"
+internal fun hotelMoneyShort(value: String?): String =
+    value?.toBigDecimalOrNull()?.let { "$" + moneyShort.format(it) } ?: "$0"
 
 internal fun hotelMoney(value: BigDecimal): String = "$" + money.format(value)
 
 private val months = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 
-internal fun hotelDate(iso: String?): LocalDate? = iso?.takeIf { it.length >= 10 }?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+internal fun hotelDate(iso: String?): LocalDate? =
+    iso
+        ?.takeIf {
+            it.length >= 10
+        }?.take(10)
+        ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
 
 /** «6 al 9 de nov»; si cruza de mes, «30 de oct al 2 de nov». */
 internal fun hotelDateRange(
@@ -435,4 +470,6 @@ internal fun hotelAge(
 
 /** «Habitación 304» o «Hab. 304» → «304». */
 internal fun hotelRoomNumber(name: String?): String =
-    name.orEmpty().trim().replace(Regex("^Habitaci[óo]n\\s*|^Hab\\.?\\s*", RegexOption.IGNORE_CASE), "").ifBlank { name.orEmpty() }
+    name.orEmpty().trim().replace(Regex("^Habitaci[óo]n\\s*|^Hab\\.?\\s*", RegexOption.IGNORE_CASE), "").ifBlank {
+        name.orEmpty()
+    }

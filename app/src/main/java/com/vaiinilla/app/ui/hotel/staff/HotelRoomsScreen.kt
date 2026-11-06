@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.hotel.staff
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,7 +101,12 @@ internal fun HotelRoomsContent(
                 rooms.chunked(4).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         row.forEach { room ->
-                            RoomTile(room, enabled = state.busyId == null, onClick = { onRoom(room) }, modifier = Modifier.weight(1f))
+                            RoomTile(
+                                room,
+                                enabled = state.busyId == null,
+                                onClick = { onRoom(room) },
+                                modifier = Modifier.weight(1f),
+                            )
                         }
                         repeat(4 - row.size) { Box(Modifier.weight(1f)) }
                     }
@@ -159,7 +164,13 @@ private fun RoomTile(
                 .physicalPress(enabled = enabled && !room.occupied, onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Text(hotelRoomNumber(room.name), color = colors.ink, fontSize = 19.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(
+            hotelRoomNumber(room.name),
+            color = colors.ink,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
         Text(
             tone.label,
             color = color,
@@ -214,7 +225,10 @@ private fun RequestRow(
 /** «304 · 2 toallas»: el número de la habitación, la cantidad si pasa de una y lo que pidió. */
 internal fun requestTitle(request: HotelRequest): String {
     val room = hotelRoomNumber(request.roomName)
-    val what = request.type.label.lowercase().replaceFirstChar { it.uppercase() }
+    val what =
+        request.type.label
+            .lowercase()
+            .replaceFirstChar { it.uppercase() }
     val label = if (request.quantity > 1) "${request.quantity} ${request.type.label.lowercase()}" else what
     return if (room.isBlank()) label else "$room · $label"
 }
