@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.RequestType
@@ -25,6 +26,7 @@ data class HotelRequestsUiState(
     /** Lo que tenía «Sin molestar» al abrir; solo se envía si cambió. */
     val doNotDisturbAtStart: Boolean = false,
     val open: List<HotelRequest> = emptyList(),
+    val config: HotelConfig = HotelConfig(),
     val submitting: Boolean = false,
     val error: String? = null,
     /** Cuántas cosas se enviaron en el último envío; la pantalla lo avisa y se cierra. */
@@ -50,8 +52,15 @@ class HotelRequestsViewModel
             viewModelScope.launch {
                 val stay = withContext(Dispatchers.IO) { repository.myStay() }.getOrNull()
                 val open = withContext(Dispatchers.IO) { repository.myRequests() }.getOrNull().orEmpty().filter { it.status.isOpen }
+                val config = withContext(Dispatchers.IO) { repository.config() }.getOrNull()
                 val dnd = stay?.doNotDisturb ?: false
-                _state.value = _state.value.copy(open = open, doNotDisturb = dnd, doNotDisturbAtStart = dnd)
+                _state.value =
+                    _state.value.copy(
+                        open = open,
+                        doNotDisturb = dnd,
+                        doNotDisturbAtStart = dnd,
+                        config = config ?: _state.value.config,
+                    )
             }
         }
 

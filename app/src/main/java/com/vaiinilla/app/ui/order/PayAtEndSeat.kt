@@ -41,7 +41,7 @@ internal fun payAtEndSeatAliases(displayName: String): List<String> {
     return listOfNotNull(waiterCallAlias(displayName), full.takeIf { it.isNotEmpty() }).distinct()
 }
 
-private fun Throwable.serverCode(): String? =
+internal fun Throwable.serverCode(): String? =
     generateSequence(this) { it.cause }.firstNotNullOfOrNull { cause ->
         when (cause) {
             is OrderRepositoryException -> cause.code

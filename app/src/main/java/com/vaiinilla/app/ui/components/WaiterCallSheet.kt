@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.notifications.TableCallPushes
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.TableCall
@@ -247,6 +248,9 @@ private fun WaiterCallHeader(
     // El cliente nunca ve el nombre del mesero, aunque el servidor lo mande: cuida al personal (Kao, 3 nov).
     val title =
         when {
+            Venue.isHotel && call == null -> "Llamar a recepción"
+            Venue.isHotel && going -> "Ya vienen a tu habitación"
+            Venue.isHotel -> "Ya le avisamos a recepción"
             call == null -> "Llamar a tu mesero"
             going -> "Tu mesero va en camino"
             else -> "Ya le avisamos a tu mesero"

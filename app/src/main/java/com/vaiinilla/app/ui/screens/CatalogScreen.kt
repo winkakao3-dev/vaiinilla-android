@@ -99,6 +99,7 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
@@ -739,7 +740,12 @@ private fun MenuHero(
                 VenueLogo(establishment?.logoUrl, name, size = 28.dp)
                 venue?.space?.let { space ->
                     Text(
-                        text = "${space.name} · ${space.type}",
+                        text =
+                            if (SpaceCopy.isRoom(space.type)) {
+                                "${space.name} · se lleva a tu puerta"
+                            } else {
+                                "${space.name} · ${space.type}"
+                            },
                         color = colors.ink,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
@@ -750,7 +756,8 @@ private fun MenuHero(
                 }
             }
             WholeWordTitle(
-                text = name.uppercase(),
+                // En el cuarto de un hotel el menú es el room service, no el nombre del hotel (Doop H02).
+                text = if (SpaceCopy.isRoom(venue?.space?.type)) "ROOM SERVICE" else name.uppercase(),
                 color = colors.ink,
                 fontSize = 46.sp,
                 lineHeight = 44.sp,

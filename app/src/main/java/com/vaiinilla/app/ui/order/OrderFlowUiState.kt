@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.core.text.normalizeForSearch
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
@@ -17,8 +18,10 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
@@ -75,6 +78,11 @@ data class OrderFlowUiState(
     val homeCheckout: HomeCheckoutDraft = HomeCheckoutDraft(),
     val quotingDelivery: Boolean = false,
     val deliveryQuoteError: String? = null,
+    /** Lo que el hotel ofrece al pedir (cargo a la habitación, tarjeta); `null` hasta que se lee o fuera de un hotel. */
+    val hotelConfig: HotelConfig? = null,
+    /** El servidor pidió la estancia (ROOM_REQUIRES_STAY): se abre el código de estancia dentro del carrito. */
+    val needsStayCode: Boolean = false,
+    val stayCodeError: String? = null,
 )
 
 /** A one-shot visual confirmation for the order currently being created. */
@@ -95,6 +103,8 @@ internal fun celebrationMessage(
 ): String =
     when {
         kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED -> "Tu pago fue autorizado y tu pedido ya está en marcha."
+        order.summary.payAtEnd && SpaceCopy.isRoom(order.summary.space?.type) ->
+            "Se carga a tu ${Venue.room}: la pagas al salir."
         order.summary.payAtEnd -> "Va a tu cuenta: la pagas al final."
         order.summary.destination == OrderDestination.HOME_DELIVERY ->
             if (order.homeDelivery?.hasAmountDue == true) {
@@ -327,7 +337,16 @@ private const val STALE_MENU_NOTICE =
 val OrderFlowUiState.canPayAtEnd: Boolean
     get() =
         checkoutDestination == OrderDestination.IN_SPACE &&
-            (operationalStatus?.allowsPayAtEnd ?: guestVenue?.establishment?.allowsPayAtEnd) == true
+            if (isHotelRoomOrder) {
+                // En un hotel «pagar al final» es el cargo a la habitación y lo enciende el hotel, no la mesa.
+                (hotelConfig ?: HotelConfig()).chargeToRoom
+            } else {
+                (operationalStatus?.allowsPayAtEnd ?: guestVenue?.establishment?.allowsPayAtEnd) == true
+            }
+
+/** ¿El pedido va a la habitación de un hotel? Ahí el pago y los textos cambian. */
+val OrderFlowUiState.isHotelRoomOrder: Boolean
+    get() = Venue.isHotel && checkoutDestination == OrderDestination.IN_SPACE && SpaceCopy.isRoom(checkoutSpace?.type)
 
 /** Cómo entrega el negocio en mesa o lugar; el invitado sin sesión lo lee de la ficha pública. */
 val OrderFlowUiState.spaceDelivery: SpaceDelivery
@@ -347,7 +366,7 @@ val OrderFlowUiState.payAtEndForNextRound: Boolean
 
 /** ¿Se ofrece pagar con tarjeta? Solo si el dueño la activó en su panel. */
 val OrderFlowUiState.canPayWithCard: Boolean
-    get() = operationalStatus?.acceptsCard == true
+    get() = operationalStatus?.acceptsCard == true && (!isHotelRoomOrder || hotelConfig?.cardAtOrderEnabled == true)
 
 /** ¿Se ofrece pagar con saldo? No si el dueño lo apagó; sin estado operativo todavía, sí (el servidor valida). */
 val OrderFlowUiState.canPayWithBalance: Boolean
