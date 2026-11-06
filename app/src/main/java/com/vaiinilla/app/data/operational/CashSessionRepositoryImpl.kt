@@ -44,6 +44,10 @@ class RemoteCashSessionRepository(
     override var lastClose: CashLastClose? = null
         private set
 
+    override fun forgetLastClose() {
+        lastClose = null
+    }
+
     private fun readActive(): Result<String> =
         apiClient.get("sesiones-caja/activa").onSuccess { body ->
             suggestedFloat = runCatching { contractJson.parseSuggestedFloat(body) }.getOrNull()

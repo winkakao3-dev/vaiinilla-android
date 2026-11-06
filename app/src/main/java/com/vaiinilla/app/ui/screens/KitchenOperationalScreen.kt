@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -241,11 +242,18 @@ fun KitchenOperationalScreen(
             }
         }
     }
+    // Salir por «Cambiar de modo» o Atrás limpia el rol antes de que la pantalla se vaya, y sin rol el servidor
+    // ya no recibe la marca: se manda antes de salir (B04).
+    val flushPendingReady = {
+        pendingReady.toList().forEach { (id, entry) -> currentOnReady(id, entry.first) }
+        pendingReady.clear()
+    }
+    BackHandler(enabled = pendingReady.isNotEmpty()) {
+        flushPendingReady()
+        onBack()
+    }
     DisposableEffect(Unit) {
-        onDispose {
-            pendingReady.toList().forEach { (id, entry) -> currentOnReady(id, entry.first) }
-            pendingReady.clear()
-        }
+        onDispose { flushPendingReady() }
     }
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
@@ -389,6 +397,7 @@ fun KitchenOperationalScreen(
                                 },
                             onChangeMode = {
                                 haptics.impact()
+                                flushPendingReady()
                                 onChangeMode?.invoke() ?: onBack()
                             },
                         )

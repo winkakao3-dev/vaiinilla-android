@@ -282,6 +282,13 @@ internal fun WalletReloadContent(
                     onScan = onScan,
                     colors = colors,
                 )
+                if (query.trim().length in 1 until ReloadSearchMinLength) {
+                    Text(
+                        "Escribe al menos $ReloadSearchMinLength letras o escanea su QR",
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                    )
+                }
                 ClientResults(
                     clients = clients,
                     selected = selected,

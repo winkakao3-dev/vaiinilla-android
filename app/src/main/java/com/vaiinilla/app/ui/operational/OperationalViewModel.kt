@@ -282,6 +282,7 @@ class OperationalViewModel
             errorClearJob?.cancel()
             errorClearJob = null
             UnreadableOrders.clear()
+            cashSessionRepository.forgetLastClose()
             _uiState.value = OperationalUiState()
         }
 
