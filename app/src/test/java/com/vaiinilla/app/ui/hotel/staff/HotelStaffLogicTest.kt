@@ -66,6 +66,21 @@ class HotelStaffLogicTest {
     }
 
     @Test
+    fun `una habitacion sin piso se ve en todos los pisos`() {
+        val state =
+            HotelRoomsUiState(
+                rooms =
+                    listOf(
+                        room("Habitación 101", floor = 1),
+                        room("Habitación 302", floor = 3, cleaning = RoomCleaning.DIRTY),
+                        room("Habitación 900", floor = null, cleaning = RoomCleaning.DIRTY),
+                    ),
+            )
+        assertEquals(listOf("Habitación 302", "Habitación 900"), state.visibleRooms.map { it.name })
+        assertEquals(listOf("Habitación 101", "Habitación 900"), state.copy(floor = 1).visibleRooms.map { it.name })
+    }
+
+    @Test
     fun `el titulo de una solicitud lleva la habitacion y la cantidad`() {
         val towels = HotelRequest(id = "1", roomName = "Habitación 304", type = RequestType.TOWELS, quantity = 2)
         assertEquals("304 · 2 toallas", requestTitle(towels))

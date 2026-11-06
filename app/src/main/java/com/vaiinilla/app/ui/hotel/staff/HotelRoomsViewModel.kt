@@ -7,6 +7,7 @@ import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.HotelRoom
 import com.vaiinilla.app.domain.hotel.RequestAction
 import com.vaiinilla.app.domain.hotel.RoomCleaning
+import com.vaiinilla.app.core.network.RetryKeys
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 import javax.inject.Inject
 
 enum class RoomsFilter(
@@ -76,8 +76,9 @@ data class HotelRoomsUiState(
     val visibleRooms: List<HotelRoom>
         get() {
             val shown = floorShown
+            // Una habitación sin piso no pertenece a ninguno: se ve en todos, para que nadie se quede sin limpiar.
             return rooms
-                .filter { shown == null || it.floor == shown }
+                .filter { shown == null || it.floor == null || it.floor == shown }
                 .filter { filter.matches(it) }
                 .sortedBy { it.name }
         }
@@ -98,18 +99,26 @@ class HotelRoomsViewModel
         private val _state = MutableStateFlow(HotelRoomsUiState())
         val state: StateFlow<HotelRoomsUiState> = _state.asStateFlow()
 
+        private val retryKeys = RetryKeys()
+
+        // El último aviso que puso la propia lectura: solo ese se borra cuando la lectura vuelve a salir bien.
+        private var refreshError: String? = null
+
         fun refresh() {
             viewModelScope.launch {
                 val rooms = withContext(Dispatchers.IO) { repository.rooms() }
                 val requests = withContext(Dispatchers.IO) { repository.openRequests() }
+                val failure = (rooms.exceptionOrNull() ?: requests.exceptionOrNull())?.let { staffErrorMessage(it, "No se pudo actualizar.") }
                 _state.update { current ->
                     current.copy(
                         rooms = rooms.getOrDefault(current.rooms),
                         requests = requests.getOrDefault(current.requests).sortedBy { it.createdAt },
                         loaded = current.loaded || rooms.isSuccess,
-                        error = (rooms.exceptionOrNull() ?: requests.exceptionOrNull())?.let { staffErrorMessage(it, "No se pudo actualizar.") },
+                        // Si «Tomar» o «Listo» falló (otra persona la tomó), el aviso sobrevive a la recarga.
+                        error = failure ?: current.error?.takeUnless { it == refreshError },
                     )
                 }
+                refreshError = failure
             }
         }
 
@@ -135,7 +144,12 @@ class HotelRoomsViewModel
             if (_state.value.busyId != null) return
             _state.update { it.copy(busyId = request.id, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.transition(request.id, action, UUID.randomUUID().toString(), request.version) }
+                val result =
+                    withContext(Dispatchers.IO) {
+                        retryKeys.withKey("transition", request.id, action, request.version) { key ->
+                            repository.transition(request.id, action, key, request.version)
+                        }
+                    }
                 _state.update { it.copy(busyId = null, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo guardar.") }) }
                 refresh()
             }
@@ -147,7 +161,8 @@ class HotelRoomsViewModel
             val next = if (room.cleaning == RoomCleaning.DIRTY) RoomCleaning.READY else RoomCleaning.DIRTY
             _state.update { it.copy(busyId = "room-${room.id}", error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.setCleaning(room.id, next, UUID.randomUUID().toString()) }
+                val result =
+                    withContext(Dispatchers.IO) { retryKeys.withKey("cleaning", room.id, next) { key -> repository.setCleaning(room.id, next, key) } }
                 _state.update { it.copy(busyId = null, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo guardar.") }) }
                 refresh()
             }

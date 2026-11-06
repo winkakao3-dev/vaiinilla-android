@@ -111,7 +111,7 @@ internal fun HotelCheckInContent(
                             guestName = name.trim(),
                             contact = contact.trim().ifBlank { null },
                             roomId = chosen!!.id,
-                            checkIn = today.toString(),
+                            checkIn = null,
                             checkOut = today.plusDays(nights.toLong()).toString(),
                             nightlyRate = parsedRate,
                         ),

@@ -23,6 +23,9 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,10 +40,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.hotel.HotelErrors
 import com.vaiinilla.app.domain.hotel.HotelException
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -48,6 +56,24 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.util.Locale
+
+/** Corre [block] cada [everyMs] mientras la pantalla está a la vista; con la app en segundo plano no consulta al servidor. */
+@Composable
+internal fun HotelPolling(
+    everyMs: Long,
+    block: () -> Unit,
+) {
+    val owner = LocalLifecycleOwner.current
+    val current by rememberUpdatedState(block)
+    LaunchedEffect(owner, everyMs) {
+        owner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                current()
+                delay(everyMs)
+            }
+        }
+    }
+}
 
 /** Los dos tonos del lienzo de Doop que el tema no trae: «ocupada» (azul) y «por limpiar» (ámbar). */
 internal val HotelBlue = Color(0xFF7FB4E8)
@@ -348,7 +374,13 @@ internal fun staffErrorMessage(
     val hotel = generateSequence(error) { it.cause }.filterIsInstance<HotelException>().firstOrNull()
     return when (hotel?.code) {
         // Cerrar una cuenta con pedidos por cobrar usa la caja: sin sesión abierta el servidor no la deja cobrar.
-        "ESTABLISHMENT_NOT_RECEIVING" -> "Abre la caja para cerrar esta cuenta: tiene pedidos por cobrar."
+        HotelErrors.ESTABLISHMENT_NOT_RECEIVING -> "Abre la caja para cerrar esta cuenta: tiene pedidos por cobrar."
+        HotelErrors.ACCOUNT_TOTAL_CHANGED -> "La cuenta cambió mientras la revisabas. Revisa el total y vuelve a cerrarla."
+        HotelErrors.REQUEST_VERSION_CONFLICT, HotelErrors.REQUEST_INVALID_STATE -> "Otra persona ya atendió esta solicitud. Ya está al día."
+        HotelErrors.ROOM_OCCUPIED -> "Esa habitación ya tiene un huésped."
+        HotelErrors.STAY_INVALID_STATE -> "Esa estancia ya cambió. Revisa la lista."
+        HotelErrors.RATE_LIMITED -> "Demasiados intentos seguidos. Espera un momento."
+        "FORBIDDEN_ROLE" -> "Solo Caja puede hacer esto."
         else -> hotel?.message?.takeIf { it.isNotBlank() } ?: error.toUserFacingMessage(fallback)
     }
 }

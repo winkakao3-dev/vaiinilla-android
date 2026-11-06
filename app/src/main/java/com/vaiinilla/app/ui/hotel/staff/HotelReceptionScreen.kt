@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.hotel.staff
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -22,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayStatus
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import kotlinx.coroutines.delay
 import java.time.LocalDate
 
 private const val REFRESH_MS = 20_000L
@@ -38,12 +38,10 @@ fun HotelReceptionScreen(
     viewModel: HotelReceptionViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    LaunchedEffect(Unit) {
-        while (true) {
-            viewModel.refresh()
-            delay(REFRESH_MS)
-        }
-    }
+    HotelPolling(REFRESH_MS, viewModel::refresh)
+    // Atrás sale de la pantalla abierta (check-in, cuenta, cargo) a la lista; y al cerrar Recepción no queda a medias.
+    BackHandler(enabled = state.pane != ReceptionPane.Overview) { viewModel.close() }
+    DisposableEffect(viewModel) { onDispose { viewModel.close() } }
     val today = LocalDate.now()
     when (val pane = state.pane) {
         ReceptionPane.Overview ->

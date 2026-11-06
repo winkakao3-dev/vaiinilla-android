@@ -13,7 +13,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -29,7 +28,6 @@ import com.vaiinilla.app.domain.hotel.HotelRoom
 import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import kotlinx.coroutines.delay
 import java.time.Instant
 
 private const val REFRESH_MS = 15_000L
@@ -42,12 +40,7 @@ fun HotelRoomsScreen(
     viewModel: HotelRoomsViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    LaunchedEffect(Unit) {
-        while (true) {
-            viewModel.refresh()
-            delay(REFRESH_MS)
-        }
-    }
+    HotelPolling(REFRESH_MS, viewModel::refresh)
     HotelRoomsContent(
         state = state,
         now = Instant.now(),

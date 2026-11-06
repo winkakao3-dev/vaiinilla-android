@@ -222,8 +222,8 @@ fun WaiterOperationalScreen(
     val context = LocalContext.current
     var openTableId by remember { mutableStateOf<Int?>(null) }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
-    var deliveringCharge by remember { mutableStateOf<String?>(null) }
-    var housekeepingOpen by remember { mutableStateOf(false) }
+    var deliveringCharge by rememberSaveable { mutableStateOf<String?>(null) }
+    var housekeepingOpen by rememberSaveable { mutableStateOf(false) }
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var tick by remember { mutableIntStateOf(0) }

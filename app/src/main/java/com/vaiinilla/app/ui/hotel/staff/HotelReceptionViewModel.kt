@@ -2,6 +2,7 @@ package com.vaiinilla.app.ui.hotel.staff
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
 import com.vaiinilla.app.domain.hotel.HotelErrors
@@ -20,7 +21,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.util.UUID
 import javax.inject.Inject
 
 /** Qué ve Recepción: la lista de llegadas y salidas, o una de las pantallas que se abren desde ella. */
@@ -82,18 +82,27 @@ class HotelReceptionViewModel
         private val _state = MutableStateFlow(HotelReceptionUiState())
         val state: StateFlow<HotelReceptionUiState> = _state.asStateFlow()
 
+        // Un reintento tras una respuesta perdida manda la misma llave y no repite el cargo, el check-in ni el cobro.
+        private val retryKeys = RetryKeys()
+
+        // El último aviso que puso la propia lectura: solo ese se borra cuando la lectura vuelve a salir bien.
+        private var refreshError: String? = null
+
         fun refresh() {
             viewModelScope.launch {
                 val stays = withContext(Dispatchers.IO) { repository.stays(null) }
                 val rooms = withContext(Dispatchers.IO) { repository.rooms() }
+                val failure = (stays.exceptionOrNull() ?: rooms.exceptionOrNull())?.let { staffErrorMessage(it, "No se pudo actualizar.") }
                 _state.update { current ->
                     current.copy(
                         stays = stays.getOrDefault(current.stays),
                         rooms = rooms.getOrDefault(current.rooms),
                         loaded = current.loaded || stays.isSuccess,
-                        error = (stays.exceptionOrNull() ?: rooms.exceptionOrNull())?.let { staffErrorMessage(it, "No se pudo actualizar.") },
+                        // El error de una escritura (cargo, check-out…) no se pierde porque la lista se recargó.
+                        error = failure ?: current.error?.takeUnless { it == refreshError },
                     )
                 }
+                refreshError = failure
             }
         }
 
@@ -110,17 +119,15 @@ class HotelReceptionViewModel
         fun loadDetail(
             stayId: String,
             force: Boolean = false,
+            keepError: Boolean = false,
         ) {
             if (!force && _state.value.detail?.id == stayId) return
-            _state.update { it.copy(detailLoading = true, detail = null, error = null) }
+            _state.update { it.copy(detailLoading = true, detail = null, error = if (keepError) it.error else null) }
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.stay(stayId) }
+                val failure = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo abrir la cuenta.") }
                 _state.update {
-                    it.copy(
-                        detailLoading = false,
-                        detail = result.getOrNull(),
-                        error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo abrir la cuenta.") },
-                    )
+                    it.copy(detailLoading = false, detail = result.getOrNull(), error = failure ?: if (keepError) it.error else null)
                 }
             }
         }
@@ -129,7 +136,7 @@ class HotelReceptionViewModel
             if (_state.value.busy) return
             _state.update { it.copy(busy = true, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { repository.checkIn(draft, UUID.randomUUID().toString()) }
+                val result = withContext(Dispatchers.IO) { retryKeys.withKey("check-in", draft) { key -> repository.checkIn(draft, key) } }
                 _state.update {
                     it.copy(
                         busy = false,
@@ -142,19 +149,22 @@ class HotelReceptionViewModel
         }
 
         /** Una reserva que llegó pasa a «en casa» y ya puede pedir con su código. */
-        fun confirmArrival(stay: Stay) = changeStay(stay, "No se pudo registrar la llegada.") { id, key -> repository.confirmArrival(id, stay.version, key) }
+        fun confirmArrival(stay: Stay) =
+            changeStay(stay, "arrival", "No se pudo registrar la llegada.") { id, key -> repository.confirmArrival(id, stay.version, key) }
 
-        fun cancelReservation(stay: Stay) = changeStay(stay, "No se pudo cancelar la reserva.") { id, key -> repository.cancelStay(id, stay.version, key) }
+        fun cancelReservation(stay: Stay) =
+            changeStay(stay, "cancel", "No se pudo cancelar la reserva.") { id, key -> repository.cancelStay(id, stay.version, key) }
 
         private fun changeStay(
             stay: Stay,
+            operation: String,
             fallback: String,
             call: (String, String) -> Result<Stay>,
         ) {
             if (_state.value.busy) return
             _state.update { it.copy(busy = true, error = null) }
             viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { call(stay.id, UUID.randomUUID().toString()) }
+                val result = withContext(Dispatchers.IO) { retryKeys.withKey(operation, stay.id, stay.version) { key -> call(stay.id, key) } }
                 _state.update { it.copy(busy = false, error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, fallback) }) }
                 refresh()
             }
@@ -170,7 +180,11 @@ class HotelReceptionViewModel
             _state.update { it.copy(busy = true, error = null) }
             viewModelScope.launch {
                 val result =
-                    withContext(Dispatchers.IO) { repository.addCharge(stayId, concept, amount, category, UUID.randomUUID().toString()) }
+                    withContext(Dispatchers.IO) {
+                        retryKeys.withKey("charge", stayId, concept, amount, category) { key ->
+                            repository.addCharge(stayId, concept, amount, category, key)
+                        }
+                    }
                 _state.update {
                     it.copy(
                         busy = false,
@@ -196,14 +210,17 @@ class HotelReceptionViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        repository.checkout(
-                            stayId = stayId,
-                            method = method,
-                            idempotencyKey = UUID.randomUUID().toString(),
-                            receivedAmount = total.takeIf { method == CheckoutMethod.CASH },
-                            expectedTotal = total,
-                            expectedVersion = seen?.version,
-                        )
+                        retryKeys.withKey("checkout", stayId, method, total, seen?.version) { key ->
+                            // Sin monto recibido el servidor cobra justo lo pendiente: las noches y los cargos no pasan por caja.
+                            repository.checkout(
+                                stayId = stayId,
+                                method = method,
+                                idempotencyKey = key,
+                                receivedAmount = null,
+                                expectedTotal = total,
+                                expectedVersion = seen?.version,
+                            )
+                        }
                     }
                 val changed = hotelErrorCode(result.exceptionOrNull()) == HotelErrors.ACCOUNT_TOTAL_CHANGED
                 _state.update {
@@ -218,7 +235,7 @@ class HotelReceptionViewModel
                             },
                     )
                 }
-                if (changed) loadDetail(stayId, force = true)
+                if (changed) loadDetail(stayId, force = true, keepError = true)
                 if (result.isSuccess) {
                     refresh()
                     onDone()

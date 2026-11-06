@@ -367,7 +367,7 @@ fun CashierOperationalScreen(
             .filter { it.summary.state == OrderState.DELIVERED }
             .forEach { order -> assistantController.onStateChanged("pedido-entregado:${order.summary.id}") }
     }
-    var receptionOpen by remember { mutableStateOf(false) }
+    var receptionOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier =
