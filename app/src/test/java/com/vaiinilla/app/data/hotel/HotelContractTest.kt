@@ -294,13 +294,19 @@ class HotelContractTest {
 
     @Test
     fun `a table of the hotel restaurant is not a room when the server says so`() {
-        val room = Json { ignoreUnknownKeys = true }.decodeFromString<SpaceResolveEnvelope>(
-            """{"data":{"establecimiento":{"id":"e1","nombre":"Hotel","slug":"hotel","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":7,"nombre":"Habitación 304","tipo":"mesa","es_habitacion":true}}}""",
-        ).data.espacio!!.toDomain()
+        val room =
+            Json { ignoreUnknownKeys = true }
+                .decodeFromString<SpaceResolveEnvelope>(
+                    """{"data":{"establecimiento":{"id":"e1","nombre":"Hotel","slug":"hotel","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":7,"nombre":"Habitación 304","tipo":"mesa","es_habitacion":true}}}""",
+                ).data.espacio!!
+                .toDomain()
         val restaurant = room.copy(id = 9, name = "Mesa 2", isRoom = false)
-        val other = Json { ignoreUnknownKeys = true }.decodeFromString<SpaceResolveEnvelope>(
-            """{"data":{"establecimiento":{"id":"e2","nombre":"Cafe","slug":"cafe","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":3,"nombre":"Mesa 1","tipo":"mesa"}}}""",
-        ).data.espacio!!.toDomain()
+        val other =
+            Json { ignoreUnknownKeys = true }
+                .decodeFromString<SpaceResolveEnvelope>(
+                    """{"data":{"establecimiento":{"id":"e2","nombre":"Cafe","slug":"cafe","identificador_cliente_etiqueta":"Id","identificador_cliente_obligatorio":false},"espacio":{"id":3,"nombre":"Mesa 1","tipo":"mesa"}}}""",
+                ).data.espacio!!
+                .toDomain()
         assertEquals(true, room.isRoom)
         assertNull(other.isRoom)
 
