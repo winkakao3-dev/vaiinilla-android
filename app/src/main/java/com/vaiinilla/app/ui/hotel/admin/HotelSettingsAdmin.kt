@@ -242,15 +242,6 @@ internal fun HotelSettingsPage(
                     enabled = enabled,
                 )
                 AdminRowDivider(colors)
-                AdminToggleRow(
-                    "Código de entrega",
-                    config.deliveryCode,
-                    colors,
-                    { config = config.copy(deliveryCode = it) },
-                    detail = "El mesero lo pide en la puerta",
-                    enabled = enabled,
-                )
-                AdminRowDivider(colors)
                 AdminRow(
                     title = "Horario de cocina",
                     colors = colors,
@@ -401,7 +392,7 @@ internal fun HotelSettingsPage(
                     modifier = Modifier.adminRise(4),
                     busy = saving,
                     enabled = config != saved && settingsValid(config),
-                ) { onSave(config) }
+                ) { onSave(config.withPaddedClocks()) }
             }
         }
     }
@@ -417,6 +408,17 @@ internal fun settingsValid(config: HotelConfig): Boolean {
     val checkoutOk = config.checkoutTime?.let(::isClock) ?: true
     val lateOk = config.lateCheckoutTime?.let(::isClock) ?: true
     return kitchenOk && checkoutOk && lateOk
+}
+
+/** El servidor pide «HH:mm» con dos cifras en la hora: «7:30» se manda como «07:30». */
+internal fun HotelConfig.withPaddedClocks(): HotelConfig {
+    fun pad(value: String?): String? = value?.let { if (Regex("""^\d:[0-5]\d$""").matches(it)) "0$it" else it }
+    return copy(
+        kitchenFrom = pad(kitchenFrom),
+        kitchenTo = pad(kitchenTo),
+        lateCheckoutTime = pad(lateCheckoutTime),
+        checkoutTime = pad(checkoutTime),
+    )
 }
 
 internal fun kitchenLabel(config: HotelConfig): String {
