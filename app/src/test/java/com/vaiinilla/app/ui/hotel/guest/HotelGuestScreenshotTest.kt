@@ -56,8 +56,22 @@ class HotelGuestScreenshotTest {
             nights = 3,
             orders =
                 listOf(
-                    StayOrder("P1", "A-412", "236.50", "entregado", "2026-11-06T14:02:00Z", itemsSummary = "Chilaquiles y café"),
-                    StayOrder("P0", "A-398", "548.00", "entregado", "2026-11-05T03:10:00Z", itemsSummary = "Cena · pasta y vino"),
+                    StayOrder(
+                        "P1",
+                        "A-412",
+                        "236.50",
+                        "entregado",
+                        "2026-11-06T14:02:00Z",
+                        itemsSummary = "Chilaquiles y café",
+                    ),
+                    StayOrder(
+                        "P0",
+                        "A-398",
+                        "548.00",
+                        "entregado",
+                        "2026-11-05T03:10:00Z",
+                        itemsSummary = "Cena · pasta y vino",
+                    ),
                 ),
             charges =
                 listOf(
@@ -113,7 +127,15 @@ class HotelGuestScreenshotTest {
 
     @Test
     fun doop_hotel_codigo() {
-        dark { HotelStayCodeContent(linking = false, error = null, onSubmit = {}, initialCode = "4829", autoFocus = false) }
+        dark {
+            HotelStayCodeContent(
+                linking = false,
+                error = null,
+                onSubmit = {},
+                initialCode = "4829",
+                autoFocus = false,
+            )
+        }
         settle()
         captureScreenRoboImage("hotel/doop_hotel_codigo.png")
     }

@@ -62,7 +62,9 @@ fun HotelRequestsScreen(
         }
     }
     HotelRequestsContent(
-        roomName = stayViewModel.state.value.stay?.roomName ?: Venue.roomTitle,
+        roomName =
+            stayViewModel.state.value.stay
+                ?.roomName ?: Venue.roomTitle,
         state = state,
         onTap = viewModel::tap,
         onToggleDoNotDisturb = viewModel::toggleDoNotDisturb,
@@ -100,7 +102,13 @@ fun HotelRequestsContent(
     val colors = LocalVaiinillaColors.current
     Box(modifier = modifier.fillMaxSize().background(colors.paper)) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(top = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(
+                        rememberScrollState(),
+                    ).padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             HotelPageTitle(eyebrow = roomName, title = "Pedir al hotel")
@@ -219,8 +227,18 @@ private fun OpenRequests(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         val quantity = if (request.quantity > 1) "${request.quantity} × " else ""
-                        Text(quantity + request.type.label, color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text(request.status.label, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            quantity + request.type.label,
+                            color = colors.ink,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            request.status.label,
+                            color = colors.muted,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                     if (request.status == com.vaiinilla.app.domain.hotel.RequestStatus.PENDING) {
                         Text(
@@ -228,7 +246,11 @@ private fun OpenRequests(
                             color = colors.accent,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
-                            modifier = Modifier.physicalPress(onClick = { onCancel(request.id) }).padding(vertical = 12.dp, horizontal = 4.dp),
+                            modifier =
+                                Modifier
+                                    .physicalPress(
+                                        onClick = { onCancel(request.id) },
+                                    ).padding(vertical = 12.dp, horizontal = 4.dp),
                         )
                     }
                 }

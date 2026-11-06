@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
@@ -103,7 +102,13 @@ fun HotelWelcomeContent(
                     stay?.floor?.let { "Piso $it" },
                 ).joinToString(" · ")
             if (details.isNotEmpty()) {
-                Text(details, color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    details,
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
         Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -116,14 +121,50 @@ fun HotelWelcomeContent(
             )
             val tiles =
                 buildList<@Composable (Modifier) -> Unit> {
-                    add { HotelActionTile("Room service", "Desayuno, cena y bebidas", Icons.Outlined.Restaurant, onOrder, it, "hotel_tile_room_service") }
+                    add {
+                        HotelActionTile(
+                            "Room service",
+                            "Desayuno, cena y bebidas",
+                            Icons.Outlined.Restaurant,
+                            onOrder,
+                            it,
+                            "hotel_tile_room_service",
+                        )
+                    }
                     if (config.requestsEnabled) {
-                        add { HotelActionTile("Limpieza", "Toallas, amenidades", Icons.Outlined.CleaningServices, onRequests, it, "hotel_tile_cleaning") }
+                        add {
+                            HotelActionTile(
+                                "Limpieza",
+                                "Toallas, amenidades",
+                                Icons.Outlined.CleaningServices,
+                                onRequests,
+                                it,
+                                "hotel_tile_cleaning",
+                            )
+                        }
                         if (config.lateCheckoutTime != null) {
-                            add { HotelActionTile("Salida tardía", "Pide más tiempo", Icons.Outlined.AccessTime, onRequests, it, "hotel_tile_late") }
+                            add {
+                                HotelActionTile(
+                                    "Salida tardía",
+                                    "Pide más tiempo",
+                                    Icons.Outlined.AccessTime,
+                                    onRequests,
+                                    it,
+                                    "hotel_tile_late",
+                                )
+                            }
                         }
                     }
-                    add { HotelActionTile("Mi cuenta", "Cargos a la habitación", Icons.Outlined.Receipt, onAccount, it, "hotel_tile_account") }
+                    add {
+                        HotelActionTile(
+                            "Mi cuenta",
+                            "Cargos a la habitación",
+                            Icons.Outlined.Receipt,
+                            onAccount,
+                            it,
+                            "hotel_tile_account",
+                        )
+                    }
                 }
             tiles.chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -152,7 +193,14 @@ private fun HotelVenuePill(name: String) {
                 .background(Color.Black.copy(alpha = 0.42f))
                 .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Text(name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            name,
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

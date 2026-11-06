@@ -153,7 +153,12 @@ class HotelRoomOrderScreenshotTest {
     @Test
     fun doop_hotel_h04() {
         Venue.update(Venue.HOTEL)
-        val base = ScreenshotFixtures.sampleOrder(state = OrderState.PREPARING, destination = OrderDestination.IN_SPACE, spaceId = 304)
+        val base =
+            ScreenshotFixtures.sampleOrder(
+                state = OrderState.PREPARING,
+                destination = OrderDestination.IN_SPACE,
+                spaceId = 304,
+            )
         val order =
             base.copy(
                 summary =

@@ -87,7 +87,13 @@ fun HotelCheckoutContent(
     // El teclado de la nota no tapa el campo ni el botón: igual que el carrito de siempre.
     Box(modifier = modifier.fillMaxSize().background(colors.paper).imePadding()) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(top = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(
+                        rememberScrollState(),
+                    ).padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             HotelPageTitle(eyebrow = "Pedido", title = "Entrega a tu cuarto")
@@ -117,7 +123,9 @@ fun HotelCheckoutContent(
                 HotelPanel(title = "Cuándo lo quieres") {
                     HotelRadioOption(
                         title = "Lo antes posible",
-                        subtitle = readyMinutes?.let { "La cocina lo prepara en unos $it min y te lo lleva" } ?: "La cocina lo prepara y te lo lleva",
+                        subtitle =
+                            readyMinutes?.let { "La cocina lo prepara en unos $it min y te lo lleva" }
+                                ?: "La cocina lo prepara y te lo lleva",
                         selected = true,
                         onClick = {},
                     )
@@ -157,7 +165,11 @@ fun HotelCheckoutContent(
                         color = colors.accent,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
-                        modifier = Modifier.physicalPress(onClick = onResolvePendingPayment).padding(horizontal = 8.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .physicalPress(
+                                    onClick = onResolvePendingPayment,
+                                ).padding(horizontal = 8.dp, vertical = 8.dp),
                     )
                 }
                 error?.let {
@@ -199,10 +211,21 @@ private fun NoteField(
 ) {
     val colors = LocalVaiinillaColors.current
     Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.paper2).padding(horizontal = 20.dp, vertical = 18.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(24.dp),
+                ).background(colors.paper2)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
         if (value.isEmpty()) {
-            Text("Nota para la cocina (ej. sin cebolla)", color = colors.muted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Nota para la cocina (ej. sin cebolla)",
+                color = colors.muted,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
         BasicTextField(
             value = value,
@@ -288,7 +311,14 @@ fun HotelCheckoutRoute(
         }
     HotelCheckoutContent(
         roomName = state.checkoutSpace?.name ?: Venue.roomTitle,
-        lines = state.cartLines.map { HotelCheckoutLine(it.quantity, it.product.name, moneyLabel(state.cartLineTotal(it))) },
+        lines =
+            state.cartLines.map {
+                HotelCheckoutLine(
+                    it.quantity,
+                    it.product.name,
+                    moneyLabel(state.cartLineTotal(it)),
+                )
+            },
         readyMinutes = state.cartLines.maxOfOrNull { it.product.estimatedTimeMinutes }?.takeIf { it > 0 },
         roomChargeEnabled = roomEnabled,
         cardEnabled = cardEnabled,
@@ -304,13 +334,21 @@ fun HotelCheckoutRoute(
         onConfirm = {
             when (selected) {
                 HotelPayChoice.ROOM -> if (!state.checkoutPayAtEnd) onPayAtEnd()
-                HotelPayChoice.CARD -> if (state.checkoutPayment != PaymentMethod.STRIPE) onPaymentChange(PaymentMethod.STRIPE)
+                HotelPayChoice.CARD ->
+                    if (state.checkoutPayment !=
+                        PaymentMethod.STRIPE
+                    ) {
+                        onPaymentChange(PaymentMethod.STRIPE)
+                    }
                 null -> return@HotelCheckoutContent
             }
             onConfirm()
         },
         modifier = modifier,
-        pendingPaymentNotice = "Tienes un pago pendiente. Revísalo antes de pedir otra vez.".takeIf { state.hasUnresolvedStripePayment },
+        pendingPaymentNotice =
+            "Tienes un pago pendiente. Revísalo antes de pedir otra vez.".takeIf {
+                state.hasUnresolvedStripePayment
+            },
         onResolvePendingPayment = onResolvePendingStripePayment,
     )
     if (state.needsStayCode) {

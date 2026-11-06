@@ -58,7 +58,13 @@ internal data class AccountLine(
  * sin cobrar (`por_cobrar`): uno pagado aparte o ya cobrado por la mesa saldría como línea sin entrar en el total.
  */
 private fun billedOrders(stay: Stay) =
-    if (stay.account != null && stay.status != StayStatus.CHECKED_OUT) stay.orders.filter { it.pendingPayment } else stay.orders
+    if (stay.account != null &&
+        stay.status != StayStatus.CHECKED_OUT
+    ) {
+        stay.orders.filter { it.pendingPayment }
+    } else {
+        stay.orders
+    }
 
 internal fun isClosed(stay: Stay): Boolean = stay.status == StayStatus.CHECKED_OUT
 
@@ -68,19 +74,36 @@ internal fun isClosed(stay: Stay): Boolean = stay.status == StayStatus.CHECKED_O
  */
 internal fun accountHeadline(stay: Stay): Pair<String, BigDecimal> {
     val charged = stay.totalCharged?.toBigDecimalOrNull()
-    return if (isClosed(stay) && charged != null) "TOTAL COBRADO" to charged else "CARGOS A LA HABITACIÓN" to roomCharges(stay)
+    return if (isClosed(stay) &&
+        charged != null
+    ) {
+        "TOTAL COBRADO" to charged
+    } else {
+        "CARGOS A LA HABITACIÓN" to roomCharges(stay)
+    }
 }
 
 internal fun accountLines(stay: Stay): List<AccountLine> {
     val orders =
         billedOrders(stay).map {
-            val title = it.itemsSummary?.takeIf { items -> items.isNotBlank() } ?: it.folio?.let { folio -> "Room service · pedido $folio" } ?: "Room service"
-            AccountLine(title, listOfNotNull(it.createdAt?.let(::cremeMoment), "room service").joinToString(" · "), it.total.toBigDecimalOrNull() ?: BigDecimal.ZERO)
+            val title =
+                it.itemsSummary?.takeIf { items -> items.isNotBlank() }
+                    ?: it.folio?.let { folio -> "Room service · pedido $folio" }
+                    ?: "Room service"
+            AccountLine(
+                title,
+                listOfNotNull(it.createdAt?.let(::cremeMoment), "room service").joinToString(" · "),
+                it.total.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            )
         }
     val charges =
         stay.charges.map {
             val kind = it.category.takeIf { category -> category != ChargeCategory.OTHER }?.label
-            AccountLine(it.concept, listOfNotNull(it.createdAt?.let(::cremeMoment), kind).joinToString(" · ").ifEmpty { null }, it.amount.toBigDecimalOrNull() ?: BigDecimal.ZERO)
+            AccountLine(
+                it.concept,
+                listOfNotNull(it.createdAt?.let(::cremeMoment), kind).joinToString(" · ").ifEmpty { null },
+                it.amount.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            )
         }
     return orders + charges
 }
@@ -109,7 +132,13 @@ fun HotelAccountContent(
     val colors = LocalVaiinillaColors.current
     Box(modifier = modifier.fillMaxSize().background(colors.paper)) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(top = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(
+                        rememberScrollState(),
+                    ).padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             val eyebrow =
@@ -140,7 +169,13 @@ fun HotelAccountContent(
                 HotelPanel {
                     if (lines.isEmpty()) {
                         Text(
-                            if (stay == null) "Cargando tu cuenta…" else "Todavía no tienes cargos. Lo que pidas al cuarto aparece aquí.",
+                            if (stay ==
+                                null
+                            ) {
+                                "Cargando tu cuenta…"
+                            } else {
+                                "Todavía no tienes cargos. Lo que pidas al cuarto aparece aquí."
+                            },
                             color = colors.muted,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -222,12 +257,21 @@ private fun PayAtFrontDeskNote(
     val shape = RoundedCornerShape(29.dp)
     Box(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp).navigationBarsPadding()) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(58.dp).border(1.dp, colors.line, shape).background(colors.paper, shape),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(
+                        58.dp,
+                    ).border(1.dp, colors.line, shape)
+                    .background(colors.paper, shape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 if (closed) "Cuenta cerrada · gracias por tu estancia" else "Pagas en recepción al salir",
-                color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                color = colors.ink,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+            )
         }
     }
 }

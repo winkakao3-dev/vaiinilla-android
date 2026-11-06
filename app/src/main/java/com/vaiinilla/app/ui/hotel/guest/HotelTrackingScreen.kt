@@ -85,14 +85,43 @@ fun HotelTrackingContent(
     val items = order.activeItems
     Box(modifier = modifier.fillMaxSize().background(colors.paper)) {
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(top = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(
+                        rememberScrollState(),
+                    ).padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(modifier = Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val place = order.summary.space?.name?.let { " · $it" }.orEmpty()
-                Text("Pedido #${order.summary.folio}$place", color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text(first, color = colors.ink, fontSize = 44.sp, lineHeight = 46.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.5).sp)
-                Text(second, color = colors.accent, fontSize = 44.sp, lineHeight = 46.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.5).sp)
+                val place =
+                    order.summary.space
+                        ?.name
+                        ?.let { " · $it" }
+                        .orEmpty()
+                Text(
+                    "Pedido #${order.summary.folio}$place",
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    first,
+                    color = colors.ink,
+                    fontSize = 44.sp,
+                    lineHeight = 46.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1.5).sp,
+                )
+                Text(
+                    second,
+                    color = colors.accent,
+                    fontSize = 44.sp,
+                    lineHeight = 46.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1.5).sp,
+                )
             }
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (!closed) {
@@ -113,20 +142,52 @@ fun HotelTrackingContent(
                     HotelPanel(title = "Tu pedido") {
                         items.forEach { item ->
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("${item.quantity} × ${item.productName}", color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Text(moneyLabel(item.subtotal), color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black, style = TextStyle(fontFeatureSettings = "tnum"))
+                                Text(
+                                    "${item.quantity} × ${item.productName}",
+                                    color = colors.ink,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    moneyLabel(item.subtotal),
+                                    color = colors.ink,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black,
+                                    style = TextStyle(fontFeatureSettings = "tnum"),
+                                )
                             }
                         }
                     }
                 }
                 if (order.summary.payAtEnd) {
                     HotelPanel {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text("CARGO A LA HABITACIÓN", color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.8.sp)
-                                Text("Se paga al salir", color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "CARGO A LA HABITACIÓN",
+                                    color = colors.muted,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.8.sp,
+                                )
+                                Text(
+                                    "Se paga al salir",
+                                    color = colors.muted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                             }
-                            Text(moneyLabel(order.summary.total), color = colors.ink, fontSize = 24.sp, fontWeight = FontWeight.Black, style = TextStyle(fontFeatureSettings = "tnum"))
+                            Text(
+                                moneyLabel(order.summary.total),
+                                color = colors.ink,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                                style = TextStyle(fontFeatureSettings = "tnum"),
+                            )
                         }
                     }
                 }
@@ -143,7 +204,12 @@ fun HotelTrackingContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (onCallReception != null && !closed && state != OrderState.DELIVERED) {
-                PillButton("Llamar a recepción", filled = false, onClick = onCallReception, modifier = Modifier.weight(1f).testTag("hotel_call_reception"))
+                PillButton(
+                    "Llamar a recepción",
+                    filled = false,
+                    onClick = onCallReception,
+                    modifier = Modifier.weight(1f).testTag("hotel_call_reception"),
+                )
             }
             PillButton(
                 if (showItems) "Ocultar pedido" else "Ver pedido",
@@ -176,7 +242,10 @@ private fun TimelineRow(
     last: Boolean,
 ) {
     val colors = LocalVaiinillaColors.current
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.semantics(mergeDescendants = true) {}) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.semantics(mergeDescendants = true) {},
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier =
@@ -194,14 +263,24 @@ private fun TimelineRow(
             ) {
                 Text(
                     if (done) "✓" else "${index + 1}",
-                    color = if (done) colors.accentInk else if (current) colors.paper else colors.muted,
+                    color =
+                        if (done) {
+                            colors.accentInk
+                        } else if (current) {
+                            colors.paper
+                        } else {
+                            colors.muted
+                        },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                 )
             }
             if (!last) Box(Modifier.width(2.dp).height(24.dp).background(colors.line))
         }
-        Column(modifier = Modifier.padding(bottom = if (last) 0.dp else 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(
+            modifier = Modifier.padding(bottom = if (last) 0.dp else 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
                 label,
                 color = if (done || current) colors.ink else colors.muted,
@@ -232,6 +311,12 @@ private fun PillButton(
                 .semantics { role = Role.Button },
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = if (filled) colors.onInk else colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(
+            label,
+            color = if (filled) colors.onInk else colors.ink,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
     }
 }

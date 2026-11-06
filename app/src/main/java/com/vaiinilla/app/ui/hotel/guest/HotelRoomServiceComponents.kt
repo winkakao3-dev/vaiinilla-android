@@ -39,7 +39,13 @@ fun HotelMenuHeader(
         modifier = modifier.fillMaxWidth().statusBarsPadding().padding(top = 12.dp, bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("$roomName · se lleva a tu puerta", color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+        Text(
+            "$roomName · se lleva a tu puerta",
+            color = colors.muted,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+        )
         Text(
             "Room service",
             color = colors.ink,
@@ -79,8 +85,7 @@ fun HotelCartBar(
                 .semantics {
                     role = Role.Button
                     contentDescription = "Ver pedido: $count, $total"
-                }
-                .padding(horizontal = 22.dp),
+                }.padding(horizontal = 22.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

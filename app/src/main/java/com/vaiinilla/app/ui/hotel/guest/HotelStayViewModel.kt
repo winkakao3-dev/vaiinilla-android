@@ -42,7 +42,14 @@ class HotelStayViewModel
                         ?: withContext(Dispatchers.IO) { repository.config() }.getOrNull()
                 _state.value =
                     result.fold(
-                        onSuccess = { _state.value.copy(loading = false, stay = it, config = config ?: _state.value.config) },
+                        onSuccess = {
+                            _state.value.copy(
+                                loading = false,
+                                stay = it,
+                                config =
+                                    config ?: _state.value.config,
+                            )
+                        },
                         onFailure = {
                             _state.value.copy(
                                 loading = false,

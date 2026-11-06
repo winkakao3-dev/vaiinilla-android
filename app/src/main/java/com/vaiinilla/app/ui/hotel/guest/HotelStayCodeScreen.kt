@@ -62,7 +62,12 @@ fun HotelStayCodeScreen(
     modifier: Modifier = Modifier,
     viewModel: HotelStayViewModel = viewModel(),
 ) {
-    val space = activityOrderFlow()?.uiState?.value?.guestVenue?.space
+    val space =
+        activityOrderFlow()
+            ?.uiState
+            ?.value
+            ?.guestVenue
+            ?.space
     val state = viewModel.state.value
     HotelStayCodeContent(
         linking = state.linking,
@@ -85,7 +90,14 @@ fun HotelStayCodeContent(
 ) {
     val colors = LocalVaiinillaColors.current
     Column(
-        modifier = modifier.fillMaxSize().background(colors.paper).statusBarsPadding().imePadding().padding(top = 12.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(
+                    colors.paper,
+                ).statusBarsPadding()
+                .imePadding()
+                .padding(top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         HotelStayCodeForm(linking, error, onSubmit, onCodeEdited, initialCode, autoFocus, fillHeight = true)
@@ -109,10 +121,23 @@ fun HotelStayCodeSheet(
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(bottom = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            HotelStayCodeForm(linking, error, onSubmit, onCodeEdited = {}, initialCode = "", autoFocus = true, fillHeight = false)
+            HotelStayCodeForm(
+                linking,
+                error,
+                onSubmit,
+                onCodeEdited = {},
+                initialCode = "",
+                autoFocus = true,
+                fillHeight = false,
+            )
         }
     }
 }

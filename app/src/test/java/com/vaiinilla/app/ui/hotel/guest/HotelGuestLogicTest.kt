@@ -53,7 +53,13 @@ class HotelGuestLogicTest {
                 nights = 3,
                 status = StayStatus.CHECKED_OUT,
                 totalCharged = "3439.00",
-                account = StayAccount(nightsTotal = "900.00", chargesTotal = "0.00", ordersTotal = "0.00", total = "2805.00"),
+                account =
+                    StayAccount(
+                        nightsTotal = "900.00",
+                        chargesTotal = "0.00",
+                        ordersTotal = "0.00",
+                        total = "2805.00",
+                    ),
                 orders = listOf(StayOrder("a", "A-001", "55.00", "entregado", pendingPayment = false)),
             )
         assertEquals("TOTAL COBRADO" to BigDecimal("3439.00"), accountHeadline(closed))
@@ -83,7 +89,11 @@ class HotelGuestLogicTest {
                 checkOut = "2026-11-09",
                 nightlyRate = "1650.00",
                 nights = 3,
-                orders = listOf(StayOrder("P1", "A-412", "236.50", "entregado", null), StayOrder("P0", "A-398", "548.00", "entregado", null)),
+                orders =
+                    listOf(
+                        StayOrder("P1", "A-412", "236.50", "entregado", null),
+                        StayOrder("P0", "A-398", "548.00", "entregado", null),
+                    ),
                 charges =
                     listOf(
                         StayCharge("C1", "Minibar", "90.00", ChargeCategory.MINIBAR),
@@ -109,7 +119,14 @@ class HotelGuestLogicTest {
                         StayOrder("P4", "4", "55.00", "listo", null, "1× Jugo de naranja", pendingPayment = true),
                         StayOrder("P5", "5", "55.00", "por_cobrar", null, "1× Jugo de naranja", pendingPayment = false),
                     ),
-                account = StayAccount(nightsTotal = "900.00", chargesTotal = "0.00", ordersTotal = "55.00", total = "955.00", pendingOrders = 1),
+                account =
+                    StayAccount(
+                        nightsTotal = "900.00",
+                        chargesTotal = "0.00",
+                        ordersTotal = "55.00",
+                        total = "955.00",
+                        pendingOrders = 1,
+                    ),
             )
         assertEquals(BigDecimal("55.00"), roomCharges(stay))
         assertEquals(listOf(BigDecimal("55.00")), accountLines(stay).map { it.amount })
@@ -133,7 +150,10 @@ class HotelGuestLogicTest {
         vm.tap(RequestType.CLEANING)
         assertEquals(1, vm.state.value.picked[RequestType.CLEANING])
         vm.tap(RequestType.CLEANING)
-        assertTrue(vm.state.value.picked.isEmpty())
+        assertTrue(
+            vm.state.value.picked
+                .isEmpty(),
+        )
     }
 
     @Test
@@ -173,7 +193,10 @@ class HotelGuestLogicTest {
         vm.tap(RequestType.TOWELS)
         vm.submit()
         waitUntil { !vm.state.value.submitting && vm.state.value.error != null }
-        assertTrue(vm.state.value.error!!.contains("código de estancia"))
+        assertTrue(
+            vm.state.value.error!!
+                .contains("código de estancia"),
+        )
         assertEquals(1, vm.state.value.picked.size)
     }
 

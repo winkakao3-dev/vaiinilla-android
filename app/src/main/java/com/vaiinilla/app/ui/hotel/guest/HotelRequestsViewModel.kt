@@ -53,7 +53,10 @@ class HotelRequestsViewModel
         fun load() {
             viewModelScope.launch {
                 val stay = withContext(Dispatchers.IO) { repository.myStay() }.getOrNull()
-                val open = withContext(Dispatchers.IO) { repository.myRequests() }.getOrNull().orEmpty().filter { it.status.isOpen }
+                val open =
+                    withContext(
+                        Dispatchers.IO,
+                    ) { repository.myRequests() }.getOrNull().orEmpty().filter { it.status.isOpen }
                 val config = stay?.settings ?: withContext(Dispatchers.IO) { repository.config() }.getOrNull()
                 val dnd = stay?.doNotDisturb ?: false
                 _state.value =
@@ -93,7 +96,11 @@ class HotelRequestsViewModel
                 for ((type, quantity) in _state.value.picked) {
                     val result =
                         withContext(Dispatchers.IO) {
-                            retryKeys.withKey("request", type, quantity) { key -> repository.createRequest(type, quantity, null, key) }
+                            retryKeys.withKey(
+                                "request",
+                                type,
+                                quantity,
+                            ) { key -> repository.createRequest(type, quantity, null, key) }
                         }
                     if (result.isSuccess) {
                         sent++
