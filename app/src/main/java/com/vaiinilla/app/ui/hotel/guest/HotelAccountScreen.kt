@@ -52,9 +52,15 @@ internal data class AccountLine(
     val amount: BigDecimal,
 )
 
+/**
+ * El servidor lista todos los pedidos de la estancia, pero su cuenta solo suma los que van a la habitación y siguen
+ * sin cobrar (`por_cobrar`): uno pagado aparte o ya cobrado por la mesa saldría como línea sin entrar en el total.
+ */
+private fun billedOrders(stay: Stay) = if (stay.account != null) stay.orders.filter { it.pendingPayment } else stay.orders
+
 internal fun accountLines(stay: Stay): List<AccountLine> {
     val orders =
-        stay.orders.map {
+        billedOrders(stay).map {
             val title = it.itemsSummary?.takeIf { items -> items.isNotBlank() } ?: it.folio?.let { folio -> "Room service · pedido $folio" } ?: "Room service"
             AccountLine(title, listOfNotNull(it.createdAt?.let(::cremeMoment), "room service").joinToString(" · "), it.total.toBigDecimalOrNull() ?: BigDecimal.ZERO)
         }

@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.hotel.HotelErrors
 import com.vaiinilla.app.domain.hotel.HotelException
 import com.vaiinilla.app.domain.hotel.RequestType
 import com.vaiinilla.app.domain.hotel.Stay
+import com.vaiinilla.app.domain.hotel.StayAccount
 import com.vaiinilla.app.domain.hotel.StayCharge
 import com.vaiinilla.app.domain.hotel.StayOrder
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +69,26 @@ class HotelGuestLogicTest {
         assertEquals(BigDecimal("1184.50"), roomCharges(stay))
         assertEquals(BigDecimal("4950.00"), stayCost(stay))
         assertEquals("Room service · pedido A-412", accountLines(stay).first().title)
+    }
+
+    @Test
+    fun `la cuenta del servidor solo lista los pedidos que suma`() {
+        val stay =
+            Stay(
+                id = "S1",
+                guestName = "Elena Marín",
+                checkIn = "2026-11-06",
+                checkOut = "2026-11-07",
+                nightlyRate = "900.00",
+                orders =
+                    listOf(
+                        StayOrder("P4", "4", "55.00", "listo", null, "1× Jugo de naranja", pendingPayment = true),
+                        StayOrder("P5", "5", "55.00", "por_cobrar", null, "1× Jugo de naranja", pendingPayment = false),
+                    ),
+                account = StayAccount(nightsTotal = "900.00", chargesTotal = "0.00", ordersTotal = "55.00", total = "955.00", pendingOrders = 1),
+            )
+        assertEquals(BigDecimal("55.00"), roomCharges(stay))
+        assertEquals(listOf(BigDecimal("55.00")), accountLines(stay).map { it.amount })
     }
 
     @Test
