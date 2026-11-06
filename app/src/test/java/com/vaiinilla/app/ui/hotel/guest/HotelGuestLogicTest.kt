@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayAccount
 import com.vaiinilla.app.domain.hotel.StayCharge
 import com.vaiinilla.app.domain.hotel.StayOrder
+import com.vaiinilla.app.domain.hotel.StayStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -38,6 +39,29 @@ class HotelGuestLogicTest {
         val end = System.currentTimeMillis() + timeoutMs
         while (!condition() && System.currentTimeMillis() < end) Thread.sleep(10)
         assertTrue("la condición no se cumplió a tiempo", condition())
+    }
+
+    @Test
+    fun `una estancia cerrada muestra lo cobrado en el check-out y todos sus pedidos`() {
+        val closed =
+            Stay(
+                id = "S9",
+                guestName = "Elena",
+                checkIn = "2026-11-03",
+                checkOut = "2026-11-06",
+                nightlyRate = "300.00",
+                nights = 3,
+                status = StayStatus.CHECKED_OUT,
+                totalCharged = "3439.00",
+                account = StayAccount(nightsTotal = "900.00", chargesTotal = "0.00", ordersTotal = "0.00", total = "2805.00"),
+                orders = listOf(StayOrder("a", "A-001", "55.00", "entregado", pendingPayment = false)),
+            )
+        assertEquals("TOTAL COBRADO" to BigDecimal("3439.00"), accountHeadline(closed))
+        assertEquals(1, accountLines(closed).size)
+
+        val open = closed.copy(status = StayStatus.IN_HOUSE, totalCharged = null)
+        assertEquals("CARGOS A LA HABITACIÓN", accountHeadline(open).first)
+        assertEquals(0, accountLines(open).size)
     }
 
     @Test

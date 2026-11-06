@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.Stay
+import com.vaiinilla.app.domain.hotel.StayStatus
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -56,7 +57,19 @@ internal data class AccountLine(
  * El servidor lista todos los pedidos de la estancia, pero su cuenta solo suma los que van a la habitación y siguen
  * sin cobrar (`por_cobrar`): uno pagado aparte o ya cobrado por la mesa saldría como línea sin entrar en el total.
  */
-private fun billedOrders(stay: Stay) = if (stay.account != null) stay.orders.filter { it.pendingPayment } else stay.orders
+private fun billedOrders(stay: Stay) =
+    if (stay.account != null && stay.status != StayStatus.CHECKED_OUT) stay.orders.filter { it.pendingPayment } else stay.orders
+
+internal fun isClosed(stay: Stay): Boolean = stay.status == StayStatus.CHECKED_OUT
+
+/**
+ * El encabezado de la cuenta: en una estancia abierta, lo cargado a la habitación; en una ya cerrada, lo que se cobró
+ * en el check-out (`total_cobrado`), porque la cuenta calculada deja de contar lo que ya se pagó.
+ */
+internal fun accountHeadline(stay: Stay): Pair<String, BigDecimal> {
+    val charged = stay.totalCharged?.toBigDecimalOrNull()
+    return if (isClosed(stay) && charged != null) "TOTAL COBRADO" to charged else "CARGOS A LA HABITACIÓN" to roomCharges(stay)
+}
 
 internal fun accountLines(stay: Stay): List<AccountLine> {
     val orders =
@@ -105,7 +118,7 @@ fun HotelAccountContent(
             Column(modifier = Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(eyebrow, color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "CARGOS A LA HABITACIÓN",
+                    stay?.let { accountHeadline(it).first } ?: "CARGOS A LA HABITACIÓN",
                     color = colors.muted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -113,7 +126,7 @@ fun HotelAccountContent(
                     modifier = Modifier.padding(top = 8.dp),
                 )
                 Text(
-                    if (stay == null) "—" else moneyLabel(roomCharges(stay).toPlainString()),
+                    if (stay == null) "—" else moneyLabel(accountHeadline(stay).second.toPlainString()),
                     color = colors.ink,
                     fontSize = 52.sp,
                     lineHeight = 54.sp,
@@ -150,7 +163,7 @@ fun HotelAccountContent(
             )
             Box(Modifier.height(96.dp))
         }
-        PayAtFrontDeskNote(Modifier.align(Alignment.BottomCenter))
+        PayAtFrontDeskNote(closed = stay?.let(::isClosed) == true, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -181,7 +194,12 @@ private fun StayCostPanel(stay: Stay) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 val nights = if (stay.nights == 1) "1 noche" else "${stay.nights} noches"
                 Text("Estancia ($nights)", color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
-                Text("Se paga en recepción", color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (isClosed(stay)) "Pagada en recepción" else "Se paga en recepción",
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
             Text(
                 moneyLabel(cost.toPlainString()),
@@ -196,7 +214,10 @@ private fun StayCostPanel(stay: Stay) {
 
 /** Donde el dibujo tenía «Pagar ahora»: la app no cobra, y lo dice. */
 @Composable
-private fun PayAtFrontDeskNote(modifier: Modifier = Modifier) {
+private fun PayAtFrontDeskNote(
+    closed: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalVaiinillaColors.current
     val shape = RoundedCornerShape(29.dp)
     Box(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp).navigationBarsPadding()) {
@@ -204,7 +225,9 @@ private fun PayAtFrontDeskNote(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth().height(58.dp).border(1.dp, colors.line, shape).background(colors.paper, shape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("Pagas en recepción al salir", color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(
+                if (closed) "Cuenta cerrada · gracias por tu estancia" else "Pagas en recepción al salir",
+                color = colors.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
     }
 }
