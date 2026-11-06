@@ -16,6 +16,7 @@ import com.vaiinilla.app.ui.screens.OrderConfirmationScreen
 import com.vaiinilla.app.ui.screens.PurchaseSuccessScreen
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -279,12 +280,15 @@ class StripeCheckoutUiTest {
     }
 
     @Test
-    fun `order confirmation prioritizes the one-shot celebration over the ticket`() {
+    fun `pickup order skips the one-shot celebration while the Vaini scene is hidden`() {
+        // Naev (5 nov): al pedir sale directo la página del pedido; la escena de Vaini con la celebración queda
+        // oculta tras SHOWS_VAINI_PICKUP_SCENE, y la celebración se da por vista.
         val order =
             ScreenshotFixtures.sampleOrder(
                 state = OrderState.PAID,
                 paymentMethod = PaymentMethod.BALANCE,
             )
+        val finished = mutableListOf<String>()
 
         composeTestRule.setContent {
             VaiinillaTheme {
@@ -296,12 +300,14 @@ class StripeCheckoutUiTest {
                             orderId = order.summary.id,
                             kind = PurchaseCelebrationKind.PAYMENT_CONFIRMED,
                         ),
+                    onPurchaseCelebrationFinished = { finished += it },
                 )
             }
         }
+        composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText("¡Compra confirmada!").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Tu pago fue autorizado y tu pedido ya está en marcha.").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("¡Compra\nconfirmada!").assertCountEquals(0)
+        assertEquals(listOf(order.summary.id), finished)
     }
 
     @Test
