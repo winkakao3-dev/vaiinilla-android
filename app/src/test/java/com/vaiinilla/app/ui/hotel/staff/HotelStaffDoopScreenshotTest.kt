@@ -329,8 +329,15 @@ class HotelStaffDoopScreenshotTest {
     @Test
     fun checkin_codigo() {
         capture("doop_hotel_checkin_codigo.png") {
-            HotelCheckInContent(rooms = emptyList(), created = stay, busy = false, error = null, today = today, onSubmit = {
-            }, onBack = {})
+            HotelCheckInContent(
+                rooms = emptyList(),
+                created = stay,
+                busy = false,
+                error = null,
+                today = today,
+                onSubmit = {},
+                onBack = {},
+            )
         }
     }
 

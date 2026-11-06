@@ -408,8 +408,10 @@ internal fun staffErrorMessage(
     return when (hotel?.code) {
         // Cerrar una cuenta con pedidos por cobrar usa la caja: sin sesión abierta el servidor no la deja cobrar.
         HotelErrors.ESTABLISHMENT_NOT_RECEIVING -> "Abre la caja para cerrar esta cuenta: tiene pedidos por cobrar."
-        HotelErrors.ACCOUNT_TOTAL_CHANGED -> "La cuenta cambió mientras la revisabas. Revisa el total y vuelve a cerrarla."
-        HotelErrors.REQUEST_VERSION_CONFLICT, HotelErrors.REQUEST_INVALID_STATE -> "Otra persona ya atendió esta solicitud. Ya está al día."
+        HotelErrors.ACCOUNT_TOTAL_CHANGED ->
+            "La cuenta cambió mientras la revisabas. Ya está al día; revisa el total y vuelve a cerrarla."
+        HotelErrors.REQUEST_VERSION_CONFLICT, HotelErrors.REQUEST_INVALID_STATE ->
+            "Otra persona ya atendió esta solicitud. Ya está al día."
         HotelErrors.ROOM_OCCUPIED -> "Esa habitación ya tiene un huésped."
         HotelErrors.STAY_INVALID_STATE -> "Esa estancia ya cambió. Revisa la lista."
         HotelErrors.RATE_LIMITED -> "Demasiados intentos seguidos. Espera un momento."

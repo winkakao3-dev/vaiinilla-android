@@ -265,14 +265,8 @@ class HotelReceptionViewModel
                         busy = false,
                         pane = if (result.isSuccess) ReceptionPane.Overview else it.pane,
                         detail = if (result.isSuccess) null else it.detail,
-                        error =
-                            when {
-                                changed -> "La cuenta cambió mientras la revisabas. Ya está al día; revisa el total y vuelve a cerrarla."
-                                else ->
-                                    result.exceptionOrNull()?.let { e ->
-                                        staffErrorMessage(e, "No se pudo cerrar la cuenta.")
-                                    }
-                            },
+                        // ACCOUNT_TOTAL_CHANGED lo dice staffErrorMessage con sus palabras.
+                        error = result.exceptionOrNull()?.let { e -> staffErrorMessage(e, "No se pudo cerrar la cuenta.") },
                     )
                 }
                 if (changed) loadDetail(stayId, force = true, keepError = true)
