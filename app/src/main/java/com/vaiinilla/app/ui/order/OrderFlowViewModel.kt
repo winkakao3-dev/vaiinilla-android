@@ -124,6 +124,7 @@ class OrderFlowViewModel
         }
 
         fun enterGuestVenue(venue: GuestVenueContext) {
+            venue.space?.let { Venue.markSpace(it.id, it.isRoom) }
             val storageKey =
                 guestSessionStore.cartStorageKey(
                     venue.establishment.id,

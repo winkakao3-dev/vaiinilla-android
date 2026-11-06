@@ -28,27 +28,26 @@ class CelebrationMessageTest {
     }
 
     @Test
-    fun `en un hotel solo un pedido con estancia dice que se carga a la habitacion`() {
+    fun `en un hotel una mesa del restaurante no se carga a la habitacion`() {
         Venue.update(Venue.HOTEL)
         try {
             assertEquals(
                 "Se carga a tu habitación: la pagas al salir.",
-                celebrationMessage(order(payAtEnd = true, stayId = "s1"), PurchaseCelebrationKind.ORDER_RECEIVED),
+                celebrationMessage(order(payAtEnd = true), PurchaseCelebrationKind.ORDER_RECEIVED),
             )
-            // Una mesa del restaurante del hotel no tiene estancia.
+            Venue.markSpace(4, false)
             assertEquals(
                 "Va a tu cuenta: la pagas al final.",
                 celebrationMessage(order(payAtEnd = true), PurchaseCelebrationKind.ORDER_RECEIVED),
             )
         } finally {
+            Venue.markSpace(4, null)
             Venue.update(null)
         }
     }
 
-    private fun order(
-        payAtEnd: Boolean,
-        stayId: String? = null,
-    ) = OrderDetail(
+    private fun order(payAtEnd: Boolean) =
+        OrderDetail(
             summary =
                 OrderSummary(
                     id = "1",
@@ -71,6 +70,5 @@ class CelebrationMessageTest {
             user = null,
             kitchenNotes = "",
             items = emptyList(),
-            stayId = stayId,
         )
 }
