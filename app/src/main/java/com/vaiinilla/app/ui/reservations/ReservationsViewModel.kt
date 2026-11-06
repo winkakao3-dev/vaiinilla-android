@@ -134,7 +134,9 @@ class ReservationsViewModel
             }
             if (guestSlug != null) venueSlug = guestSlug
             guestSpaceToken = spaceToken
-            if (guestSlug != null && !hasAccount && spaceToken != null) guestSession.rememberSpace(guestSlug, spaceToken)
+            if (guestSlug != null && !hasAccount && spaceToken != null) {
+                guestSession.rememberSpace(guestSlug, spaceToken)
+            }
             if (next != reservationAccess) {
                 // Otra identidad: lo que se mostró de la anterior (sus reservas, su pago) ya no aplica.
                 reservationAccess = next

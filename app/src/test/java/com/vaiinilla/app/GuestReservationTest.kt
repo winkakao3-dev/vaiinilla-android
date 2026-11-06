@@ -68,9 +68,8 @@ class GuestReservationTest {
         val session = GuestReservationSession(api, store)
 
         session.enter("demo", "Ana", spaceToken = "token-del-lugar").getOrThrow()
-        assertTrue(
-            api.callsTo("publico/invitados").single().body.orEmpty().contains("\"espacio_token\":\"token-del-lugar\""),
-        )
+        val create = api.callsTo("publico/invitados").single()
+        assertTrue(create.body.orEmpty().contains("\"espacio_token\":\"token-del-lugar\""))
 
         session.invalidate()
         session.bearer("demo").getOrThrow()
@@ -91,7 +90,8 @@ class GuestReservationTest {
 
         session.enter("demo", "Ana").getOrThrow()
 
-        assertTrue(!api.callsTo("publico/invitados").single().body.orEmpty().contains("espacio_token"))
+        val create = api.callsTo("publico/invitados").single()
+        assertTrue(!create.body.orEmpty().contains("espacio_token"))
     }
 
     @Test

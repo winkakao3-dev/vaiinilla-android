@@ -113,7 +113,10 @@ class GuestReservationSession
             cached = null
         }
 
-        private fun spaceTokenFor(establishmentSlug: String): String? = space?.takeIf { it.first == establishmentSlug }?.second
+        private fun spaceTokenFor(establishmentSlug: String): String? =
+            space
+                ?.takeIf { it.first == establishmentSlug }
+                ?.second
 
         /** Descarta la sesión en memoria para que la siguiente llamada renueve (p. ej. tras un 401). */
         @Synchronized
