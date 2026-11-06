@@ -2,11 +2,18 @@ package com.vaiinilla.app.domain
 
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.OrderContractJson
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderReservation
+import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.ui.components.canAnnounceArrival
+import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.operational.cashCollectionNotice
 import com.vaiinilla.app.ui.screens.arrivalSuffix
+import com.vaiinilla.app.ui.screens.cashierPlaceLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -51,6 +58,35 @@ class ArrivalTest {
             "actualizado_en":"2026-09-30T23:50:00.000Z","notas_cocina":null,"items":[]},
             "meta":{"page":null,"total_pages":null,"total_items":null,"cursor":null},"error":null}"""
         assertNull(OrderContractJson().parseOrderDetail(raw).arrivedAt)
+    }
+
+    private fun rental(spaceName: String? = "Pista 3"): OrderDetail =
+        order(state = "por_cobrar").copy(
+            reservation =
+                OrderReservation(
+                    id = "r-1",
+                    space = spaceName?.let { OrderSpace(id = 3, name = it, type = "cancha") },
+                    start = Instant.parse("2026-11-05T20:00:00Z"),
+                    end = Instant.parse("2026-11-05T21:00:00Z"),
+                    durationMinutes = 60,
+                    state = ReservationState.PENDING_PAYMENT,
+                ),
+        )
+
+    @Test
+    fun `una renta no ofrece ya llegue y caja la cobra como renta, no para llevar`() {
+        assertFalse(rental().canAnnounceArrival(driveThru = true))
+        assertEquals("Renta de Pista 3", cashierPlaceLabel(rental()))
+        assertEquals("Renta", cashierPlaceLabel(rental(spaceName = null)))
+        assertEquals("Para llevar", cashierPlaceLabel(order()))
+        assertEquals(
+            "Renta de Pista 3 cobrada · Cambio: ${moneyLabel("10.00")}",
+            cashCollectionNotice(CashCollectionResult(rental(), amountReceived = "100.00", change = "10.00")),
+        )
+        assertEquals(
+            "Pedido #7 cobrado · Sin cambio",
+            cashCollectionNotice(CashCollectionResult(order(), amountReceived = "90.00", change = "0.00")),
+        )
     }
 
     @Test

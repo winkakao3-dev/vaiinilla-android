@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +34,9 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.rounded.Person
@@ -56,6 +59,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -69,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.notifications.NotificationMute
 import com.vaiinilla.app.domain.guardianship.PersonNames
 import com.vaiinilla.app.ui.account.AccountDeletionStatus
 import com.vaiinilla.app.ui.account.AccountDeletionUiState
@@ -92,6 +98,7 @@ import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
+import com.vaiinilla.app.ui.theme.VaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 
@@ -138,6 +145,8 @@ fun WalletAccountScreen(
     val onThemeModeChange = LocalVaiinillaThemeModeChanger.current
     var qrOpen by remember { mutableStateOf(false) }
     var confirmingSignOut by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var clientMuted by remember { mutableStateOf(NotificationMute.isMuted(context, NotificationMute.Scope.CLIENT)) }
     if (confirmingSignOut) {
         SignOutConfirmDialog(onConfirm = onSignOut, onDismiss = { confirmingSignOut = false })
     }
@@ -150,9 +159,9 @@ fun WalletAccountScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
                     .statusBarsPadding()
                     .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(top = 4.dp, bottom = 28.dp),
         ) {
@@ -211,6 +220,23 @@ fun WalletAccountScreen(
                 modifier = Modifier.arrive(index = 2),
             )
             ClientCard(modifier = Modifier.padding(top = 20.dp).arrive(index = 3)) {
+                // Naev (2026-11-05): apagar los avisos de pedidos, rentas e hijos en este teléfono.
+                AccountRow(
+                    title = if (clientMuted) "Prender notificaciones" else "Apagar notificaciones",
+                    subtitle =
+                        if (clientMuted) {
+                            "Apagadas: no te avisaremos de tus pedidos"
+                        } else {
+                            "Te avisamos cuando tu pedido avanza"
+                        },
+                    icon = if (clientMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.NotificationsActive,
+                    onClick = {
+                        haptics.click()
+                        clientMuted = !clientMuted
+                        NotificationMute.setMuted(context, NotificationMute.Scope.CLIENT, clientMuted)
+                    },
+                )
+                ClientCardDivider()
                 if (signedIn && onOpenNotices != null) {
                     AccountRow(
                         title = "Avisos recibidos",
@@ -457,71 +483,91 @@ private fun ThemeTiles(
 ) {
     val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
-    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        VaiinillaThemeMode.entries.forEach { mode ->
-            val look =
-                when (mode) {
-                    VaiinillaThemeMode.System -> ThemeTileLook(ThemeTileDark, ThemeTileDark, colors.line)
-                    VaiinillaThemeMode.Light -> ThemeTileLook(ThemeTileCream, ThemeTileDark, colors.line)
-                    VaiinillaThemeMode.Dark -> ThemeTileLook(Color(0xFF2A2B27), Color(0xFFDEDBD0), colors.line)
-                    VaiinillaThemeMode.Amoled -> ThemeTileLook(Color.Black, Color(0xFFDEDBD0), Color(0xFF33342F))
-                }
-            val selected = mode == current
-            val border by animateColorAsState(
-                targetValue = if (selected) colors.accent else look.restBorder,
-                animationSpec = if (reduced) snap() else spring(stiffness = 500f),
-                label = "theme-tile-border",
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(64.dp)
-                        .physicalPress(scale = PhysicalPressScale.Small, onClick = { onSelect(mode) })
-                        .clip(RoundedCornerShape(14.dp))
-                        .drawBehind {
-                            drawRect(look.fill)
-                            if (mode == VaiinillaThemeMode.System) {
-                                val half =
-                                    Path().apply {
-                                        moveTo(0f, 0f)
-                                        lineTo(size.width, 0f)
-                                        lineTo(0f, size.height)
-                                        close()
-                                    }
-                                drawPath(half, ThemeTileCream)
-                            }
-                        }.border(2.dp, border, RoundedCornerShape(14.dp))
-                        .semantics {
-                            this.selected = selected
-                            role = Role.RadioButton
-                        }.padding(8.dp),
-                contentAlignment = Alignment.BottomStart,
-            ) {
-                val name = themeTileName(mode)
-                if (mode == VaiinillaThemeMode.System) {
-                    Text(
-                        name,
-                        color = look.label,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(ThemeTileCream.copy(alpha = 0.9f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                } else {
-                    Text(
-                        name,
-                        color = look.label,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.5.sp, stepSize = 0.5.sp),
-                    )
+    // L01: con letra grande «Medianoche» no cabía en una de cuatro y se cortaba: van de dos en dos.
+    val perRow = themeTilesPerRow(LocalDensity.current.fontScale)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        VaiinillaThemeMode.entries.chunked(perRow).forEach { rowModes ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowModes.forEach { mode ->
+                    ThemeTile(mode, current, onSelect, colors, reduced)
                 }
             }
+        }
+    }
+}
+
+/** Cuántas muestras de tema por renglón: con letra grande, dos. */
+internal fun themeTilesPerRow(fontScale: Float): Int = if (fontScale >= 1.15f) 2 else VaiinillaThemeMode.entries.size
+
+@Composable
+private fun RowScope.ThemeTile(
+    mode: VaiinillaThemeMode,
+    current: VaiinillaThemeMode,
+    onSelect: (VaiinillaThemeMode) -> Unit,
+    colors: VaiinillaColors,
+    reduced: Boolean,
+) {
+    val look =
+        when (mode) {
+            VaiinillaThemeMode.System -> ThemeTileLook(ThemeTileDark, ThemeTileDark, colors.line)
+            VaiinillaThemeMode.Light -> ThemeTileLook(ThemeTileCream, ThemeTileDark, colors.line)
+            VaiinillaThemeMode.Dark -> ThemeTileLook(Color(0xFF2A2B27), Color(0xFFDEDBD0), colors.line)
+            VaiinillaThemeMode.Amoled -> ThemeTileLook(Color.Black, Color(0xFFDEDBD0), Color(0xFF33342F))
+        }
+    val selected = mode == current
+    val border by animateColorAsState(
+        targetValue = if (selected) colors.accent else look.restBorder,
+        animationSpec = if (reduced) snap() else spring(stiffness = 500f),
+        label = "theme-tile-border",
+    )
+    Box(
+        modifier =
+            Modifier
+                .weight(1f)
+                .height(64.dp)
+                .physicalPress(scale = PhysicalPressScale.Small, onClick = { onSelect(mode) })
+                .clip(RoundedCornerShape(14.dp))
+                .drawBehind {
+                    drawRect(look.fill)
+                    if (mode == VaiinillaThemeMode.System) {
+                        val half =
+                            Path().apply {
+                                moveTo(0f, 0f)
+                                lineTo(size.width, 0f)
+                                lineTo(0f, size.height)
+                                close()
+                            }
+                        drawPath(half, ThemeTileCream)
+                    }
+                }.border(2.dp, border, RoundedCornerShape(14.dp))
+                .semantics {
+                    this.selected = selected
+                    role = Role.RadioButton
+                }.padding(8.dp),
+        contentAlignment = Alignment.BottomStart,
+    ) {
+        val name = themeTileName(mode)
+        if (mode == VaiinillaThemeMode.System) {
+            Text(
+                name,
+                color = look.label,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ThemeTileCream.copy(alpha = 0.9f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        } else {
+            Text(
+                name,
+                color = look.label,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.5.sp, stepSize = 0.5.sp),
+            )
         }
     }
 }
@@ -532,6 +578,7 @@ private val ThemeTileDark = Color(0xFF1D1E1C)
 /** El nombre corto de la muestra: «Automático» no cabe en una de cuatro. */
 internal fun themeTileName(mode: VaiinillaThemeMode): String =
     if (mode == VaiinillaThemeMode.System) "Auto" else themeModeName(mode)
+
 /** Lo que se pierde al borrar la cuenta, para decirlo antes y no después (Doop E13). */
 data class AccountDeletionWarnings(
     val balance: String? = null,

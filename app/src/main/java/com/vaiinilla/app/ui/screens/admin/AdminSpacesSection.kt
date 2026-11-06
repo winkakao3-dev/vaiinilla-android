@@ -57,6 +57,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceDraft
@@ -78,6 +81,7 @@ import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.prepareProductImage
+import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 
 private sealed interface SpacesSheet {
@@ -98,6 +102,11 @@ private sealed interface SpacesSheet {
     ) : SpacesSheet
 
     data class Release(
+        val reservation: Reservation,
+    ) : SpacesSheet
+
+    /** #28: cancelar una renta ya pagada que no ha empezado, con reembolso. */
+    data class Refund(
         val reservation: Reservation,
     ) : SpacesSheet
 }
@@ -162,7 +171,18 @@ internal fun AdminSpacesSection(
                     }
                 }
             }
-            SpacesPage.Reservations ->
+            SpacesPage.Reservations -> {
+                // Las reservas llegan de los clientes sin aviso: con la página abierta se vuelven a leer cada tanto
+                // (y al volver a la app); antes solo se veían al reiniciar (en vivo, #12).
+                val lifecycleOwner = LocalLifecycleOwner.current
+                LaunchedEffect(lifecycleOwner) {
+                    lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        while (true) {
+                            viewModel.refresh()
+                            delay(RESERVATIONS_REFRESH_MS)
+                        }
+                    }
+                }
                 AdminSectionPage(
                     title = "Reservas",
                     colors = colors,
@@ -179,11 +199,13 @@ internal fun AdminSpacesSection(
                             enabled,
                             onCharge = { sheet = SpacesSheet.Charge(it) },
                             onRelease = { sheet = SpacesSheet.Release(it) },
+                            onRefund = { sheet = SpacesSheet.Refund(it) },
                         )
                     }
                     item { AdminH2("Horario de reservas", colors) }
                     item { ScheduleCard(state.schedule, colors, enabled, viewModel::saveSchedule) }
                 }
+            }
             null ->
                 if (Venue.isHotel) {
                     // En un hotel las mesas son habitaciones: su lista, el alta en lote y el QR de cada una (A01).
@@ -259,6 +281,10 @@ internal fun AdminSpacesSection(
             ) {
                 viewModel.cancelReservation(current.reservation)
                 close()
+            }
+        is SpacesSheet.Refund ->
+            RefundSheet(current.reservation, colors, state.saving, error, close) { amount, reason ->
+                viewModel.refundReservation(current.reservation, amount, reason, close)
             }
         null -> Unit
     }
@@ -596,7 +622,9 @@ private fun CreateSheet(
         Text("Tipo", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (if (many) SpaceType.batchTypes else SpaceType.entries).forEach { option ->
-                ChipButton(label = option.label, enabled = !saving, colors = colors, selected = option == type) {
+                // Fuera de un boliche el mismo tipo sirve para canchas y pistas: que se encuentre.
+                val chip = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label
+                ChipButton(label = chip, enabled = !saving, colors = colors, selected = option == type) {
                     if (prefix == type.label) prefix = option.label
                     type = option
                 }
@@ -776,7 +804,7 @@ private fun EditSheet(
             ) {
                 SpaceType.entries.forEach { option ->
                     ChipButton(
-                        label = option.label,
+                        label = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label,
                         enabled = !saving,
                         colors = colors,
                         selected =
@@ -839,7 +867,7 @@ private fun EditSheet(
                     onValueChange = { sport = it.take(40) },
                     label = "Deporte",
                     colors = colors,
-                    placeholder = "Pádel",
+                    placeholder = if (Venue.isBowling) "Boliche" else "Pádel",
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -848,7 +876,7 @@ private fun EditSheet(
                     onValueChange = { surface = it.take(40) },
                     label = "Superficie",
                     colors = colors,
-                    placeholder = "Pasto sintético",
+                    placeholder = if (Venue.isBowling) "Madera sintética" else "Pasto sintético",
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -966,7 +994,9 @@ private fun ReservationsCard(
     enabled: Boolean,
     onCharge: (Reservation) -> Unit,
     onRelease: (Reservation) -> Unit,
+    onRefund: (Reservation) -> Unit = {},
 ) {
+    val now = java.time.Instant.now()
     AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
         if (reservations.isEmpty()) {
             AdminRow(title = "Sin reservas hoy", colors = colors, detail = "Nadie la ha apartado") {
@@ -981,6 +1011,12 @@ private fun ReservationsCard(
                 colors = colors,
                 detail =
                     (reservation.courtName?.let { "$it · " } ?: "") +
+                        // #13: cuántos juegan, para tener la pista lista con sus zapatos.
+                        (
+                            reservation.players
+                                ?.takeIf { it > 0 }
+                                ?.let { "$it ${if (it == 1) "jugador" else "jugadores"} · " } ?: ""
+                        ) +
                         if (pending) {
                             "Paga al llegar · ${moneyLabel(
                                 reservation.amount,
@@ -1005,11 +1041,8 @@ private fun ReservationsCard(
                     }
                 },
             ) {
-                AdminBadge(
-                    if (pending) "Por cobrar" else "Pagada",
-                    colors,
-                    if (pending) AdminBadgeTone.WARN else AdminBadgeTone.OK,
-                )
+                val (badge, tone) = reservationBadge(reservation.state)
+                AdminBadge(badge, colors, tone)
             }
             if (pending) {
                 Row(Modifier.padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1027,9 +1060,19 @@ private fun ReservationsCard(
                         enabled = enabled,
                     ) { onCharge(reservation) }
                 }
+            } else if (reservation.state == ReservationState.CONFIRMED && reservation.start.isAfter(now)) {
+                // #28: pagada y sin empezar: el personal la cancela con reembolso (el cliente puede la suya).
+                AdminSecondaryButton(
+                    "Cancelar y reembolsar",
+                    colors,
+                    Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    destructive = true,
+                    enabled = enabled,
+                ) { onRefund(reservation) }
             }
         }
-        freeGaps(reservations, schedule).forEach { (start, minutes) ->
+        // Un apartado vencido no ocupa la pista: lo que sigue libre se ofrece igual.
+        freeGaps(reservations.filter { it.state != ReservationState.EXPIRED }, schedule).forEach { (start, minutes) ->
             AdminRowDivider(colors)
             AdminRow(
                 title = "Disponible",
@@ -1131,6 +1174,64 @@ private fun ChargeSheet(
                     .money(received) ?: received,
             )
         }
+    }
+}
+
+/**
+ * #28: cancelar una renta pagada desde Administración. El personal decide cuánto se devuelve (de 0 a lo
+ * pagado) y por qué; el servidor lo regresa por la misma vía del pago (saldo, efectivo o tarjeta).
+ */
+@Composable
+private fun RefundSheet(
+    reservation: Reservation,
+    colors: OperationalColors,
+    saving: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (amount: String, reason: String) -> Unit,
+) {
+    var amount by remember { mutableStateOf(reservation.amount.removeSuffix(".00")) }
+    var reason by remember { mutableStateOf("") }
+    val wire = MoneyInput.toWire(amount)
+    val reasonOk = reason.trim().length in 3..240
+    AdminSheet(title = "Cancelar renta pagada", colors = colors, busy = saving, onDismiss = onDismiss) {
+        AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+            AdminValueRow("Espacio", reservation.courtName ?: Venue.courtTitle, colors)
+            reservation.customerName?.let { AdminValueRow("Cliente", it, colors) }
+            reservation.players?.let { AdminValueRow("Jugadores", "$it", colors) }
+            AdminValueRow("Horario", reservationTime(reservation), colors)
+            AdminValueRow("Renta", moneyLabelCents(reservation.amount), colors)
+        }
+        OperationalField(
+            value = amount,
+            onValueChange = { amount = MoneyInput.sanitize(it).take(10) },
+            label = "Se devuelve",
+            colors = colors,
+            enabled = !saving,
+            keyboardType = KeyboardType.Decimal,
+        )
+        OperationalField(
+            value = reason,
+            onValueChange = { reason = it.take(240) },
+            label = "Motivo",
+            colors = colors,
+            placeholder = "Por qué se cancela",
+            enabled = !saving,
+            singleLine = false,
+            minLines = 2,
+        )
+        AdminHint(
+            "La ${Venue.court} queda libre. Se devuelve por donde pagó: saldo a su cartera, efectivo de la caja " +
+                "y tarjeta queda pendiente para Caja. Pon 0 si no se devuelve nada.",
+            colors,
+        )
+        AdminSheetError(error)
+        AdminPrimaryButton(
+            title = wire?.let { "Cancelar y devolver ${moneyLabelCents(it)}" } ?: "Cancelar y reembolsar",
+            colors = colors,
+            enabled = wire != null && reasonOk,
+            busy = saving,
+        ) { onConfirm(amount, reason) }
     }
 }
 
@@ -1277,6 +1378,20 @@ private fun reservationTime(reservation: Reservation): String {
     )}–${ReservationTimeFormat.format(reservation.end.atZone(zone))}"
 }
 
+/**
+ * R27: la insignia de cada estado. Un apartado vencido nunca se pagó y uno en conflicto hay que revisarlo:
+ * ninguno sale en verde como «Pagada».
+ */
+internal fun reservationBadge(state: ReservationState): Pair<String, AdminBadgeTone> =
+    when (state) {
+        ReservationState.PENDING_PAYMENT -> "Por cobrar" to AdminBadgeTone.WARN
+        ReservationState.CONFIRMED, ReservationState.IN_PROGRESS, ReservationState.FINISHED ->
+            "Pagada" to AdminBadgeTone.OK
+        ReservationState.EXPIRED -> "Vencida" to AdminBadgeTone.NEUTRAL
+        ReservationState.CONFLICT -> "Revisar" to AdminBadgeTone.DANGER
+        ReservationState.CANCELLED -> "Cancelada" to AdminBadgeTone.NEUTRAL
+    }
+
 private fun reservationLabel(state: ReservationState): String =
     when (state) {
         ReservationState.PENDING_PAYMENT -> "Por pagar en efectivo"
@@ -1286,3 +1401,6 @@ private fun reservationLabel(state: ReservationState): String =
 
 /** "Mesa 2" antes que "Mesa 10": los números se comparan como números. */
 private fun naturalKey(name: String): String = name.replace(Regex("\\d+")) { it.value.padStart(8, '0') }.lowercase()
+
+/** Cada cuánto se vuelven a leer las reservas con su página abierta. */
+private const val RESERVATIONS_REFRESH_MS = 15_000L

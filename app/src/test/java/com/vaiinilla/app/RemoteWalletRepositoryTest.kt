@@ -22,6 +22,8 @@ class RemoteWalletRepositoryTest {
         assertEquals(12, compra.orderFolio)
         assertEquals("Mesa 2", compra.place)
         assertEquals("2× Molletes y 1 más", compra.productsSummary)
+        // Un servidor que aún no manda `saldo_congelado` no lo congela.
+        assertEquals(false, wallet.wallet.frozen)
     }
 
     @Test

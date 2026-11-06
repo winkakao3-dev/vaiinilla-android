@@ -65,6 +65,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -121,6 +122,8 @@ internal fun ChildAccountPage(
     startWithReload: Boolean = false,
     /** El monto que eligió en el paso 3 de agregarlo. */
     initialReloadAmount: Int? = null,
+    /** Llegó por el aviso de un pedido: la ficha abre ese pedido para verlo (P08). */
+    initialOrderId: String? = null,
 ) {
     val state = remember(child.userId) { ChildAccountState(child, services) }
     ChildAccountContent(
@@ -130,6 +133,7 @@ internal fun ChildAccountPage(
         onBack = onBack,
         startWithReload = startWithReload,
         initialReloadAmount = initialReloadAmount,
+        initialOrderId = initialOrderId,
     )
 }
 
@@ -142,12 +146,17 @@ internal fun ChildAccountContent(
     startWithReload: Boolean = false,
     initialReloadAmount: Int? = null,
     startOnSecurity: Boolean = false,
+    initialOrderId: String? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val reduced = reducedMotion()
     val scope = rememberCoroutineScope()
     var sheet by rememberSaveable { mutableStateOf(if (startWithReload) ChildSheet.RELOAD else null) }
     var showSecurity by rememberSaveable { mutableStateOf(startOnSecurity) }
+    // Lo que pidió el hijo, solo para verlo: desde su comida apartada o desde el aviso del pedido (P08).
+    var openOrderId by rememberSaveable { mutableStateOf(initialOrderId) }
+    // Otro aviso de pedido con la ficha ya abierta: abre ese pedido.
+    LaunchedEffect(initialOrderId) { initialOrderId?.let { openOrderId = it } }
     var confirmsBlock by remember { mutableStateOf(false) }
     // Solo la primera recarga llega con el monto elegido; si la cierra y la vuelve a abrir, empieza de cero.
     var pendingReloadAmount by rememberSaveable { mutableStateOf(initialReloadAmount) }
@@ -229,7 +238,7 @@ internal fun ChildAccountContent(
                 )
             }
             item(key = "scheduled") {
-                ScheduledCard(state, Modifier.arrive(3)) { orderToCancel = it }
+                ScheduledCard(state, Modifier.arrive(3), onOpen = { openOrderId = it.id }) { orderToCancel = it }
             }
             item(key = "counter-title") {
                 CardCaption("Lo que cuida la caja", modifier = Modifier.padding(top = 26.dp).arrive(4))
@@ -261,6 +270,17 @@ internal fun ChildAccountContent(
                 onBlockCredential = { confirmsBlock = true },
                 onBack = { showSecurity = false },
             )
+        }
+        FullScreenPage(visible = openOrderId != null, reduced = reduced) {
+            openOrderId?.let { id ->
+                BackHandler { openOrderId = null }
+                GuardianOrderPage(
+                    orderId = id,
+                    childName = child.firstName,
+                    orders = state.services.orders,
+                    onBack = { openOrderId = null },
+                )
+            }
         }
         val isError = state.noticeIsError
         ToastPill(
@@ -606,6 +626,7 @@ private fun androidx.compose.foundation.layout.RowScope.RoundAction(
 private fun ScheduledCard(
     state: ChildAccountState,
     modifier: Modifier = Modifier,
+    onOpen: (ScheduledOrder) -> Unit = {},
     onCancel: (ScheduledOrder) -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
@@ -661,6 +682,7 @@ private fun ScheduledCard(
                         state.schedule?.cancelCutoff,
                         now = state.schedule?.let { LocalDateTime.now() },
                     ),
+                onOpen = { onOpen(order) },
             ) { onCancel(order) }
         }
     }
@@ -677,22 +699,57 @@ internal fun schoolWeek(today: LocalDate): List<LocalDate> {
     return (0L..4L).map(monday::plusDays)
 }
 
+/**
+ * «Se recoge el jueves 24 a las 12:00» bajo lo apartado de un hijo (P08). Antes solo había hora si el pedido traía
+ * franja, y sin franja el tutor no veía cuándo se recoge.
+ */
+internal fun guardianPickupLine(
+    dayLabel: String,
+    slot: String?,
+): String {
+    val day =
+        when (dayLabel) {
+            "Hoy" -> "hoy"
+            "Mañana" -> "mañana"
+            else -> "el ${dayLabel.lowercase()}"
+        }
+    val start = slot?.substringBefore("-")?.trim()
+    val hour = if (start.isNullOrEmpty()) "" else " a las $start"
+    return "Se recoge $day$hour"
+}
+
 @Composable
 private fun ScheduledRow(
     order: ScheduledOrder,
     today: LocalDate,
     canceling: Boolean,
     cancelable: Boolean,
+    onOpen: () -> Unit = {},
     onCancel: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
     val date = order.deliveryDate.orEmpty()
     val dayLabel = SchoolCalendar.longLabel(date, today.toString())
     val title = if (date == today.toString()) "Hoy: ${order.summary}" else "$dayLabel: ${order.summary}"
-    val pickup = order.deliverySlot?.substringBefore("-")?.let { "Recoge a las $it · " }.orEmpty()
+    val pickup = guardianPickupLine(dayLabel, order.deliverySlot) + " · "
     Row(modifier = Modifier.padding(start = 4.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-            Text(title, color = colors.ink, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 2)
+        // Tocar el renglón abre el pedido para verlo; «Cancelar» sigue siendo su propio botón.
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .physicalPress(scale = PhysicalPressScale.Small, onClick = onOpen)
+                    .semantics { contentDescription = "Ver lo que pidió para $dayLabel" }
+                    .padding(end = 10.dp),
+        ) {
+            Text(
+                title,
+                color = colors.ink,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(pickup + compactMoney(order.total), color = colors.muted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         }
         when {
@@ -932,7 +989,7 @@ internal fun CardCaption(
         if (action != null) {
             Text(
                 action,
-                color = colors.accent,
+                color = if (colors.isDark) colors.accent else colors.accentInk,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 13.sp,
                 modifier = Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onAction).minTouchTarget(),

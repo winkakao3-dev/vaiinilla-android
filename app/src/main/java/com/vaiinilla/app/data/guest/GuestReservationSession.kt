@@ -30,6 +30,9 @@ class GuestReservationSession
     ) {
         private var cached: CachedBearer? = null
 
+        /** El token del QR o NFC del lugar con el que se entró: da permiso de apartar y hay que repetirlo al renovar. */
+        private var space: Pair<String, String>? = null
+
         fun hasIdentity(): Boolean = store.readGuestKey() != null
 
         fun storedName(): String? = store.readGuestName()
@@ -39,12 +42,15 @@ class GuestReservationSession
         fun enter(
             establishmentSlug: String,
             name: String,
+            spaceToken: String? = null,
         ): Result<Unit> =
             runCatching {
                 val legal = fetchLegalVersions()
+                spaceToken?.takeIf { it.isNotBlank() }?.let { space = establishmentSlug to it }
                 val body =
                     buildJsonObject {
                         put("establecimiento_slug", establishmentSlug)
+                        spaceTokenFor(establishmentSlug)?.let { put("espacio_token", it) }
                         put("nombre", name)
                         put("terminos_version", legal.terminosVersion)
                         put("privacidad_version", legal.privacidadVersion)
@@ -78,6 +84,7 @@ class GuestReservationSession
             val body =
                 buildJsonObject {
                     put("establecimiento_slug", establishmentSlug)
+                    spaceTokenFor(establishmentSlug)?.let { put("espacio_token", it) }
                     put("llave", key)
                 }.toString()
             return runCatching {
@@ -94,6 +101,22 @@ class GuestReservationSession
                     throw error
                 }
         }
+
+        /** Un invitado que ya tenía identidad y escanea el QR del lugar: la próxima sesión lleva el permiso de apartar. */
+        @Synchronized
+        fun rememberSpace(
+            establishmentSlug: String,
+            spaceToken: String,
+        ) {
+            if (spaceToken.isBlank() || space == (establishmentSlug to spaceToken)) return
+            space = establishmentSlug to spaceToken
+            cached = null
+        }
+
+        private fun spaceTokenFor(establishmentSlug: String): String? =
+            space
+                ?.takeIf { it.first == establishmentSlug }
+                ?.second
 
         /** Descarta la sesión en memoria para que la siguiente llamada renueve (p. ej. tras un 401). */
         @Synchronized
@@ -121,6 +144,7 @@ class GuestReservationSession
         @Synchronized
         fun forgetIdentity() {
             cached = null
+            space = null
             store.clearGuest()
         }
 

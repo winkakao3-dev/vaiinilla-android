@@ -131,8 +131,8 @@ private fun SchoolChip(
                     if (reduced) {
                         fadeIn(snap()) togetherWith fadeOut(snap())
                     } else {
-                        (fadeIn() + scaleIn(spring(stiffness = 500f), initialScale = 0.6f)) togetherWith
-                            (fadeOut() + scaleOut(targetScale = 0.6f))
+                        (fadeIn() + scaleIn(spring(stiffness = 500f), initialScale = 0.9f)) togetherWith
+                            (fadeOut() + scaleOut(targetScale = 0.9f))
                     }
                 },
                 label = "school-chip",

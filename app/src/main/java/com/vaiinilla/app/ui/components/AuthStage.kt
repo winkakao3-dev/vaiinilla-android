@@ -141,7 +141,8 @@ fun AuthStage(
     LightStatusBarIcons()
     val busyAlpha by animateFloatAsState(
         targetValue = if (loading) 0.55f else 1f,
-        animationSpec = tween(400, easing = StageEase),
+        // Al tocar un botón el formulario se atenúa: a 400 ms se sentía lento.
+        animationSpec = tween(200, easing = StageEase),
         label = "authStageBusy",
     )
     Box(

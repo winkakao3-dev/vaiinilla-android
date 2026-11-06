@@ -38,9 +38,13 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +67,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.repository.CashDrawerSummary
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -83,6 +88,38 @@ fun normalizeCountedCash(raw: String): String? {
     return "${parts[0].trimStart('0').ifEmpty { "0" }}.$cents"
 }
 
+/** El conteo del cierre de caja: el total escrito y, si se contó billete por billete, cada denominación. */
+data class CashCountDraft(
+    val amount: String = "",
+    val counting: Boolean = false,
+    val billCounts: Map<Int, Int> = emptyMap(),
+    val coins: String = "",
+) {
+    companion object {
+        /** Guarda el conteo en el estado de la ruta: sobrevive a ir a «Ver cuentas» y volver. */
+        val Saver: Saver<CashCountDraft, Any> =
+            listSaver(
+                save = { draft ->
+                    listOf(
+                        draft.amount,
+                        draft.counting,
+                        draft.coins,
+                        ArrayList(draft.billCounts.flatMap { (bill, count) -> listOf(bill, count) }),
+                    )
+                },
+                restore = { saved ->
+                    val bills = (saved[3] as List<*>).map { it as Int }
+                    CashCountDraft(
+                        amount = saved[0] as String,
+                        counting = saved[1] as Boolean,
+                        coins = saved[2] as String,
+                        billCounts = bills.chunked(2).associate { (bill, count) -> bill to count },
+                    )
+                },
+            )
+    }
+}
+
 /**
  * Cierre de caja (C07): lo que debe haber, el efectivo contado y la diferencia en grande, y se confirma
  * deslizando porque no se deshace. Si el servidor rechaza el cierre porque hay cuentas a pagar al final sin
@@ -100,6 +137,9 @@ fun CashCloseSheet(
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
     openingAmount: String? = null,
+    countState: MutableState<CashCountDraft>? = null,
+    unsyncedCashOrders: Int = 0,
+    drawerSummary: CashDrawerSummary? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -123,6 +163,9 @@ fun CashCloseSheet(
                 amountToExpire,
                 expectedCash,
                 openingAmount,
+                countState,
+                unsyncedCashOrders = unsyncedCashOrders,
+                drawerSummary = drawerSummary,
             )
         }
     }
@@ -149,16 +192,28 @@ fun CashCloseContent(
     amountToExpire: BigDecimal = BigDecimal.ZERO,
     expectedCash: String? = null,
     openingAmount: String? = null,
+    /** Dónde vive el conteo; si es null, la hoja lo guarda ella misma. */
+    countState: MutableState<CashCountDraft>? = null,
+    /** Pedidos cobrados sin internet que el servidor aún no registra: mientras haya, no se cierra (R5). */
+    unsyncedCashOrders: Int = 0,
+    /** El `resumen` del cajón: con él la hoja desglosa igual que el corte (R37). */
+    drawerSummary: CashDrawerSummary? = null,
 ) {
-    var amount by remember { mutableStateOf("") }
-    var counting by remember { mutableStateOf(false) }
-    var billCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
-    var coins by remember { mutableStateOf("") }
+    // Con el resumen del cajón, lo que debe haber es el suyo: es la lectura más reciente del servidor.
+    val shownExpected = drawerSummary?.expected ?: expectedCash
+    val ownCount = rememberSaveable(stateSaver = CashCountDraft.Saver) { mutableStateOf(CashCountDraft()) }
+    val count = countState ?: ownCount
+    val draft = count.value
+    val amount = draft.amount
+    val counting = draft.counting
+    val billCounts = draft.billCounts
+    val coins = draft.coins
     val normalized = normalizeCountedCash(amount)
     val haptics = rememberVaiinillaHaptics()
 
-    fun syncFromCounter() {
-        billCountTotal(billCounts, coins)?.let { amount = it }
+    /** Con el contador, el total se recalcula de los billetes y monedas. */
+    fun updateCounter(next: CashCountDraft) {
+        count.value = billCountTotal(next.billCounts, next.coins)?.let { next.copy(amount = it) } ?: next
     }
     Column(
         modifier =
@@ -214,14 +269,18 @@ fun CashCloseContent(
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (unsyncedCashOrders > 0) {
+                        CashWarningCard(
+                            title = unsyncedCashTitle(unsyncedCashOrders),
+                            body =
+                                "Ese efectivo ya está en el cajón pero todavía no cuenta en la caja. Espera a que se " +
+                                    "mande con la red, o resuélvelo en «Pedidos guardados», y luego cierra.",
+                        )
+                    }
                     expiringOrdersNotice(ordersToExpire, amountToExpire)?.let {
                         CashWarningCard(title = it, body = "Cóbralos antes de cerrar para no perder ese dinero.")
                     }
-                    if (expectedCash != null) {
-                        val cashIn =
-                            openingAmount?.toBigDecimalOrNull()?.let { opening ->
-                                expectedCash.toBigDecimalOrNull()?.minus(opening)?.toPlainString()
-                            }
+                    if (shownExpected != null) {
                         Column(
                             modifier =
                                 Modifier
@@ -231,15 +290,16 @@ fun CashCloseContent(
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            openingAmount?.let { CloseRow("Fondo al abrir", moneyLabelCents(it), colors) }
-                            cashIn?.let { CloseRow("Cobros en efectivo", "+${moneyLabelCents(it)}", colors) }
-                            CloseRow("Debe haber", moneyLabelCents(expectedCash), colors, strong = true)
+                            closeBreakdown(drawerSummary, openingAmount, shownExpected).forEach { (label, value) ->
+                                CloseRow(label, value, colors)
+                            }
+                            CloseRow("Debe haber", moneyLabelCents(shownExpected), colors, strong = true)
                         }
                     }
                     val invalid = amount.isNotBlank() && normalized == null
                     CashAmountField(
                         value = amount,
-                        onValueChange = { amount = it },
+                        onValueChange = { count.value = count.value.copy(amount = it) },
                         label = "EFECTIVO CONTADO",
                         colors = colors,
                         enabled = !state.closing,
@@ -255,8 +315,12 @@ fun CashCloseContent(
                             Modifier
                                 .physicalPress(enabled = !state.closing, scale = PhysicalPressScale.Small) {
                                     haptics.selection()
-                                    counting = !counting
-                                    if (counting && (billCounts.isNotEmpty() || coins.isNotBlank())) syncFromCounter()
+                                    val next = count.value.copy(counting = !count.value.counting)
+                                    if (next.counting && (next.billCounts.isNotEmpty() || next.coins.isNotBlank())) {
+                                        updateCounter(next)
+                                    } else {
+                                        count.value = next
+                                    }
                                 }.heightIn(min = 40.dp)
                                 .wrapContentHeight(),
                     )
@@ -270,17 +334,13 @@ fun CashCloseContent(
                             coins = coins,
                             colors = colors,
                             enabled = !state.closing,
-                            onCountChange = { bill, count ->
-                                billCounts = billCounts + (bill to count)
-                                syncFromCounter()
+                            onCountChange = { bill, bills ->
+                                updateCounter(count.value.copy(billCounts = count.value.billCounts + (bill to bills)))
                             },
-                            onCoinsChange = {
-                                coins = it
-                                syncFromCounter()
-                            },
+                            onCoinsChange = { updateCounter(count.value.copy(coins = it)) },
                         )
                     }
-                    cashCountDifference(normalized, expectedCash)?.let { diff ->
+                    cashCountDifference(normalized, shownExpected)?.let { diff ->
                         CashDifferenceCard(diff, colors)
                     }
                     state.errorMessage?.let {
@@ -290,12 +350,13 @@ fun CashCloseContent(
                         title =
                             when {
                                 state.closing -> "Cerrando…"
+                                unsyncedCashOrders > 0 -> "Primero se registra lo cobrado sin internet"
                                 normalized == null -> "Escribe el efectivo contado"
                                 else -> "Cerrar caja con ${moneyLabel(normalized)}"
                             },
                         colors = colors,
                         busy = state.closing,
-                        enabled = normalized != null,
+                        enabled = normalized != null && unsyncedCashOrders == 0,
                     ) { normalized?.let(onConfirm) }
                 }
             }
@@ -479,6 +540,53 @@ internal fun CashAmountField(
         supporting?.let { Text(it, fontSize = 12.sp, color = coral) }
     }
 }
+
+/**
+ * Los renglones arriba de «Debe haber», con las palabras del corte. Con el `resumen` del cajón cada concepto va
+ * aparte (los que valen cero no salen, salvo fondo y cobros); sin él solo se sabe el neto del turno, con su signo.
+ */
+internal fun closeBreakdown(
+    summary: CashDrawerSummary?,
+    openingAmount: String?,
+    expectedCash: String,
+): List<Pair<String, String>> {
+    if (summary == null) {
+        val openingText = openingAmount ?: return emptyList()
+        val opening = openingText.toBigDecimalOrNull() ?: return emptyList()
+        val net =
+            expectedCash.toBigDecimalOrNull()?.minus(opening)
+                ?: return listOf("Fondo al abrir" to moneyLabelCents(openingText))
+        return listOf(
+            "Fondo al abrir" to moneyLabelCents(openingText),
+            "Movimientos del turno (neto)" to signedCents(net),
+        )
+    }
+    fun nonZero(value: String): Boolean = (value.toBigDecimalOrNull()?.signum() ?: 0) != 0
+    return buildList {
+        add("Fondo al abrir" to moneyLabelCents(summary.opening))
+        add("Cobros en efectivo" to "+${moneyLabelCents(summary.cashSales)}")
+        if (nonZero(summary.tips)) add("Propinas en efectivo" to "+${moneyLabelCents(summary.tips)}")
+        if (nonZero(summary.reloads)) add("Recargas de saldo" to "+${moneyLabelCents(summary.reloads)}")
+        if (nonZero(summary.cashIn)) add("Entradas al cajón" to "+${moneyLabelCents(summary.cashIn)}")
+        if (nonZero(summary.cashOut)) add("Salidas del cajón" to "−${moneyLabelCents(summary.cashOut)}")
+        if (nonZero(summary.refunds)) add("Devoluciones en efectivo" to "−${moneyLabelCents(summary.refunds)}")
+    }
+}
+
+private fun signedCents(value: BigDecimal): String =
+    when (value.signum()) {
+        -1 -> "−${moneyLabelCents(value.abs().toPlainString())}"
+        0 -> moneyLabelCents("0.00")
+        else -> "+${moneyLabelCents(value.toPlainString())}"
+    }
+
+/** El aviso que bloquea el cierre mientras haya efectivo cobrado sin internet sin registrar. */
+internal fun unsyncedCashTitle(count: Int): String =
+    if (count == 1) {
+        "Hay 1 pedido cobrado sin internet sin registrar"
+    } else {
+        "Hay $count pedidos cobrados sin internet sin registrar"
+    }
 
 /** Lo que se pierde al cerrar: el servidor expira los pedidos en efectivo que siguen por cobrar. */
 internal fun expiringOrdersNotice(

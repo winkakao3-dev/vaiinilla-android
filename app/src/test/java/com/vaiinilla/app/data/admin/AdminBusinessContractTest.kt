@@ -28,6 +28,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdminBusinessContractTest {
+    @Test
+    fun `el resumen de cartera nombra las recargas con tarjeta y las devoluciones de articulos`() {
+        assertEquals("Recargas con tarjeta", AdminBusinessJson.walletMovementLabel("recarga_stripe"))
+        assertEquals("Devoluciones de artículos", AdminBusinessJson.walletMovementLabel("devolucion_articulo"))
+    }
+
     private val json = AdminBusinessJson()
 
     private fun obj(raw: String) = Json.parseToJsonElement(raw).jsonObject
@@ -77,6 +83,17 @@ class AdminBusinessContractTest {
     }
 
     @Test
+    fun `pago en caja viaja en la configuracion solo si el servidor lo conoce`() {
+        val off = json.parseStoreConfig("""{"data":{"tipo":"cafeteria","permite_pago_en_caja":false}}""")
+        assertEquals(false, off.allowsCashAtRegister)
+        val sent = obj(json.encodeFlow(off.flow().copy(allowsCashAtRegister = true)))
+        assertEquals("true", sent["permite_pago_en_caja"]!!.jsonPrimitive.content)
+        val older = json.parseStoreConfig("""{"data":{"tipo":"cafeteria"}}""")
+        assertEquals(null, older.allowsCashAtRegister)
+        assertFalse("permite_pago_en_caja" in obj(json.encodeFlow(older.flow())))
+    }
+
+    @Test
     fun `cocina prepara sin cobrar viaja en la configuracion y un servidor anterior la deja en si`() {
         val apagada =
             json.parseStoreConfig("""{"data":{"tipo":"cafeteria","cocina_prepara_sin_cobrar":false}}""")
@@ -86,6 +103,49 @@ class AdminBusinessContractTest {
             obj(json.encodeFlow(apagada.flow()))["cocina_prepara_sin_cobrar"]!!.jsonPrimitive.content,
         )
         assertTrue(json.parseStoreConfig("""{"data":{"tipo":"cafeteria"}}""").kitchenPreparesUnpaid)
+    }
+
+    @Test
+    fun `fondo, telefono y pausa sin internet solo viajan si el servidor los trae`() {
+        val config =
+            json.parseStoreConfig(
+                """
+                {"data":{"tipo":"boliche","fondo_sugerido":"500.00","telefono_contacto":null,
+                  "pausa_sin_conexion":true}}
+                """.trimIndent(),
+            )
+        assertEquals("500.00", config.suggestedFloat)
+        assertEquals("", config.contactPhone)
+        assertEquals(true, config.pauseWhenOffline)
+        val edited =
+            config.flow().copy(suggestedFloat = "1,000", contactPhone = "55 1234-5678", pauseWhenOffline = false)
+        val body = obj(json.encodeFlow(edited))
+        assertEquals("1000.00", body["fondo_sugerido"]!!.jsonPrimitive.content)
+        assertEquals("5512345678", body["telefono_contacto"]!!.jsonPrimitive.content)
+        assertEquals("false", body["pausa_sin_conexion"]!!.jsonPrimitive.content)
+        // Vacíos se borran con null.
+        val cleared = obj(json.encodeFlow(config.flow().copy(suggestedFloat = " ", contactPhone = "")))
+        assertEquals(JsonNull, cleared["fondo_sugerido"])
+        assertEquals(JsonNull, cleared["telefono_contacto"])
+
+        // Un servidor que no los conoce no los recibe.
+        val old = json.parseStoreConfig("""{"data":{"tipo":"cafeteria"}}""")
+        assertNull(old.suggestedFloat)
+        assertNull(old.contactPhone)
+        assertNull(old.pauseWhenOffline)
+        val oldBody = obj(json.encodeFlow(old.flow()))
+        assertFalse("fondo_sugerido" in oldBody)
+        assertFalse("telefono_contacto" in oldBody)
+        assertFalse("pausa_sin_conexion" in oldBody)
+    }
+
+    @Test
+    fun `el flujo no se guarda con un fondo o un telefono que el servidor rechazaria`() {
+        val flow = StoreFlow("cafeteria", true, false, true, 5, emptyList())
+        assertNull(StoreRules.problem(flow.copy(suggestedFloat = "", contactPhone = "")))
+        assertNotNull(StoreRules.problem(flow.copy(suggestedFloat = "quinientos")))
+        assertNotNull(StoreRules.problem(flow.copy(contactPhone = "123")))
+        assertNull(StoreRules.problem(flow.copy(contactPhone = "+52 (55) 1234-5678")))
     }
 
     @Test
@@ -188,12 +248,26 @@ class AdminBusinessContractTest {
     }
 
     @Test
-    fun `forced close sends forzar with the optional note`() {
+    fun `forced close sends forzar with the required reason`() {
         val client = ScriptedClient(emptyMap())
-        RemoteAdminSpacesRepository(client).closeWithoutCharging(4, " Se fue sin pagar ", "k1").getOrThrow()
+        val result = RemoteAdminSpacesRepository(client).closeWithoutCharging(4, " Se fue sin pagar ", "k1").getOrThrow()
         assertEquals("espacios/4/sesion/cierres", client.lastPath)
-        assertEquals("""{"forzar":true,"nota":"Se fue sin pagar"}""", client.lastBody)
+        assertEquals("""{"forzar":true,"motivo":"Se fue sin pagar"}""", client.lastBody)
         assertEquals("k1", client.lastHeaders["Idempotency-Key"])
+        // Un servidor anterior no manda el resultado: se lee como cero.
+        assertEquals(0, result.cancelled)
+        assertEquals("0.00", result.lost)
+    }
+
+    @Test
+    fun `forced close reads what was cancelled, paid and lost`() {
+        val parsed =
+            AdminBusinessJson().parseForcedClose(
+                """{"data":{"id":"s1","cancelados":2,"abonado":"50.00","perdida":"130.00"}}""",
+            )
+        assertEquals(2, parsed.cancelled)
+        assertEquals("50.00", parsed.paid)
+        assertEquals("130.00", parsed.lost)
     }
 
     private class ScriptedClient(

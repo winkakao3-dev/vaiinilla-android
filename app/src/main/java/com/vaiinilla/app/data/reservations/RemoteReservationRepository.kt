@@ -8,6 +8,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.repository.ReservationException
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import java.time.Instant
@@ -73,10 +74,12 @@ class RemoteReservationRepository(
         access: ReservationAccess,
         reservationId: String,
         idempotencyKey: String,
+        refund: ReservationRefund?,
     ): Result<Reservation> {
         val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val body = refund?.let { contractJson.encodeRefund(it.amount, it.reason) }
         return access
-            .perform { bearer -> send("reservas/$reservationId/cancelacion", bearer, null, headers) }
+            .perform { bearer -> send("reservas/$reservationId/cancelacion", bearer, body, headers) }
             .mapCatching(contractJson::parseReservation)
             .mapApiErrors()
     }

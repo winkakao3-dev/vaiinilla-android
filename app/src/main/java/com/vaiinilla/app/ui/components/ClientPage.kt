@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,7 @@ internal fun ClientBackButton(
     Box(
         modifier =
             modifier
+                .minimumInteractiveComponentSize()
                 .size(40.dp)
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
                 .clip(CircleShape)

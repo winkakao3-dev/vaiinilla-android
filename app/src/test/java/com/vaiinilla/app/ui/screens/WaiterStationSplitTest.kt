@@ -26,4 +26,15 @@ class WaiterStationSplitTest {
         assertEquals(listOf("Platillo nuevo"), split.kitchen.map { it.name })
         assertEquals(emptyList<SummaryLine>(), splitByStation("1× Agua de jamaica", emptyMap()).counter)
     }
+
+    @Test
+    fun `lo que no se prepara se recoge en caja`() {
+        val split =
+            splitByStation(
+                "1× Papitas, 1× Crepa de cajeta",
+                stations + ("papitas" to PreparationStation.NONE),
+            )
+        assertEquals(listOf("Papitas"), split.counter.map { it.name })
+        assertEquals(listOf("Crepa de cajeta"), split.kitchen.map { it.name })
+    }
 }

@@ -191,7 +191,12 @@ class AdminSchoolViewModel
             onDone: () -> Unit = {},
         ) = mutate(
             signature = "padron:${students.hashCode()}:${students.size}",
-            success = if (students.isEmpty()) "Padrón quitado" else "Padrón guardado: ${students.size} alumnos",
+            success =
+                when (students.size) {
+                    0 -> "Padrón quitado"
+                    1 -> "Padrón guardado: 1 alumno"
+                    else -> "Padrón guardado: ${students.size} alumnos"
+                },
             fallback = "No se guardó el padrón.",
             call = { key -> repository.saveRoster(students, key) },
         ) {

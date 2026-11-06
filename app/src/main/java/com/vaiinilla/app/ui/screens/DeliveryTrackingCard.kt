@@ -94,16 +94,17 @@ internal fun DeliveryTrackingCard(
                 letterSpacing = (-1).sp,
                 modifier = Modifier.weight(1f),
             )
+            // Yema sobre papel claro no se lee: tinta oscura sobre la pastilla amarilla, como en PickupJourneyScreen.
             Text(
                 DeliverySteps[current].title.uppercase(),
-                color = colors.yolk,
+                color = DeliveryStepInk,
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 1.2.sp,
                 modifier =
                     Modifier
                         .clip(CircleShape)
-                        .background(colors.yolk.copy(alpha = 0.16f))
+                        .background(colors.yolk)
                         .padding(horizontal = 11.dp, vertical = 5.dp),
             )
         }
@@ -300,3 +301,5 @@ private fun DeliveryStepRow(
         }
     }
 }
+
+private val DeliveryStepInk = Color(0xFF1D1E1C)

@@ -28,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -491,6 +492,7 @@ private fun StepButton(
     Box(
         modifier =
             Modifier
+                .minimumInteractiveComponentSize()
                 .size(40.dp)
                 .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onClick)
                 .alpha(if (enabled) 1f else 0.35f)

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.vaiinilla.app.domain.counter.StudentCredentialPayload
+import com.vaiinilla.app.ui.discovery.RegisterNfcConsumer
 
 /**
  * Mientras está [enabled], el teléfono lee el UID de la tarjeta NFC que le acerquen (la credencial del
@@ -27,6 +28,7 @@ internal fun NfcCardReaderEffect(
     enabled: Boolean,
     onCard: (uid: String) -> Unit,
 ) {
+    RegisterNfcConsumer(enabled, onCard)
     val context = LocalContext.current
     val currentOnCard by rememberUpdatedState(onCard)
     // Si lo prenden en Ajustes y regresan, el lector se arma sin cerrar la hoja.

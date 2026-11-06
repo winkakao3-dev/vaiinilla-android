@@ -30,7 +30,7 @@ data class NoticeExplanation(
         return when (alert) {
             "por_cobrar" -> state == OrderState.PENDING_PAYMENT.wireValue
             "nueva_comanda" -> state == OrderState.PAID.wireValue || state == OrderState.PREPARING.wireValue
-            "listo_mesero" -> state == OrderState.READY.wireValue
+            "listo_mesero", "listo_barra" -> state == OrderState.READY.wireValue
             "por_aceptar" -> state == OrderState.AWAITING_ACCEPTANCE.wireValue
             "pedido_domicilio" -> state !in FINISHED
             else -> false
@@ -124,6 +124,14 @@ data class NoticeExplanation(
                         "Cocina o Caja, al marcarlo listo.",
                         "Meseros del negocio del pedido.",
                         listOf(OperationalRole.WAITER),
+                    )
+                type == "staff_alert" && alert == "listo_barra" ->
+                    make(
+                        "Caja · pasa por él",
+                        "Un pedido está listo y el cliente pasa a recogerlo a la barra.",
+                        "Cocina o Caja, al marcarlo listo.",
+                        "Caja del negocio del pedido.",
+                        listOf(OperationalRole.CASHIER),
                     )
                 type == "staff_alert" && alert == "llamada_mesa" ->
                     make(
