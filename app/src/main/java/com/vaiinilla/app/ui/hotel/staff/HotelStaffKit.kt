@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -97,7 +99,8 @@ internal fun HotelStaffPage(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    Box(modifier = modifier.fillMaxSize().background(colors.paper)) {
+    // imePadding: el teclado de check-in y cargo no tapa los campos ni el botón fijo de abajo.
+    Box(modifier = modifier.fillMaxSize().background(colors.paper).imePadding()) {
         Column(
             modifier =
                 Modifier
@@ -170,6 +173,7 @@ internal fun HotelStaffPage(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
+                        .navigationBarsPadding()
                         .padding(start = 14.dp, end = 14.dp, bottom = 26.dp),
             ) {
                 bottomBar()
