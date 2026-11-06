@@ -61,6 +61,7 @@ import com.vaiinilla.app.ui.admin.AdminStaffUiState
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.animateSelectionColor
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
@@ -101,7 +102,8 @@ internal fun AdminStaffSection(
             state.memberships.isEmpty() &&
             state.invitations.isEmpty() &&
             !state.loading &&
-            state.error == null
+            state.error == null &&
+            state.membershipsError == null
 
     AdminSectionPage(
         title = "Personal",
@@ -165,7 +167,10 @@ internal fun AdminStaffSection(
                     colors,
                     Modifier.padding(top = 16.dp, bottom = 8.dp),
                 )
-                if (state.memberships.isEmpty()) {
+                val membershipsError = state.membershipsError
+                if (membershipsError != null && state.memberships.isEmpty()) {
+                    AdminLoadError(membershipsError, colors, viewModel::refresh)
+                } else if (state.memberships.isEmpty()) {
                     AdminPanel(colors) {
                         Text(
                             "Todavía nadie más tiene acceso. Cuando acepten la invitación, aparecen aquí.",
@@ -207,6 +212,13 @@ internal fun AdminStaffSection(
                             }
                         }
                     }
+                }
+                Box(Modifier.padding(top = 10.dp, start = 6.dp, end = 6.dp)) {
+                    AdminHint(
+                        "Administración ya incluye Caja, Mesero y Cocina. Un acceso desactivado deja de salir " +
+                            "aquí: para devolvérselo, invítalo de nuevo.",
+                        colors,
+                    )
                 }
             }
         }
@@ -315,7 +327,15 @@ internal fun AdminStaffSection(
 
     when (val current = sheet) {
         StaffSheet.Invite ->
-            AdminSheet(title = "Nueva invitación", colors = colors, busy = state.saving, onDismiss = close) {
+            AdminSheet(
+                title = "Nueva invitación",
+                colors = colors,
+                busy = state.saving,
+                onDismiss = {
+                    viewModel.clearInviteError()
+                    close()
+                },
+            ) {
                 InviteForm(colors, state, viewModel, close)
             }
         is StaffSheet.EditRole ->
@@ -393,7 +413,7 @@ private fun StaffAvatar(
         }
     Box(Modifier.size(size).clip(CircleShape).background(tint), contentAlignment = Alignment.Center) {
         Text(
-            name.take(1).uppercase(),
+            initialOf(name),
             fontSize = (size.value * 0.42f).sp,
             fontWeight = FontWeight.Black,
             color = Color(0xFF1D1E1C),
@@ -574,7 +594,7 @@ private fun InviteForm(
                 colors,
             )
         }
-        Box(Modifier.padding(top = 6.dp)) { AdminSheetError(state.notice.takeIf { state.noticeIsError }) }
+        Box(Modifier.padding(top = 6.dp)) { AdminSheetError(state.inviteError) }
         AdminPrimaryButton(
             title = "Enviar invitación",
             colors = colors,

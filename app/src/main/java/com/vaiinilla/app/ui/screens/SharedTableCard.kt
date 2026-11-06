@@ -43,6 +43,7 @@ import com.vaiinilla.app.domain.model.SharedTableParticipant
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.sharedtable.SharedTableUiState
@@ -172,7 +173,9 @@ internal fun tableSummaryLine(table: SharedTable): String {
     val share = table.myShare
     val people = table.participants.size
     return when {
-        share.total.signum() == 0 -> (if (people <= 1) "Solo tú" else "$people personas") + " · sin pedidos aún"
+        // «Sin pedidos» es de la mesa, no de tu parte: con pedidos de otros ya los hay (en vivo, C05).
+        table.totals.total.signum() == 0 -> (if (people <= 1) "Solo tú" else "$people personas") + " · sin pedidos aún"
+        share.total.signum() == 0 -> "Tú no has pedido · la mesa lleva ${tableMoney(table.totals.total)}"
         share.pending.signum() == 0 -> "Tu parte ya está pagada"
         else -> "Tu parte por pagar · ${tableMoney(share.pending)}"
     }
@@ -232,10 +235,7 @@ private fun TableFaces(people: List<SharedTableParticipant>) {
         shown.forEachIndexed { index, person ->
             val (bg, fg) = FaceColors[index]
             TableFace(
-                person.alias
-                    .trim()
-                    .take(1)
-                    .uppercase(),
+                initialOf(person.alias),
                 bg,
                 fg,
             )
@@ -287,7 +287,7 @@ private fun JoinTableRow(
             val shown = state.othersAtTable.take(2)
             shown.forEachIndexed { index, name ->
                 val (bg, fg) = FaceColors[index]
-                TableFace(name.trim().take(1).uppercase(), bg, fg)
+                TableFace(initialOf(name), bg, fg)
             }
             val extra = state.othersAtTable.size - shown.size
             if (extra > 0) TableFace("+$extra", Color(0xFF33342F), OrderTrackingCardText.copy(alpha = 0.86f))

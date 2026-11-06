@@ -237,7 +237,8 @@ private fun SchoolOptionsSheets(
                 onDismiss = onDismiss,
                 onParentUnlocked = children::markParentUnlocked,
                 knownChildIds = children.children.mapTo(mutableSetOf()) { it.userId },
-                startsWithSchoolCode = sheet == OptionsSheet.UNLOCK,
+                // F17: con «Agregar» también se pide el código de la escuela antes de dar de alta o vincular.
+                startsWithSchoolCode = true,
                 schoolName = schoolName,
                 onOpenChild = { child, amount ->
                     onDismiss()

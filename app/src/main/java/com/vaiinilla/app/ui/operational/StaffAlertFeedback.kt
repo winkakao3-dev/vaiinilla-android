@@ -7,6 +7,7 @@ import android.media.RingtoneManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import com.vaiinilla.app.core.notifications.NotificationMute
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 
 private val AlertAudio =
@@ -52,6 +53,8 @@ fun playStaffAlert(
 
 /** Aviso sin pedido de por medio (una mesa que llama, un rechazo): mismo criterio de timbre del sistema. */
 fun playAlertFeedback(context: Context) {
+    // «Apagar notificaciones» del personal también calla el sonido dentro de la app.
+    if (NotificationMute.isMuted(context, NotificationMute.Scope.STAFF)) return
     val audio = context.getSystemService(AudioManager::class.java)
     val feedback = alertFeedbackFor(audio?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
     if (feedback == AlertFeedback.SILENT) return

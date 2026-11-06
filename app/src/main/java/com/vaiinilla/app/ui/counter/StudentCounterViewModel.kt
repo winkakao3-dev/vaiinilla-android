@@ -258,6 +258,27 @@ class StudentCounterViewModel
             state = state.copy(selected = null, scannedCredential = null, pin = "", credential = null)
         }
 
+        private fun markRequiresPin(userId: String) {
+            val mark: (StudentCard) -> StudentCard = { if (it.userId == userId) it.copy(requiresPin = true) else it }
+            state =
+                state.copy(
+                    selected = state.selected?.let(mark),
+                    results = state.results.map(mark),
+                )
+        }
+
+        /**
+         * Mientras la ficha está abierta se vuelve a pedir cada [SELECTED_REFRESH_MS]: si su tutor le pone PIN (o se
+         * lo quita), el campo aparece o se va sin reabrirla. Termina al cerrar la hoja.
+         */
+        suspend fun watchSelected(userId: String) {
+            while (state.selected?.userId == userId) {
+                delay(SELECTED_REFRESH_MS)
+                if (state.selected?.userId != userId) return
+                if (state.chargePhase != ChargePhase.Charging) refreshSelected()
+            }
+        }
+
         fun updatePin(typed: String) {
             state = state.copy(pin = typed.filter { it in '0'..'9' }.take(4))
         }
@@ -359,6 +380,8 @@ class StudentCounterViewModel
                                 pin = "",
                                 chargePhase = ChargePhase.Failed(StudentCounterMessages.chargeFailure(error)),
                             )
+                        // Su tutor le puso PIN con la ficha abierta: el campo aparece sin reabrirla (en vivo).
+                        if (StudentCounterMessages.isPinRequired(error)) markRequiresPin(student.userId)
                     }
                 }
             }
@@ -478,5 +501,6 @@ class StudentCounterViewModel
 
         private companion object {
             const val SEARCH_DEBOUNCE_MS = 320L
+            const val SELECTED_REFRESH_MS = 15_000L
         }
     }

@@ -33,7 +33,7 @@ class RentalRenewChipsUiTest {
                     enabled = true,
                     colors = rememberOperationalColors(),
                     renewal = true,
-                    onConfirm = { _, _ -> },
+                    onConfirm = { _, _, _ -> },
                 )
             }
         }

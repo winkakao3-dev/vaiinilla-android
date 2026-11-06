@@ -145,7 +145,7 @@ class MenuWaiterPillUiTest {
     fun `con carrito es una sola barra con Mesero adentro`() {        var opened = 0
         setLayer(cart = MenuCartBar(count = 2, total = "\$96") { opened++ })
         composeTestRule.onNodeWithText("Mesero", useUnmergedTree = true).assertExists()
-        composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).assertContentDescriptionEquals("Ver carrito: 2 productos, \$96")
+        composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).assertContentDescriptionEquals("Pedir ya: 2 productos, \$96")
         composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).performClick()
         assertEquals(1, opened)
         pill().performClick()

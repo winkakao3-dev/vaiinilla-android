@@ -121,10 +121,10 @@ private val timelineSteps =
             "Tu comida se está preparando."
         },
         TimelineStep(OrderState.READY, { _, _ -> "LISTO" }) { destination, _, _ ->
-            if (destination == OrderDestination.IN_SPACE) {
-                "El personal lo llevará a tu mesa."
-            } else {
-                "Recógelo en la barra."
+            when (destination) {
+                OrderDestination.IN_SPACE -> "El personal lo llevará a tu mesa."
+                OrderDestination.HOME_DELIVERY -> "Está listo para salir."
+                OrderDestination.TAKE_AWAY -> "Recógelo en la barra."
             }
         },
         TimelineStep(OrderState.DELIVERED, { _, _ -> "ENTREGADO" }) { _, _, _ ->
@@ -173,7 +173,8 @@ private fun spaceReadyTitle(
     when {
         state != OrderState.READY || destination != OrderDestination.IN_SPACE -> null
         pickUpAtBar -> "LISTO, PASA A LA BARRA"
-        else -> "EN CAMINO"
+        // Listo no es entregado ni «en camino»: el mesero todavía tiene que recogerlo.
+        else -> "LISTO"
     }
 
 /** Un pedido a la cuenta no se cobra al pedir: sus dos primeros pasos lo dicen así. */
@@ -321,14 +322,15 @@ fun OrderTrackingCard(
                     ) {
                         Text(
                             text =
-                                (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
+                                (if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary))
                                     .uppercase(),
                             color = if (isReady) colors.accentInk else Color(0xFF171812),
-                            fontSize = 8.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 0.55.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     Spacer(modifier = Modifier.height(7.dp))
@@ -354,7 +356,7 @@ fun OrderTrackingCard(
                 ) {
                     Text(
                         text =
-                            (if (order.isRental) rentalStateLabel(order) else order.summary.state.label)
+                            (if (order.isRental) rentalStateLabel(order) else orderStateLabel(order.summary))
                                 .uppercase(),
                         color = if (isReady) colors.accentInk else Color(0xFF171812),
                         fontSize = 10.sp,
@@ -459,7 +461,9 @@ fun RentalTimeLeftCard(
                 .background(colors.paper2)
                 .padding(16.dp)
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "Te quedan ${left.minutesLeft} minutos de ${left.totalLabel}"
+                    val minutes =
+                        if (left.minutesLeft == 1L) "Te queda 1 minuto" else "Te quedan ${left.minutesLeft} minutos"
+                    contentDescription = "$minutes de ${left.totalLabel}"
                 },
     ) {
         Row(

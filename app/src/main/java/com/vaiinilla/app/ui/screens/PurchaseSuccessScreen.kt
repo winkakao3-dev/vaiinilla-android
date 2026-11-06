@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -166,6 +167,12 @@ fun PurchaseSuccessScreen(
                                 },
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Black,
+                            textAlign = TextAlign.End,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            // Una dirección larga ocupaba todo el renglón y la etiqueta quedaba de una letra por
+                            // renglón («Te lo llevan a», S01): el valor comparte el ancho y se corta en dos líneas.
+                            modifier = Modifier.weight(1.6f, fill = false),
                         )
                     }
                 }

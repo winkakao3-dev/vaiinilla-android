@@ -71,7 +71,7 @@ internal fun PickupDeliveryFooter(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "PEDIDO #${summary.folio} · ${
-                        SpaceCopy.staffDestination(summary.destination, summary.space).uppercase()
+                        SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar).uppercase()
                     }",
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Black,
@@ -128,7 +128,7 @@ internal fun PickupDeliveryFooter(
         }
         if (onCantScan != null) {
             Text(
-                "¿No lee? Búscalo por nombre, folio o teléfono",
+                "¿No lee? Búscalo por nombre o folio",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textSecondary,

@@ -89,6 +89,7 @@ import com.vaiinilla.app.domain.admin.StoreTemplate
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeStep
 import com.vaiinilla.app.domain.admin.stripeStep
+import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
@@ -259,6 +260,35 @@ private fun StoreCover(
                         }
                     }
                 }
+                val assistantMode = config.assistantMode
+                if (assistantMode != null) {
+                    StoreQuestion("¿Quién usa el asistente de IA?", colors, Modifier.padding(top = 14.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AssistantMode.entries.forEach { option ->
+                            AdminFilterChip(
+                                label = option.label,
+                                selected = assistantMode == option,
+                                colors = colors,
+                                onClick = {
+                                    if (enabled && option != assistantMode) {
+                                        saveNow(viewModel, flow, flow.copy(assistantMode = option))
+                                    }
+                                },
+                                height = 40.dp,
+                            )
+                        }
+                    }
+                    Text(
+                        assistantModeHint(assistantMode),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
         item {
@@ -279,6 +309,14 @@ private fun StoreCover(
         }
     }
 }
+
+/** Qué hace cada opción del asistente, en palabras del dueño. */
+internal fun assistantModeHint(mode: AssistantMode): String =
+    when (mode) {
+        AssistantMode.BOTH -> "Te ayuda a configurar la tienda y tus clientes le preguntan qué pedir."
+        AssistantMode.STAFF -> "Solo te ayuda a configurar la tienda; tus clientes no lo ven."
+        AssistantMode.NONE -> "Nadie lo ve: configuras paso a paso y los clientes piden desde el menú."
+    }
 
 /** Las opciones de entrega en mesa o lugar, como las lee el dueño. */
 internal fun spaceDeliveryLabel(option: SpaceDelivery): String =
@@ -707,13 +745,18 @@ private fun StoreFlowPage(
     onBack: () -> Unit,
 ) {
     val state by viewModel.uiState
+    // Lo cambiado sin «Guardar flujo»; null si no hay cambios. Salir con eso pendiente pregunta antes (en vivo).
+    var edited by remember { mutableStateOf<StoreFlow?>(null) }
+    var askingExit by remember { mutableStateOf(false) }
+    val leave: () -> Unit = { if (!readOnly && edited != null) askingExit = true else onBack() }
     AdminSectionPage(
         title = "Cómo funciona tu tienda",
         eyebrow = "Flujo de mi tienda",
         colors = colors,
         notice = state.notice,
         noticeIsError = state.noticeIsError,
-        onBack = onBack,
+        // La flecha y el Atrás del sistema pasan por aquí: AdminSectionPage registra el BackHandler con esto.
+        onBack = leave,
     ) {
         val config = state.config ?: return@AdminSectionPage
         item {
@@ -726,8 +769,89 @@ private fun StoreFlowPage(
                     readOnly,
                     state.saving,
                     viewModel,
+                    onEdited = { edited = it },
                 )
             }
+        }
+    }
+    val pending = edited
+    if (askingExit && pending != null) {
+        UnsavedFlowDialog(
+            colors = colors,
+            saving = state.saving,
+            problem = StoreRules.problem(pending),
+            onSave = {
+                viewModel.saveFlow(pending) {
+                    askingExit = false
+                    edited = null
+                    onBack()
+                }
+            },
+            onDiscard = {
+                askingExit = false
+                edited = null
+                onBack()
+            },
+            onKeepEditing = { askingExit = false },
+        )
+    }
+}
+
+/** «¿Salir sin guardar?» al dejar el flujo con cambios: Guardar, Descartar o Seguir editando. */
+@Composable
+private fun UnsavedFlowDialog(
+    colors: OperationalColors,
+    saving: Boolean,
+    /** Por qué no se puede guardar así; null si se puede. */
+    problem: String?,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onKeepEditing: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = { if (!saving) onKeepEditing() }) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(colors.cardBackground)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "¿Salir sin guardar?",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                color = colors.textPrimary,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                problem ?: "Cambiaste el flujo de tu tienda y no lo has guardado. Si sales así, se pierde.",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (problem != null) colors.coralText else colors.textSecondary,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+            AdminPrimaryButton(
+                title = "Guardar",
+                colors = colors,
+                busy = saving,
+                enabled = problem == null && !saving,
+                onClick = onSave,
+            )
+            AdminSecondaryButton(
+                title = "Descartar",
+                colors = colors,
+                destructive = true,
+                outlined = true,
+                enabled = !saving,
+                onClick = onDiscard,
+            )
+            AdminSecondaryButton(
+                title = "Seguir editando",
+                colors = colors,
+                enabled = !saving,
+                onClick = onKeepEditing,
+            )
         }
     }
 }
@@ -795,7 +919,7 @@ private fun StorePresencePage(
             item {
                 AdminPanel(colors, Modifier.padding(top = 10.dp)) {
                     AdminHint("El QR de tu tienda abre tu menú directo.", colors)
-                    Box(Modifier.padding(top = 10.dp)) {
+                    Column(Modifier.padding(top = 10.dp)) {
                         // Con un mensaje listo, el QR se pega tal cual en WhatsApp o en el estado (CASA-10).
                         AdminQrBlock(
                             url = url,
@@ -1167,6 +1291,8 @@ private fun FlowForm(
     readOnly: Boolean,
     saving: Boolean,
     viewModel: AdminStoreViewModel,
+    /** Lo editado cuando difiere de lo guardado; null cuando no hay cambios. */
+    onEdited: (StoreFlow?) -> Unit = {},
 ) {
     var flow by remember { mutableStateOf(saved) }
     // Sin plantilla tocada se marca la primera del tipo guardado: el tipo de negocio sale de aquí (CASA-01).
@@ -1177,6 +1303,7 @@ private fun FlowForm(
         template = null
         editingWindow = null
     }
+    LaunchedEffect(flow, saved) { onEdited(flow.takeIf { it != saved }) }
     val windows = flow.orderWindows
     val chips = Arrangement.spacedBy(8.dp)
     Column(Modifier.animateContentSize(spring(stiffness = 500f))) {
@@ -1255,6 +1382,18 @@ private fun FlowForm(
                 detail = "El cliente usa su wallet al pagar",
                 enabled = enabled,
             )
+            // Un servidor anterior no lo conoce: no se ofrece (el guardado lo rechazaría).
+            flow.allowsCashAtRegister?.let { cashAtRegister ->
+                AdminRowDivider(colors)
+                AdminToggleRow(
+                    title = "Pago en caja",
+                    checked = cashAtRegister,
+                    colors = colors,
+                    onChange = { flow = flow.copy(allowsCashAtRegister = it) },
+                    detail = "El cliente pide en la app y paga en efectivo en caja",
+                    enabled = enabled,
+                )
+            }
         }
         AdminPanel(
             colors,
@@ -1375,6 +1514,73 @@ private fun FlowForm(
                                     editingWindow = null
                                 }.padding(8.dp),
                     )
+                }
+            }
+        }
+        // Solo si el servidor los conoce (vienen en la configuración, aunque sea vacíos).
+        val pause = flow.pauseWhenOffline
+        if (pause != null) {
+            AdminPanel(
+                colors,
+                Modifier.padding(top = 18.dp),
+                padding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+            ) {
+                AdminToggleRow(
+                    title = "Pausar si se va el internet",
+                    checked = pause,
+                    colors = colors,
+                    onChange = { flow = flow.copy(pauseWhenOffline = it) },
+                    detail = "Si Caja y el personal pierden la conexión, se pausan los pedidos por QR y las reservas",
+                    enabled = enabled,
+                )
+            }
+        }
+        val fund = flow.suggestedFloat
+        val phone = flow.contactPhone
+        // El teléfono siempre tiene su lugar: si el servidor aún no lo guarda se dice, en vez de no enseñar nada
+        // (en vivo, Z05: «no hay dónde ver ni guardar el teléfono»).
+        StoreQuestion("Caja y contacto", colors, Modifier.padding(top = 18.dp))
+        AdminPanel(colors) {
+            if (phone == null) {
+                Box(Modifier.padding(bottom = if (fund != null) 14.dp else 0.dp)) {
+                    AdminHint(
+                        "Teléfono de contacto: tu servidor todavía no lo guarda. Aparecerá aquí para editarlo en " +
+                            "cuanto se actualice.",
+                        colors,
+                    )
+                }
+            }
+            if (fund != null) {
+                AdminTextField(
+                    label = "Fondo sugerido para abrir caja",
+                    value = fund,
+                    onValueChange = { flow = flow.copy(suggestedFloat = it.take(12)) },
+                    colors = colors,
+                    placeholder = "500",
+                    keyboardType = KeyboardType.Decimal,
+                    enabled = enabled,
+                    prefix = "$",
+                )
+                Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
+                    AdminHint(
+                        "Caja lo ve ya escrito al abrir el turno. Déjalo vacío si cambia cada día.",
+                        colors,
+                    )
+                }
+            }
+            if (phone != null) {
+                AdminTextField(
+                    label = "Teléfono de contacto",
+                    value = phone,
+                    onValueChange = { flow = flow.copy(contactPhone = it.take(20)) },
+                    colors = colors,
+                    modifier = if (fund != null) Modifier.padding(top = 14.dp) else Modifier,
+                    placeholder = "55 1234 5678",
+                    keyboardType = KeyboardType.Phone,
+                    enabled = enabled,
+                )
+                Box(Modifier.padding(top = 6.dp, start = 2.dp)) {
+                    AdminHint("Aparece en tu ficha pública para que tus clientes te llamen.", colors)
                 }
             }
         }

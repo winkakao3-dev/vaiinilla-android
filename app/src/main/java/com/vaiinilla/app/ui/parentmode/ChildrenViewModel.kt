@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentAccountFactory
 import com.vaiinilla.app.domain.guardianship.GuardianshipRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
+import com.vaiinilla.app.domain.repository.OrderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,8 @@ class ParentModeServices(
     val guardianship: GuardianshipRepository,
     val accounts: DependentAccountFactory,
     val catalog: CatalogRepository,
+    /** Para que el tutor vea un pedido de su hijo (GET /pedidos/:id con su propia sesión, P08). */
+    val orders: OrderRepository? = null,
 )
 
 /** "Mis hijos" en la cartera del tutor. */
@@ -107,9 +110,10 @@ class ChildrenViewModel
         accounts: DependentAccountFactory,
         catalog: CatalogRepository,
         @ApplicationContext context: Context,
+        orders: OrderRepository? = null,
     ) : ViewModel() {
         val state =
-            ChildrenState(ParentModeServices(guardianship, accounts, catalog)) { names ->
+            ChildrenState(ParentModeServices(guardianship, accounts, catalog, orders)) { names ->
                 DependentNamesStore.replace(context, names)
             }
 

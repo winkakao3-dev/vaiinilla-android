@@ -33,11 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Venue
@@ -60,6 +63,53 @@ internal fun CashierQuickActions(
     pendingSpaces: Int? = null,
     onSpaces: (() -> Unit)? = null,
 ) {
+    val configuration = LocalConfiguration.current
+    val fontScale = LocalDensity.current.fontScale
+    val count = listOfNotNull(onNewOrder, onReload, onSpaces).size
+    val spacesLabel =
+        if (pendingSpaces != null && pendingSpaces > 0) {
+            "Mesas y ${Venue.courts} · $pendingSpaces"
+        } else {
+            "Mesas y ${Venue.courts}"
+        }
+    // L01: con letra grande tres mosaicos no caben a lo ancho y «Recargar» se partía a media palabra: van en renglones.
+    if (cashierQuickActionsStack(configuration.screenWidthDp, fontScale, count)) {
+        Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (onNewOrder != null) {
+                QuickAction(
+                    "Nuevo pedido",
+                    Icons.Outlined.Add,
+                    colors,
+                    enabled,
+                    Modifier,
+                    primary = true,
+                    wide = true,
+                    onClick = onNewOrder,
+                )
+            }
+            QuickAction(
+                "Recargar saldo",
+                Icons.Outlined.AccountBalanceWallet,
+                colors,
+                enabled,
+                Modifier,
+                wide = true,
+                onClick = onReload,
+            )
+            if (onSpaces != null) {
+                QuickAction(
+                    spacesLabel,
+                    Icons.Outlined.TableRestaurant,
+                    colors,
+                    true,
+                    Modifier,
+                    wide = true,
+                    onClick = onSpaces,
+                )
+            }
+        }
+        return
+    }
     Row(
         modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -77,7 +127,7 @@ internal fun CashierQuickActions(
         )
         if (onSpaces != null) {
             QuickAction(
-                if (pendingSpaces != null && pendingSpaces > 0) "Mesas y ${Venue.courts} · $pendingSpaces" else "Mesas y ${Venue.courts}",
+                spacesLabel,
                 Icons.Outlined.TableRestaurant,
                 colors,
                 true,
@@ -88,6 +138,20 @@ internal fun CashierQuickActions(
     }
 }
 
+/**
+ * ¿Los accesos rápidos de Caja van en renglones? Cada mosaico necesita unos 100 dp por cada 1.0 de escala de letra
+ * para que su palabra más larga («Recargar», «pedido») no se parta (L01).
+ */
+internal fun cashierQuickActionsStack(
+    screenWidthDp: Int,
+    fontScale: Float,
+    count: Int,
+): Boolean {
+    if (count <= 1) return false
+    val tileDp = (screenWidthDp - 32f - 10f * (count - 1)) / count
+    return tileDp < 100f * fontScale
+}
+
 @Composable
 private fun QuickAction(
     label: String,
@@ -96,10 +160,39 @@ private fun QuickAction(
     enabled: Boolean,
     modifier: Modifier,
     primary: Boolean = false,
+    /** En renglón: el icono a la izquierda y el texto a lo ancho. */
+    wide: Boolean = false,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(20.dp)
     val ink = if (primary) colors.accentInk else colors.textPrimary
+    if (wide) {
+        Row(
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .physicalPress(enabled = enabled, onClick = onClick)
+                    .heightIn(min = 56.dp)
+                    .clip(shape)
+                    .background(if (primary) colors.accentLime else colors.cardBackground)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(22.dp))
+            Text(
+                label,
+                color = ink,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 14.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        return
+    }
     Column(
         modifier =
             modifier

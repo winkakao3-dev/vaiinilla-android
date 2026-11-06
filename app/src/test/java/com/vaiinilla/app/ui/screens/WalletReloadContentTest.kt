@@ -1,10 +1,12 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -58,6 +60,35 @@ class WalletReloadContentTest {
 
         composeTestRule.onNodeWithText("Recargar $100 en efectivo").performScrollTo().performClick()
         assertEquals(listOf("u-ana" to "100.00"), reloads)
+    }
+
+    @Test
+    fun `con una sola letra avisa que hacen falta dos y no busca`() {
+        val searched = mutableListOf<String>()
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                WalletReloadContent(
+                    clients = emptyList(),
+                    searching = false,
+                    receipt = null,
+                    canReload = true,
+                    colors = rememberOperationalColors(),
+                    onSearch = { searched += it },
+                    onScan = {},
+                    onReload = { _, _ -> },
+                    onDone = {},
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("a")
+        composeTestRule.mainClock.advanceTimeBy(2_000)
+        composeTestRule.onNodeWithText("Escribe al menos 2 letras o escanea su QR").assertExists()
+        assertEquals(emptyList<String>(), searched)
+
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("n")
+        composeTestRule.mainClock.advanceTimeBy(2_000)
+        composeTestRule.onNodeWithText("Escribe al menos 2 letras o escanea su QR").assertDoesNotExist()
     }
 
     @Test

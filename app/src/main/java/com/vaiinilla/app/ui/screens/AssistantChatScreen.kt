@@ -86,6 +86,9 @@ fun AssistantChatScreen(
     onCart: () -> Unit,
     embeddedInBottomNav: Boolean = true,
 ) {
+    // El teclado: la ventana se encoge en vez de desplazarse; si no, el sistema sube toda la pantalla y además
+    // imePadding deja otro hueco del alto del teclado.
+    com.vaiinilla.app.ui.components.ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
     val messages = state.assistantChatMessages
     var input by remember { mutableStateOf("") }
