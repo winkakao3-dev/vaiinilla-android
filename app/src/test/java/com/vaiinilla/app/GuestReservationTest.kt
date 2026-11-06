@@ -63,6 +63,38 @@ class GuestReservationTest {
     }
 
     @Test
+    fun enterWithSpaceTokenSendsItAndRenewalKeepsIt() {
+        val api = FakeApi { path, _, _, _ -> handle(path) }
+        val session = GuestReservationSession(api, store)
+
+        session.enter("demo", "Ana", spaceToken = "token-del-lugar").getOrThrow()
+        assertTrue(
+            api.callsTo("publico/invitados").single().body.orEmpty().contains("\"espacio_token\":\"token-del-lugar\""),
+        )
+
+        session.invalidate()
+        session.bearer("demo").getOrThrow()
+        assertTrue(
+            api
+                .callsTo("publico/invitados/sesiones")
+                .single()
+                .body
+                .orEmpty()
+                .contains("\"espacio_token\":\"token-del-lugar\""),
+        )
+    }
+
+    @Test
+    fun enterWithoutSpaceTokenDoesNotSendOne() {
+        val api = FakeApi { path, _, _, _ -> handle(path) }
+        val session = GuestReservationSession(api, store)
+
+        session.enter("demo", "Ana").getOrThrow()
+
+        assertTrue(!api.callsTo("publico/invitados").single().body.orEmpty().contains("espacio_token"))
+    }
+
+    @Test
     fun bearerRenewsWithStoredKeyWhenNoSessionIsCached() {
         store.saveGuest(name = "Ana", key = "llave-1")
         val api = FakeApi { path, _, _, _ -> handle(path) }

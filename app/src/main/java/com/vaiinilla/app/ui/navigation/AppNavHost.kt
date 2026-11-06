@@ -1824,6 +1824,7 @@ fun AppNavHost(
                                 guestSlug = reservationsVenueSlug,
                                 hasAccount = reservationsHasAccount,
                                 cameThroughQr = orderState.guestVenue?.space != null,
+                                spaceToken = orderState.guestVenue?.space?.qrToken,
                             )
                         }
                     },

@@ -106,6 +106,9 @@ class ReservationsViewModel
         /** El negocio que se mira: con cuenta el acceso es el mismo en todos, así que se compara aparte. */
         private var venueSlug: String? = null
 
+        /** El token del QR o NFC del lugar: el servidor solo deja apartar a un invitado que lo mandó. */
+        private var guestSpaceToken: String? = null
+
         /** El aviso de que no cargó el día: se quita cuando un sondeo sí carga (antes se quedaba pegado). */
         private var loadError: String? = null
 
@@ -114,6 +117,7 @@ class ReservationsViewModel
             guestSlug: String?,
             hasAccount: Boolean,
             cameThroughQr: Boolean = false,
+            spaceToken: String? = null,
         ) {
             pollingJob?.cancel()
             pollingJob = null
@@ -129,6 +133,8 @@ class ReservationsViewModel
                 _uiState.value = ReservationsUiState(guestName = _uiState.value.guestName)
             }
             if (guestSlug != null) venueSlug = guestSlug
+            guestSpaceToken = spaceToken
+            if (guestSlug != null && !hasAccount && spaceToken != null) guestSession.rememberSpace(guestSlug, spaceToken)
             if (next != reservationAccess) {
                 // Otra identidad: lo que se mostró de la anterior (sus reservas, su pago) ya no aplica.
                 reservationAccess = next
@@ -184,7 +190,7 @@ class ReservationsViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        guestSession.enter(guest.establishmentSlug, name)
+                        guestSession.enter(guest.establishmentSlug, name, guestSpaceToken)
                     }
                 result.fold(
                     onSuccess = {
