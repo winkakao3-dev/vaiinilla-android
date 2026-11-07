@@ -137,20 +137,23 @@ abstract class StaffOrdersViewModel(
             // Los pedidos que otro rol no pudo leer no son de este rol: la franja se recalcula.
             UnreadableOrders.clear()
         }
+        // Con otro rol o negocio se arranca de un estado limpio: copiar sobre el anterior dejaba 16 campos del negocio
+        // viejo (efectivo esperado, fondo, cobrado hoy, imágenes, hoja de cierre…) a la vista del nuevo.
+        val base = if (roleChanged) state.value.freshForNewRole(establishmentChanged) else state.value
         state.value =
-            state.value.copy(
+            base.copy(
                 role = role,
                 // La mutación del rol anterior se cancela y su resultado se descarta: no puede dejar
                 // la bandera pegada y apagar todos los botones del rol nuevo.
-                acting = if (roleChanged) false else state.value.acting,
-                catalogBusy = if (roleChanged) false else state.value.catalogBusy,
+                acting = if (roleChanged) false else base.acting,
+                catalogBusy = if (roleChanged) false else base.catalogBusy,
                 cashSessionCheckFailed = false,
-                orders = if (roleChanged) emptyList() else state.value.orders,
+                orders = if (roleChanged) emptyList() else base.orders,
                 latestClientOrder = null,
                 menuOrder = null,
                 selectedOrderId = null,
                 errorMessage = null,
-                queue = if (roleChanged) QueueSync.Pending else state.value.queue,
+                queue = if (roleChanged) QueueSync.Pending else base.queue,
                 cashSessionOpen = null,
                 walletClients = emptyList(),
                 walletSearchLoading = false,
@@ -158,7 +161,7 @@ abstract class StaffOrdersViewModel(
                 pendingWalletReload = null,
                 catalog = null,
                 cashDrawer = CashDrawerUi(),
-                cashChangeNotice = if (establishmentChanged) null else state.value.cashChangeNotice,
+                cashChangeNotice = if (establishmentChanged) null else base.cashChangeNotice,
             )
         // Con el mismo rol se conserva lo último conocido mientras se vuelve a pedir: borrarlo dejaba Caja en
         // «Revisando la caja» y quitaba «Cerrar caja» del menú hasta que contestara el servidor (en vivo, USAGI).

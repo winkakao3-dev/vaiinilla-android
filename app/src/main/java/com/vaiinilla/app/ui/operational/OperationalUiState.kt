@@ -120,6 +120,16 @@ enum class CashSession {
         get() = this == Open || this == ConfirmingClose || this == Closing || this == CloseBlockedByAccounts
 }
 
+/**
+ * El estado con el que arranca un rol nuevo o un negocio nuevo: todo vacío, salvo lo que es del dispositivo y no del
+ * negocio (la señal de presencia) y, con el mismo negocio, el último aviso de cambio de la caja.
+ */
+internal fun OperationalUiState.freshForNewRole(establishmentChanged: Boolean): OperationalUiState =
+    OperationalUiState(
+        heartbeatOnline = heartbeatOnline,
+        cashChangeNotice = cashChangeNotice.takeUnless { establishmentChanged },
+    )
+
 /** Cómo salió la última lectura de la fila de pedidos de un rol. */
 sealed interface QueueSync {
     /** Todavía no termina ninguna lectura para este rol. */
