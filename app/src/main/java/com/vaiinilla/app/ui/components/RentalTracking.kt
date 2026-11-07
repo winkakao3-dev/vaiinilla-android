@@ -141,7 +141,7 @@ fun rentalTimeLeft(
     val left = Duration.between(now, reservation.end)
     if (total.isZero || total.isNegative) return null
     // Hacia arriba: con 30 s restantes se lee «1 min», no «0 min».
-    val minutesLeft = (left.toSeconds() + 59) / 60
+    val minutesLeft = (left.seconds + 59) / 60
     val elapsed = 1f - left.toMillis().toFloat() / total.toMillis().toFloat()
     return RentalTimeLeft(minutesLeft, durationLabel(total), elapsed.coerceIn(0f, 1f))
 }
