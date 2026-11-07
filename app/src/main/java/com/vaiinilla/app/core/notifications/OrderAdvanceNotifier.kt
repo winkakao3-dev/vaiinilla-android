@@ -16,6 +16,7 @@ import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 
 /**
@@ -121,7 +122,11 @@ object OrderAdvanceNotifier {
             "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
             "listo_mesero" ->
                 "Pedido #$folio listo" to
-                    if (name != null) "Llévaselo a $name a su lugar." else "Llévaselo al cliente a su lugar."
+                    if (name != null) {
+                        "Llévaselo a $name a su ${if (Venue.isHotel) Venue.room else "lugar"}."
+                    } else {
+                        readyForWaiterText()
+                    }
             // «Pasa por él»: el cliente viene a la barra y Caja se lo entrega.
             "listo_barra" -> "Pedido #$folio listo" to "El cliente pasa a recogerlo a la barra."
             // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
@@ -157,7 +162,7 @@ object OrderAdvanceNotifier {
         noticeId: String? = null,
         establishmentId: String? = null,
     ): Shown {
-        val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
+        val title = tableCallTitle(spaceName)
         val text = tableCallText(reason)
         if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
@@ -215,6 +220,21 @@ object OrderAdvanceNotifier {
             "Ya terminó. Cobra la cuenta y libera el espacio."
         }
 
+    /** Hacia quién se lleva lo que Cocina dejó listo: el alumno, el huésped o el cliente del negocio. */
+    internal fun readyForWaiterText(): String =
+        if (Venue.isHotel) {
+            "Llévaselo al ${Venue.customer} a su ${Venue.room}."
+        } else {
+            "Llévaselo al ${Venue.customer} a su lugar."
+        }
+
+    internal fun tableCallTitle(spaceName: String): String =
+        when {
+            spaceName.isNotBlank() -> "$spaceName te llama"
+            Venue.isHotel -> "Una ${Venue.room} te llama"
+            else -> "Una mesa te llama"
+        }
+
     /** El motivo como lo ve el mesero en su tablero; «cuenta» también (antes caía en «Necesita atención», K02). */
     internal fun tableCallText(reason: String?): String =
         CallReason.entries.firstOrNull { it.wireValue == reason }?.staffLabel ?: CallReason.ATENCION.staffLabel
@@ -227,7 +247,7 @@ object OrderAdvanceNotifier {
         noticeId: String? = null,
     ): Shown {
         val title = "Tu mesero va en camino"
-        val text = "Va a tu mesa."
+        val text = "Va a ${SpaceCopy.yourPlace(null)}."
         if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =

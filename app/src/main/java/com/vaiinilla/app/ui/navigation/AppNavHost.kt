@@ -307,11 +307,23 @@ fun AppNavHost(
                 account = session.email,
                 openMode =
                     authorizedAccessState.activeContext
-                        ?.let { "${it.role.label} en ${it.establishmentName}" }
-                        ?: "Cliente",
+                        ?.let { context ->
+                            val school =
+                                authorizedAccessState.modes
+                                    .firstOrNull { it.membershipId == context.membershipId }
+                                    ?.isSchool
+                            "${Venue.roleLabel(context.role, school ?: Venue.isSchool)} en ${context.establishmentName}"
+                        }
+                        ?: Venue.customerTitle,
                 memberships =
                     authorizedAccessState.modes.map {
-                        NoticeMembership(it.membershipId, it.role, it.establishmentId, it.establishmentName)
+                        NoticeMembership(
+                            it.membershipId,
+                            it.role,
+                            it.establishmentId,
+                            it.establishmentName,
+                            it.isSchool,
+                        )
                     },
             ),
         )
