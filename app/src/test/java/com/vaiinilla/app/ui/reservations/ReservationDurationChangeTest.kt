@@ -17,6 +17,7 @@ import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.setMain
@@ -49,7 +50,7 @@ class ReservationDurationChangeTest {
 
     @After
     fun tearDown() {
-        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+        StaffHarness.restoreMain()
     }
 
     @Test

@@ -148,7 +148,11 @@ class RecorridosReservasViewModelTest {
         val field = unsafeClass.getDeclaredField("theUnsafe")
         field.isAccessible = true
         val session =
-            unsafeClass.getMethod("allocateInstance", Class::class.java).invoke(field.get(null), GuestReservationSession::class.java)
+            unsafeClass
+                .getMethod(
+                    "allocateInstance",
+                    Class::class.java,
+                ).invoke(field.get(null), GuestReservationSession::class.java)
                 as GuestReservationSession
         vm = ReservationsViewModel(repo, session, VenueContextStore())
         vm.onVisible(guestSlug = null, hasAccount = true)
@@ -176,7 +180,11 @@ class RecorridosReservasViewModelTest {
         vm.reserve()
         StaffHarness.awaitUntil("el apartado") { ui.pending != null && !ui.working }
         vm.pay(ReservationPaymentMethod.BALANCE)
-        StaffHarness.awaitUntil("el error") { ui.error == "No te alcanza el saldo para esta renta. Recarga o paga en caja." && !ui.working }
+        StaffHarness.awaitUntil("el error") {
+            ui.error ==
+                "No te alcanza el saldo para esta renta. Recarga o paga en caja." &&
+                !ui.working
+        }
         assertEquals("r1", ui.pending?.id)
     }
 

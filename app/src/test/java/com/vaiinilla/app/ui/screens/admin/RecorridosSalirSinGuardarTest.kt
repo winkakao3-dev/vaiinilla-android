@@ -20,8 +20,8 @@ import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.FakeStore
 import com.vaiinilla.app.ui.operational.FakeCatalog
-import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
+import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

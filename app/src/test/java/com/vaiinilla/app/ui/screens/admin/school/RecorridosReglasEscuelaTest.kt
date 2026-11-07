@@ -3,23 +3,23 @@ package com.vaiinilla.app.ui.screens.admin.school
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.MutableState
-import com.vaiinilla.app.domain.school.MenuCalendar
-import com.vaiinilla.app.domain.school.NoServiceDay
-import com.vaiinilla.app.domain.school.RosterStudent
-import com.vaiinilla.app.domain.school.SchoolAdminRepository
-import com.vaiinilla.app.domain.school.SchoolSettings
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performScrollToNode
+import com.vaiinilla.app.domain.school.MenuCalendar
+import com.vaiinilla.app.domain.school.NoServiceDay
+import com.vaiinilla.app.domain.school.RosterStudent
+import com.vaiinilla.app.domain.school.SchoolAdminRepository
+import com.vaiinilla.app.domain.school.SchoolSettings
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel
-import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
-import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.screens.admin.AdminDialogHost
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
+import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
+import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Rule
 import org.junit.Test
@@ -50,11 +50,27 @@ class RecorridosReglasEscuelaTest {
     private inline fun <reified R : Any> hung(): R =
         Proxy.newProxyInstance(R::class.java.classLoader, arrayOf(R::class.java)) { _, method, args ->
             when {
-                method.name == "toString" -> "hung"
-                method.name == "hashCode" -> 0
-                method.name == "equals" -> false
-                args?.lastOrNull() is Continuation<*> -> COROUTINE_SUSPENDED
-                else -> java.util.concurrent.CountDownLatch(1).await()
+                method.name == "toString" -> {
+                    "hung"
+                }
+
+                method.name == "hashCode" -> {
+                    0
+                }
+
+                method.name == "equals" -> {
+                    false
+                }
+
+                args?.lastOrNull() is Continuation<*> -> {
+                    COROUTINE_SUSPENDED
+                }
+
+                else -> {
+                    java.util.concurrent
+                        .CountDownLatch(1)
+                        .await()
+                }
             }
         } as R
 

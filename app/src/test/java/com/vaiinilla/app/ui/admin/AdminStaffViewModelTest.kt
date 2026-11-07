@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.admin.InvitationsPage
 import com.vaiinilla.app.domain.admin.StaffMembership
 import com.vaiinilla.app.domain.repository.AdminStaffRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.setMain
@@ -27,7 +28,7 @@ class AdminStaffViewModelTest {
 
     @After
     fun tearDown() {
-        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+        StaffHarness.restoreMain()
     }
 
     @Test
@@ -52,7 +53,10 @@ class AdminStaffViewModelTest {
         assertEquals("No se pudo cargar quién tiene acceso.", error)
 
         viewModel.refresh()
-        waitFor { viewModel.uiState.value.memberships.firstOrNull() }
+        waitFor {
+            viewModel.uiState.value.memberships
+                .firstOrNull()
+        }
         assertNull(viewModel.uiState.value.membershipsError)
         assertEquals(
             listOf("Ana"),

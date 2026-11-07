@@ -88,7 +88,10 @@ class RecorridosAyudaPedidoTest {
 
     @Test
     fun s06_conWhatsAppDelNegocioNoSaleElAvisoDeQueNoLoDejo() {
-        show(homeOrder(OrderState.PAID), JourneyVenue(name = "Pastelería Vaini", whatsappUrl = "https://wa.me/5216140000000"))
+        show(
+            homeOrder(OrderState.PAID),
+            JourneyVenue(name = "Pastelería Vaini", whatsappUrl = "https://wa.me/5216140000000"),
+        )
         composeTestRule.onNodeWithText("Algo cambió o necesito ayuda").performScrollTo().performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("¿Qué pasó?").assertIsDisplayed()

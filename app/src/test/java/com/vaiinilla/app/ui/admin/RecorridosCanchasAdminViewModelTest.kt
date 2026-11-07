@@ -131,7 +131,10 @@ class RecorridosCanchasAdminViewModelTest {
             )
         vm = AdminSpacesViewModel(spaces, reservations, VenueContextStore())
         vm.onVisible("negocio-1")
-        StaffHarness.awaitUntil("las canchas y reservas") { ui.spaces != null && ui.schedule != null && ui.reservations.isNotEmpty() }
+        StaffHarness.awaitUntil("las canchas y reservas") {
+            ui.spaces != null && ui.schedule != null &&
+                ui.reservations.isNotEmpty()
+        }
     }
 
     @Test
@@ -143,7 +146,10 @@ class RecorridosCanchasAdminViewModelTest {
     @Test
     fun j06_elPrecioPorHoraSeGuardaYUnPrecioInvalidoNoLlegaAlServidor() {
         vm.setHourlyPrice(court, "abc")
-        StaffHarness.awaitUntil("el aviso") { ui.notice == "Escribe el precio por hora, por ejemplo 300." && ui.noticeIsError }
+        StaffHarness.awaitUntil("el aviso") {
+            ui.notice == "Escribe el precio por hora, por ejemplo 300." &&
+                ui.noticeIsError
+        }
         assertTrue(spaces.patches.isEmpty())
         vm.setHourlyPrice(court, "350")
         StaffHarness.awaitUntil("el guardado") { ui.notice == "Precio por hora guardado" }
@@ -157,13 +163,20 @@ class RecorridosCanchasAdminViewModelTest {
     fun j06_dejarElPrecioVacioLaQuitaDeLaRenta() {
         vm.setHourlyPrice(court, "")
         StaffHarness.awaitUntil("el aviso") { ui.notice == "Pista 1 ya no se renta" }
-        assertNull(spaces.patches.single().second.hourlyPrice)
+        assertNull(
+            spaces.patches
+                .single()
+                .second.hourlyPrice,
+        )
     }
 
     @Test
     fun t06_unHorarioConLaMismaHoraOReservarMuyLejosNoSeGuarda() {
         vm.saveSchedule(ReservationSchedule("08:00", "08:00", 7))
-        StaffHarness.awaitUntil("el aviso") { ui.notice == "La hora de cierre debe ser distinta a la de apertura." && ui.noticeIsError }
+        StaffHarness.awaitUntil("el aviso") {
+            ui.notice == "La hora de cierre debe ser distinta a la de apertura." &&
+                ui.noticeIsError
+        }
         vm.saveSchedule(ReservationSchedule("08:00", "22:00", 90))
         StaffHarness.awaitUntil("el aviso de días") { ui.notice == "Se puede reservar de 0 a 60 días antes." }
         assertTrue(spaces.savedSchedules.isEmpty())

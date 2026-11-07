@@ -20,6 +20,7 @@ import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.auth.student.StudentAuthSession
 import com.vaiinilla.app.ui.account.AccountDeletionStatus
 import com.vaiinilla.app.ui.account.AccountDeletionViewModel
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -132,7 +133,7 @@ class AccountDeletionViewModelTest {
 
     @After
     fun tearDown() {
-        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+        StaffHarness.restoreMain()
     }
 
     @Test

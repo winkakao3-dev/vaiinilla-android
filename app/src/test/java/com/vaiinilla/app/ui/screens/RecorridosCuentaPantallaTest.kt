@@ -80,7 +80,15 @@ class RecorridosCuentaPantallaTest {
     fun w03_sinSerPersonalNoSaleModosDePersonalNiSeHablaDeHijos() {
         show(hasStaffModes = false)
         composeTestRule.onNodeWithText("Modos de personal").assertDoesNotExist()
-        assertTrue(composeTestRule.onAllNodesWithText("hijos", substring = true, ignoreCase = true).fetchSemanticsNodes().isEmpty())
+        assertTrue(
+            composeTestRule
+                .onAllNodesWithText(
+                    "hijos",
+                    substring = true,
+                    ignoreCase = true,
+                ).fetchSemanticsNodes()
+                .isEmpty(),
+        )
     }
 
     @Test
@@ -97,7 +105,10 @@ class RecorridosCuentaPantallaTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("¿Cerrar sesión?").assertIsDisplayed()
         assertEquals(0, signedOut)
-        composeTestRule.onAllNodesWithText("Cerrar sesión")[composeTestRule.onAllNodesWithText("Cerrar sesión").fetchSemanticsNodes().size - 1].performClick()
+        composeTestRule.onAllNodesWithText("Cerrar sesión")[
+            composeTestRule.onAllNodesWithText("Cerrar sesión").fetchSemanticsNodes().size -
+                1,
+        ].performClick()
         composeTestRule.waitForIdle()
         assertEquals(1, signedOut)
     }

@@ -4,6 +4,7 @@ import com.vaiinilla.app.data.hotel.FakeHotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.RequestType
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.setMain
@@ -44,7 +45,7 @@ class HotelRequestsViewModelTest {
 
     @After
     fun tearDown() {
-        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+        StaffHarness.restoreMain()
     }
 
     private fun waitUntil(condition: () -> Boolean) {

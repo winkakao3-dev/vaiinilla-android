@@ -26,7 +26,11 @@ class RecorridosBolichePistasTest {
     @Test
     fun u01_enUnBolicheElMenuNoMarcaZapatosNiJuegoPorPersonaComoRenta() {
         assertFalse(bowling.capabilities.flagsRentalWordsInMenu)
-        assertTrue(bowling.vocabulary.menuRentalAdvice.contains("Juegos por persona y renta de zapatos sí van aquí como producto"))
+        assertTrue(
+            bowling.vocabulary.menuRentalAdvice.contains(
+                "Juegos por persona y renta de zapatos sí van aquí como producto",
+            ),
+        )
     }
 
     @Test

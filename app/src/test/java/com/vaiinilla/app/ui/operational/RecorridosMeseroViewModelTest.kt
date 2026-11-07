@@ -40,7 +40,12 @@ class RecorridosMeseroViewModelTest {
     @Test
     fun n09_unaLlamadaNuevaAvisaDeQuienEsYParaQue() {
         load(WaiterBoard(listOf(WaiterHarness.table()), callsEnabled = true))
-        load(WaiterBoard(listOf(WaiterHarness.table(call = WaiterHarness.call(reason = CallReason.PROBLEMA))), callsEnabled = true))
+        load(
+            WaiterBoard(
+                listOf(WaiterHarness.table(call = WaiterHarness.call(reason = CallReason.PROBLEMA))),
+                callsEnabled = true,
+            ),
+        )
         StaffHarness.awaitUntil("el aviso de la llamada") {
             ui.toastMessage == "Mesa 4 te llama · ${CallReason.PROBLEMA.staffLabel}"
         }
@@ -67,16 +72,31 @@ class RecorridosMeseroViewModelTest {
     @Test
     fun z03_conQrObligatorioSinCodigoNoEntrega() {
         val order = WaiterHarness.order()
-        load(WaiterBoard(listOf(WaiterHarness.table(orders = listOf(order))), callsEnabled = true, deliveryRequiresQr = true))
+        load(
+            WaiterBoard(
+                listOf(WaiterHarness.table(orders = listOf(order))),
+                callsEnabled = true,
+                deliveryRequiresQr = true,
+            ),
+        )
         vm.deliver(order, "  ")
-        StaffHarness.awaitUntil("el aviso del código") { ui.toastMessage == "Pega el código del QR para confirmar la entrega." }
+        StaffHarness.awaitUntil("el aviso del código") {
+            ui.toastMessage ==
+                "Pega el código del QR para confirmar la entrega."
+        }
         assertTrue(repo.deliveries.isEmpty())
     }
 
     @Test
     fun z03_conElCodigoDelQrEntregaConEseCodigo() {
         val order = WaiterHarness.order()
-        load(WaiterBoard(listOf(WaiterHarness.table(orders = listOf(order))), callsEnabled = true, deliveryRequiresQr = true))
+        load(
+            WaiterBoard(
+                listOf(WaiterHarness.table(orders = listOf(order))),
+                callsEnabled = true,
+                deliveryRequiresQr = true,
+            ),
+        )
         vm.deliver(order, " VN-7 ")
         StaffHarness.awaitUntil("la entrega") { repo.deliveries.isNotEmpty() && !ui.acting }
         assertEquals(listOf("o1" to "VN-7"), repo.deliveries.toList())
@@ -86,7 +106,13 @@ class RecorridosMeseroViewModelTest {
     @Test
     fun z03_sinQrEntregaConSoloConfirmar() {
         val order = WaiterHarness.order()
-        load(WaiterBoard(listOf(WaiterHarness.table(orders = listOf(order))), callsEnabled = true, deliveryRequiresQr = false))
+        load(
+            WaiterBoard(
+                listOf(WaiterHarness.table(orders = listOf(order))),
+                callsEnabled = true,
+                deliveryRequiresQr = false,
+            ),
+        )
         vm.deliver(order, null)
         StaffHarness.awaitUntil("la entrega") { repo.deliveries.isNotEmpty() && !ui.acting }
         assertEquals(listOf<Pair<String, String?>>("o1" to null), repo.deliveries.toList())
@@ -95,7 +121,13 @@ class RecorridosMeseroViewModelTest {
     @Test
     fun z03_unPedidoQueElNegocioDispensaDelQrEntregaSinCodigo() {
         val order = WaiterHarness.order(withoutQr = true)
-        load(WaiterBoard(listOf(WaiterHarness.table(orders = listOf(order))), callsEnabled = true, deliveryRequiresQr = true))
+        load(
+            WaiterBoard(
+                listOf(WaiterHarness.table(orders = listOf(order))),
+                callsEnabled = true,
+                deliveryRequiresQr = true,
+            ),
+        )
         vm.deliver(order, null)
         StaffHarness.awaitUntil("la entrega") { repo.deliveries.isNotEmpty() && !ui.acting }
         assertEquals(listOf<Pair<String, String?>>("o1" to null), repo.deliveries.toList())

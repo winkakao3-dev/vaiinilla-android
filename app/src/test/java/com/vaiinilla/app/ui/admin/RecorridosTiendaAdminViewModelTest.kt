@@ -2,10 +2,10 @@ package com.vaiinilla.app.ui.admin
 
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
-import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.admin.StoreConfig
 import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
+import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.ui.operational.FakeCatalog
 import com.vaiinilla.app.ui.operational.StaffHarness
 import org.junit.Assert.assertEquals
@@ -71,7 +71,13 @@ class RecorridosTiendaAdminViewModelTest {
             )
         vm.saveFlow(flow) { done = true }
         StaffHarness.awaitUntil("flujo guardado") { done && ui.notice == "Flujo guardado" && !ui.saving }
-        assertEquals(listOf("12:00", "18:00"), store.flows.single().orderWindows.map { it.from })
+        assertEquals(
+            listOf("12:00", "18:00"),
+            store.flows
+                .single()
+                .orderWindows
+                .map { it.from },
+        )
         assertEquals(10, ui.config!!.releaseGraceMinutes)
     }
 
@@ -106,6 +112,9 @@ class RecorridosTiendaAdminViewModelTest {
         assertEquals("1200.00", ui.wallet!!.reloads)
         val before = store.walletPeriods.size
         vm.selectWalletPeriod(AdminPeriodPreset.WEEK)
-        StaffHarness.awaitUntil("la cartera de la semana") { store.walletPeriods.size > before && ui.walletPreset == AdminPeriodPreset.WEEK }
+        StaffHarness.awaitUntil("la cartera de la semana") {
+            store.walletPeriods.size > before &&
+                ui.walletPreset == AdminPeriodPreset.WEEK
+        }
     }
 }

@@ -41,7 +41,8 @@ class RecorridosCocinaPantallaTest {
         id: Int,
         name: String,
         quantity: Int,
-    ): OrderItem = template.copy(id = id, productName = name, quantity = quantity, options = emptyList(), rejection = null)
+    ): OrderItem =
+        template.copy(id = id, productName = name, quantity = quantity, options = emptyList(), rejection = null)
 
     private fun order(
         folio: Int,
@@ -113,7 +114,10 @@ class RecorridosCocinaPantallaTest {
     fun n11_sinRedSaleLaFranjaAmarillaYLaListaSeQueda() {
         show(
             listOf(order(16, item(1, "Papas", 1))),
-            queue = com.vaiinilla.app.ui.operational.QueueSync.Failed(com.vaiinilla.app.core.network.ApiFailure.NoConnection),
+            queue =
+                com.vaiinilla.app.ui.operational.QueueSync.Failed(
+                    com.vaiinilla.app.core.network.ApiFailure.NoConnection,
+                ),
         )
         composeTestRule.onNodeWithText("Sin internet").assertIsDisplayed()
         composeTestRule.onNodeWithText("#16").assertIsDisplayed()
@@ -131,7 +135,8 @@ class RecorridosCocinaPantallaTest {
             listOf(order(16, item(1, "Papas", 1))),
             queue =
                 com.vaiinilla.app.ui.operational.QueueSync.Failed(
-                    com.vaiinilla.app.core.network.ApiFailure.ServerError(500, "X", "Tuvimos un problema"),
+                    com.vaiinilla.app.core.network.ApiFailure
+                        .ServerError(500, "X", "Tuvimos un problema"),
                 ),
         )
         composeTestRule.onNodeWithText("Sin internet").assertDoesNotExist()

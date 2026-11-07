@@ -217,7 +217,11 @@ internal object WaiterHarness {
         val field = unsafeClass.getDeclaredField("theUnsafe")
         field.isAccessible = true
         val rescuer =
-            unsafeClass.getMethod("allocateInstance", Class::class.java).invoke(field.get(null), OfflineStaffOrderRescuer::class.java)
+            unsafeClass
+                .getMethod(
+                    "allocateInstance",
+                    Class::class.java,
+                ).invoke(field.get(null), OfflineStaffOrderRescuer::class.java)
                 as OfflineStaffOrderRescuer
         return WaiterViewModel(
             waiterRepository = waiter,

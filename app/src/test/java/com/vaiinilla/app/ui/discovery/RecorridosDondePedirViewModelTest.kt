@@ -85,14 +85,22 @@ class RecorridosDondePedirViewModelTest {
                 authRepository = untouched<StudentAuthRepository>(),
                 lastOrderedPlaces = LastOrderedPlaceStore(app),
             )
-        StaffHarness.awaitUntil("la primera búsqueda") { !vm.state.value.loading && vm.state.value.establishments.isNotEmpty() }
+        StaffHarness.awaitUntil("la primera búsqueda") {
+            !vm.state.value.loading &&
+                vm.state.value.establishments
+                    .isNotEmpty()
+        }
         return vm
     }
 
     @Test
     fun w05_alEntrarMuestraLosNegociosDeLaBusquedaSinUbicacion() {
         val vm = viewModel()
-        assertEquals(listOf("Boliche Strike", "Pastelería Vaini"), vm.state.value.establishments.map { it.name })
+        assertEquals(
+            listOf("Boliche Strike", "Pastelería Vaini"),
+            vm.state.value.establishments
+                .map { it.name },
+        )
         assertEquals("" to null, discovery.searches.first())
     }
 
@@ -104,8 +112,17 @@ class RecorridosDondePedirViewModelTest {
         assertNull(vm.state.value.lastPlace)
         store.record(LastOrderedPlace(place("p1", "Boliche Strike"), "Cerveza", 2, Instant.now()))
         vm.loadLastPlace()
-        assertEquals("Boliche Strike", vm.state.value.lastPlace?.establishment?.name)
-        assertTrue(vm.state.value.lastPlace!!.summary().endsWith("Cerveza y 2 más"))
+        assertEquals(
+            "Boliche Strike",
+            vm.state.value.lastPlace
+                ?.establishment
+                ?.name,
+        )
+        assertTrue(
+            vm.state.value.lastPlace!!
+                .summary()
+                .endsWith("Cerveza y 2 más"),
+        )
         store.clear()
         vm.loadLastPlace()
         assertNull(vm.state.value.lastPlace)
@@ -116,11 +133,17 @@ class RecorridosDondePedirViewModelTest {
         val here = GeoCoordinates(28.63, -106.07)
         val vm = viewModel { here }
         vm.enableNearby()
-        StaffHarness.awaitUntil("ordenado por cercanía") { vm.state.value.nearbyOrigin == here && discovery.searches.any { it.second == here } }
+        StaffHarness.awaitUntil("ordenado por cercanía") {
+            vm.state.value.nearbyOrigin == here &&
+                discovery.searches.any { it.second == here }
+        }
         assertEquals(false, vm.state.value.locating)
         assertNull(vm.state.value.locationMessage)
         vm.disableNearby()
-        StaffHarness.awaitUntil("búsqueda normal") { vm.state.value.nearbyOrigin == null && discovery.searches.last().second == null }
+        StaffHarness.awaitUntil("búsqueda normal") {
+            vm.state.value.nearbyOrigin == null &&
+                discovery.searches.last().second == null
+        }
     }
 
     @Test
@@ -128,7 +151,10 @@ class RecorridosDondePedirViewModelTest {
         val vm = viewModel { null }
         vm.enableNearby()
         StaffHarness.awaitUntil("el aviso") { vm.state.value.locationMessage != null && !vm.state.value.locating }
-        assertTrue(vm.state.value.locationMessage!!.contains("GPS"))
+        assertTrue(
+            vm.state.value.locationMessage!!
+                .contains("GPS"),
+        )
         assertNull(vm.state.value.nearbyOrigin)
         assertTrue(discovery.searches.none { it.second != null })
     }
@@ -146,7 +172,10 @@ class RecorridosDondePedirViewModelTest {
         val vm = viewModel()
         vm.onNearbyPermissionDenied()
         assertNotNull(vm.state.value.locationMessage)
-        assertTrue(vm.state.value.locationMessage!!.contains("nombre"))
+        assertTrue(
+            vm.state.value.locationMessage!!
+                .contains("nombre"),
+        )
         assertNull(vm.state.value.nearbyOrigin)
         vm.updateQuery("boliche")
         StaffHarness.awaitUntil("la búsqueda por nombre") { discovery.searches.any { it.first == "boliche" } }

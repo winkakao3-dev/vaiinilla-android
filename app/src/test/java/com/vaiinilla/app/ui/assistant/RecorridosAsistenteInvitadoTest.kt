@@ -100,5 +100,4 @@ class RecorridosAsistenteInvitadoTest {
         composeTestRule.waitForIdle()
         assertEquals(listOf("Sin alcohol"), sent)
     }
-
 }

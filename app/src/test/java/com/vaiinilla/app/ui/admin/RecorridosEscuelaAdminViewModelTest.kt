@@ -33,8 +33,32 @@ private class FakeSchool : SchoolAdminRepository {
 
     @Volatile var studentRequests =
         listOf(
-            SchoolStudentRequest("s1", StudentRequestKind.REFUND, RefundMethod.CASH, null, "150.00", "150.00", "Marta López", null, "Ana López", "A-001", "3°B"),
-            SchoolStudentRequest("s2", StudentRequestKind.DATA_REMOVAL, null, null, "0.00", "0.00", "Luis Pérez", null, "Beto Pérez", "A-002", "4°A"),
+            SchoolStudentRequest(
+                "s1",
+                StudentRequestKind.REFUND,
+                RefundMethod.CASH,
+                null,
+                "150.00",
+                "150.00",
+                "Marta López",
+                null,
+                "Ana López",
+                "A-001",
+                "3°B",
+            ),
+            SchoolStudentRequest(
+                "s2",
+                StudentRequestKind.DATA_REMOVAL,
+                null,
+                null,
+                "0.00",
+                "0.00",
+                "Luis Pérez",
+                null,
+                "Beto Pérez",
+                "A-002",
+                "4°A",
+            ),
         )
 
     @Volatile var guardianships =
@@ -77,13 +101,19 @@ private class FakeSchool : SchoolAdminRepository {
         date: LocalDate,
         productIds: List<Int>,
         idempotencyKey: String,
-    ) = answer { menus.add(date to productIds); Unit }
+    ) = answer {
+        menus.add(date to productIds)
+        Unit
+    }
 
     override fun closeDay(
         date: LocalDate,
         reason: String,
         idempotencyKey: String,
-    ) = answer { closedDays.add(date to reason); DayClosure(3, "100.00", 0) }
+    ) = answer {
+        closedDays.add(date to reason)
+        DayClosure(3, "100.00", 0)
+    }
 
     override fun reopenDay(
         date: LocalDate,
@@ -97,7 +127,10 @@ private class FakeSchool : SchoolAdminRepository {
     override fun saveRoster(
         students: List<RosterStudent>,
         idempotencyKey: String,
-    ) = answer { rosters.add(students); students.size }
+    ) = answer {
+        rosters.add(students)
+        students.size
+    }
 
     override fun guardianRequests() = Result.success(requests)
 
@@ -105,7 +138,10 @@ private class FakeSchool : SchoolAdminRepository {
         id: String,
         approve: Boolean,
         idempotencyKey: String,
-    ) = answer { reviews.add(id to approve); Unit }
+    ) = answer {
+        reviews.add(id to approve)
+        Unit
+    }
 
     override fun searchGuardianships(query: String) = Result.success(guardianships)
 
@@ -117,20 +153,29 @@ private class FakeSchool : SchoolAdminRepository {
     override fun makePrincipal(
         id: String,
         idempotencyKey: String,
-    ) = answer { principals.add(id); Unit }
+    ) = answer {
+        principals.add(id)
+        Unit
+    }
 
     override fun studentRequests() = Result.success(studentRequests)
 
     override fun resolveStudentRequest(
         id: String,
         idempotencyKey: String,
-    ) = answer { resolved.add(id); Unit }
+    ) = answer {
+        resolved.add(id)
+        Unit
+    }
 
     override fun rejectStudentRequest(
         id: String,
         reason: String,
         idempotencyKey: String,
-    ) = answer { rejected.add(id to reason); Unit }
+    ) = answer {
+        rejected.add(id to reason)
+        Unit
+    }
 }
 
 /**
@@ -149,7 +194,8 @@ class RecorridosEscuelaAdminViewModelTest {
         vm = AdminSchoolViewModel(repo)
         vm.onVisible("escuela-1")
         StaffHarness.awaitUntil("la escuela cargada") {
-            ui.settings != null && ui.requests != null && ui.studentRequests != null && ui.menu != null && ui.roster != null
+            ui.settings != null && ui.requests != null && ui.studentRequests != null && ui.menu != null &&
+                ui.roster != null
         }
     }
 
@@ -178,7 +224,10 @@ class RecorridosEscuelaAdminViewModelTest {
         StaffHarness.awaitUntil("padrón guardado") { ui.notice == "Padrón guardado: 2 alumnos" }
         waitFree()
         vm.saveMenu(repo.today, emptySet())
-        StaffHarness.awaitUntil("menú del día") { ui.notice == "Ese día se vende todo el menú" && ui.savingMenuDate == null }
+        StaffHarness.awaitUntil("menú del día") {
+            ui.notice == "Ese día se vende todo el menú" &&
+                ui.savingMenuDate == null
+        }
         assertEquals(listOf(repo.today to emptyList<Int>()), repo.menus.toList())
     }
 
@@ -193,7 +242,10 @@ class RecorridosEscuelaAdminViewModelTest {
     fun f01_aprobarAlTutorLoQuitaDeLasSolicitudesYDiceQuienCuidaA() {
         val request = ui.requests!!.single()
         vm.review(request, approve = true)
-        StaffHarness.awaitUntil("aprobado") { ui.notice == "Marta López ya cuida a Ana López" && ui.requests?.isEmpty() == true }
+        StaffHarness.awaitUntil("aprobado") {
+            ui.notice == "Marta López ya cuida a Ana López" &&
+                ui.requests?.isEmpty() == true
+        }
         assertEquals(listOf("g1" to true), repo.reviews.toList())
     }
 
@@ -208,7 +260,10 @@ class RecorridosEscuelaAdminViewModelTest {
     fun f02_siElServidorDiceQueYaSeRevisoSeExplicaYSeVuelveAPedirLaLista() {
         repo.failWith = CatalogRepositoryException("GUARDIANSHIP_NOT_PENDING", "x")
         vm.review(ui.requests!!.single(), approve = true)
-        StaffHarness.awaitUntil("el aviso") { ui.notice == "Esa solicitud ya se revisó. Actualiza la lista." && ui.noticeIsError }
+        StaffHarness.awaitUntil("el aviso") {
+            ui.notice == "Esa solicitud ya se revisó. Actualiza la lista." &&
+                ui.noticeIsError
+        }
     }
 
     @Test
@@ -232,7 +287,8 @@ class RecorridosEscuelaAdminViewModelTest {
         val refund = ui.studentRequests!!.first { it.id == "s1" }
         vm.resolve(refund)
         StaffHarness.awaitUntil("devuelto") {
-            ui.notice == "Listo: salieron ${moneyLabel("150.00")} de la caja para Marta López" && ui.studentRequests?.none { it.id == "s1" } == true
+            ui.notice == "Listo: salieron ${moneyLabel("150.00")} de la caja para Marta López" &&
+                ui.studentRequests?.none { it.id == "s1" } == true
         }
         assertEquals(listOf("s1"), repo.resolved.toList())
     }
@@ -241,7 +297,10 @@ class RecorridosEscuelaAdminViewModelTest {
     fun f13_sinAbrirLaCajaElEfectivoNoSaleYSeExplica() {
         repo.failWith = CatalogRepositoryException("CASH_SESSION_REQUIRED", "CASH_SESSION_REQUIRED")
         vm.resolve(ui.studentRequests!!.first { it.id == "s1" })
-        StaffHarness.awaitUntil("el aviso") { ui.notice == "Abre la caja primero: el efectivo se registra en ella." && ui.noticeIsError }
+        StaffHarness.awaitUntil("el aviso") {
+            ui.notice == "Abre la caja primero: el efectivo se registra en ella." &&
+                ui.noticeIsError
+        }
         assertTrue(ui.studentRequests!!.any { it.id == "s1" })
     }
 
@@ -261,7 +320,13 @@ class RecorridosEscuelaAdminViewModelTest {
         val removal = ui.studentRequests!!.first { it.id == "s2" }
         assertTrue(removal.canResolve)
         // La devolución con saldo no se resuelve como baja: ese caso pide saldo en cero.
-        assertEquals(false, ui.studentRequests!!.first { it.id == "s1" }.canResolve.not())
+        assertEquals(
+            false,
+            ui.studentRequests!!
+                .first { it.id == "s1" }
+                .canResolve
+                .not(),
+        )
         vm.resolve(removal)
         StaffHarness.awaitUntil("baja") { ui.notice == "Beto Pérez quedó dado de baja" }
         assertEquals(listOf("s2"), repo.resolved.toList())

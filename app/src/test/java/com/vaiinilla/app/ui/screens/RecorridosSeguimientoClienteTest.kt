@@ -5,9 +5,9 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -124,7 +124,10 @@ class RecorridosSeguimientoClienteTest {
                 status = CallStatus.PENDIENTE,
                 clientName = "Robot",
                 takenBy = null,
-                createdAt = java.time.Instant.now().toString(),
+                createdAt =
+                    java.time.Instant
+                        .now()
+                        .toString(),
                 takenAt = null,
                 closedAt = null,
                 version = 1,

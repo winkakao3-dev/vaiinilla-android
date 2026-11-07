@@ -31,6 +31,7 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -224,7 +225,7 @@ class StudentAuthViewModelTest {
 
     @After
     fun tearDown() {
-        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+        StaffHarness.restoreMain()
     }
 
     @Test
@@ -669,7 +670,10 @@ class StudentAuthViewModelTest {
                 }
             }
             assertFalse(enrolled)
-            assertTrue(vm.state.value.session?.emailVerified == true)
+            assertTrue(
+                vm.state.value.session
+                    ?.emailVerified == true,
+            )
             assertTrue(
                 vm.state.value.errorMessage
                     ?.contains("matrícula", ignoreCase = true) == true,

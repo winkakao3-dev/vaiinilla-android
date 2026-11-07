@@ -115,7 +115,11 @@ class RecorridosCortesViewModelTest {
         assertEquals("2026-11-09", ui.dayCut!!.date)
         assertEquals(1, ui.dayCut!!.shifts.size)
         assertEquals("670.00", ui.dayCut!!.cash.expected)
-        assertEquals("350.00", ui.dayCut!!.breakdown.summary.sales)
+        assertEquals(
+            "350.00",
+            ui.dayCut!!
+                .breakdown.summary.sales,
+        )
     }
 
     @Test
@@ -135,7 +139,11 @@ class RecorridosCortesViewModelTest {
         vm.openShift("s-1")
         StaffHarness.awaitUntil("el corte del turno") { ui.shiftCut != null && !ui.shiftLoading }
         assertEquals(listOf("s-1"), repo.shiftRequests.toList())
-        assertEquals("665.00", ui.shiftCut!!.shift.cash.counted)
+        assertEquals(
+            "665.00",
+            ui.shiftCut!!
+                .shift.cash.counted,
+        )
         vm.closeShift()
         assertNull(ui.shiftCut)
     }
@@ -143,7 +151,10 @@ class RecorridosCortesViewModelTest {
     @Test
     fun q03_cambiarLaHoraEnQueEmpiezaElDiaLaGuardaYVuelveAPedirElCorte() {
         vm.changeDayStart("04:00")
-        StaffHarness.awaitUntil("la hora guardada") { ui.dayStart == "04:00" && ui.notice == "El día empieza a las 04:00." }
+        StaffHarness.awaitUntil("la hora guardada") {
+            ui.dayStart == "04:00" &&
+                ui.notice == "El día empieza a las 04:00."
+        }
         assertEquals(listOf("04:00"), repo.dayStarts.toList())
     }
 

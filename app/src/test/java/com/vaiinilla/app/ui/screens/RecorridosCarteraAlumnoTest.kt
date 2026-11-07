@@ -4,12 +4,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import com.vaiinilla.app.domain.guardianship.MyGuardianControls
-import com.vaiinilla.app.ui.theme.VaiinillaTheme
-import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import com.vaiinilla.app.domain.guardianship.ChildRestriction
+import com.vaiinilla.app.domain.guardianship.MyGuardianControls
 import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.ui.operational.sampleProduct
+import com.vaiinilla.app.ui.theme.VaiinillaTheme
+import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -108,7 +108,10 @@ class RecorridosCarteraAlumnoTest {
 
     @Test
     fun f06_unProductoAgotadoSeDiceAgotadoParaCualquiera() {
-        assertEquals(ChildRestriction.SoldOut, controls().restrictionFor(sampleProduct(9, "Galleta").copy(available = false)))
+        assertEquals(
+            ChildRestriction.SoldOut,
+            controls().restrictionFor(sampleProduct(9, "Galleta").copy(available = false)),
+        )
         assertNull(controls().restrictionFor(sampleProduct(9, "Galleta")))
     }
 }

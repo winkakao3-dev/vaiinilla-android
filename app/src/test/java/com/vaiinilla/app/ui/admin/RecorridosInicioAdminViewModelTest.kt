@@ -94,10 +94,16 @@ class RecorridosInicioAdminViewModelTest {
         admin.orderPages["c2"] = AdminOrdersPage(listOf(sampleOrder("b", OrderState.DELIVERED, folio = 2)), null)
         visit()
         vm.selectOrderFilter(AdminOrderFilter.DELIVERED)
-        StaffHarness.awaitUntil("la primera página") { ui.orders.map { it.summary.id } == listOf("a") && !ui.ordersLoading }
+        StaffHarness.awaitUntil("la primera página") {
+            ui.orders.map { it.summary.id } == listOf("a") &&
+                !ui.ordersLoading
+        }
         assertTrue(admin.orderQueries.any { it.first == setOf(OrderState.DELIVERED) && it.second == null })
         vm.loadMoreOrders()
-        StaffHarness.awaitUntil("la segunda página") { ui.orders.map { it.summary.id } == listOf("a", "b") && !ui.ordersLoading }
+        StaffHarness.awaitUntil("la segunda página") {
+            ui.orders.map { it.summary.id } == listOf("a", "b") &&
+                !ui.ordersLoading
+        }
         assertNull(ui.ordersCursor)
     }
 
@@ -109,7 +115,9 @@ class RecorridosInicioAdminViewModelTest {
         StaffHarness.awaitUntil("lo entregado") { ui.orders.isNotEmpty() && !ui.ordersLoading }
         admin.orderPages["primera"] = AdminOrdersPage(listOf(sampleOrder("x", OrderState.CANCELED)), null)
         vm.selectOrderFilter(AdminOrderFilter.INCIDENTS)
-        StaffHarness.awaitUntil("las incidencias") { ui.orders.map { it.summary.id } == listOf("x") && !ui.ordersLoading }
+        StaffHarness.awaitUntil(
+            "las incidencias",
+        ) { ui.orders.map { it.summary.id } == listOf("x") && !ui.ordersLoading }
         assertTrue(admin.orderQueries.any { it.first == AdminOrderFilter.INCIDENTS.states })
     }
 

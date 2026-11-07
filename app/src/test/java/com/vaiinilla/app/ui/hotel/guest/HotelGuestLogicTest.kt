@@ -10,6 +10,7 @@ import com.vaiinilla.app.domain.hotel.StayAccount
 import com.vaiinilla.app.domain.hotel.StayCharge
 import com.vaiinilla.app.domain.hotel.StayOrder
 import com.vaiinilla.app.domain.hotel.StayStatus
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -29,7 +30,7 @@ class HotelGuestLogicTest {
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
     @After
-    fun tearDown() = com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+    fun tearDown() = StaffHarness.restoreMain()
 
     private fun waitUntil(
         timeoutMs: Long = 3_000,

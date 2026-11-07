@@ -137,11 +137,14 @@ class RecorridosMesasAdminViewModelTest {
     @Test
     fun t05_unRangoInvalidoNoLlegaAlServidor() {
         vm.createBatch(SpaceType.TABLE, "Mesa", 10, 1) {}
-        StaffHarness.awaitUntil("el aviso") { ui.notice == "El último número debe ser mayor o igual al primero." && ui.noticeIsError }
+        StaffHarness.awaitUntil("el aviso") {
+            ui.notice == "El último número debe ser mayor o igual al primero." &&
+                ui.noticeIsError
+        }
         vm.createBatch(SpaceType.TABLE, "  ", 1, 5) {}
         StaffHarness.awaitUntil("el aviso del nombre") { ui.notice == "El nombre base va de 1 a 70 letras." }
         vm.createBatch(SpaceType.TABLE, "Mesa", 1, 600) {}
-        StaffHarness.awaitUntil("el aviso del tope") { ui.notice == "Se crean hasta ${SpaceRulesMax} a la vez." }
+        StaffHarness.awaitUntil("el aviso del tope") { ui.notice == "Se crean hasta $SpaceRulesMax a la vez." }
         assertTrue(repo.batches.isEmpty())
     }
 

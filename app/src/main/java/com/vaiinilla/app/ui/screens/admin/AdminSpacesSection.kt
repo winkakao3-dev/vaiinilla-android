@@ -169,7 +169,14 @@ internal fun AdminSpacesSection(
                     // Una habitación recién creada vive en la lista del hotel y esta aún no la trae: se vuelve a leer
                     // antes de rendirse, o su QR no se podía abrir hasta reiniciar.
                     LaunchedEffect(current.id) {
-                        viewModel.refresh { if (viewModel.uiState.value.spaces?.none { it.id == current.id } != false) page = null }
+                        viewModel.refresh {
+                            if (viewModel.uiState.value.spaces
+                                    ?.none { it.id == current.id } !=
+                                false
+                            ) {
+                                page = null
+                            }
+                        }
                     }
                 } else {
                     SpaceDetailPage(space, colors, readOnly, viewModel, onBack = { page = null }) {
@@ -177,6 +184,7 @@ internal fun AdminSpacesSection(
                     }
                 }
             }
+
             SpacesPage.Reservations -> {
                 // Las reservas llegan de los clientes sin aviso: con la página abierta se vuelven a leer cada tanto
                 // (y al volver a la app); antes solo se veían al reiniciar (en vivo, #12).
@@ -212,7 +220,8 @@ internal fun AdminSpacesSection(
                     item { ScheduleCard(state.schedule, colors, enabled, viewModel::saveSchedule) }
                 }
             }
-            null ->
+
+            null -> {
                 if (venue.capabilities.hasHotelAdmin) {
                     // En un hotel las mesas son habitaciones: su lista, el alta en lote y el QR de cada una (A01).
                     HotelRoomsAdminSection(colors, readOnly, onBack, onOpenRoom = { page = SpacesPage.Space(it) })
@@ -228,12 +237,13 @@ internal fun AdminSpacesSection(
                         onOpen = { page = it },
                     ) { sheet = it }
                 }
+            }
         }
     }
 
     val error = state.notice.takeIf { state.noticeIsError }
     when (val current = sheet) {
-        SpacesSheet.Create, SpacesSheet.Batch ->
+        SpacesSheet.Create, SpacesSheet.Batch -> {
             CreateSheet(
                 colors,
                 state.saving,
@@ -245,6 +255,8 @@ internal fun AdminSpacesSection(
                     viewModel.createBatch(type, prefix, from, to, people, close)
                 },
             )
+        }
+
         is SpacesSheet.Edit -> {
             val space = state.spaces?.firstOrNull { it.id == current.spaceId }
             if (space == null) {
@@ -255,7 +267,8 @@ internal fun AdminSpacesSection(
                 }, onDismiss = close)
             }
         }
-        is SpacesSheet.Delete ->
+
+        is SpacesSheet.Delete -> {
             AdminConfirmSheet(
                 title = "Eliminar ${current.space.name}",
                 message =
@@ -270,11 +283,15 @@ internal fun AdminSpacesSection(
                 page = null
                 close()
             }
-        is SpacesSheet.Charge ->
+        }
+
+        is SpacesSheet.Charge -> {
             ChargeSheet(current.reservation, colors, state.saving, error, close) { received ->
                 viewModel.payReservation(current.reservation, received, close)
             }
-        is SpacesSheet.Release ->
+        }
+
+        is SpacesSheet.Release -> {
             AdminConfirmSheet(
                 title = "Liberar ${venue.vocabulary.court}",
                 message =
@@ -288,11 +305,17 @@ internal fun AdminSpacesSection(
                 viewModel.cancelReservation(current.reservation)
                 close()
             }
-        is SpacesSheet.Refund ->
+        }
+
+        is SpacesSheet.Refund -> {
             RefundSheet(current.reservation, colors, state.saving, error, close) { amount, reason ->
                 viewModel.refundReservation(current.reservation, amount, reason, close)
             }
-        null -> Unit
+        }
+
+        null -> {
+            Unit
+        }
     }
 }
 
@@ -338,11 +361,19 @@ private fun SpacesList(
             )
         }
         when {
-            spaces == null && state.error != null ->
+            spaces == null && state.error != null -> {
                 item { AdminLoadError(state.error.orEmpty(), colors, viewModel::refresh) }
-            spaces == null -> item { AdminHint("Cargando espacios…", colors) }
-            spaces.isEmpty() -> item { SpacesEmpty(colors, readOnly, enabled, Modifier.adminRise(1), onSheet) }
-            else ->
+            }
+
+            spaces == null -> {
+                item { AdminHint("Cargando espacios…", colors) }
+            }
+
+            spaces.isEmpty() -> {
+                item { SpacesEmpty(colors, readOnly, enabled, Modifier.adminRise(1), onSheet) }
+            }
+
+            else -> {
                 spaceGroups(venue, spaces).forEachIndexed { index, (title, members) ->
                     item(key = "g-$title") {
                         Column(Modifier.adminRise(index + 1).animateItem()) {
@@ -365,6 +396,7 @@ private fun SpacesList(
                         }
                     }
                 }
+            }
         }
         if (state.hasCourts && !spaces.isNullOrEmpty()) {
             item(key = "reservas") {
@@ -392,13 +424,26 @@ private fun SpacesList(
 
 private fun boardStatus(table: com.vaiinilla.app.domain.repository.BoardTable): Pair<String, AdminBadgeTone> =
     when {
-        table.call != null -> "Llamando" to AdminBadgeTone.DANGER
-        table.orders.any { it.payAtEnd || it.paymentPending } -> "Cuenta abierta" to AdminBadgeTone.WARN
-        table.orders.isNotEmpty() -> "Pidiendo" to AdminBadgeTone.OK
+        table.call != null -> {
+            "Llamando" to AdminBadgeTone.DANGER
+        }
+
+        table.orders.any { it.payAtEnd || it.paymentPending } -> {
+            "Cuenta abierta" to AdminBadgeTone.WARN
+        }
+
+        table.orders.isNotEmpty() -> {
+            "Pidiendo" to AdminBadgeTone.OK
+        }
+
         table.availability != null &&
-            table.availability.state != com.vaiinilla.app.domain.repository.SpaceAvailabilityState.LIBRE ->
+            table.availability.state != com.vaiinilla.app.domain.repository.SpaceAvailabilityState.LIBRE -> {
             "Rentada" to AdminBadgeTone.OK
-        else -> "Libre" to AdminBadgeTone.NEUTRAL
+        }
+
+        else -> {
+            "Libre" to AdminBadgeTone.NEUTRAL
+        }
     }
 
 private fun spaceGroups(
@@ -435,10 +480,17 @@ private fun SpaceRow(
         colors = colors,
         detail =
             when {
-                space.isCourt && price != null -> "Renta ${moneyLabel(price)} por hora"
-                space.capacity != null ->
+                space.isCourt && price != null -> {
+                    "Renta ${moneyLabel(price)} por hora"
+                }
+
+                space.capacity != null -> {
                     if (space.capacity == 1) "1 persona" else "${space.capacity} personas"
-                else -> space.code?.let { "Código $it" } ?: (space.type?.label(venue) ?: space.typeWire)
+                }
+
+                else -> {
+                    space.code?.let { "Código $it" } ?: (space.type?.label(venue) ?: space.typeWire)
+                }
             },
         dimmed = !space.active,
         onClick = onClick,
@@ -451,15 +503,25 @@ private fun SpaceRow(
         },
     ) {
         when {
-            busy ->
+            busy -> {
                 androidx.compose.material3.CircularProgressIndicator(
                     color = colors.textPrimary,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(18.dp),
                 )
-            !space.active -> AdminBadge("Desactivado", colors, AdminBadgeTone.DANGER)
-            status != null -> AdminBadge(status.first, colors, status.second)
-            space.isCourt && price != null -> AdminBadge("Se renta", colors, AdminBadgeTone.OK)
+            }
+
+            !space.active -> {
+                AdminBadge("Desactivado", colors, AdminBadgeTone.DANGER)
+            }
+
+            status != null -> {
+                AdminBadge(status.first, colors, status.second)
+            }
+
+            space.isCourt && price != null -> {
+                AdminBadge("Se renta", colors, AdminBadgeTone.OK)
+            }
         }
         Chevron(colors)
     }
@@ -582,10 +644,17 @@ private fun SpaceDetailPage(
         item {
             Text(
                 when (space.type) {
-                    SpaceType.COURT ->
+                    SpaceType.COURT -> {
                         "Ponlo en la ${venue.vocabulary.court}. Al escanearlo, el cliente pide y su pedido llega aquí."
-                    SpaceType.BAR -> "Ponlo en la barra. Al escanearlo, el cliente pide y su pedido llega a la barra."
-                    else -> "Ponlo en la mesa. Al escanearlo, el cliente pide y su pedido llega a esta mesa."
+                    }
+
+                    SpaceType.BAR -> {
+                        "Ponlo en la barra. Al escanearlo, el cliente pide y su pedido llega a la barra."
+                    }
+
+                    else -> {
+                        "Ponlo en la mesa. Al escanearlo, el cliente pide y su pedido llega a esta mesa."
+                    }
                 },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1416,12 +1485,25 @@ private fun reservationTime(reservation: Reservation): String {
  */
 internal fun reservationBadge(state: ReservationState): Pair<String, AdminBadgeTone> =
     when (state) {
-        ReservationState.PENDING_PAYMENT -> "Por cobrar" to AdminBadgeTone.WARN
-        ReservationState.CONFIRMED, ReservationState.IN_PROGRESS, ReservationState.FINISHED ->
+        ReservationState.PENDING_PAYMENT -> {
+            "Por cobrar" to AdminBadgeTone.WARN
+        }
+
+        ReservationState.CONFIRMED, ReservationState.IN_PROGRESS, ReservationState.FINISHED -> {
             "Pagada" to AdminBadgeTone.OK
-        ReservationState.EXPIRED -> "Vencida" to AdminBadgeTone.NEUTRAL
-        ReservationState.CONFLICT -> "Revisar" to AdminBadgeTone.DANGER
-        ReservationState.CANCELLED -> "Cancelada" to AdminBadgeTone.NEUTRAL
+        }
+
+        ReservationState.EXPIRED -> {
+            "Vencida" to AdminBadgeTone.NEUTRAL
+        }
+
+        ReservationState.CONFLICT -> {
+            "Revisar" to AdminBadgeTone.DANGER
+        }
+
+        ReservationState.CANCELLED -> {
+            "Cancelada" to AdminBadgeTone.NEUTRAL
+        }
     }
 
 private fun reservationLabel(state: ReservationState): String =

@@ -60,7 +60,13 @@ class RecorridosAvisoPrivacidadTest {
         return children
     }
 
-    private val notice = PrivacyNotice("2026-10-21", false, "Aviso de privacidad de Vaiinilla", listOf("Usamos los datos de tu hijo solo para vender."))
+    private val notice =
+        PrivacyNotice(
+            "2026-10-21",
+            false,
+            "Aviso de privacidad de Vaiinilla",
+            listOf("Usamos los datos de tu hijo solo para vender."),
+        )
 
     @Test
     fun f16_elAvisoMuestraSuTextoYNombraALosHijosQueFaltan() {

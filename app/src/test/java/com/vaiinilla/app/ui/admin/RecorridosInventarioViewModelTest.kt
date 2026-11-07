@@ -12,8 +12,8 @@ import com.vaiinilla.app.data.inventory.InventoryUnit
 import com.vaiinilla.app.data.inventory.MovementResult
 import com.vaiinilla.app.data.inventory.RecipeLine
 import com.vaiinilla.app.data.inventory.SupplyProductLink
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.vaiinilla.app.ui.operational.StaffHarness
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -90,7 +90,10 @@ private class FakeInventory : InventoryRepository {
         lines: List<RecipeLine>,
     ): Result<List<RecipeLine>> {
         recipes += productId to lines
-        if (soldOutAfterRecipe) products = products.map { if (it.id == productId) it.copy(soldOutByInventory = true) else it }
+        if (soldOutAfterRecipe) {
+            products =
+                products.map { if (it.id == productId) it.copy(soldOutByInventory = true) else it }
+        }
         return Result.success(lines)
     }
 
@@ -154,7 +157,10 @@ class RecorridosInventarioViewModelTest {
     @Test
     fun v01_unInsumoNuevoSeAgregaYSeAbreParaLigarloAProductos() {
         var done = false
-        vm.saveSupply(null, InventorySupplyInput("Pan", null, InventoryUnit.PIECE, 5.0, 3.0, initialStock = 20.0)) { done = true }
+        vm.saveSupply(null, InventorySupplyInput("Pan", null, InventoryUnit.PIECE, 5.0, 3.0, initialStock = 20.0)) {
+            done =
+                true
+        }
         wait("el insumo guardado") { done && ui.notice == "Pan agregado · escoge qué productos lo usan" }
         assertEquals("Pan", repo.created.single().name)
         assertEquals(20.0, repo.created.single().initialStock!!, 0.0)
@@ -229,7 +235,9 @@ class RecorridosInventarioViewModelTest {
         vm.selectTab(InventoryTab.REPORT)
         wait("el reporte de hoy") { ui.report != null }
         vm.selectPeriod(InventoryPeriod.WEEK)
-        wait("el reporte de 7 días") { ui.period == InventoryPeriod.WEEK && ui.report != null && repo.reports.size >= 2 }
+        wait(
+            "el reporte de 7 días",
+        ) { ui.period == InventoryPeriod.WEEK && ui.report != null && repo.reports.size >= 2 }
         assertEquals(15.0, ui.report!!.wasteCost, 0.0)
     }
 }

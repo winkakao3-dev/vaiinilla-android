@@ -6,8 +6,8 @@ import com.vaiinilla.app.domain.assistant.AssistantProductCard
 import com.vaiinilla.app.domain.assistant.CustomerAssistantReply
 import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.assistant.CustomerAssistantTurn
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.vaiinilla.app.ui.operational.StaffHarness
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,7 +45,10 @@ class RecorridosAsistenteViewModelTest {
         StaffHarness.installMain()
     }
 
-    private fun card(id: Int, name: String) = AssistantProductCard(id, name, "60.00", null, true, false, 8)
+    private fun card(
+        id: Int,
+        name: String,
+    ) = AssistantProductCard(id, name, "60.00", null, true, false, 8)
 
     private fun order(vararg lines: Pair<AssistantProductCard, Int>) =
         AssistantOrderProposal(lines.map { AssistantOrderLine(it.first, it.second, null) }, "120.00", emptyList())
@@ -82,7 +85,12 @@ class RecorridosAsistenteViewModelTest {
         vm.send("sin el agua")
         wait("la segunda propuesta") { vm.state.value.turns.size == 4 && !vm.state.value.thinking }
         assertEquals(3, vm.state.value.latestOrderTurn)
-        assertEquals(1, vm.state.value.turns[3].order!!.lines.size)
+        assertEquals(
+            1,
+            vm.state.value.turns[3]
+                .order!!
+                .lines.size,
+        )
     }
 
     @Test
@@ -92,12 +100,18 @@ class RecorridosAsistenteViewModelTest {
         val vm = viewModel()
         vm.send("tacos")
         wait("la propuesta") { vm.state.value.turns.size == 2 && !vm.state.value.thinking }
-        val added = vm.state.value.turns[1].order!!.lines
+        val added =
+            vm.state.value.turns[1]
+                .order!!
+                .lines
         vm.markOrderInCart(1, added)
         assertTrue(1 in vm.state.value.done)
         assertEquals(added, vm.state.value.cartOrder)
         vm.forgetCartOrder()
-        assertTrue(vm.state.value.cartOrder.isEmpty())
+        assertTrue(
+            vm.state.value.cartOrder
+                .isEmpty(),
+        )
     }
 
     @Test

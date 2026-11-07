@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.order
 
 import android.content.Context
+import com.vaiinilla.app.InMemoryGuestKeyVault
 import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
@@ -14,10 +15,9 @@ import com.vaiinilla.app.domain.usecase.GetCatalogUseCase
 import com.vaiinilla.app.domain.usecase.GetOperationalStatusUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.RetryStripePaymentUseCase
-import com.vaiinilla.app.InMemoryGuestKeyVault
+import com.vaiinilla.app.ui.admin.FakeStore
 import com.vaiinilla.app.ui.operational.FakeCatalog
 import com.vaiinilla.app.ui.operational.FakeOrders
-import com.vaiinilla.app.ui.admin.FakeStore
 import com.vaiinilla.app.ui.operational.FakeReservations
 import java.lang.reflect.Proxy
 
@@ -48,7 +48,13 @@ internal object OrderFlowHarness {
             com.vaiinilla.app.domain.auth.student.StudentAuthRepository::class.java.classLoader,
             arrayOf(com.vaiinilla.app.domain.auth.student.StudentAuthRepository::class.java),
         ) { _, method, _ ->
-            if (method.name == "peekSession") null else throw UnsupportedOperationException("StudentAuthRepository.${method.name}")
+            if (method.name ==
+                "peekSession"
+            ) {
+                null
+            } else {
+                throw UnsupportedOperationException("StudentAuthRepository.${method.name}")
+            }
         } as com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 
     fun viewModel(
@@ -67,7 +73,11 @@ internal object OrderFlowHarness {
             guestSessionStore = GuestSessionStore(context, InMemoryGuestKeyVault()),
             studentAuthRepository = signedOutStudent(),
             contextoExchange = untouched(),
-            sessionStore = com.vaiinilla.app.ui.operational.FakeSessionStore(com.vaiinilla.app.ui.operational.StaffHarness.jwt()),
+            sessionStore =
+                com.vaiinilla.app.ui.operational.FakeSessionStore(
+                    com.vaiinilla.app.ui.operational.StaffHarness
+                        .jwt(),
+                ),
             staffPresenceCoordinator = untouched<StaffPresenceCoordinator>(),
             reservationRepository = FakeReservations(),
             guestOrders = untouched<GuestOrderGateway>(),

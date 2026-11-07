@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.WalletData
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.domain.model.WalletSnapshot
 import com.vaiinilla.app.domain.repository.WalletRepository
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -24,7 +25,7 @@ class WalletViewModelTest {
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
     @After
-    fun tearDown() = com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
+    fun tearDown() = StaffHarness.restoreMain()
 
     @Test
     fun `clearing the session drops the balance and a late response does not bring it back`() {

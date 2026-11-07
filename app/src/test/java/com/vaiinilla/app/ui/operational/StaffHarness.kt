@@ -1,8 +1,6 @@
 package com.vaiinilla.app.ui.operational
 
 import android.content.Context
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.setMain
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.security.SecureSessionStore
@@ -11,30 +9,30 @@ import com.vaiinilla.app.data.cashcut.CashCutRepository
 import com.vaiinilla.app.data.cashcut.DayCut
 import com.vaiinilla.app.data.cashcut.ShiftCut
 import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
+import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
+import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OperationalStatus
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.model.Product
-import com.vaiinilla.app.domain.model.PreparationStation
-import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.StripePaymentSession
-import com.vaiinilla.app.domain.model.CashCollectionResult
+import com.vaiinilla.app.domain.model.WalletClient
+import com.vaiinilla.app.domain.model.WalletData
+import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.WalletRepository
-import com.vaiinilla.app.domain.model.CreateOrderRequest
-import com.vaiinilla.app.domain.model.CreatedOrder
-import com.vaiinilla.app.domain.model.WalletClient
-import com.vaiinilla.app.domain.model.WalletData
-import com.vaiinilla.app.domain.model.WalletReloadReceipt
 import com.vaiinilla.app.domain.usecase.CancelOrderUseCase
 import com.vaiinilla.app.domain.usecase.CloseCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.CollectCashUseCase
@@ -42,12 +40,17 @@ import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.test.setMain
 import java.time.LocalDate
 import java.util.Base64
 
 /** Arnés de ViewModels de personal en la JVM: repositorios en memoria, sin red. */
 internal object StaffHarness {
-    private val mainThread: java.util.concurrent.ExecutorService by lazy { java.util.concurrent.Executors.newSingleThreadExecutor() }
+    private val mainThread: java.util.concurrent.ExecutorService by lazy {
+        java.util.concurrent.Executors
+            .newSingleThreadExecutor()
+    }
     private var mainInstalled = false
 
     /**
@@ -100,7 +103,11 @@ internal object StaffHarness {
         field.isAccessible = true
         val unsafe = field.get(null)
         val api =
-            unsafeClass.getMethod("allocateInstance", Class::class.java).invoke(unsafe, HttpVaiinillaApiClient::class.java)
+            unsafeClass
+                .getMethod(
+                    "allocateInstance",
+                    Class::class.java,
+                ).invoke(unsafe, HttpVaiinillaApiClient::class.java)
                 as HttpVaiinillaApiClient
         return DeviceTokenRegistrar(context, api, store)
     }
@@ -360,7 +367,8 @@ internal class FakeOrders : OrderRepository {
         pickupToken: String?,
     ): Result<OrderDetail> {
         transitionCalls += Triple(orderId, targetState, expectedVersion)
-        val current = orders.firstOrNull { it.summary.id == orderId } ?: return Result.failure(IllegalStateException("no existe"))
+        val current =
+            orders.firstOrNull { it.summary.id == orderId } ?: return Result.failure(IllegalStateException("no existe"))
         val moved = current.copy(summary = current.summary.copy(state = targetState, version = expectedVersion + 1))
         orders = orders.map { if (it.summary.id == orderId) moved else it }
         return Result.success(moved)

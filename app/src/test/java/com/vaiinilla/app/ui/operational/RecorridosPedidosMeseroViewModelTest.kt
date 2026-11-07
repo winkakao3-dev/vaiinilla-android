@@ -68,7 +68,12 @@ class RecorridosPedidosMeseroViewModelTest {
         StaffHarness.awaitUntil("el menú de la hoja") { ui.counterCatalog != null }
         vm.submitCounterOrder(listOf(line), "")
         StaffHarness.awaitUntil("el aviso") { ui.toastMessage == "Pedido #7 de Mesa 4 enviado a cocina" }
-        assertEquals(true, orders.createdRequests.single().first.payAtEnd)
+        assertEquals(
+            true,
+            orders.createdRequests
+                .single()
+                .first.payAtEnd,
+        )
     }
 
     @Test
@@ -106,8 +111,16 @@ class RecorridosPedidosMeseroViewModelTest {
         vm.updateAdminOrderDraft(mapOf(1 to line), "Pepe")
         assertEquals(1, ui.adminOrderDraft.lines.size)
         vm.submitAdminOrder()
-        StaffHarness.awaitUntil("el pedido creado") { orders.createdRequests.size == 1 && ui.adminOrderDraft.lines.isEmpty() }
-        assertEquals("Pepe", orders.createdRequests.single().first.customerName)
+        StaffHarness.awaitUntil("el pedido creado") {
+            orders.createdRequests.size == 1 &&
+                ui.adminOrderDraft.lines.isEmpty()
+        }
+        assertEquals(
+            "Pepe",
+            orders.createdRequests
+                .single()
+                .first.customerName,
+        )
     }
 
     @Test
@@ -124,7 +137,10 @@ class RecorridosPedidosMeseroViewModelTest {
         vm.openCounterOrder()
         StaffHarness.awaitUntil("el menú de la hoja") { ui.counterCatalog != null }
         vm.submitCounterOrder(listOf(line), "")
-        StaffHarness.awaitUntil("el aviso de sin internet") { ui.toastMessage?.startsWith("Sin internet: Pedido ") == true }
+        StaffHarness.awaitUntil("el aviso de sin internet") {
+            ui.toastMessage?.startsWith("Sin internet: Pedido ") ==
+                true
+        }
         assertTrue(ui.toastMessage!!.endsWith("guardado. Llévalo a Caja; se manda solo al volver la red."))
         assertTrue(orders.createdRequests.isEmpty())
         assertEquals(false, ui.counterOrderOpen)

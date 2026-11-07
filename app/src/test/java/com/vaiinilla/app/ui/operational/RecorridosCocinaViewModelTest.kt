@@ -31,7 +31,8 @@ class RecorridosCocinaViewModelTest {
 
     private fun kitchen() = StaffHarness.kitchenViewModel(RuntimeEnvironment.getApplication(), orders, catalog)
 
-    private fun cashier() = StaffHarness.cashierViewModel(RuntimeEnvironment.getApplication(), orders = orders, catalog = catalog)
+    private fun cashier() =
+        StaffHarness.cashierViewModel(RuntimeEnvironment.getApplication(), orders = orders, catalog = catalog)
 
     @Test
     fun z06_cocinaApagaLoQueSeAcaboYElMenuLoMarcaAgotado() {
@@ -39,23 +40,44 @@ class RecorridosCocinaViewModelTest {
         vm.start()
         // El menú de Cocina pide el catálogo al abrirse, no al arrancar el rol.
         vm.refreshCatalog()
-        StaffHarness.awaitUntil("el catálogo de Cocina") { vm.uiState.value.catalog?.products?.size == 2 }
+        StaffHarness.awaitUntil("el catálogo de Cocina") {
+            vm.uiState.value.catalog
+                ?.products
+                ?.size == 2
+        }
         vm.setProductAvailable(1, false)
         StaffHarness.awaitUntil("el producto agotado") {
-            vm.uiState.value.catalog?.products?.first { it.id == 1 }?.available == false && !vm.uiState.value.catalogBusy
+            vm.uiState.value.catalog
+                ?.products
+                ?.first { it.id == 1 }
+                ?.available == false &&
+                !vm.uiState.value.catalogBusy
         }
         assertEquals(listOf(1 to false), catalog.availabilityCalls.toList())
-        assertTrue(vm.uiState.value.catalog!!.products.first { it.id == 2 }.available)
+        assertTrue(
+            vm.uiState.value.catalog!!
+                .products
+                .first { it.id == 2 }
+                .available,
+        )
     }
 
     @Test
     fun z06_cajaApagaLoQueSeAcaboConElMismoCamino() {
         val vm = cashier()
         vm.start()
-        StaffHarness.awaitUntil("el catálogo de Caja") { vm.uiState.value.catalog?.products?.size == 2 }
+        StaffHarness.awaitUntil("el catálogo de Caja") {
+            vm.uiState.value.catalog
+                ?.products
+                ?.size == 2
+        }
         vm.setProductAvailable(2, false)
         StaffHarness.awaitUntil("el producto agotado") {
-            vm.uiState.value.catalog?.products?.first { it.id == 2 }?.available == false && !vm.uiState.value.catalogBusy
+            vm.uiState.value.catalog
+                ?.products
+                ?.first { it.id == 2 }
+                ?.available == false &&
+                !vm.uiState.value.catalogBusy
         }
         assertEquals(listOf(2 to false), catalog.availabilityCalls.toList())
     }
@@ -67,10 +89,22 @@ class RecorridosCocinaViewModelTest {
         vm.start()
         // El menú de Cocina pide el catálogo al abrirse, no al arrancar el rol.
         vm.refreshCatalog()
-        StaffHarness.awaitUntil("el catálogo de Cocina") { vm.uiState.value.catalog?.products?.size == 2 }
+        StaffHarness.awaitUntil("el catálogo de Cocina") {
+            vm.uiState.value.catalog
+                ?.products
+                ?.size == 2
+        }
         vm.setProductAvailable(1, false)
-        StaffHarness.awaitUntil("el aviso de error") { vm.uiState.value.errorMessage != null && !vm.uiState.value.catalogBusy }
-        assertTrue(vm.uiState.value.catalog!!.products.first { it.id == 1 }.available)
+        StaffHarness.awaitUntil("el aviso de error") {
+            vm.uiState.value.errorMessage != null &&
+                !vm.uiState.value.catalogBusy
+        }
+        assertTrue(
+            vm.uiState.value.catalog!!
+                .products
+                .first { it.id == 1 }
+                .available,
+        )
     }
 
     @Test
@@ -78,7 +112,10 @@ class RecorridosCocinaViewModelTest {
         orders.orders = listOf(sampleOrder("o1", OrderState.PAID, version = 3))
         val vm = kitchen()
         vm.start()
-        StaffHarness.awaitUntil("la comanda en la fila") { vm.uiState.value.orders.any { it.summary.id == "o1" } }
+        StaffHarness.awaitUntil("la comanda en la fila") {
+            vm.uiState.value.orders
+                .any { it.summary.id == "o1" }
+        }
         vm.startKitchen("o1", 3)
         StaffHarness.awaitUntil("la transición") { orders.transitionCalls.isNotEmpty() }
         assertEquals(Triple("o1", OrderState.PREPARING, 3), orders.transitionCalls.first())
@@ -89,7 +126,10 @@ class RecorridosCocinaViewModelTest {
         orders.orders = listOf(sampleOrder("o1", OrderState.READY, version = 4))
         val vm = kitchen()
         vm.start()
-        StaffHarness.awaitUntil("la comanda en la fila") { vm.uiState.value.orders.any { it.summary.id == "o1" } }
+        StaffHarness.awaitUntil("la comanda en la fila") {
+            vm.uiState.value.orders
+                .any { it.summary.id == "o1" }
+        }
         vm.startKitchen("o1", 4)
         Thread.sleep(200)
         assertFalse(orders.transitionCalls.any { it.second == OrderState.PREPARING })

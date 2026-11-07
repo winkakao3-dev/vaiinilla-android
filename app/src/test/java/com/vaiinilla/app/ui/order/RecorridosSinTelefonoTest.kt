@@ -69,7 +69,10 @@ class RecorridosSinTelefonoTest {
         // Listo no es entregado: «En tu mesa» se marca cuando el mesero lo entrega.
         assertEquals(2, journeyStepIndex(ready, OrderJourney.TABLE))
         assertEquals(4, journeyStepIndex(order(OrderState.DELIVERED, space = "mesa"), OrderJourney.TABLE))
-        assertEquals("Ya te lo entregaron.", journeyHeadline(order(OrderState.DELIVERED, space = "mesa"), OrderJourney.TABLE))
+        assertEquals(
+            "Ya te lo entregaron.",
+            journeyHeadline(order(OrderState.DELIVERED, space = "mesa"), OrderJourney.TABLE),
+        )
     }
 
     @Test
@@ -100,9 +103,10 @@ class RecorridosSinTelefonoTest {
         val bySaldo = order(OrderState.CANCELED, PaymentMethod.BALANCE).withCancel("cajero")
         assertEquals("${moneyLabel("10.00")} a tu saldo Vaiinilla", journeyMoneyBack(bySaldo))
         assertEquals("Cancelaron tu pedido. Te regresan todo.", journeyHeadline(bySaldo, OrderJourney.COUNTER))
-        val payAtEnd = order(OrderState.CANCELED, PaymentMethod.CASH).let {
-            it.copy(summary = it.summary.copy(payAtEnd = true))
-        }
+        val payAtEnd =
+            order(OrderState.CANCELED, PaymentMethod.CASH).let {
+                it.copy(summary = it.summary.copy(payAtEnd = true))
+            }
         assertEquals("No se te cobra nada", journeyMoneyBack(payAtEnd))
         val byClient = order(OrderState.CANCELED, PaymentMethod.BALANCE)
         assertEquals("Tu pedido se canceló.", journeyHeadline(byClient, OrderJourney.COUNTER))

@@ -39,7 +39,10 @@ class RecorridosMisHijosTest {
         runBlocking {
             val failing =
                 object : FakeGuardianship() {
-                    override fun dependents() = Result.failure<List<com.vaiinilla.app.domain.guardianship.Dependent>>(java.io.IOException("sin red"))
+                    override fun dependents() =
+                        Result.failure<List<com.vaiinilla.app.domain.guardianship.Dependent>>(
+                            java.io.IOException("sin red"),
+                        )
                 }
             val state = state(failing)
             state.load()
@@ -53,7 +56,10 @@ class RecorridosMisHijosTest {
         runBlocking {
             val failing =
                 object : FakeGuardianship(listOf(ana)) {
-                    override fun dependents() = Result.failure<List<com.vaiinilla.app.domain.guardianship.Dependent>>(java.io.IOException("sin red"))
+                    override fun dependents() =
+                        Result.failure<List<com.vaiinilla.app.domain.guardianship.Dependent>>(
+                            java.io.IOException("sin red"),
+                        )
                 }
             val again = ChildrenState(ParentFixtures.services(failing))
             again.upsert(ana)

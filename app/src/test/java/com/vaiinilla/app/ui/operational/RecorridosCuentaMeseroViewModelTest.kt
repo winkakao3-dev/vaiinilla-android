@@ -43,11 +43,33 @@ class RecorridosCuentaMeseroViewModelTest {
     @Test
     fun i01_elTableroMuestraLasMesasConSusLlamadasYPedidos() {
         val call = WaiterHarness.call()
-        start(WaiterBoard(listOf(WaiterHarness.table(call = call, orders = listOf(WaiterHarness.order()))), callsEnabled = true))
+        start(
+            WaiterBoard(
+                listOf(WaiterHarness.table(call = call, orders = listOf(WaiterHarness.order()))),
+                callsEnabled = true,
+            ),
+        )
         assertEquals(1, ui.tables.size)
-        assertEquals("Mesa 4", ui.tables.single().space.name)
-        assertEquals(call.id, ui.tables.single().call?.id)
-        assertEquals(listOf("o1"), ui.tables.single().orders.map { it.id })
+        assertEquals(
+            "Mesa 4",
+            ui.tables
+                .single()
+                .space.name,
+        )
+        assertEquals(
+            call.id,
+            ui.tables
+                .single()
+                .call
+                ?.id,
+        )
+        assertEquals(
+            listOf("o1"),
+            ui.tables
+                .single()
+                .orders
+                .map { it.id },
+        )
         assertNull(ui.errorMessage)
     }
 
@@ -67,7 +89,12 @@ class RecorridosCuentaMeseroViewModelTest {
 
     @Test
     fun i01_filtrarLoQueAtiendoNoPierdeLasMesas() {
-        start(WaiterBoard(listOf(WaiterHarness.table(call = WaiterHarness.call(status = CallStatus.PENDIENTE))), callsEnabled = true))
+        start(
+            WaiterBoard(
+                listOf(WaiterHarness.table(call = WaiterHarness.call(status = CallStatus.PENDIENTE))),
+                callsEnabled = true,
+            ),
+        )
         vm.setFilterAttending(true)
         assertTrue(ui.filterAttending)
         assertEquals(1, ui.tables.size)

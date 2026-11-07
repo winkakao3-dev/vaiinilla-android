@@ -209,7 +209,10 @@ class RecorridosAdminViewModelTest {
     fun t04_unFondoQueNoSeEntiendeNoLlegaAlServidor() {
         refreshCash()
         vm.openCash("abc") {}
-        StaffHarness.awaitUntil("el aviso") { ui.notice == "Escribe el fondo inicial, por ejemplo 500." && ui.noticeIsError }
+        StaffHarness.awaitUntil("el aviso") {
+            ui.notice == "Escribe el fondo inicial, por ejemplo 500." &&
+                ui.noticeIsError
+        }
         assertTrue(cash.openCalls.isEmpty())
     }
 
@@ -234,7 +237,8 @@ class RecorridosAdminViewModelTest {
         cash.closeFails = OrderRepositoryException("CASH_SESSION_HAS_OPEN_ACCOUNTS", "x")
         vm.closeCash("1250") {}
         StaffHarness.awaitUntil("el aviso") {
-            ui.notice == "Hay cuentas de mesas por cobrar: cóbralas o ciérralas antes de cerrar la caja." && ui.noticeIsError
+            ui.notice == "Hay cuentas de mesas por cobrar: cóbralas o ciérralas antes de cerrar la caja." &&
+                ui.noticeIsError
         }
         assertEquals(true, cash.sessionOpen)
     }
@@ -243,10 +247,16 @@ class RecorridosAdminViewModelTest {
     fun t03_archivarUnProductoLoSacaDelMenuYRestaurarloLoRegresa() {
         val pizza = sampleProduct(1, "Pizza")
         vm.setArchived(pizza, true)
-        StaffHarness.awaitUntil("archivado") { ui.notice == "Pizza archivado" && ui.archivedProducts.any { it.id == 1 && it.archived } }
+        StaffHarness.awaitUntil("archivado") {
+            ui.notice == "Pizza archivado" &&
+                ui.archivedProducts.any { it.id == 1 && it.archived }
+        }
         StaffHarness.awaitUntil("sin tarea en curso") { !ui.saving }
         vm.setArchived(pizza, false)
-        StaffHarness.awaitUntil("restaurado") { ui.notice == "Pizza volvió al menú" && ui.archivedProducts.none { it.id == 1 } }
+        StaffHarness.awaitUntil("restaurado") {
+            ui.notice == "Pizza volvió al menú" &&
+                ui.archivedProducts.none { it.id == 1 }
+        }
         assertEquals(listOf(1 to true, 1 to false), admin.archived.toList())
     }
 }

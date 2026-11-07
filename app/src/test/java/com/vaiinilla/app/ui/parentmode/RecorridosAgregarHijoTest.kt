@@ -60,7 +60,13 @@ class RecorridosAgregarHijoTest {
     private fun show(repo: AddingGuardianship) {
         composeTestRule.setContent {
             ScreenshotTheme {
-                AddChildFlow(repo, onAdded = {}, onDismiss = {}, startsWithSchoolCode = false, schoolName = "Colegio Vaini")
+                AddChildFlow(
+                    repo,
+                    onAdded = {},
+                    onDismiss = {},
+                    startsWithSchoolCode = false,
+                    schoolName = "Colegio Vaini",
+                )
             }
         }
         composeTestRule.waitForIdle()

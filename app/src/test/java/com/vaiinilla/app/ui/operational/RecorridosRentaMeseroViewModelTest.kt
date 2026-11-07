@@ -101,7 +101,9 @@ private class RentalReservations : ReservationRepository {
         refund: ReservationRefund?,
     ): Result<Reservation> {
         cancels += reservationId
-        return Result.success(reservation(1, 60, null, null).copy(id = reservationId, state = ReservationState.CANCELLED))
+        return Result.success(
+            reservation(1, 60, null, null).copy(id = reservationId, state = ReservationState.CANCELLED),
+        )
     }
 }
 

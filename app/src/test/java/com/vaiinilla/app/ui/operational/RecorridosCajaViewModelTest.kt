@@ -113,7 +113,11 @@ class RecorridosCajaViewModelTest {
 
     @Test
     fun f04_recargaEnEfectivoVaALaPersonaConElMontoNormalizado() {
-        wallet.clients = listOf(com.vaiinilla.app.domain.model.WalletClient("u2", "María López", null))
+        wallet.clients =
+            listOf(
+                com.vaiinilla.app.domain.model
+                    .WalletClient("u2", "María López", null),
+            )
         cash.sessionOpen = true
         vm.start()
         settle()
@@ -144,7 +148,9 @@ class RecorridosCajaViewModelTest {
         vm.start()
         settle()
         vm.searchWalletClients("m")
-        StaffHarness.awaitUntil("el aviso") { ui.errorMessage == "Escribe al menos 2 caracteres para buscar un cliente." }
+        StaffHarness.awaitUntil(
+            "el aviso",
+        ) { ui.errorMessage == "Escribe al menos 2 caracteres para buscar un cliente." }
         assertTrue(ui.walletClients.isEmpty())
     }
 
