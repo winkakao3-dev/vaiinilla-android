@@ -34,9 +34,14 @@ import java.time.Instant
 internal class FakeWaiterRepository : WaiterRepository {
     @Volatile var board: WaiterBoard = WaiterBoard(tables = emptyList(), callsEnabled = true)
     val transitions = java.util.concurrent.CopyOnWriteArrayList<Pair<String, CallStatus>>()
+    val collections = java.util.concurrent.CopyOnWriteArrayList<Triple<AccountPaymentMethod, String?, String>>()
+
+    @Volatile var collectFails: Throwable? = null
+
+    @Volatile var boardFails: Throwable? = null
     val deliveries = java.util.concurrent.CopyOnWriteArrayList<Pair<String, String?>>()
 
-    override fun board(): Result<WaiterBoard> = Result.success(board)
+    override fun board(): Result<WaiterBoard> = boardFails?.let { Result.failure(it) } ?: Result.success(board)
 
     override fun transitionCall(
         call: TableCall,
@@ -91,7 +96,19 @@ internal class FakeWaiterRepository : WaiterRepository {
         orderIds: List<String>?,
         idempotencyKey: String,
         tip: String?,
-    ): Result<AccountCollection> = no()
+    ): Result<AccountCollection> {
+        collections += Triple(method, received, idempotencyKey)
+        collectFails?.let { return Result.failure(it) }
+        return Result.success(
+            AccountCollection(
+                ordersCollected = 1,
+                total = expectedTotal.orEmpty(),
+                received = received.orEmpty(),
+                change = if (method == AccountPaymentMethod.CASH) "30.00" else "0.00",
+                method = method,
+            ),
+        )
+    }
 
     override fun abonar(
         spaceId: Int,
