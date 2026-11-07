@@ -13,6 +13,9 @@ internal object GetRequestRetryPolicy {
     const val MAX_ATTEMPTS = 3
 
     private val BACKOFF_MILLIS = longArrayOf(500L, 1500L)
+
+    /** Un `Retry-After` largo no debe dejar dormido el hilo de red; pasado este tope se reintenta igual. */
+    const val MAX_RETRY_AFTER_MILLIS = 10_000L
     private val TRANSIENT_HTTP_STATUSES = setOf(502, 503, 504)
 
     fun isTransient(error: Throwable): Boolean =
@@ -27,7 +30,10 @@ internal object GetRequestRetryPolicy {
         error: Throwable,
         attemptIndex: Int,
     ): Long {
-        val retryAfterMillis = (error as? ApiClientException)?.retryAfterSeconds?.let { it * 1000L }
+        val retryAfterMillis =
+            (error as? ApiClientException)
+                ?.retryAfterSeconds
+                ?.let { (it * 1000L).coerceIn(0L, MAX_RETRY_AFTER_MILLIS) }
         return retryAfterMillis ?: BACKOFF_MILLIS.getOrElse(attemptIndex) { BACKOFF_MILLIS.last() }
     }
 }
