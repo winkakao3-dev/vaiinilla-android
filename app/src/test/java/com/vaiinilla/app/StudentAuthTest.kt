@@ -114,6 +114,9 @@ class StudentAuthViewModelTest {
     private var enrollmentCalls = 0
     private var enrollmentFailure: Throwable? = null
     private var blockContextExchange = false
+
+    /** Bloquea el hilo (sin suspender, como una respuesta que ya llegó) hasta que la prueba lo suelta. */
+    private var lateExchangeGate: java.util.concurrent.CountDownLatch? = null
     private var blockEmailVerification = false
 
     @Before
@@ -169,6 +172,10 @@ class StudentAuthViewModelTest {
             }
         val contextoExchange =
             ContextoExchanger { _, _, _, _ ->
+                lateExchangeGate?.let { gate ->
+                    contextExchangeStarted.complete(Unit)
+                    gate.await()
+                }
                 if (blockContextExchange) {
                     contextExchangeStarted.complete(Unit)
                     allowContextExchange.await()
@@ -553,6 +560,30 @@ class StudentAuthViewModelTest {
             contextExchangeStarted.await()
             viewModel.markSessionCleared()
             allowContextExchange.complete(Unit)
+            advanceUntilIdle()
+
+            assertFalse(enrolled)
+            assertFalse(viewModel.state.value.enrollmentComplete)
+            assertTrue(sessionStore.readAccessToken().isNullOrBlank())
+        }
+
+    @Test
+    fun `an exchange answer that lands after session termination is not saved`() =
+        runTest {
+            val gate = java.util.concurrent.CountDownLatch(1)
+            lateExchangeGate = gate
+            authRepository.signUp("ana@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            viewModel.refreshGuestVenue()
+            var enrolled = false
+
+            viewModel.completeEnrollment(onSuccess = { enrolled = true })
+            contextExchangeStarted.await()
+            viewModel.markSessionCleared()
+            // La respuesta llega ya cancelado el trabajo: el hilo no suspende, así que nadie le avisa.
+            gate.countDown()
+            // La vinculación corre en Dispatchers.IO: se le da tiempo real para que intente guardar.
+            withContext(Dispatchers.Default.limitedParallelism(1)) { kotlinx.coroutines.delay(500) }
             advanceUntilIdle()
 
             assertFalse(enrolled)
