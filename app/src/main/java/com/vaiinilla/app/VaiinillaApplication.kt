@@ -4,6 +4,9 @@ import android.app.Application
 import android.net.http.HttpResponseCache
 import android.util.Log
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.vaiinilla.app.core.error.CrashDataScrubber
+import com.vaiinilla.app.core.error.CrashReportingMode
+import com.vaiinilla.app.core.error.CrashReportingPolicy
 import com.vaiinilla.app.core.error.GlobalCrashReporterInstaller
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
@@ -20,7 +23,12 @@ class VaiinillaApplication : Application() {
     private fun installCrashReporting() {
         try {
             // Never send dev/debug crashes to the production dashboard.
-            val shouldCollectCrashes = BuildConfig.IS_PRODUCTION && !BuildConfig.DEBUG
+            val shouldCollectCrashes =
+                CrashReportingPolicy.shouldCollect(
+                    mode = CrashReportingMode.parse(BuildConfig.CRASH_REPORTING),
+                    isProduction = BuildConfig.IS_PRODUCTION,
+                    isDebug = BuildConfig.DEBUG,
+                )
             FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(shouldCollectCrashes)
         } catch (e: IllegalStateException) {
             // FirebaseApp is not initialized yet (e.g. Robolectric unit tests). No-op in production.
@@ -32,6 +40,7 @@ class VaiinillaApplication : Application() {
         GlobalCrashReporterInstaller(
             reporter = { throwable -> FirebaseCrashlytics.getInstance().recordException(throwable) },
             logger = { thread, throwable -> Log.e(TAG, "Uncaught exception on ${thread.name}", throwable) },
+            outgoing = CrashDataScrubber::scrub,
         ).install()
     }
 

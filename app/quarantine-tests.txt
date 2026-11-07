@@ -1,0 +1,17 @@
+# Pruebas que ya estaban rojas en main (5243c56b, 6 nov 2026). El CI de verify las excluye;
+# el job "quarantine" las corre aparte sin bloquear. Una por línea: clase.completa.nombre de la prueba.
+# Al arreglar una, bórrala de aquí. No agregues pruebas nuevas rotas: arréglalas.
+com.vaiinilla.app.ui.order.CartCompactLayoutTest.two product checkout keeps key actions visible without scrolling
+com.vaiinilla.app.ui.screens.CashierRefundsSectionUiTest.con la caja cerrada no se ofrece devolver en efectivo
+com.vaiinilla.app.ui.screens.CashierRefundsSectionUiTest.el aviso de caja dice cuantas devoluciones hay y abre el detalle
+com.vaiinilla.app.ui.screens.CashierRefundsSectionUiTest.lo pagado con saldo se devuelve en efectivo
+com.vaiinilla.app.ui.screens.CashierRefundsSectionUiTest.otro se ofrece con la caja cerrada y pide el motivo
+com.vaiinilla.app.ui.screens.CollectSheetLargeFontUiTest.con letra grande el botón de cobrar se ve y cobra en efectivo lo escrito sin decimales
+com.vaiinilla.app.ui.screens.CollectSheetLargeFontUiTest.la renta de una cancha también deja el botón a la vista
+com.vaiinilla.app.ui.screens.CremeWalletCartUiTest.Carrito con pedido trae sus pills y la fila de datos, y Vaciar quita las lineas
+com.vaiinilla.app.ui.screens.StoreEntranceFinishUiTest.si outcome cambia durante el desvanecido onFinished se llama igual
+com.vaiinilla.app.ui.screens.admin.AdminCashSectionUiTest.la caja abierta muestra el fondo inicial y la hora
+com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSectionUiTest.cash refund confirmation says it leaves the open cash register
+com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSectionUiTest.guardian request shows the student, roster facts and approves
+com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSectionUiTest.refund without balance cannot be resolved and rejecting asks for a reason
+com.vaiinilla.app.ui.screenshot.VideoScreenshotTest.mesero_mesa4

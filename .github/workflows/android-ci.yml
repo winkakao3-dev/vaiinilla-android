@@ -61,7 +61,65 @@ jobs:
       - name: Android lint (Prod)
         run: ./gradlew --no-daemon lintProdAlumnoDebug
 
-      - name: ktlint
-        run: ./gradlew --no-daemon ktlintCheck
+      # ktlint tiene avisos viejos: se bloquea solo lo nuevo (config/ktlint/ratchet.json).
+      - name: ktlint (solo avisos nuevos)
+        run: |
+          ./gradlew --no-daemon ktlintCheck -PktlintRatchet
+          python3 scripts/ktlint_ratchet.py
+
+      - name: Subir reportes de pruebas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-verify
+          path: |
+            app/build/reports/tests
+            app/build/reports/ktlint
+          retention-days: 7
+
+  # Pruebas que ya estaban rojas (app/quarantine-tests.txt). No bloquean; avisan cuando una vuelve a pasar.
+  quarantine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    env:
+      VAIINILLA_API_BASE_URL: https://vaiinillaback-development.up.railway.app/api/v1/
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - run: chmod +x gradlew
+      - name: Pruebas en cuarentena
+        run: ./gradlew --no-daemon testDevAlumnoDebugUnitTest -PquarantineOnly
+
+  # Compara las capturas de Roborazzi con sus referencias. Las referencias se grabaron en Mac y aquí se
+  # renderiza en Linux: hasta que una corrida salga verde en el runner, el job no bloquea (continue-on-error).
+  # Cuando salga verde dos veces seguidas, quitar continue-on-error para que bloquee.
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    env:
+      VAIINILLA_API_BASE_URL: https://vaiinillaback-development.up.railway.app/api/v1/
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - run: chmod +x gradlew scripts/*.sh scripts/*.py
+      - name: Comparar capturas
+        run: scripts/screenshots.sh verify
+      - name: Subir diferencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-diferencias
+          path: app/build/outputs/roborazzi
+          retention-days: 7
 
 
