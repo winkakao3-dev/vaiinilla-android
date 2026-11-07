@@ -1,10 +1,13 @@
 package com.vaiinilla.app.ui.operational
 
+import com.vaiinilla.app.data.cashcut.DayCut
+import com.vaiinilla.app.data.cashcut.PaymentLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletReloadReceipt
+import com.vaiinilla.app.domain.repository.CashDrawerReport
 import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.StoreImages
 
@@ -52,6 +55,20 @@ data class OperationalUiState(
     val actionNotice: String? = null,
     /** Hoja de cierre de caja; null mientras está cerrada. */
     val closeCash: CloseCashUi? = null,
+    /**
+     * Cocina: `cocina_prepara_sin_cobrar` del estado operativo. Con false, un pedido por cobrar no se puede
+     * empezar hasta que Caja lo cobre. Sin leerlo todavía vale true, como siempre (R14).
+     */
+    val kitchenPreparesUnpaid: Boolean = true,
+    /**
+     * Pedidos que Caja cobró en efectivo sin internet y que el servidor aún no registra: ese dinero ya está en el
+     * cajón pero no en el esperado. Mientras haya alguno no se cierra la caja (R5).
+     */
+    val unsyncedOfflineCash: Int = 0,
+    /** Hoja «Movimientos del cajón» y desglose del cierre: el resumen y los renglones de la sesión abierta. */
+    val cashDrawer: CashDrawerUi = CashDrawerUi(),
+    /** «Cobrado hoy» con todos los métodos (GET /sesiones-caja/cortes); null hasta que llega o si falla. */
+    val collectedToday: CollectedToday? = null,
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
@@ -113,6 +130,18 @@ internal fun queuePresentation(
         else -> QueuePresentation.Empty
     }
 
+/** Lo que se sabe del cajón de la sesión abierta y si se está anotando una entrada o salida. */
+data class CashDrawerUi(
+    val loading: Boolean = false,
+    val report: CashDrawerReport? = null,
+    /** No se pudo leer el cajón; lo que haya en [report] es la última lectura buena. */
+    val errorMessage: String? = null,
+    val saving: Boolean = false,
+    val saveError: String? = null,
+    /** Sube con cada movimiento anotado: la hoja limpia el formulario. */
+    val savedCount: Int = 0,
+)
+
 /** Estado de la hoja "Cerrar caja". */
 data class CloseCashUi(
     val closing: Boolean = false,
@@ -134,3 +163,84 @@ internal fun operationalLink(lastRefreshOk: Boolean?): WaiterBoardLink =
         true -> WaiterBoardLink.Live
         false -> WaiterBoardLink.Offline
     }
+
+/** Por qué no se puede cerrar la caja todavía: hay efectivo cobrado sin internet sin registrar. */
+internal fun unsyncedOfflineCashNotice(count: Int): String =
+    if (count == 1) {
+        "Hay 1 pedido cobrado sin internet que aún no se registra. Espera a que se mande (o resuélvelo en " +
+            "«Pedidos guardados») antes de cerrar: ese efectivo todavía no cuenta en la caja."
+    } else {
+        "Hay $count pedidos cobrados sin internet que aún no se registran. Espera a que se manden (o resuélvelos " +
+            "en «Pedidos guardados») antes de cerrar: ese efectivo todavía no cuenta en la caja."
+    }
+
+/** Lo último que se supo de un rol de personal en un negocio, al soltarlo. */
+internal data class StaffStateSnapshot(
+    val role: OperationalRole,
+    val establishmentId: String?,
+    val takenAtMs: Long,
+    val state: OperationalUiState,
+) {
+    /** Sirve para volver al mismo rol en el mismo negocio poco después; más tarde la foto ya no se parece. */
+    fun matches(
+        role: OperationalRole,
+        establishmentId: String?,
+        nowMs: Long,
+    ): Boolean =
+        role == this.role &&
+            establishmentId == this.establishmentId &&
+            nowMs - takenAtMs in 0..STAFF_SNAPSHOT_TTL_MS
+
+    companion object {
+        const val STAFF_SNAPSHOT_TTL_MS = 5 * 60 * 1_000L
+    }
+}
+
+/**
+ * Pasa a este estado (recién puesto el rol) lo último conocido de [known]: la caja abierta o cerrada, su fondo, el
+ * catálogo y, con [restoreOrders], la fila. Así Caja no vuelve a «Revisando la caja» ni a «Cargando pedidos» y el
+ * menú conserva «Cerrar caja» mientras se vuelve a pedir; el servidor corrige lo que haya cambiado.
+ */
+internal fun OperationalUiState.keepKnownStaffState(
+    known: OperationalUiState,
+    restoreOrders: Boolean,
+): OperationalUiState =
+    copy(
+        cashSessionOpen = cashSessionOpen ?: known.cashSessionOpen,
+        suggestedCashFloat = suggestedCashFloat ?: known.suggestedCashFloat,
+        expectedCash = expectedCash ?: known.expectedCash,
+        cashOpeningAmount = cashOpeningAmount ?: known.cashOpeningAmount,
+        cashOpenedAt = cashOpenedAt ?: known.cashOpenedAt,
+        catalog = catalog ?: known.catalog,
+        // Solo la última lectura del cajón: lo que estaba en curso (cargando, guardando) ya no lo está.
+        cashDrawer =
+            if (cashDrawer == CashDrawerUi()) {
+                known.cashDrawer.copy(loading = false, saving = false, saveError = null)
+            } else {
+                cashDrawer
+            },
+        orders = if (restoreOrders && orders.isEmpty()) known.orders else orders,
+        lastRefreshOk = if (restoreOrders && lastRefreshOk == null) known.lastRefreshOk else lastRefreshOk,
+        lastSyncedAt = lastSyncedAt ?: known.lastSyncedAt,
+    )
+
+/** Lo cobrado en el día con todos los métodos, y por método lo que sí tuvo algo. */
+data class CollectedToday(
+    val total: String,
+    val payments: List<PaymentLine>,
+) {
+    /** «Efectivo $820 · Tarjeta $410 · Saldo $95», del método con más a menos; null si no hay desglose. */
+    fun breakdownLine(money: (String) -> String): String? =
+        payments
+            .sortedByDescending { it.amount.toBigDecimalOrNull() }
+            .joinToString(" · ") { "${it.label} ${money(it.amount)}" }
+            .ifBlank { null }
+
+    companion object {
+        fun of(cut: DayCut): CollectedToday =
+            CollectedToday(
+                total = cut.breakdown.summary.sales,
+                payments = cut.breakdown.payments.filter { (it.amount.toBigDecimalOrNull()?.signum() ?: 0) > 0 },
+            )
+    }
+}

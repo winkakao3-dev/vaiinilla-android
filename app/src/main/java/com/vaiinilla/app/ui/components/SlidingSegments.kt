@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -101,7 +102,16 @@ fun SlidingSegments(
                         }.padding(vertical = verticalPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, color = contentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                // L01: con letra grande «Preparando 3» se cortaba en tres segmentos: se encoge en un renglón.
+                Text(
+                    label,
+                    color = contentColor,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 13.sp, stepSize = 0.5.sp),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             }
         }
     }

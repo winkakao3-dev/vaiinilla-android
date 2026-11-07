@@ -265,7 +265,7 @@ private fun DeleteOrderConfirmationDialog(
                     } else {
                         fadeIn(animationSpec = tween(140)) +
                             scaleIn(
-                                initialScale = 0.84f,
+                                initialScale = 0.92f,
                                 animationSpec = spring(dampingRatio = 0.72f, stiffness = 540f),
                             ) +
                             slideInVertically(

@@ -12,6 +12,23 @@ object SpaceCopy {
     fun isRoom(type: String?): Boolean = Venue.isHotel && isRoomType(type)
 
     /**
+     * ¿Este espacio es una habitación? Con el dato del servidor (`es_habitacion`) manda: una mesa del restaurante del
+     * hotel no lo es. Sin el dato, en un hotel toda mesa lo es, como antes. Sin espacio, no.
+     */
+    fun isRoom(space: PublicSpace?): Boolean = space != null && isRoom(space.type) && space.isRoom != false
+
+    /**
+     * ¿El pedido va a una habitación? Un pedido ligado a una estancia ([OrderDetail.stayId]) lo es. Los demás, con un
+     * servidor que no manda ese dato, cuentan como habitación en un hotel salvo que el servidor haya dicho que ese
+     * espacio es una mesa del restaurante ([Venue.markSpace]).
+     */
+    fun isRoomOrder(order: OrderDetail): Boolean {
+        if (order.stayId != null) return true
+        val space = order.summary.space ?: return false
+        return Venue.isHotel && isRoomType(space.type) && !Venue.isHotelTable(space.id)
+    }
+
+    /**
      * El espacio como lo dice el personal en una etiqueta corta: «Hab. 304» para una habitación (el servidor la
      * guarda como «Habitación 304»), el nombre tal cual para los demás.
      */
@@ -77,11 +94,27 @@ object SpaceCopy {
         if (type == "barra") {
             "Tu pedido está listo. Te lo entregamos en la barra."
         } else {
-            "Tu pedido está listo. Ya va a ${yourPlace(type)}."
+            "Tu pedido está listo. En un momento te lo llevan a ${yourPlace(type)}."
         }
 
-    fun destinationSubtitle(type: String?): String =
-        if (type == null) "Te lo llevamos a tu espacio" else "Te lo llevamos a ${yourPlace(type)}"
+    /** Aviso de pedido entregado en un espacio: el mesero ya lo dejó en el lugar del cliente. */
+    fun deliveredInSpace(type: String?): String =
+        if (type == "barra") {
+            "Pedido entregado. Buen provecho."
+        } else {
+            "Ya está en ${yourPlace(type)}. Buen provecho."
+        }
+
+    /** Subtítulo de la opción de destino en el carrito. Si el negocio solo entrega en barra, no se lleva al lugar. */
+    fun destinationSubtitle(
+        type: String?,
+        delivery: SpaceDelivery = SpaceDelivery.TABLE,
+    ): String =
+        when {
+            delivery == SpaceDelivery.BAR -> "Pides desde tu lugar y pasas por él a la barra"
+            type == null -> "Te lo llevamos a tu espacio"
+            else -> "Te lo llevamos a ${yourPlace(type)}"
+        }
 
     fun pickPrompt(type: String?): String =
         when (type) {
@@ -93,15 +126,26 @@ object SpaceCopy {
         }
 
     /**
-     * Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1").
-     * En una habitación el personal lee «A la habitación · Hab. 304», no «A tu habitación».
+     * Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). Un «Pasa por
+     * él» (`recoge_en_barra`) se entrega en la barra aunque se pidió desde el lugar:
+     * «Pasa por él a la barra · Pista 1». En una habitación el personal lee «A la habitación · Hab. 304».
      */
     fun staffDestination(
         destination: OrderDestination,
         space: OrderSpace?,
+        pickUpAtBar: Boolean = false,
     ): String {
-        if (destination != OrderDestination.IN_SPACE) return "Para llevar"
-        val title = if (isRoom(space?.type)) "A la ${Venue.room}" else destinationTitle(space?.type)
+        when (destination) {
+            OrderDestination.TAKE_AWAY -> return "Para llevar"
+            OrderDestination.HOME_DELIVERY -> return "A domicilio"
+            OrderDestination.IN_SPACE -> Unit
+        }
+        val title =
+            when {
+                pickUpAtBar -> "Pasa por él a la barra"
+                isRoom(space?.type) -> "A la ${Venue.room}"
+                else -> destinationTitle(space?.type)
+            }
         val name = space?.name?.takeIf { it.isNotBlank() }?.let { short(space.type, it) } ?: return title
         return "$title · $name"
     }

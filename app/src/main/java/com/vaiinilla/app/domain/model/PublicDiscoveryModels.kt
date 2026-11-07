@@ -16,6 +16,10 @@ data class PublicEstablishment(
     val allowsPayAtEnd: Boolean = false,
     /** «Te lo llevamos», «Pasa por él» o ambas; el invitado sin sesión lo lee de aquí. */
     val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
+    /** Tiene el asistente de pedidos para clientes («Pregúntame qué pedir»); el dueño o Vaiinilla lo apagan. */
+    val assistantForCustomers: Boolean = true,
+    /** `tipo` del negocio («boliche», «cafeteria»…); en un boliche las canchas se llaman pistas. */
+    val businessType: String? = null,
 )
 
 /** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */
@@ -35,6 +39,11 @@ data class PublicSpace(
     val type: String,
     /** Código del QR escaneado: con él el cliente se une a la mesa compartida. */
     val qrToken: String? = null,
+    /**
+     * Solo en un negocio hotel (`es_habitacion` al resolver el QR): `true` es una habitación y `false` una mesa del
+     * restaurante del hotel. `null` = el servidor no lo dice (otro negocio o un servidor anterior).
+     */
+    val isRoom: Boolean? = null,
 )
 
 data class GuestVenueContext(

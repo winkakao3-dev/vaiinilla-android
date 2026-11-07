@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -122,7 +122,11 @@ private fun WelcomeTopBar(
 ) {
     val colors = LocalVaiinillaColors.current
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = if (onBack != null) 4.dp else 20.dp, end = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .padding(start = if (onBack != null) 4.dp else 20.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
@@ -130,6 +134,7 @@ private fun WelcomeTopBar(
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
             }
         }
+        // L01: con letra grande la marca se partía («Vaiinill/a.»): va entera en un renglón y lo que cede es el botón.
         Text(
             text = "Vaiinilla.",
             color = colors.ink,
@@ -137,31 +142,39 @@ private fun WelcomeTopBar(
             fontSize = 26.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = (-0.4).sp,
-            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(end = 12.dp),
         )
-        Box(
-            modifier =
-                Modifier
-                    .heightIn(min = 48.dp)
-                    .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onExplore)
-                    .semantics { role = Role.Button },
-            contentAlignment = Alignment.Center,
-        ) {
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             Box(
                 modifier =
                     Modifier
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(colors.paper2)
-                        .padding(horizontal = 14.dp),
+                        .heightIn(min = 48.dp)
+                        .physicalPress(enabled = enabled, scale = PhysicalPressScale.Small, onClick = onExplore)
+                        .semantics { role = Role.Button },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "Ver menús sin cuenta",
-                    color = colors.ink2,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                )
+                Box(
+                    modifier =
+                        Modifier
+                            .heightIn(min = 36.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(colors.paper2)
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // L01: con letra grande se cortaba en «Ver menús sin c…»: se encoge y, si no, usa dos renglones.
+                    Text(
+                        "Ver menús sin cuenta",
+                        color = colors.ink2,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 2,
+                        lineHeight = 15.sp,
+                        textAlign = TextAlign.Center,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 14.sp, stepSize = 0.5.sp),
+                    )
+                }
             }
         }
     }

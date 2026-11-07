@@ -1120,11 +1120,18 @@ internal fun AdminSecondaryButton(
         icon?.let { Icon(it, contentDescription = null, tint = fg, modifier = Modifier.size(16.dp)) }
         Text(
             title,
-            fontSize = if (outlined) 16.sp else 14.5.sp,
             fontWeight = if (outlined) FontWeight.Black else FontWeight.ExtraBold,
             color = fg,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            // L01: con letra grande «Marcar agotado» o «Restaurar» se cortaban; primero se encoge, y solo si
+            // ni así cabe lleva puntos suspensivos.
+            autoSize =
+                TextAutoSize.StepBased(
+                    minFontSize = 11.sp,
+                    maxFontSize = if (outlined) 16.sp else 14.5.sp,
+                    stepSize = 0.5.sp,
+                ),
         )
     }
 }

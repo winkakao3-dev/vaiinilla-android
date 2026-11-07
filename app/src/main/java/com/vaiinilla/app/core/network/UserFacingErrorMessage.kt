@@ -15,6 +15,12 @@ private val CODED_MESSAGES =
         "UNAUTHENTICATED" to "Tu sesión caducó. Vuelve a iniciar sesión.",
         "ACCOUNT_REQUIRED" to "Para apartar necesitas una cuenta. Crea una o inicia sesión.",
         "INSUFFICIENT_WALLET_BALANCE" to "No te alcanza el saldo. Recarga tu cartera o paga en caja.",
+        // El dueño apagó «Pago en caja» con la hoja de pago abierta.
+        "CASH_AT_REGISTER_NOT_ALLOWED" to
+            "Este negocio ya no recibe pagos en caja desde la app. Paga con tarjeta o saldo.",
+        // R11: el boliche pide cuántos juegan para preparar la pista y los zapatos.
+        "PLAYERS_REQUIRED" to "Indica cuántos van a jugar para rentar la pista.",
+        // PLAYERS_OVER_CAPACITY no va aquí: el mensaje del servidor dice cuántos caben en esa pista.
     )
 
 /**

@@ -69,4 +69,19 @@ class MutationIdempotencyTest {
         assertTrue(uuidPattern.matches(MutationIdempotency.orderTransition("o", "listo", 1, null)))
         assertTrue(uuidPattern.matches(MutationIdempotency.accountDeletion("uid")))
     }
+
+    @Test
+    fun `assistant sub-operation keys are UUIDs, stable per proposal and distinct per step`() {
+        val uuidPattern = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        val base = "6f1c2a1e-0000-4000-8000-000000000000"
+        val step = MutationIdempotency.assistant(base, "2")
+        assertTrue(uuidPattern.matches(step))
+        assertEquals(step, MutationIdempotency.assistant(base, "2"))
+        assertNotEquals(step, MutationIdempotency.assistant(base, "3"))
+        assertNotEquals(
+            MutationIdempotency.assistant(step, "producto", "1"),
+            MutationIdempotency.assistant(step, "foto", "1"),
+        )
+        assertTrue(uuidPattern.matches(MutationIdempotency.assistant(step, "categoria")))
+    }
 }

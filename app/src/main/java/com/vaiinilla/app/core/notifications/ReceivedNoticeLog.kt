@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import kotlin.math.abs
 
 /**
  * Un aviso que llegó a este teléfono, guardado para poder explicarlo después: lo que traía, cómo llegó y en qué
@@ -110,6 +111,7 @@ sealed interface NoticeLookup {
 object ReceivedNoticeLog {
     private const val FILE_NAME = "avisos-recibidos.json"
     private const val LIMIT = 100
+    private const val SAME_EVENT_WINDOW_MS = 10 * 60 * 1000L
 
     @Serializable
     private data class Stored(
@@ -142,13 +144,6 @@ object ReceivedNoticeLog {
         arrival: ReceivedNotice.Arrival,
         receivedAtMillis: Long = System.currentTimeMillis(),
     ) = mutate(context) { notices ->
-        val index = notices.indexOfFirst { it.id == id }
-        if (index >= 0) {
-            val existing = notices[index]
-            if (arrival in existing.arrivals) return@mutate notices
-            val updated = existing.copy(arrivals = existing.arrivals + arrival)
-            return@mutate notices.toMutableList().also { it[index] = updated }
-        }
         val notice =
             ReceivedNotice(
                 id = id,
@@ -160,8 +155,63 @@ object ReceivedNoticeLog {
                 arrivals = listOf(arrival),
                 phone = phone,
             )
+        val index = notices.indexOfFirst { it.id == id || sameEvent(it, notice) }
+        if (index >= 0) {
+            val existing = notices[index]
+            val merged = mergeSameEvent(existing, notice)
+            if (merged == existing) return@mutate notices
+            return@mutate notices.toMutableList().also { it[index] = merged }
+        }
         (listOf(notice) + notices).sortedByDescending { it.receivedAtMillis }.take(LIMIT)
     }
+
+    /**
+     * El mismo avance llega dos veces: lo arma la app al sondear y lo manda el servidor por push, con ids
+     * distintos (o el servidor lo manda a dos registros del teléfono). Es un solo aviso (en vivo, W04).
+     */
+    internal fun sameEvent(
+        a: ReceivedNotice,
+        b: ReceivedNotice,
+    ): Boolean {
+        val keyA = eventKey(a) ?: return false
+        return keyA == eventKey(b) && abs(a.receivedAtMillis - b.receivedAtMillis) <= SAME_EVENT_WINDOW_MS
+    }
+
+    private fun eventKey(notice: ReceivedNotice): String? {
+        val type = notice.payload["type"] ?: return null
+        val subject = notice.payload["orderId"] ?: notice.payload["reservaId"] ?: return null
+        return listOf(
+            type,
+            subject,
+            notice.payload["state"].orEmpty(),
+            notice.payload["dependienteUsuarioId"].orEmpty(),
+        ).joinToString("|")
+    }
+
+    /** Se queda con el del servidor (trae más datos y su id es el que se toca) y junta cómo llegó cada copia. */
+    internal fun mergeSameEvent(
+        existing: ReceivedNotice,
+        incoming: ReceivedNotice,
+    ): ReceivedNotice {
+        val base = if (!existing.isRemote && incoming.isRemote) incoming else existing
+        val arrivals = (existing.arrivals + incoming.arrivals).distinct()
+        return base.copy(
+            arrivals = arrivals,
+            lookup = base.lookup ?: existing.lookup,
+            phone = base.phone ?: existing.phone,
+            receivedAtMillis = minOf(existing.receivedAtMillis, incoming.receivedAtMillis),
+        )
+    }
+
+    /** Lo guardado antes de juntar las copias (W04) se limpia al leerlo. */
+    internal fun dedupe(notices: List<ReceivedNotice>): List<ReceivedNotice> =
+        notices
+            .sortedByDescending { it.receivedAtMillis }
+            .fold(mutableListOf<ReceivedNotice>()) { kept, notice ->
+                val index = kept.indexOfFirst { it.id == notice.id || sameEvent(it, notice) }
+                if (index >= 0) kept[index] = mergeSameEvent(kept[index], notice) else kept += notice
+                kept
+            }.sortedByDescending { it.receivedAtMillis }
 
     /** Se tocó el aviso; si no estaba anotado (llegó con otra versión de la app), no se inventa. */
     fun markOpened(
@@ -240,7 +290,7 @@ object ReceivedNoticeLog {
         val stored =
             runCatching { json.decodeFromString<Stored>(file(context).readText()) }.getOrNull() ?: return
         phone = stored.phone
-        state.value = stored.notices
+        state.value = dedupe(stored.notices)
     }
 
     private fun persist(context: Context) {

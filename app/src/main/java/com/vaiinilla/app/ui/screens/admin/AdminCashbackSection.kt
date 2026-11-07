@@ -59,6 +59,7 @@ import com.vaiinilla.app.domain.admin.CashbackRules
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.initialOf
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
@@ -251,7 +252,7 @@ private fun RuleEditor(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        label.take(1).uppercase(),
+                        initialOf(label),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
                         color = if (on) colors.background else colors.textMuted,

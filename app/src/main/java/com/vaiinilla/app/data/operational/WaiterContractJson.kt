@@ -17,6 +17,7 @@ import com.vaiinilla.app.domain.repository.RejectedOrder
 import com.vaiinilla.app.domain.repository.SpaceAccount
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
+import com.vaiinilla.app.domain.repository.SpaceRent
 import com.vaiinilla.app.domain.repository.SpaceSessionDetail
 import com.vaiinilla.app.domain.repository.SpaceSessionInfo
 import com.vaiinilla.app.domain.repository.TableCall
@@ -30,6 +31,8 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
@@ -83,7 +86,12 @@ data class BoardOrderDto(
     @SerialName("pago_pendiente") val paymentPending: Boolean = false,
     /** Va a la cuenta de la mesa y se paga al final; un servidor anterior no lo manda. */
     @SerialName("pago_diferido") val payAtEnd: Boolean = false,
-)
+    /** «Pasa por él»: listo lo entrega Caja en la barra. Un servidor anterior no lo manda. */
+    @SerialName("recoge_en_barra") val pickUpAtBar: Boolean = false,
+) {
+    /** Listo para recoger en la barra: es de Caja, el mesero no lo entrega. */
+    val waitsAtBar: Boolean get() = pickUpAtBar && estado == OrderState.READY.wireValue
+}
 
 @Serializable
 data class BoardTableDto(
@@ -170,6 +178,9 @@ data class NextReservationDto(
     val inicio: String,
     val fin: String,
     val estado: String? = null,
+    /** Boliche: cuántos juegan; un servidor anterior no lo envía. */
+    val jugadores: Int? = null,
+    @SerialName("nombre_cliente") val customerName: String? = null,
 )
 
 @Serializable
@@ -199,6 +210,8 @@ data class AccountOrderDto(
     @SerialName("items_resumen") val itemsSummary: String = "",
     /** Alias de quien dijo "esto lo pago yo"; un servidor anterior no lo envía. */
     val pagara: String? = null,
+    /** R13: lo que falta de este pedido (número o texto decimal); un servidor anterior no lo envía. */
+    val restante: JsonPrimitive? = null,
 )
 
 @Serializable
@@ -211,6 +224,16 @@ data class SpaceAccountDto(
     /** Abonos sin liquidar; un servidor anterior no los envía. */
     val abonado: Double = 0.0,
     val restante: Double? = null,
+    /** I07: los pedidos de cada persona de la mesa compartida; un servidor anterior no los envía. */
+    val grupos: List<AccountGroupDto> = emptyList(),
+)
+
+/** Un grupo de `cuenta.grupos`: el alias de la persona y sus pedidos; sin participante es "Pedido general". */
+@Serializable
+data class AccountGroupDto(
+    val etiqueta: String? = null,
+    @SerialName("participante_id") val participantId: JsonPrimitive? = null,
+    val pedidos: List<String> = emptyList(),
 )
 
 @Serializable
@@ -225,6 +248,18 @@ data class SpaceSessionDetailDto(
     @SerialName("inicio") val startedAt: String? = null,
     val sesion: SpaceSessionInfoDto? = null,
     val cuenta: SpaceAccountDto? = null,
+    /** La renta ya pagada del turno: va aparte de la cuenta (es su propio pedido) y no se cobra otra vez. */
+    val renta: SpaceRentDto? = null,
+)
+
+/** `renta` de `GET /espacios/:id/sesion`: lo pagado por las reservas confirmadas ligadas a la sesión. */
+@Serializable
+data class SpaceRentDto(
+    val pagada: String,
+    val minutos: Int = 0,
+    /** Boliche: cuántos juegan (de la reserva más reciente); null sin dato. */
+    val jugadores: Int? = null,
+    @SerialName("nombre_cliente") val customerName: String? = null,
 )
 
 @Serializable
@@ -340,7 +375,7 @@ data class DeliveryPolicyDto(
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
     /** «Te lo llevamos», «Pasa por él» o ambas; un servidor anterior no lo envía. */
     @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
-    /** El tipo de negocio (`hotel`, `boliche`…): el vocabulario del personal depende de él. */
+    /** Tipo de negocio (`hotel`, `boliche`…): el vocabulario del personal depende de él ([com.vaiinilla.app.domain.model.Venue]). */
     @SerialName("tipo") val businessType: String? = null,
     /** Una escuela es una cafetería con este ajuste; el aviso dice «alumno» solo ahí. */
     @SerialName("modo_escuela") val isSchool: Boolean? = null,
@@ -371,9 +406,11 @@ fun SpaceAvailabilityDto.toDomain(): SpaceAvailability =
         nextReservationStart = nextReservation?.inicio,
         nextReservationEnd = nextReservation?.fin,
         nextReservationState = nextReservation?.estado,
+        nextReservationPlayers = nextReservation?.jugadores?.takeIf { it > 0 },
+        nextReservationCustomer = nextReservation?.customerName?.takeIf { it.isNotBlank() },
     )
 
-fun AccountOrderDto.toDomain(): AccountOrder =
+fun AccountOrderDto.toDomain(owner: String? = null): AccountOrder =
     AccountOrder(
         id = id,
         folio = folio,
@@ -384,11 +421,31 @@ fun AccountOrderDto.toDomain(): AccountOrder =
         payAtEnd = payAtEnd,
         pending = pending,
         payer = pagara,
+        due = restante.moneyOrNull() ?: total.toMoney(),
+        owner = owner,
     )
 
-fun SpaceAccountDto.toDomain(): SpaceAccount =
-    SpaceAccount(
-        orders = pedidos.map { it.toDomain() },
+/** Un monto que el servidor manda como número o como texto decimal ("12.50"); null o ilegible = sin dato. */
+private fun JsonPrimitive?.moneyOrNull(): String? =
+    this
+        ?.takeUnless { it is JsonNull }
+        ?.content
+        ?.trim()
+        ?.toBigDecimalOrNull()
+        ?.setScale(2, RoundingMode.HALF_UP)
+        ?.toPlainString()
+
+fun SpaceAccountDto.toDomain(): SpaceAccount {
+    // Solo los grupos de una persona de la mesa: "Persona N" y "Pedido general" no tienen participante.
+    val owners =
+        grupos
+            .filter { group -> group.participantId != null && group.participantId !is JsonNull }
+            .flatMap { group ->
+                val alias = group.etiqueta?.trim()?.takeIf { it.isNotEmpty() }
+                group.pedidos.map { id -> id to alias }
+            }.toMap()
+    return SpaceAccount(
+        orders = pedidos.map { it.toDomain(owner = owners[it.id]) },
         total = total.toMoney(),
         pending = pendiente.toMoney(),
         paid = pagado.toMoney(),
@@ -396,6 +453,7 @@ fun SpaceAccountDto.toDomain(): SpaceAccount =
         paidIn = abonado.toMoney(),
         remaining = (restante ?: (pendiente - abonado)).toMoney(),
     )
+}
 
 fun SpaceSessionDetailDto.toDomain(): SpaceSessionDetail =
     SpaceSessionDetail(
@@ -420,6 +478,15 @@ fun SpaceSessionDetailDto.toDomain(): SpaceSessionDetail =
                 )
             },
         account = cuenta?.toDomain(),
+        rent = renta?.toDomain(),
+    )
+
+fun SpaceRentDto.toDomain(): SpaceRent =
+    SpaceRent(
+        paid = pagada,
+        minutes = minutos,
+        players = jugadores?.takeIf { it > 0 },
+        customerName = customerName?.takeIf { it.isNotBlank() },
     )
 
 fun TableCallDto.toDomain(): TableCall =
@@ -457,7 +524,11 @@ fun BoardTableDto.toDomain(): BoardTable =
         // Una llamada o un pedido con un valor nuevo del servidor no tira el tablero entero: la mesa se sigue
         // viendo sin eso, y el pedido se cuenta para pedir actualizar la app.
         call = llamada?.let { runCatching { it.toDomain() }.getOrNull() },
-        orders = pedidos.mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
+        // «Pasa por él» listo es de Caja: no sale con «Entregar» en el tablero del mesero.
+        orders =
+            pedidos
+                .filterNot { it.waitsAtBar }
+                .mapOrdersTolerant(id = { it.id }, failWhenNoneUnderstood = false) { it.toDomain() },
         recentRejections =
             rechazadosRecientes.map {
                 RejectedOrder(

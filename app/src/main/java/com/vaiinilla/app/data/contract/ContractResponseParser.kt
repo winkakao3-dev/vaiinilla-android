@@ -59,11 +59,13 @@ class ContractResponseParser
                 spaceDelivery = SpaceDelivery.fromWire(envelope.data.spaceDelivery),
                 acceptsCard = envelope.data.acceptsCard,
                 allowsBalance = envelope.data.allowsBalance,
+                allowsCashAtRegister = envelope.data.allowsCashAtRegister,
                 businessType = envelope.data.businessType,
                 orderWindows = envelope.data.orderWindows.map { OrderWindow(it.from, it.to) },
                 withinOrderWindow = envelope.data.withinOrderWindow,
                 isSchool = envelope.data.isSchool,
                 isParentUnlocked = envelope.data.isParentUnlocked,
+                kitchenPreparesUnpaid = envelope.data.kitchenPreparesUnpaid,
                 cashierConnected = envelope.data.cashierConnected,
                 kitchenConnected = envelope.data.kitchenConnected,
                 homeDelivery =

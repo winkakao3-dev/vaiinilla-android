@@ -46,5 +46,6 @@ class OrderListLenientParsingTest {
         assertEquals(StripePaymentStatus.REFUNDED, StripePaymentStatus.fromWireValue("reembolsado"))
         assertEquals(PreparationStation.KITCHEN, PreparationStation.fromWireValue("barra"))
         assertEquals(PreparationStation.CASHIER, PreparationStation.fromWireValue("caja"))
+        assertEquals(PreparationStation.NONE, PreparationStation.fromWireValue("ninguna"))
     }
 }

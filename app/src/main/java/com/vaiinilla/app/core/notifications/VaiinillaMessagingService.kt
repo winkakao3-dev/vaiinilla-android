@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier.Shown
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -96,8 +97,15 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             orderId,
             folio,
             state,
+            // Un servidor anterior no manda destino, espacioTipo, recogeEnBarra ni renta: el texto de siempre.
+            inSpace = data["destino"] == "en_espacio",
+            spaceType = data["espacioTipo"]?.takeIf { it.isNotBlank() },
             noticeId = noticeId,
             acceptedAwaitingPayment = data["pagarTrasAceptar"] == "true",
+            pickUpAtBar = data["recogeEnBarra"] == "true",
+            homeDelivery = data["destino"] == OrderDestination.HOME_DELIVERY.wireValue,
+            rental = data["renta"] == "true",
+            rentalSpaceName = data["espacioNombre"],
         )
     }
 
@@ -148,6 +156,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
                 spaceName = data["espacio_nombre"] ?: data["espacioNombre"].orEmpty(),
                 reason = data["motivo"],
                 noticeId = noticeId,
+                establishmentId = data["establecimiento_id"] ?: data["establecimientoId"],
             )
         }
         if (alert == "turno_por_terminar") {
@@ -160,7 +169,14 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         }
         val orderId = data["orderId"] ?: return null
         val folio = data["folio"]?.toIntOrNull() ?: return null
-        return OrderAdvanceNotifier.notifyStaff(applicationContext, orderId, folio, alert, noticeId)
+        return OrderAdvanceNotifier.notifyStaff(
+            context = applicationContext,
+            orderId = orderId,
+            folio = folio,
+            alert = alert,
+            noticeId = noticeId,
+            customerName = data["nombreCliente"] ?: data["nombre_cliente"],
+        )
     }
 
     private fun notifyCallerOnTheWay(

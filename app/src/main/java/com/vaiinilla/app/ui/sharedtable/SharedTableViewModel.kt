@@ -18,6 +18,9 @@ import javax.inject.Inject
 
 const val SHARED_TABLE_ALIAS_MAX = 30
 private const val POLL_INTERVAL_MS = 5_000L
+private const val DEFAULT_WATCHER = "pantalla"
+const val SHARED_TABLE_WATCHER_PAGE = "mesa"
+const val SHARED_TABLE_WATCHER_ORDERS = "mis-pedidos"
 
 data class SharedTableUiState(
     val loaded: Boolean = false,
@@ -75,13 +78,21 @@ class SharedTableViewModel
         fun clearForSessionTermination() {
             pollingJob?.cancel()
             pollingJob = null
+            watchers.clear()
             venueId = null
             watchedToken = null
             mutationVersion++
             _uiState.value = SharedTableUiState()
         }
 
-        fun onVisible() {
+        // Quiénes están a la vista (la página de la mesa, la tarjeta de Mis pedidos). Al pasar de una a otra, la
+        // que se va se detiene después de que la nueva arrancó: con un solo interruptor apagaba el sondeo de la
+        // nueva y el otro cliente no veía «Paga Ana» hasta reiniciar la app (C05).
+        private val watchers = mutableSetOf<String>()
+
+        /** [watcher] nombra quién mira; el sondeo sigue mientras quede alguno. Al volver, lee la mesa de una vez. */
+        fun onVisible(watcher: String = DEFAULT_WATCHER) {
+            watchers += watcher
             pollingJob?.cancel()
             pollingJob =
                 viewModelScope.launch {
@@ -92,7 +103,14 @@ class SharedTableViewModel
                 }
         }
 
-        fun onHidden() {
+        /** Si la mesa se sigue consultando; para las pruebas. */
+        internal val polling: Boolean
+            get() = pollingJob?.isActive == true
+
+        /** Se puede llamar dos veces (al detenerse y al salir de la composición): solo quita a [watcher]. */
+        fun onHidden(watcher: String = DEFAULT_WATCHER) {
+            watchers -= watcher
+            if (watchers.isNotEmpty()) return
             pollingJob?.cancel()
             pollingJob = null
         }

@@ -3,6 +3,7 @@ package com.vaiinilla.app
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -58,11 +59,37 @@ class SpaceCopyTest {
     }
 
     @Test
+    fun `cocina y caja distinguen domicilio y pasa por el`() {
+        assertEquals("A domicilio", SpaceCopy.staffDestination(OrderDestination.HOME_DELIVERY, null))
+        assertEquals(
+            "Pasa por él a la barra · Pista 1",
+            SpaceCopy.staffDestination(
+                OrderDestination.IN_SPACE,
+                OrderSpace(9, "Pista 1", "cancha"),
+                pickUpAtBar = true,
+            ),
+        )
+        assertEquals("Pasa por él a la barra", SpaceCopy.staffDestination(OrderDestination.IN_SPACE, null, true))
+    }
+
+    @Test
     fun `en la barra el carrito y el aviso de listo no dicen mesa ni llevar`() {
         assertEquals("Pagas en caja y te lo entregamos en la barra", SpaceCopy.payAtCashierHint("barra"))
         assertEquals("Pagas en caja y te lo llevamos a tu mesa", SpaceCopy.payAtCashierHint("mesa"))
         assertEquals("Pagas en caja y te lo llevamos a tu cancha", SpaceCopy.payAtCashierHint("cancha"))
         assertEquals("Tu pedido está listo. Te lo entregamos en la barra.", SpaceCopy.readyInSpace("barra"))
-        assertEquals("Tu pedido está listo. Ya va a tu mesa.", SpaceCopy.readyInSpace(null))
+        assertEquals("Tu pedido está listo. En un momento te lo llevan a tu mesa.", SpaceCopy.readyInSpace(null))
+        assertEquals("Ya está en tu mesa. Buen provecho.", SpaceCopy.deliveredInSpace("mesa"))
+        assertEquals("Pedido entregado. Buen provecho.", SpaceCopy.deliveredInSpace("barra"))
+    }
+
+    @Test
+    fun `si el negocio solo entrega en barra el carrito no promete llevarlo`() {
+        assertEquals(
+            "Pides desde tu lugar y pasas por él a la barra",
+            SpaceCopy.destinationSubtitle("cancha", SpaceDelivery.BAR),
+        )
+        assertEquals("Te lo llevamos a tu cancha", SpaceCopy.destinationSubtitle("cancha", SpaceDelivery.BOTH))
+        assertEquals("Te lo llevamos a tu cancha", SpaceCopy.destinationSubtitle("cancha", SpaceDelivery.TABLE))
     }
 }

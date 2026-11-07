@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,7 +31,10 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
@@ -50,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -61,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.notifications.NotificationMute
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.notices.LocalOpenReceivedNotices
@@ -83,6 +89,10 @@ internal fun StaffAvatarMenu(
     placeName: String = "",
     /** N11: Caja con la caja abierta ve los movimientos del cajón. */
     onOpenCashDrawer: (() -> Unit)? = null,
+    /** Doop CR5: el corte de caja del turno y del día. */
+    onOpenCashCut: (() -> Unit)? = null,
+    /** En vivo, I09: el mesero también ve las cuentas de mesas y canchas que siguen sin cobrar. */
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var shiftOpen by remember { mutableStateOf(false) }
@@ -120,6 +130,20 @@ internal fun StaffAvatarMenu(
             },
             onOpenCashDrawer =
                 onOpenCashDrawer?.let { open ->
+                    {
+                        expanded = false
+                        open()
+                    }
+                },
+            onOpenCashCut =
+                onOpenCashCut?.let { open ->
+                    {
+                        expanded = false
+                        open()
+                    }
+                },
+            onOpenUnpaidAccounts =
+                onOpenUnpaidAccounts?.let { open ->
                     {
                         expanded = false
                         open()
@@ -170,6 +194,8 @@ private fun StaffAccountCard(
     onCloseCash: (() -> Unit)?,
     onOpenShift: () -> Unit,
     onOpenCashDrawer: (() -> Unit)?,
+    onOpenCashCut: (() -> Unit)? = null,
+    onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
     val reduceMotion = rememberReducedMotion()
     val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
@@ -178,6 +204,8 @@ private fun StaffAccountCard(
     }
     var themeOpen by remember { mutableStateOf(false) }
     val openNotices = LocalOpenReceivedNotices.current
+    val context = LocalContext.current
+    var staffMuted by remember { mutableStateOf(NotificationMute.isMuted(context, NotificationMute.Scope.STAFF)) }
     val coral = LocalVaiinillaColors.current.coral
     Dialog(
         onDismissRequest = onDismiss,
@@ -239,6 +267,16 @@ private fun StaffAccountCard(
                         openNotices()
                     }
                 }
+                // Naev (2026-11-05): en cada rol del personal se pueden apagar los avisos de este teléfono.
+                AccountRow(
+                    if (staffMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.NotificationsActive,
+                    if (staffMuted) "Prender notificaciones" else "Apagar notificaciones",
+                    value = if (staffMuted) "Apagadas" else "",
+                    colors = colors,
+                ) {
+                    staffMuted = !staffMuted
+                    NotificationMute.setMuted(context, NotificationMute.Scope.STAFF, staffMuted)
+                }
                 AccountRow(Icons.Outlined.Savings, "Mi turno y mis propinas", colors = colors, onClick = onOpenShift)
                 AccountRow(Icons.Outlined.SwapHoriz, "Cambiar de modo", value = modeLabel, colors = colors, onClick = onChangeMode)
                 if (onThemeChange != null) {
@@ -264,6 +302,17 @@ private fun StaffAccountCard(
                 if (onOpenCashDrawer != null) {
                     AccountRow(Icons.Outlined.PointOfSale, "Movimientos del cajón", colors = colors, onClick = onOpenCashDrawer)
                 }
+                if (onOpenCashCut != null) {
+                    AccountRow(Icons.Outlined.ReceiptLong, "Corte de caja", colors = colors, onClick = onOpenCashCut)
+                }
+                if (onOpenUnpaidAccounts != null) {
+                    AccountRow(
+                        Icons.Outlined.ReceiptLong,
+                        "Cuentas por cobrar",
+                        colors = colors,
+                        onClick = onOpenUnpaidAccounts,
+                    )
+                }
                 if (onCloseCash != null) {
                     AccountRow(Icons.Outlined.Lock, "Cerrar caja", tint = coral, colors = colors, onClick = onCloseCash)
                 }
@@ -286,17 +335,34 @@ private fun AccountRow(
             Modifier
                 .fillMaxWidth()
                 .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-                .height(52.dp)
+                // L01: con letra grande el renglón crece en vez de recortar el texto.
+                .heightIn(min = 52.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
                 .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-        Text(label, color = tint, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(
+            label,
+            color = tint,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 15.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         if (value.isNotBlank()) {
-            Text(value, color = colors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(
+                value,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(0.6f, fill = false),
+            )
         }
     }
 }

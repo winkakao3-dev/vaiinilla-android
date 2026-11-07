@@ -1,12 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -14,11 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,16 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,7 +50,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
 import com.vaiinilla.app.ui.auth.student.StudentAuthUiState
 import com.vaiinilla.app.ui.components.AuthBackCircle
@@ -151,26 +135,19 @@ private fun EmailLoginStage(
     val error = state.errorMessage
     var shakes by remember { mutableIntStateOf(0) }
     LaunchedEffect(error) { if (error != null) shakes++ }
-    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val wrongCredentials = error == "Correo o contraseña incorrectos."
     val canLogin = state.email.isNotBlank() && state.password.isNotBlank() && !state.loading
 
     AuthStage(loading = state.loading, contentTopPadding = 0.dp) {
+        // Naev (2026-11-05): sin las dos fotos (waffle y torta) arriba del formulario.
         Box(modifier = Modifier.fillMaxWidth()) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !keyboardOpen && error == null,
-                enter = fadeIn() + expandVertically(spring(dampingRatio = 0.85f, stiffness = 300f)),
-                exit = fadeOut() + shrinkVertically(spring(dampingRatio = 0.9f, stiffness = 400f)),
-            ) {
-                LoginPhotoStack(modifier = Modifier.authArrive(0))
-            }
             if (showBack) {
                 Box(Modifier.padding(top = 8.dp)) {
                     AuthBackCircle(onClick = onBack, contentDescription = "Volver")
                 }
             }
         }
-        Spacer(Modifier.height(if (keyboardOpen || error != null) 64.dp else 4.dp))
+        Spacer(Modifier.height(64.dp))
         AuthHeading(
             cap = "Tu cuenta Vaiinilla",
             title = "Qué bueno\nverte de nuevo.",
@@ -265,38 +242,6 @@ private fun EmailLoginStage(
         Spacer(Modifier.height(28.dp))
         AuthLegalLinks(privacyUrl = state.privacyUrl, termsUrl = state.termsUrl)
     }
-}
-
-@Composable
-private fun LoginPhotoStack(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxWidth().height(250.dp).padding(top = 64.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        StackPhoto(R.drawable.waffle, rotation = -9f, modifier = Modifier.offset(x = (-54).dp, y = 16.dp))
-        StackPhoto(R.drawable.torta, rotation = 8f, modifier = Modifier.offset(x = 54.dp, y = 12.dp))
-    }
-}
-
-@Composable
-private fun StackPhoto(
-    res: Int,
-    rotation: Float,
-    modifier: Modifier = Modifier,
-) {
-    val shape = RoundedCornerShape(22.dp)
-    Image(
-        painter = painterResource(res),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier =
-            modifier
-                .size(width = 126.dp, height = 162.dp)
-                .graphicsLayer { rotationZ = rotation }
-                .shadow(16.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
-                .clip(shape)
-                .border(3.dp, AuthStageColors.Paper2, shape),
-    )
 }
 
 /** La sesión ya existe y está verificada; falta lo que pide este negocio para darle acceso (su matrícula). */
