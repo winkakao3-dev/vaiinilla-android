@@ -123,8 +123,8 @@ class CashierViewModel
                                     result.exceptionOrNull().toUserFacingMessage(
                                         state.value.errorMessage ?: "No se pudo cargar el catálogo.",
                                     )
-                                // Un error de la carga de pedidos sigue ahí hasta que esa carga salga bien.
-                                else -> state.value.errorMessage.takeIf { state.value.lastRefreshOk == false }
+                                // El fallo de la fila de pedidos vive en `queue`; aquí no se arrastra.
+                                else -> null
                             },
                     )
             }

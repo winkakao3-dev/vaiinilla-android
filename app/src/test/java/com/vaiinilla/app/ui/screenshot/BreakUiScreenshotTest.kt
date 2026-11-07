@@ -12,6 +12,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.discovery.DiscoveryUiState
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.parentmode.ChildrenState
 import com.vaiinilla.app.ui.parentmode.FakeGuardianship
 import com.vaiinilla.app.ui.parentmode.ParentFixtures
@@ -304,7 +305,7 @@ internal object BreakUiCases {
                         role = OperationalRole.CASHIER,
                         orders = BreakUiFixtures.orders(data, muchos = 120),
                         cashSessionOpen = true,
-                        lastRefreshOk = true,
+                        queue = QueueSync.Live,
                         catalog =
                             BreakUiFixtures.catalog(
                                 if (data ==
@@ -333,7 +334,7 @@ internal object BreakUiCases {
                     OperationalUiState(
                         role = OperationalRole.KITCHEN,
                         orders = BreakUiFixtures.orders(data, muchos = 120),
-                        lastRefreshOk = true,
+                        queue = QueueSync.Live,
                     )
                 (
                     {

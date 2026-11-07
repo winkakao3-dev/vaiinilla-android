@@ -150,6 +150,7 @@ import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.CollectedToday
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.operational.queuePresentation
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
@@ -340,7 +341,7 @@ fun CashierOperationalScreen(
         if (selectedCashierOrderId !in actionableIds) selectedCashierOrderId = null
     }
     val ordersToCollect = actionableCashierOrders.count { it.summary.needsCashCollection }
-    val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.lastRefreshOk)
+    val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.queue)
     val expiringOnClose =
         actionableCashierOrders.filter {
             it.summary.state == OrderState.PENDING_PAYMENT &&
@@ -491,7 +492,7 @@ fun CashierOperationalScreen(
                 }
             }
 
-            if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
+            if (state.queue.lostConnection && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
                 }
@@ -574,7 +575,14 @@ fun CashierOperationalScreen(
             }
             // La hoja de alta y la fila sin cargar muestran su propio error; aquí no se repite.
             val cashierError =
-                state.errorMessage.takeUnless {
+                (
+                    state.errorMessage
+                        // Un fallo de lectura que no es de red (servidor) se dice con su texto si hay pedidos a la vista.
+                        ?: (state.queue as? QueueSync.Failed)
+                            ?.takeIf { !state.queue.lostConnection && state.orders.isNotEmpty() }
+                            ?.failure
+                            ?.message()
+                ).takeUnless {
                     addProductSheetOpen ||
                         walletSheetOpen ||
                         openCashSheet ||
@@ -735,7 +743,7 @@ fun CashierOperationalScreen(
                         QueuePresentation.Error ->
                             OperationalErrorCard(
                                 title = "No se pudieron cargar los pedidos",
-                                message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                                message = state.queue.failureText("Revisa la conexión e inténtalo otra vez."),
                                 colors = colors,
                                 onRetry = onRefresh,
                             )

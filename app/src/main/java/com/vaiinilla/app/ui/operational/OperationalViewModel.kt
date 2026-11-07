@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.contract.UnreadableOrders
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiErrorMapper
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
@@ -121,7 +122,7 @@ class OperationalViewModel
                     menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
                     selectedOrderId = null,
                     errorMessage = null,
-                    lastRefreshOk = if (roleChanged) null else _uiState.value.lastRefreshOk,
+                    queue = if (roleChanged) QueueSync.Pending else _uiState.value.queue,
                 )
             // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
             if (role == OperationalRole.ADMIN) {
@@ -196,14 +197,11 @@ class OperationalViewModel
                     }
                 }
             }
-            // Mientras la carga siga fallando el error se queda: limpiarlo en cada sondeo lo haría parpadear.
+            // El fallo de la lectura vive en `queue` y se queda hasta que una lectura salga bien.
             _uiState.value =
                 _uiState.value.copy(
                     loading = true,
-                    errorMessage =
-                        _uiState.value.errorMessage.takeIf {
-                            mutationErrorVisible || _uiState.value.lastRefreshOk == false
-                        },
+                    errorMessage = _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                 )
             val seq = ++refreshSeq
             viewModelScope.launch {
@@ -247,18 +245,16 @@ class OperationalViewModel
                                 latestClientOrder = latestClientOrder,
                                 menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                                 lastSyncedAt = newest,
-                                lastRefreshOk = true,
+                                queue = QueueSync.Live,
                                 errorMessage = _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                             )
                         keptSelected?.takeUnless { it.summary.state.isClosed }?.let { refreshOrder(it.summary.id) }
                     },
                     onFailure = { error ->
-                        mutationErrorVisible = false
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
-                                lastRefreshOk = false,
-                                errorMessage = error.toUserFacingMessage(),
+                                queue = QueueSync.Failed(ApiErrorMapper.map(error)),
                             )
                     },
                 )
@@ -504,7 +500,7 @@ class OperationalViewModel
                     loading = false,
                     acting = false,
                     errorMessage = null,
-                    lastRefreshOk = true,
+                    queue = QueueSync.Live,
                 )
             mutationErrorVisible = false
         }
