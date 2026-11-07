@@ -28,7 +28,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -150,6 +152,9 @@ class StudentAuthViewModel
                                         establecimientoId = venue.establishment.id,
                                         identificadorCliente = clientIdentifier,
                                     )
+                                // La respuesta puede llegar ya cancelado el trabajo (cierre de sesión): no se guarda un
+                                // token de una sesión que ya se cerró.
+                                currentCoroutineContext().ensureActive()
                                 sessionStore.saveAccessToken(contexto.accessToken)
                                 refreshCoordinator.startSession(
                                     OperationalRole.CLIENT,
@@ -697,6 +702,9 @@ class StudentAuthViewModel
                                         establecimientoId = venue.establishment.id,
                                         identificadorCliente = clientIdentifier,
                                     )
+                                // La respuesta puede llegar ya cancelado el trabajo (cierre de sesión): no se guarda un
+                                // token de una sesión que ya se cerró.
+                                currentCoroutineContext().ensureActive()
                                 sessionStore.saveAccessToken(contexto.accessToken)
                                 refreshCoordinator.startSession(
                                     OperationalRole.CLIENT,
