@@ -22,11 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.HotelRoom
 import com.vaiinilla.app.domain.hotel.RequestStatus
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.time.Instant
 
@@ -37,7 +37,7 @@ private const val REFRESH_MS = 15_000L
 fun HotelRoomsScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: HotelRoomsViewModel = viewModel(),
+    viewModel: HotelRoomsViewModel = hotelViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     HotelPolling(REFRESH_MS, viewModel::refresh)

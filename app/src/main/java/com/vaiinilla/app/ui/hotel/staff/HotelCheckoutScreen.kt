@@ -23,10 +23,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 /**
@@ -38,7 +38,7 @@ fun HotelCheckoutScreen(
     stayId: String,
     onDone: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: HotelReceptionViewModel = viewModel(),
+    viewModel: HotelReceptionViewModel = hotelViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     LaunchedEffect(stayId) { viewModel.loadDetail(stayId) }
