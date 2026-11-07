@@ -32,6 +32,7 @@ import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.components.CremeHero
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.order.OrderFlowViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
@@ -45,7 +46,7 @@ fun HotelWelcomeScreen(
     onRequests: () -> Unit = {},
     onAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: HotelStayViewModel = viewModel(),
+    viewModel: HotelStayViewModel = hotelViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.load() }
     val venue = activityOrderFlow()?.uiState?.value?.guestVenue
