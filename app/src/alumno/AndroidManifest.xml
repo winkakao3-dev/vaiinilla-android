@@ -2,7 +2,9 @@
 <!-- Las mesas y tiendas son de la app de cliente: con Caja, Cocina o Mesero instaladas, Android no pregunta con cuál abrirlas. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
-        <activity android:name=".MainActivity">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
