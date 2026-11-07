@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -50,10 +53,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -109,6 +111,7 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.counter.TicketAllergyBand
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.PendingReadyQueue
 import com.vaiinilla.app.ui.operational.QueuePresentation
 import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
@@ -203,7 +206,11 @@ fun KitchenOperationalScreen(
     state: OperationalUiState,
     onBack: () -> Unit,
     onStart: (orderId: String, version: Int) -> Unit,
-    onReady: (orderId: String, version: Int) -> Unit,
+    /** «Marcar lista»: el ViewModel guarda la marca durante la ventana de deshacer y la manda. */
+    onMarkReady: (orderId: String, version: Int) -> Unit,
+    onUndoReady: (orderId: String) -> Unit = {},
+    /** Manda ya las marcas en espera (Atrás o salir de la pantalla). */
+    onFlushReady: () -> Unit = {},
     onReject: (orderId: String, version: Int, reason: String) -> Unit = { _, _, _ -> },
     /** Quitar un solo artículo de la comanda (Cocina no puede hacerlo con el último). */
     onRejectItem: (orderId: String, itemId: Int, version: Int, reason: String) -> Unit = { _, _, _, _ -> },
@@ -233,29 +240,18 @@ fun KitchenOperationalScreen(
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var chosenTab by rememberSaveable { mutableStateOf<KitchenTab?>(null) }
     var byProduct by rememberSaveable { mutableStateOf(false) }
-    // N02: «lista» espera 10 s para poder deshacerla sin servidor; al salir de la pantalla se manda ya.
-    val pendingReady = remember { mutableStateMapOf<String, Pair<Int, Long>>() }
-    val currentOnReady by rememberUpdatedState(onReady)
-    pendingReady.toList().forEach { (id, entry) ->
-        key(id) {
-            LaunchedEffect(id, entry.second) {
-                delay((entry.second - System.currentTimeMillis()).coerceAtLeast(0))
-                if (pendingReady.remove(id) != null) currentOnReady(id, entry.first)
-            }
-        }
-    }
-    // Salir por «Cambiar de modo» o Atrás limpia el rol antes de que la pantalla se vaya, y sin rol el servidor
-    // ya no recibe la marca: se manda antes de salir (B04).
-    val flushPendingReady = {
-        pendingReady.toList().forEach { (id, entry) -> currentOnReady(id, entry.first) }
-        pendingReady.clear()
-    }
+    // N02: «lista» espera 10 s para poder deshacerla sin servidor. La espera vive en el ViewModel: girar el teléfono o
+    // cambiar de pestaña no la pierde. Al salir de la pantalla (no al girarla) se manda ya (B04).
+    val pendingReady = state.pendingReady
+    val currentOnFlushReady by rememberUpdatedState(onFlushReady)
+    val flushPendingReady = { currentOnFlushReady() }
     BackHandler(enabled = pendingReady.isNotEmpty()) {
         flushPendingReady()
         onBack()
     }
+    val activity = LocalContext.current.findActivity()
     DisposableEffect(Unit) {
-        onDispose { flushPendingReady() }
+        onDispose { if (activity?.isChangingConfigurations != true) flushPendingReady() }
     }
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
@@ -577,17 +573,16 @@ fun KitchenOperationalScreen(
                         haptics.impact()
                         selectedOrderId = order.summary.id
                         if (orderTab == KitchenTab.PREPARING) {
-                            pendingReady[order.summary.id] =
-                                order.summary.version to System.currentTimeMillis() + KITCHEN_UNDO_MS
+                            onMarkReady(order.summary.id, order.summary.version)
                         } else {
                             onStart(order.summary.id, order.summary.version)
                         }
                     },
                     onMore = if (canReject) ({ moreOrderId = order.summary.id }) else null,
-                    readyDeadline = pendingReady[order.summary.id]?.second,
+                    readyDeadline = pendingReady[order.summary.id]?.deadlineMs,
                     onUndoReady = {
                         haptics.selection()
-                        pendingReady.remove(order.summary.id)
+                        onUndoReady(order.summary.id)
                     },
                     primaryAnchor =
                         if (orderTab == KitchenTab.PREPARING) {
@@ -1044,6 +1039,13 @@ private val KitchenLine = Color(0xFFD8CDB4)
 private val KitchenReadyInk = Color(0xFF3B5310)
 private val KitchenRemoveInk = Color(0xFF8A1D17)
 
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
+
 /** N02: la barra de «Deshacer» mientras corren los 10 segundos antes de mandar «lista». */
 @Composable
 private fun KitchenUndoReady(
@@ -1110,7 +1112,7 @@ private fun KitchenUndoReady(
     }
 }
 
-internal const val KITCHEN_UNDO_MS = 10_000L
+internal const val KITCHEN_UNDO_MS = PendingReadyQueue.UNDO_WINDOW_MS
 
 /** Cuántas líneas ya se palomearon, de las que siguen en la comanda. */
 internal fun kitchenCheckedCount(

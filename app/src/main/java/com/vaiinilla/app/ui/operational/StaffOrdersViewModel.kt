@@ -124,6 +124,7 @@ abstract class StaffOrdersViewModel(
         val roleChanged = state.value.role != role || establishmentChanged
         val previousState = state.value
         if (roleChanged) {
+            if (state.value.role != null) onBeforeRelease()
             snapshotStaffState(previousEstablishmentId)
             roleGeneration += 1
             lastUpdatedSince = null
@@ -182,6 +183,8 @@ abstract class StaffOrdersViewModel(
     fun release() {
         // Soltar un rol que nadie tiene no toca nada: la franja de pedidos ilegibles es global.
         if (state.value.role == null) return
+        // Lo que el rol aún tiene por mandar (Cocina: «lista» en espera) sale antes de soltarlo.
+        onBeforeRelease()
         snapshotStaffState()
         roleGeneration += 1
         pollingJob?.cancel()
@@ -203,6 +206,19 @@ abstract class StaffOrdersViewModel(
     fun clearRole() {
         release()
         onRoleCleared()
+    }
+
+    /** Antes de soltar el rol o cambiarlo de negocio: manda lo que estaba en espera. */
+    protected open fun onBeforeRelease() = Unit
+
+    /** El pedido que devolvió el servidor entra a la fila, sin esperar al siguiente sondeo. */
+    protected fun applyServerOrder(order: OrderDetail) {
+        val updated = state.value.orders.filterNot { it.summary.id == order.summary.id } + order
+        state.value =
+            state.value.copy(
+                orders = updated.sortedByDescending { it.summary.updatedAt },
+                selectedOrderId = order.summary.id,
+            )
     }
 
     /** El rol cambia de negocio o arranca de cero: sus subclases sueltan lo suyo (búsquedas, recarga pendiente). */

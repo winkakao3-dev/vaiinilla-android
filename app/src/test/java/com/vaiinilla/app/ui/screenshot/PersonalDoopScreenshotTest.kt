@@ -121,7 +121,7 @@ class PersonalDoopScreenshotTest {
                 state = OperationalUiState(orders = listOf(base), queue = QueueSync.Failed(ApiFailure.NoConnection)),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 placeName = "Cafetería Central",
             )
         }
@@ -134,7 +134,7 @@ class PersonalDoopScreenshotTest {
                 state = OperationalUiState(orders = emptyList(), queue = QueueSync.Live),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 placeName = "Cafetería Central",
             )
         }

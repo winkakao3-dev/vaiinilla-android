@@ -2994,7 +2994,9 @@ private fun AppNavHostContent(
                         state = kitchenState,
                         onBack = returnToModes(navController, roles),
                         onStart = kitchenViewModel::startKitchen,
-                        onReady = kitchenViewModel::markReady,
+                        onMarkReady = kitchenViewModel::requestReady,
+                        onUndoReady = kitchenViewModel::undoReady,
+                        onFlushReady = kitchenViewModel::flushPendingReady,
                         onReject = kitchenViewModel::rejectOrder,
                         onRejectItem = kitchenViewModel::rejectItem,
                         onChangeMode =
