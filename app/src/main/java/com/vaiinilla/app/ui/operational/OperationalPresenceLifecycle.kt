@@ -15,7 +15,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 @Composable
 fun OperationalPresenceLifecycle(
     role: OperationalRole,
-    viewModel: OperationalViewModel,
+    viewModel: OperationalPresence,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current

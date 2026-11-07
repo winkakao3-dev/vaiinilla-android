@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -309,7 +310,7 @@ internal fun WaiterSpaceSection(
     detail: SpaceSessionDetail?,
     loading: Boolean,
     lastCollection: AccountCollection?,
-    tick: Int,
+    tick: State<Int>,
     acting: Boolean,
     readOnly: Boolean,
     colors: OperationalColors,
@@ -410,7 +411,7 @@ internal fun WaiterSpaceSection(
             enter = fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
             exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
         ) {
-            tick.hashCode()
+            tick.value
             val remaining = millisUntil(clockTarget) ?: 0L
             val inGrace = availability.state == SpaceAvailabilityState.EN_GRACIA
             Column(modifier = Modifier.padding(top = 14.dp)) {
