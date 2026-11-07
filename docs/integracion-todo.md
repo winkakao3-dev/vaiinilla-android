@@ -53,18 +53,22 @@ Compilación con `scripts/gradle-build.sh`, una Gradle a la vez: los cuatro sabo
 
 | Comprobación | `main` (5243c56b) | integración |
 |---|---|---|
-| `testDevCajaDebugUnitTest` | 1806 pruebas, 15 fallan | 1982 pruebas, 0 fallan en la última corrida |
+| `testDevCajaDebugUnitTest` | 1806 pruebas, 15 fallan | 1982 pruebas; 1 fallo intermitente en la primera corrida y 0 en la segunda |
 | Pruebas de los otros 3 sabores | no se corrieron | Mesero 0 fallos; Alumno y Cocina 1 fallo intermitente cada uno |
 | ktlint (ratchet) | n/d | sin avisos nuevos |
 | Guardias de `scripts/` | no existen | pasan (con los baselines de arriba) |
 
 Las 15 fallas de `main` son las 14 pruebas de pantalla rojas (las arregla #116) más `PendingRefundsViewModelTest › si ya se habia confirmado sale de la lista`.
 
-Fallos intermitentes (pasan aisladas): `PendingRefundsViewModelTest` (también falla en `main`), `MenuWaiterCallTest` y `AdminStaffViewModelTest`. Todas son «UncaughtExceptionsBeforeTest» o una aserción de tiempo, por una corrutina de `Dispatchers.IO` que se resuelve después de `resetMain`. Es un problema de la suite, no de la integración.
+Fallos intermitentes (todos pasan aislados): `PendingRefundsViewModelTest` (confirmado también en `main`), y `MenuWaiterCallTest` y `AdminStaffViewModelTest`, que son código nuevo de los PR y no se corrieron en `main`. Son «UncaughtExceptionsBeforeTest» o una aserción de tiempo, por una corrutina de `Dispatchers.IO` que se resuelve después de `resetMain`. Hay que revisarlos antes de confiar en el CI de esta rama.
+
+`scripts/screenshots.sh verify` (red de seguridad de #111): 253 capturas comparadas, 68 limpias, 180 viejas ya pendientes y 5 rotas que antes estaban bien: `doop_hotel_s04_checkout` (12.7 % distinta), `doop_hotel_cargo_manual` (0.37 %), `wallet/e02_cartera_oscura` y `wallet/e14_alumno_oscura` (0.18 %) y `video/mesero-mesa4` (sin referencia). No se regrabó nada.
 
 ## Pendiente y lo que no se pudo probar
 
 - #104 (hora de inicio del día) necesita el backend #219 con la migración 203. El backend de pruebas de VPS2 no la tiene: la app lee `null` y no deja guardar la hora.
 - El backend de VPS2 no tiene las rutas del modo Hotel (instancia aparte); `es_habitacion` no existe allí.
 - `check_app_backend_contract.sh` solo acepta las URL de Railway; no corre contra VPS2. Las pruebas que lanza ya están dentro de la suite.
-- `jvm-roles` apunta a Railway development, no a VPS2, y la skill `vaiinilla-pruebas` completa (7 vectores sobre 182 recorridos) no se corrió: requiere subagentes, que están prohibidos. Pendiente en teléfono: Stripe, 2FA/TOTP, correo, cámara/QR/NFC, push.
+- `jvm-roles` apunta a Railway development, no a VPS2. La skill `vaiinilla-pruebas` completa (7 vectores sobre 182 recorridos) no se corrió por el tamaño del trabajo; queda como siguiente paso sobre este APK. Pendiente en teléfono: Stripe, 2FA/TOTP, correo, cámara/QR/NFC, push.
+- **Riesgo abierto:** los 11 campos de `cambio_de_tienda_baseline.json` marcados «POR REVISAR» (`cashDrawer`, `catalog`, `pendingReady`, `walletClients`…) son justo la clase de error que ese guardia vigila (datos de una tienda pegados en otra). Se silenció el guardia, no se comprobó el arreglo.
+- `ktlintFormat` cambió 33 archivos que vienen de otros PR; esta rama diverge cosméticamente de esas ramas.
