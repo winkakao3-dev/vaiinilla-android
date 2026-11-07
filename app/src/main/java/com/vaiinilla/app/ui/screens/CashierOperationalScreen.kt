@@ -219,6 +219,8 @@ fun CashierOperationalScreen(
     studentsEntry: (@Composable () -> Unit)? = null,
     /** Pedidos de mostrador guardados sin internet (por mandar y con problema); null si no hay. */
     offlineOrdersEntry: (@Composable () -> Unit)? = null,
+    /** Avisos de comandas que no llegaron o llevan rato sin avanzar; null los oculta. */
+    alertsEntry: (@Composable () -> Unit)? = null,
     /** Devoluciones pendientes (G08, H03); null las oculta. */
     refundsEntry: (@Composable () -> Unit)? = null,
     /** El negocio de esta caja, para que el cajero vea en cuál cobra. */
@@ -493,6 +495,12 @@ fun CashierOperationalScreen(
             if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
+                }
+            }
+
+            if (alertsEntry != null) {
+                item(key = "cashier-alerts") {
+                    Box(modifier = Modifier.animateItem()) { alertsEntry() }
                 }
             }
 

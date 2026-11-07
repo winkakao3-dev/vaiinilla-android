@@ -425,6 +425,12 @@ fun WaiterOperationalScreen(
                 }
             }
 
+            if (state.offlineOrders.pending.isNotEmpty()) {
+                item(key = "waiter-undelivered-alert", span = fullWidth) {
+                    UndeliveredOrdersAlert(pending = state.offlineOrders.pending, modifier = Modifier.animateItem())
+                }
+            }
+
             if (state.offlineOrders.count > 0) {
                 item(key = "waiter-offline-orders", span = fullWidth) {
                     OfflineOrdersCard(

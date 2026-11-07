@@ -127,6 +127,7 @@ import com.vaiinilla.app.ui.screens.AssistantChatScreen
 import com.vaiinilla.app.ui.screens.AuthorizedModeScreen
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
+import com.vaiinilla.app.ui.screens.CashierOutboxAlerts
 import com.vaiinilla.app.ui.screens.CashierRefundsEntry
 import com.vaiinilla.app.ui.screens.CashierUnpaidAccountsScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen
@@ -2834,6 +2835,13 @@ fun AppNavHost(
                                 colors = rememberOperationalColors(),
                                 onConfirm = pendingRefundsViewModel::confirm,
                                 orders = operationalState.orders,
+                            )
+                        },
+                        alertsEntry = {
+                            CashierOutboxAlerts(
+                                pending = waiterState.offlineOrders.pending,
+                                orders = operationalState.orders.map { it.summary },
+                                establishmentId = authorizedAccessState.activeContext?.establishmentId,
                             )
                         },
                         offlineOrdersEntry =
