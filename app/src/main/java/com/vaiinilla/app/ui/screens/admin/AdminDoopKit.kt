@@ -225,25 +225,6 @@ internal fun AdminHeroHeader(
     }
 }
 
-/** El botón redondo sobre la foto (buscar, avisos). */
-@Composable
-internal fun AdminHeroButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-) {
-    Box(
-        Modifier
-            .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
-            .size(46.dp)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.45f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(20.dp))
-    }
-}
-
 /** Una pestaña sin foto: el negocio en chico y el título grande, y debajo el contenido con margen de 16. */
 @Composable
 internal fun AdminPage(

@@ -1830,28 +1830,6 @@ class OperationalViewModel
             }
         }
 
-        fun applyGalleryClientOrders(
-            orders: List<OrderDetail>,
-            selectedOrderId: String?,
-        ) {
-            pollingJob?.cancel()
-            pollingJob = null
-            val latestClientOrder = resolveLatestClientOrder(previous = null, incoming = orders)
-            _uiState.value =
-                _uiState.value.copy(
-                    role = OperationalRole.CLIENT,
-                    orders = orders.sortedByDescending { it.summary.updatedAt },
-                    latestClientOrder = latestClientOrder,
-                    menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
-                    selectedOrderId = selectedOrderId,
-                    loading = false,
-                    acting = false,
-                    errorMessage = null,
-                    lastRefreshOk = true,
-                )
-            mutationErrorVisible = false
-        }
-
         override fun onCleared() {
             pollingJob?.cancel()
             super.onCleared()

@@ -157,7 +157,6 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
-import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
@@ -1654,21 +1653,6 @@ private fun WaiterTile(
                 )
             }
         }
-    }
-}
-
-private fun waiterSince(iso: String): String {
-    val ms = elapsedSinceMs(iso) ?: return "ahora"
-    return when {
-        // Las llamadas vencen a los 10 min; el reloj mm:ss solo tiene sentido dentro de la hora.
-        ms < 3_600_000 -> {
-            val totalSeconds = (ms / 1_000).toInt().coerceAtLeast(0)
-            "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
-        }
-        ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
-        // Después de una semana, la fecha: «hace 340 d» no dice nada.
-        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
     }
 }
 

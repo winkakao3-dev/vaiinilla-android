@@ -1,19 +1,14 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,15 +82,12 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.parentmode.ParentConfirmDialog
 import kotlinx.coroutines.launch
 
 internal const val CUSTOMER_NAME_MAX = 120
 internal const val COUNTER_LINE_QUANTITY_MAX = 20
-private val MorphSpring = spring<Float>(dampingRatio = 0.89f, stiffness = 180f)
-
 /** Opciones que trae cada grupo al abrir el producto: las mínimas obligatorias, como en el carrito del cliente. */
 internal fun opcionesIniciales(producto: Product): Set<Int> =
     producto.optionGroups.flatMapTo(linkedSetOf()) { grupo ->
@@ -861,52 +853,4 @@ internal fun OpcionesMostrador(
             }
         }
     }
-}
-
-/** Botón de la pantalla del mesero y de caja que abre la hoja de pedido de mostrador. */
-@Composable
-internal fun CounterOrderEntry(
-    colors: OperationalColors,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.cardBackground)
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
-                .pressableScale { onClick() }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("Pedido de mostrador", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.textPrimary)
-        Text("Tomar pedido", fontSize = 13.sp, color = colors.textSecondary)
-    }
-}
-
-/** Clic con foco y Enter como `clickable`, más un leve encogimiento mientras el dedo está abajo. */
-@Composable
-private fun Modifier.pressableScale(
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-): Modifier {
-    val source = remember { MutableInteractionSource() }
-    val pressed by source.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.93f else 1f,
-        animationSpec = if (reducedMotion()) snap() else spring(dampingRatio = 0.42f, stiffness = 700f),
-        label = "counter-press-scale",
-    )
-    return this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }.clickable(
-            enabled = enabled,
-            interactionSource = source,
-            indication = LocalIndication.current,
-            onClick = onClick,
-        )
 }

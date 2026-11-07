@@ -475,29 +475,6 @@ internal fun ChipFlow(content: @Composable () -> Unit) {
     }
 }
 
-/** Título de una sección con su nota debajo. */
-@Composable
-internal fun SheetSectionTitle(
-    title: String,
-    colors: OperationalColors,
-    note: String? = null,
-) {
-    Column {
-        Text(title, color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 16.sp)
-        if (note !=
-            null
-        ) {
-            Text(
-                note,
-                color = colors.textSecondary,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-    }
-}
-
 /** Un código que se dicta: una ficha por letra; mientras llega, fichas que brillan. Con ocho, dos grupos de cuatro. */
 @Composable
 internal fun CodeTiles(
