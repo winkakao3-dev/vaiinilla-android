@@ -9,18 +9,40 @@ export JAVA_HOME=${JAVA_HOME:-/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/C
 export GRADLE_USER_HOME=${GRADLE_USER_HOME:-/Volumes/KINGSTON1TB/Dev/gradle}
 AQUI=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
-# Imprime "ruta|nombre" del primer pendiente con ruta conocida; nada si la cola está vacía.
+# Imprime "ruta|nombre|rama" del primer pendiente con ruta conocida; nada si la cola está vacía.
 primero_pendiente() {
   [ -f "$COLA" ] || return 0
-  awk -F' \\| ' '/^#/||/^$/{next} /\| HECHA *$/{next} $3!="?"{print $3"|"$2; exit}' "$COLA"
+  awk -F' \\| ' '/^#/||/^$/{next} /\| HECHA *$/{next} $3!="?"{print $3"|"$2"|"$4; exit}' "$COLA"
 }
 esta_en_cola() { [ -f "$COLA" ] && awk -F' \\| ' -v p="$AQUI" '$3==p && !/\| HECHA *$/{f=1} END{exit !f}' "$COLA"; }
+marcar_hecha() {
+  awk -F' \\| ' -v OFS=' | ' -v p="$1" '$3==p && !/\| HECHA *$/{print $0" | HECHA"; next} {print}' "$COLA" > "$COLA.tmp" && mv "$COLA.tmp" "$COLA"
+}
+
+# Libera una entrada pendiente si su rama ya entró a origin/main o si su worktree lleva >30 min sin procesos vivos.
+liberar_si_vencida() { # $1 ruta  $2 rama
+  local ruta=$1 rama=$2 estado="$HOME/.cache/gradle-queue/vivo" m
+  mkdir -p "$estado"; m="$estado/$(echo "$ruta" | tr '/' '_')"
+  if [ ! -d "$ruta" ]; then return 0; fi
+  if [ -n "$rama" ] && [ "$rama" != "?" ] && [ "${rama#(}" = "$rama" ] \
+     && git -C "$ruta" merge-base --is-ancestor "$rama" origin/main 2>/dev/null \
+     && [ "$(git -C "$ruta" rev-parse "$rama" 2>/dev/null)" != "$(git -C "$ruta" rev-parse origin/main 2>/dev/null)" ]; then
+    echo "Libero '$ruta': su rama ya está en origin/main." >&2; return 0
+  fi
+  if lsof -d cwd -Fn 2>/dev/null | grep -q "^n$ruta"; then touch "$m"; return 1; fi
+  [ -e "$m" ] || touch "$m"
+  if [ -n "$(find "$m" -mmin +30 2>/dev/null)" ]; then echo "Libero '$ruta': 30 min sin procesos vivos." >&2; return 0; fi
+  return 1
+}
 
 if [ "${GRADLE_QUEUE_BYPASS:-0}" != 1 ] && esta_en_cola; then
   while :; do
     sig=$(primero_pendiente)
-    { [ -z "$sig" ] || [ "${sig%%|*}" = "$AQUI" ]; } && break
-    echo "No es tu turno: le toca a '${sig#*|}' (${sig%%|*}). Espero..." >&2
+    [ -z "$sig" ] && break
+    ruta=${sig%%|*}; rama=${sig##*|}; nombre=${sig#*|}; nombre=${nombre%|*}
+    [ "$ruta" = "$AQUI" ] && break
+    if liberar_si_vencida "$ruta" "$rama"; then marcar_hecha "$ruta"; continue; fi
+    echo "No es tu turno: le toca a '$nombre' ($ruta). Espero..." >&2
     sleep 15
   done
 fi
@@ -36,7 +58,5 @@ trap 'rm -rf "$LOCK"' EXIT INT TERM
 
 ./gradlew "$@"
 rc=$?
-if [ $rc -eq 0 ] && [ "${GRADLE_QUEUE_BYPASS:-0}" != 1 ] && esta_en_cola; then
-  awk -F' \\| ' -v OFS=' | ' -v p="$AQUI" '$3==p && !/\| HECHA *$/{print $0" | HECHA"; next} {print}' "$COLA" > "$COLA.tmp" && mv "$COLA.tmp" "$COLA"
-fi
+if [ $rc -eq 0 ] && [ "${GRADLE_QUEUE_BYPASS:-0}" != 1 ] && esta_en_cola; then marcar_hecha "$AQUI"; fi
 exit $rc

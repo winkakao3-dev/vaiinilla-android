@@ -26,3 +26,11 @@ Además del candado, las compilaciones siguen un orden fijado en `~/.cache/gradl
 - Las líneas con ruta `?` se saltan. Un worktree que no está en la cola, o una cola vacía, no espera turno (el candado sigue valiendo).
 - `GRADLE_QUEUE_BYPASS=1` salta la cola.
 - Para pruebas de los scripts: `GRADLE_QUEUE_FILE` cambia el archivo de la cola y `GRADLE_LOCK_DIR` cambia el candado.
+### Liberación automática
+
+Una entrada pendiente se marca ` | HECHA` sola cuando quien espera su turno detecta que:
+- su rama ya entró a `origin/main` (y no es la misma punta que `main`), o
+- su worktree ya no existe, o
+- lleva más de 30 min sin ningún proceso vivo con esa carpeta como directorio de trabajo (gradlew, `gradle-build.sh`, claude, etc.). El tiempo se mide con marcas en `~/.cache/gradle-queue/vivo/`.
+
+No se mata ningún proceso. Las ramas con cabeza suelta (`(detached ...)`) solo se liberan por inactividad.
