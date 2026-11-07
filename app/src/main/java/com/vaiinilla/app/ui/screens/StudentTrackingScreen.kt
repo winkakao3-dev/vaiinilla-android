@@ -146,6 +146,7 @@ import com.vaiinilla.app.ui.components.rentalStateLabel
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -376,7 +377,7 @@ fun StudentTrackingScreen(
 
                         when {
                             // Antes que el esqueleto: si la carga sigue fallando, el sondeo no lo hace parpadear.
-                            state.orders.isEmpty() && state.lastRefreshOk == false -> {
+                            state.orders.isEmpty() && state.queue.failed -> {
                                 item(key = "orders-error") {
                                     EmptyState(
                                         icon = Icons.Outlined.ReceiptLong,
@@ -725,9 +726,15 @@ private fun ClosedOrderCard(order: OrderDetail) {
 
 /** Aviso sobre la lista de pedidos: último cambio que falló o datos que no se pudieron actualizar. */
 internal fun trackingNoticeFor(state: OperationalUiState): String? =
-    state.errorMessage?.takeIf { state.orders.isNotEmpty() }
-        ?: "Sin conexión. Mostramos lo último que vimos; desliza hacia abajo para actualizar."
-            .takeIf { state.orders.isNotEmpty() && state.lastRefreshOk == false }
+    when {
+        state.orders.isEmpty() -> null
+        // Lo último que falló al actuar va antes que el estado de la lectura.
+        state.errorMessage != null -> state.errorMessage
+        // Solo un corte de red es «sin conexión»: un fallo del servidor se dice con su propio texto.
+        state.queue.lostConnection ->
+            "Sin conexión. Mostramos lo último que vimos; desliza hacia abajo para actualizar."
+        else -> (state.queue as? QueueSync.Failed)?.failure?.message()
+    }
 
 @Composable
 private fun TrackingNotice(message: String) {

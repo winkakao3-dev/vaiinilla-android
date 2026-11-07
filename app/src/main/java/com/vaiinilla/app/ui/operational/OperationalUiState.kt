@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
+import com.vaiinilla.app.core.network.ApiFailure
+import com.vaiinilla.app.core.network.isConnectionLoss
 import com.vaiinilla.app.data.cashcut.DayCut
 import com.vaiinilla.app.data.cashcut.PaymentLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -33,8 +35,11 @@ data class OperationalUiState(
     val cashSessionCheckFailed: Boolean = false,
     val heartbeatOnline: Boolean? = null,
     val errorMessage: String? = null,
-    /** Si la última carga de pedidos salió bien; null mientras no termina ninguna para este rol. */
-    val lastRefreshOk: Boolean? = null,
+    /**
+     * Cómo va la lectura de la fila de pedidos, en un solo valor: sin terminar ninguna, al día o fallida con su
+     * causa. Es el único lugar donde vive un fallo de sincronización; [errorMessage] es solo de acciones.
+     */
+    val queue: QueueSync = QueueSync.Pending,
     val lastSyncedAt: String? = null,
     val walletClients: List<WalletClient> = emptyList(),
     val walletSearchLoading: Boolean = false,
@@ -115,18 +120,54 @@ enum class CashSession {
         get() = this == Open || this == ConfirmingClose || this == Closing || this == CloseBlockedByAccounts
 }
 
+/**
+ * El estado con el que arranca un rol nuevo o un negocio nuevo: todo vacío, salvo lo que es del dispositivo y no del
+ * negocio (la señal de presencia) y, con el mismo negocio, el último aviso de cambio de la caja.
+ */
+internal fun OperationalUiState.freshForNewRole(establishmentChanged: Boolean): OperationalUiState =
+    OperationalUiState(
+        heartbeatOnline = heartbeatOnline,
+        cashChangeNotice = cashChangeNotice.takeUnless { establishmentChanged },
+    )
+
+/** Cómo salió la última lectura de la fila de pedidos de un rol. */
+sealed interface QueueSync {
+    /** Todavía no termina ninguna lectura para este rol. */
+    data object Pending : QueueSync
+
+    /** La última lectura salió bien. */
+    data object Live : QueueSync
+
+    /** La última lectura falló; [failure] dice por qué, tal como lo clasificó el mapeador de red. */
+    data class Failed(
+        val failure: ApiFailure,
+    ) : QueueSync
+
+    val failed: Boolean get() = this is Failed
+
+    /** El texto del fallo, o [fallback] si la lectura no ha fallado. */
+    fun failureText(fallback: String): String = (this as? Failed)?.failure?.message(fallback) ?: fallback
+
+    /**
+     * Solo un corte de red es «Sin internet». Un 5xx o un rechazo del servidor llegan con internet: decirle «sin
+     * internet» al personal lo manda a revisar el wifi mientras el problema es otro.
+     */
+    val lostConnection: Boolean
+        get() = this is Failed && failure.isConnectionLoss
+}
+
 /** Qué ocupa el lugar de la fila de pedidos de Cocina o Caja. */
 internal enum class QueuePresentation { Content, Loading, Error, Empty }
 
 /** "Al día" o "Nada por cobrar" solo se dicen si la última carga salió bien. */
 internal fun queuePresentation(
     hasOrders: Boolean,
-    lastRefreshOk: Boolean?,
+    queue: QueueSync,
 ): QueuePresentation =
     when {
         hasOrders -> QueuePresentation.Content
-        lastRefreshOk == null -> QueuePresentation.Loading
-        lastRefreshOk == false -> QueuePresentation.Error
+        queue is QueueSync.Pending -> QueuePresentation.Loading
+        queue is QueueSync.Failed -> QueuePresentation.Error
         else -> QueuePresentation.Empty
     }
 
@@ -157,11 +198,11 @@ data class PendingReloadUi(
 )
 
 /** El enlace con el servidor tal como lo ve Cocina: sin primera carga se conecta; un fallo es "sin conexión". */
-internal fun operationalLink(lastRefreshOk: Boolean?): WaiterBoardLink =
-    when (lastRefreshOk) {
-        null -> WaiterBoardLink.Connecting
-        true -> WaiterBoardLink.Live
-        false -> WaiterBoardLink.Offline
+internal fun operationalLink(queue: QueueSync): WaiterBoardLink =
+    when (queue) {
+        QueueSync.Pending -> WaiterBoardLink.Connecting
+        QueueSync.Live -> WaiterBoardLink.Live
+        is QueueSync.Failed -> WaiterBoardLink.Offline
     }
 
 /** Por qué no se puede cerrar la caja todavía: hay efectivo cobrado sin internet sin registrar. */
@@ -220,7 +261,7 @@ internal fun OperationalUiState.keepKnownStaffState(
                 cashDrawer
             },
         orders = if (restoreOrders && orders.isEmpty()) known.orders else orders,
-        lastRefreshOk = if (restoreOrders && lastRefreshOk == null) known.lastRefreshOk else lastRefreshOk,
+        queue = if (restoreOrders && queue is QueueSync.Pending) known.queue else queue,
         lastSyncedAt = lastSyncedAt ?: known.lastSyncedAt,
     )
 

@@ -79,6 +79,10 @@ sealed interface ApiFailure {
     ) : ApiFailure
 }
 
+/** La red se cortó o no llegó al servidor: lo único que de verdad es «sin internet». */
+val ApiFailure.isConnectionLoss: Boolean
+    get() = this is ApiFailure.NoConnection || this is ApiFailure.Timeout || this is ApiFailure.ServerUnreachable
+
 /** Resultado tipado de una llamada: nunca lanza y nunca deja pasar una excepción cruda a la pantalla. */
 sealed interface ApiResult<out T> {
     data class Success<T>(
