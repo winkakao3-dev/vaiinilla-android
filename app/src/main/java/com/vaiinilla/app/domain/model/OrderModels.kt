@@ -208,6 +208,8 @@ data class OrderDetail(
     val answerBy: Instant? = null,
     /** Encargo aceptado con tarjeta: hasta cuándo paga el cliente antes de que se cancele. */
     val payBy: Instant? = null,
+    /** Hotel: la estancia a cuya cuenta se carga el pedido (room service); null en los demás pedidos. */
+    val stayId: String? = null,
     /** Lo tomó el personal sin internet y llegó después (migración 161); `null` en un pedido normal. */
     val offlineCapture: OfflineCapture? = null,
 )

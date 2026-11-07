@@ -286,11 +286,15 @@ class AdminBusinessJson {
         name: String,
         type: String,
         capacity: Int? = null,
+        floor: Int? = null,
+        category: String? = null,
     ): String =
         buildJsonObject {
             put("nombre", name.trim())
             put("tipo", type)
             capacity?.let { put("capacidad", it) }
+            floor?.let { put("piso", it) }
+            category?.trim()?.ifEmpty { null }?.let { put("categoria", it) }
         }.toString()
 
     fun encodeBatch(
@@ -299,6 +303,8 @@ class AdminBusinessJson {
         from: Int,
         to: Int,
         capacity: Int? = null,
+        floor: Int? = null,
+        category: String? = null,
     ): String =
         buildJsonObject {
             put("tipo", type)
@@ -306,6 +312,9 @@ class AdminBusinessJson {
             put("desde", from)
             put("hasta", to)
             capacity?.let { put("capacidad", it) }
+            // Solo las habitaciones llevan piso y categoría: un servidor anterior rechaza la clave.
+            floor?.let { put("piso", it) }
+            category?.trim()?.ifEmpty { null }?.let { put("categoria", it) }
         }.toString()
 
     fun encodeSpacePatch(patch: SpacePatch): String =
@@ -325,6 +334,10 @@ class AdminBusinessJson {
                 put("caracteristicas", JsonArray(patch.features.map(::JsonPrimitive)))
             }
             if (patch.setsCapacity) put("capacidad", patch.capacity?.let(::JsonPrimitive) ?: JsonNull)
+            if (patch.setsRoom) {
+                put("piso", patch.floor?.let(::JsonPrimitive) ?: JsonNull)
+                put("categoria", patch.category?.trim()?.ifEmpty { null }.orNull())
+            }
             if (patch.setsMinimum) put("reserva_minima_min", patch.minimumMinutes?.let(::JsonPrimitive) ?: JsonNull)
             if (patch.setsSportAndSurface) {
                 put(

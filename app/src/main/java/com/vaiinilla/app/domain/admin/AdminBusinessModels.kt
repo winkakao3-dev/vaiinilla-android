@@ -104,15 +104,18 @@ enum class BusinessType(
 
     /** Pistas que se rentan como canchas, con bar y restaurante en la misma cuenta. */
     BOWLING("boliche", "Boliche"),
+
+    /** Habitaciones con QR, room service y cargo a la habitación. El negocio se vuelve hotel desde Plataforma. */
+    HOTEL("hotel", "Hotel"),
     ;
 
     companion object {
         fun fromWire(value: String): BusinessType? = entries.firstOrNull { it.wire == value }
 
-        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria` ni `boliche`). */
+        /** Los tipos que el servidor acepta; sin la lista, los de siempre (uno anterior no conoce `reposteria`, `boliche` ni `hotel`). */
         fun offered(available: List<String>?): List<BusinessType> =
             if (available == null) {
-                entries.filter { it != HOME_BAKERY && it != BOWLING }
+                entries.filter { it != HOME_BAKERY && it != BOWLING && it != HOTEL }
             } else {
                 entries.filter { it.wire in available }
             }
@@ -463,8 +466,14 @@ enum class SpaceType(
     SEAT("asiento", "Asiento"),
     ;
 
-    /** En un boliche la cancha se llama pista ([Venue]). */
-    val label: String get() = if (this == COURT) Venue.courtTitle else baseLabel
+    /** En un boliche la cancha se llama pista y en un hotel la mesa se llama habitación ([Venue]). */
+    val label: String
+        get() =
+            when {
+                this == COURT -> Venue.courtTitle
+                this == TABLE && Venue.isHotel -> Venue.roomTitle
+                else -> baseLabel
+            }
 
     companion object {
         fun fromWire(value: String): SpaceType? = entries.firstOrNull { it.wire == value }
@@ -494,6 +503,9 @@ data class ManagedSpace(
 ) {
     val type: SpaceType? get() = SpaceType.fromWire(typeWire)
     val isCourt: Boolean get() = type == SpaceType.COURT
+
+    /** En un hotel, la mesa es una habitación; su piso, categoría y limpieza salen de `/habitaciones`. */
+    val isRoom: Boolean get() = Venue.isHotel && type == SpaceType.TABLE
 }
 
 data class SpaceBatchResult(
@@ -521,6 +533,10 @@ data class SpacePatch(
     val sport: String? = null,
     val surface: String? = null,
     val setsSportAndSurface: Boolean = false,
+    /** Habitaciones: con [setsRoom] se guardan piso y categoría (null los quita). */
+    val floor: Int? = null,
+    val category: String? = null,
+    val setsRoom: Boolean = false,
 )
 
 /** Lo que el dueño edita de un espacio en una sola hoja (marco 48). */

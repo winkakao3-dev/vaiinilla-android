@@ -169,6 +169,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
             },
         answerBy = answerBy?.let(::serverInstant),
         payBy = payBy?.let(::serverInstant),
+        stayId = stayId?.flexibleText(),
         offlineCapture =
             offlineCapture?.let {
                 OfflineCapture(capturedAt = it.capturedAt?.let(::serverInstant), localFolio = it.localFolio)
