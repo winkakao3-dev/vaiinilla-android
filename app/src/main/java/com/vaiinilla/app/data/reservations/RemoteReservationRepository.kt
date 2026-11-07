@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.reservations
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.domain.model.CourtDay
 import com.vaiinilla.app.domain.model.Reservation
@@ -48,7 +49,7 @@ class RemoteReservationRepository(
         players: Int?,
     ): Result<Reservation> {
         val body = contractJson.encodeCreate(courtId, start, durationMinutes, customerName, players)
-        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val headers = idempotencyHeaders(idempotencyKey)
         return access
             .perform { bearer -> send("reservas", bearer, body, headers) }
             .mapCatching(contractJson::parseReservation)
@@ -63,7 +64,7 @@ class RemoteReservationRepository(
         idempotencyKey: String,
     ): Result<ReservationPayment> {
         val body = contractJson.encodePay(method.wire, cashReceived)
-        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val headers = idempotencyHeaders(idempotencyKey)
         return access
             .perform { bearer -> send("reservas/$reservationId/pago", bearer, body, headers) }
             .mapCatching(contractJson::parsePayment)
@@ -76,7 +77,7 @@ class RemoteReservationRepository(
         idempotencyKey: String,
         refund: ReservationRefund?,
     ): Result<Reservation> {
-        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val headers = idempotencyHeaders(idempotencyKey)
         val body = refund?.let { contractJson.encodeRefund(it.amount, it.reason) }
         return access
             .perform { bearer -> send("reservas/$reservationId/cancelacion", bearer, body, headers) }
@@ -115,16 +116,11 @@ class RemoteReservationRepository(
         }
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    if (error is ApiClientException) {
-                        ReservationException(error.code, error.message ?: error.code, error)
-                    } else {
-                        error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            ReservationException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 }

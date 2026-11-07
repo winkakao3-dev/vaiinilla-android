@@ -1,11 +1,12 @@
 package com.vaiinilla.app.data.platform
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -120,11 +121,7 @@ data class PlatformStoresPage(
 )
 
 internal val platformJson =
-    Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-        isLenient = true
-    }
+    ApiJson.lenientCoercing
 
 /** El dinero llega como texto o número según la consulta; `isLenient` acepta los dos en un `String`. */
 internal fun parsePlatformMetrics(raw: String): PlatformMetrics =
@@ -349,7 +346,7 @@ class PlatformRepository
                     ).map { }
             }
 
-        private fun idem(key: String) = mapOf("Idempotency-Key" to key)
+        private fun idem(key: String) = idempotencyHeaders(key)
 
         private suspend fun <T> io(block: () -> Result<T>): Result<T> = withContext(Dispatchers.IO) { block() }
     }

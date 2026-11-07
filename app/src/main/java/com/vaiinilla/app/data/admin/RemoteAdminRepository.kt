@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.admin
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
@@ -56,7 +57,7 @@ class RemoteAdminRepository(
         idempotencyKey: String,
     ): Result<Category> =
         apiClient
-            .post("catalogo/categorias", json.encodeCategory(input), mapOf("Idempotency-Key" to idempotencyKey))
+            .post("catalogo/categorias", json.encodeCategory(input), idempotencyHeaders(idempotencyKey))
             .mapCatching(json::parseCategory)
             .mapApiErrors()
 
@@ -66,7 +67,7 @@ class RemoteAdminRepository(
         idempotencyKey: String,
     ): Result<Category> =
         apiClient
-            .patch("catalogo/categorias/$id", json.encodeCategory(input), mapOf("Idempotency-Key" to idempotencyKey))
+            .patch("catalogo/categorias/$id", json.encodeCategory(input), idempotencyHeaders(idempotencyKey))
             .mapCatching(json::parseCategory)
             .mapApiErrors()
 
@@ -75,7 +76,7 @@ class RemoteAdminRepository(
         idempotencyKey: String,
     ): Result<Product> =
         apiClient
-            .post("catalogo/productos", json.encodeProduct(input), mapOf("Idempotency-Key" to idempotencyKey))
+            .post("catalogo/productos", json.encodeProduct(input), idempotencyHeaders(idempotencyKey))
             .mapCatching(catalogParser::parseProduct)
             .mapApiErrors()
 
@@ -85,7 +86,7 @@ class RemoteAdminRepository(
         idempotencyKey: String,
     ): Result<Product> =
         apiClient
-            .put("catalogo/productos/$id", json.encodeProduct(input), mapOf("Idempotency-Key" to idempotencyKey))
+            .put("catalogo/productos/$id", json.encodeProduct(input), idempotencyHeaders(idempotencyKey))
             .mapCatching(catalogParser::parseProduct)
             .mapApiErrors()
 
@@ -94,7 +95,7 @@ class RemoteAdminRepository(
         idempotencyKey: String,
     ): Result<Product> =
         apiClient
-            .delete("catalogo/productos/$id/imagen", headers = mapOf("Idempotency-Key" to idempotencyKey))
+            .delete("catalogo/productos/$id/imagen", headers = idempotencyHeaders(idempotencyKey))
             .mapCatching(catalogParser::parseProduct)
             .mapApiErrors()
 
@@ -107,7 +108,7 @@ class RemoteAdminRepository(
             .post(
                 "catalogo/productos/$id/${if (archived) "archivar" else "desarchivar"}",
                 "{}",
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
             ).onSuccess { raw ->
                 if (archived) archivedStore?.put(id, raw) else archivedStore?.remove(id)
             }.map { }
@@ -125,18 +126,13 @@ class RemoteAdminRepository(
     }
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    if (error is ApiClientException) {
-                        CatalogRepositoryException(error.code, error.message ?: error.code, error)
-                    } else {
-                        error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            CatalogRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 
     private companion object {
         const val PAGE_SIZE = 30

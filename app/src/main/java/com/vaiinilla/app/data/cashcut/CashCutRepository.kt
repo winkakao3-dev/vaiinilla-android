@@ -1,11 +1,11 @@
 package com.vaiinilla.app.data.cashcut
 
-import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.time.LocalDate
 
 /** Si lo contado al cerrar cuadra con lo esperado, sobra o falta. */
@@ -428,11 +428,7 @@ private data class PeriodDto(
 /** Lectura del JSON, aparte para probarla sin red. */
 object CashCutJson {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-            coerceInputValues = true
-        }
+        ApiJson.omitNullsCoercing
 
     private fun parse(raw: String) = json.decodeFromString<Envelope<BreakdownDto>>(raw).data
 
@@ -467,18 +463,13 @@ object CashCutJson {
 }
 
 private fun <T> Result<T>.mapApiErrors(): Result<T> =
-    fold(
-        onSuccess = { Result.success(it) },
-        onFailure = { error ->
-            Result.failure(
-                if (error is ApiClientException) {
-                    CatalogRepositoryException(error.code, error.message ?: error.code, error)
-                } else {
-                    error
-                },
-            )
-        },
-    )
+    mapApiFailure {
+        CatalogRepositoryException(
+            it.code,
+            it.message ?: it.code,
+            it,
+        )
+    }
 
 class RemoteCashCutRepository(
     private val apiClient: VaiinillaApiClient,

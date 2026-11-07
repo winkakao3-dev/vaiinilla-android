@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.reservations
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtDay
@@ -12,7 +13,6 @@ import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -136,11 +136,7 @@ class ReservationContractJson
         private val orderContractJson: OrderContractJson,
     ) {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-                encodeDefaults = true
-            }
+            ApiJson.omitNullsWithDefaults
 
         fun parseDay(raw: String): CourtDay {
             val envelope = json.decodeFromString<CourtDayEnvelopeDto>(raw)

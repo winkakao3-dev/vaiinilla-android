@@ -2,6 +2,8 @@ package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -158,7 +160,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "llamadas/${call.id}/transiciones",
                 body = contractJson.encodeCallTransition(target, call.version),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching(contractJson::parseCall)
             .mapApiErrors()
 
@@ -171,7 +173,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "pedidos/${order.id}/transiciones",
                 body = contractJson.encodeDeliver(order.version, qrToken),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching {
                 orderContractJson.parseOrderDetail(it)
                 Unit
@@ -204,7 +206,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "espacios/$spaceId/sesion",
                 body = contractJson.encodeOpenSession(durationMinutes),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).map { }
             .mapApiErrors()
 
@@ -218,7 +220,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "espacios/$spaceId/sesion/extensiones",
                 body = contractJson.encodeExtendSession(minutes, expectedVersion),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).map { }
             .mapApiErrors()
 
@@ -231,7 +233,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "espacios/$spaceId/sesion/cierres",
                 body = contractJson.encodeReleaseSpace(expectedVersion),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).map { }
             .mapApiErrors()
 
@@ -248,7 +250,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "espacios/$spaceId/sesion/cobros",
                 body = contractJson.encodeCollectAccount(received, expectedTotal, orderIds, method, tip),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching(contractJson::parseAccountCollection)
             .mapApiErrors()
 
@@ -267,7 +269,7 @@ class RemoteWaiterRepository(
             .post(
                 path = "espacios/$spaceId/sesion/abonos",
                 body = contractJson.encodeAbono(method, mode, amount, parts, received, expectedRemaining, tip),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching(contractJson::parseAbono)
             .mapApiErrors()
 
@@ -296,7 +298,7 @@ class RemoteWaiterRepository(
     ): Result<TableCall> {
         val path = "espacios/$espacioId/llamadas"
         val body = contractJson.encodeBuyerCall(reason, orderId)
-        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val headers = idempotencyHeaders(idempotencyKey)
         val guestSlug = guestAccess?.guestSlug()
         val raw =
             when {
@@ -317,7 +319,7 @@ class RemoteWaiterRepository(
         idempotencyKey: String,
     ): Result<TableCall> {
         val path = "llamadas/${call.id}/cancelaciones"
-        val headers = mapOf("Idempotency-Key" to idempotencyKey)
+        val headers = idempotencyHeaders(idempotencyKey)
         val guestSlug = guestAccess?.guestSlug()
         val raw =
             if (guestSlug == null) {
@@ -341,20 +343,13 @@ class RemoteWaiterRepository(
     }
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    when (error) {
-                        is ApiClientException ->
-                            OrderRepositoryException(error.code, error.message ?: error.code, error)
-                        is OrderRepositoryException -> error
-                        is CallsUnavailableException -> error
-                        else -> error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            OrderRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 
     private fun <T> Result<T>.mapGuardUnavailable(): Result<T> =
         fold(

@@ -2,13 +2,13 @@ package com.vaiinilla.app.core.notifications
 
 import android.app.ActivityManager
 import android.content.Context
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.model.OperationalRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.math.abs
 
@@ -118,10 +118,7 @@ object ReceivedNoticeLog {
     )
 
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
+        ApiJson.withDefaults
     private val lock = Any()
     private val state = MutableStateFlow<List<ReceivedNotice>>(emptyList())
     private var phone: NoticePhoneContext? = null

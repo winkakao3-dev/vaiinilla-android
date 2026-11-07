@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.order
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.offline.OfflineOrderBody
 import com.vaiinilla.app.domain.model.AgendaDay
@@ -32,7 +33,7 @@ class RemoteOrderRepository(
             .post(
                 path = "pedidos",
                 body = contractJson.encodeCreateRequest(request),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { contractJson.parseCreatedOrder(it) }
             .mapCatching { created ->
                 created.copy(order = pickupTokenStore.attach(created.order))
@@ -58,7 +59,7 @@ class RemoteOrderRepository(
         idempotencyKey: String,
     ): Result<CreatedOrder> =
         apiClient
-            .post(path = "pedidos", body = body, headers = mapOf("Idempotency-Key" to idempotencyKey))
+            .post(path = "pedidos", body = body, headers = idempotencyHeaders(idempotencyKey))
             .mapApiErrors()
             .mapCatching { raw ->
                 // Ya respondió 2xx: si el cuerpo no se entiende, el pedido igual quedó registrado.
@@ -130,7 +131,7 @@ class RemoteOrderRepository(
         apiClient
             .postWithoutBody(
                 path = "pedidos/$orderId/pago/stripe",
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching(contractJson::parseStripeRetry)
             .mapApiErrors()
 
@@ -151,7 +152,7 @@ class RemoteOrderRepository(
                         expectedVersion = expectedVersion,
                         tip = tip,
                     ),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { contractJson.parseCashCollection(it) }
             .mapCatching { result ->
                 result.copy(
@@ -177,7 +178,7 @@ class RemoteOrderRepository(
             .post(
                 path = "pedidos/$orderId/transiciones",
                 body = contractJson.encodeTransition(targetState, expectedVersion, token),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { contractJson.parseOrderDetail(it) }
             .mapCatching { pickupTokenStore.attach(it.copy(pickupToken = it.pickupToken ?: token)) }
             .mapApiErrors()
@@ -200,7 +201,7 @@ class RemoteOrderRepository(
             .post(
                 path = "pedidos/$orderId/cancelaciones",
                 body = contractJson.encodeCancelOrder(expectedVersion, reason),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { contractJson.parseCancelledOrder(it) }
             .mapCatching { pickupTokenStore.attach(it) }
             .mapApiErrors()
@@ -217,7 +218,7 @@ class RemoteOrderRepository(
                 path = "pedidos/$orderId/articulos/$itemId/rechazos",
                 // Mismo cuerpo que cancelar (motivo + versión); la respuesta trae `data.pedido` y dónde quedó el dinero.
                 body = contractJson.encodeCancelOrder(expectedVersion, reason),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { contractJson.parseRejectedItem(it) }
             .mapCatching { pickupTokenStore.attach(it) }
             .mapApiErrors()
@@ -231,11 +232,10 @@ class RemoteOrderRepository(
                 path = "pedidos/reparto/cotizar",
                 body = contractJson.encodeHomeDeliveryQuote(latitude, longitude),
                 headers =
-                    mapOf(
-                        "Idempotency-Key" to
-                            java.util.UUID
-                                .randomUUID()
-                                .toString(),
+                    idempotencyHeaders(
+                        java.util.UUID
+                            .randomUUID()
+                            .toString(),
                     ),
             ).mapCatching { contractJson.parseHomeDeliveryQuote(it) }
             .mapApiErrors()
@@ -259,11 +259,10 @@ class RemoteOrderRepository(
                     path = "pedidos/$orderId/${action.path}",
                     body = contractJson.encodeHomeOrderAction(action),
                     headers =
-                        mapOf(
-                            "Idempotency-Key" to
-                                java.util.UUID
-                                    .randomUUID()
-                                    .toString(),
+                        idempotencyHeaders(
+                            java.util.UUID
+                                .randomUUID()
+                                .toString(),
                         ),
                 ).mapCatching { contractJson.parseOrderDetail(it) }
                 .mapCatching { pickupTokenStore.attach(it) }
@@ -280,19 +279,13 @@ class RemoteOrderRepository(
             .mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    when (error) {
-                        is ApiClientException ->
-                            OrderRepositoryException(error.code, error.message ?: error.code, error)
-                        is OrderRepositoryException -> error
-                        else -> error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            OrderRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 }
 
 /** Tope de páginas por consulta (50 pedidos cada una): evita un ciclo largo si el cursor no avanza. */

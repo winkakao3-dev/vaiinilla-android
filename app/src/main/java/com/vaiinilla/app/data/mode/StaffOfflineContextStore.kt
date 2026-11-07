@@ -2,13 +2,13 @@ package com.vaiinilla.app.data.mode
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -146,7 +146,7 @@ class StaffOfflineContextStore
         private companion object {
             const val PREFS = "vaiinilla_staff_offline_context"
             const val KEY = "snapshot"
-            val json = Json { ignoreUnknownKeys = true }
+            val json = ApiJson.plain
         }
     }
 

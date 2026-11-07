@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
@@ -71,7 +72,7 @@ class OfflineStaffOrderRescuer
                             bearer = token,
                             path = "pedidos",
                             body = body,
-                            headers = mapOf("Idempotency-Key" to key),
+                            headers = idempotencyHeaders(key),
                         ).map { raw ->
                             // Con 2xx ya llegó; se lee para saber si el efectivo cobrado quedó en la caja.
                             runCatching { contractJson.parseCreatedOrder(raw) }.getOrNull()

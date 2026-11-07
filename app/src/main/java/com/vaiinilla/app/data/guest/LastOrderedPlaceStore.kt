@@ -2,12 +2,12 @@ package com.vaiinilla.app.data.guest
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.model.LastOrderedPlace
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,7 +20,7 @@ class LastOrderedPlaceStore
         @ApplicationContext private val context: Context,
     ) {
         private val prefs get() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        private val json = Json { ignoreUnknownKeys = true }
+        private val json = ApiJson.plain
 
         fun load(): LastOrderedPlace? {
             val raw = prefs.getString(KEY, null) ?: return null
