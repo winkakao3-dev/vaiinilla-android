@@ -2,8 +2,8 @@
 """Clase 6 (fuga de contexto al cambiar de tienda): ningún campo de OperationalUiState puede sobrevivir al cambio
 de negocio sin que alguien lo haya decidido.
 
-`OperationalViewModel.setRole` reinicia el estado cuando cambia el rol o el negocio. Cada campo de
-`OperationalUiState` debe (a) reiniciarse en ese `copy(...)`, o (b) estar en scripts/cambio_de_tienda_baseline.json
+`freshForNewRole` (usado por `StaffOrdersViewModel.start` al cambiar de rol o de negocio) reinicia el estado. Cada
+campo de `OperationalUiState` debe (a) reiniciarse ahí, o (b) estar en scripts/cambio_de_tienda_baseline.json
 con el motivo de por qué es seguro que sobreviva (o «POR REVISAR» si nadie lo ha revisado). Un campo nuevo que
 no esté en ninguno de los dos hace fallar: así un dato de un negocio no se queda pegado en la pantalla del otro.
 
@@ -26,17 +26,30 @@ def campos_del_estado():
     return re.findall(r"^\s*val\s+(\w+)\s*:", m.group(1), re.M)
 
 
-def campos_reiniciados():
-    v = (OPER / "OperationalViewModel.kt").read_text(encoding="utf-8")
-    i = v.index("fun setRole(role: OperationalRole)")
-    fin = v.index("if (role == OperationalRole.ADMIN)", i)
-    cuerpo = v[i:fin]
-    bloque = cuerpo[cuerpo.index("_uiState.value.copy(") :]
+def campos_que_sobreviven():
+    """Campos que `freshForNewRole` conserva a propósito: son los únicos argumentos del constructor.
+
+    El personal (Caja, Cocina, Mesero) ya no pasa por `OperationalViewModel.setRole`: `StaffOrdersViewModel.start`
+    arranca de `freshForNewRole`, que construye un `OperationalUiState` nuevo. Todo campo que no esté en esa llamada
+    vuelve a su valor inicial.
+    """
+    u = (OPER / "OperationalUiState.kt").read_text(encoding="utf-8")
+    i = u.index("fun OperationalUiState.freshForNewRole(")
+    bloque = u[u.index("OperationalUiState(", i) :]
+    bloque = bloque[: bloque.index("\n    )")]
     return set(re.findall(r"^\s+(\w+)\s*=", bloque, re.M))
 
 
+def start_usa_fresh():
+    v = (OPER / "StaffOrdersViewModel.kt").read_text(encoding="utf-8")
+    return "freshForNewRole(" in v
+
+
 def main():
-    sobreviven = sorted(set(campos_del_estado()) - campos_reiniciados())
+    if not start_usa_fresh():
+        print("FALLA: StaffOrdersViewModel.start ya no arranca de freshForNewRole; los campos del negocio anterior sobreviven.")
+        return 1
+    sobreviven = sorted(set(campos_del_estado()) & campos_que_sobreviven())
     permitido = json.loads(BASELINE.read_text(encoding="utf-8")) if BASELINE.exists() else {}
     if "--actualizar" in sys.argv:
         nuevo = {c: permitido.get(c, "POR REVISAR") for c in sobreviven}
@@ -50,10 +63,10 @@ def main():
     if ya:
         print(f"  ya se reinician, quítalos del baseline: {', '.join(ya)}")
     if nuevos:
-        print("FALLA: campos nuevos de OperationalUiState que setRole no reinicia al cambiar de negocio:")
+        print("FALLA: campos de OperationalUiState que freshForNewRole conserva al cambiar de negocio sin motivo escrito:")
         for c in nuevos:
             print("  -", c)
-        print("Reinícialos en setRole o agrégalos a scripts/cambio_de_tienda_baseline.json con el motivo.")
+        print("Quítalos de freshForNewRole o agrégalos a scripts/cambio_de_tienda_baseline.json con el motivo.")
         return 1
     return 0
 
