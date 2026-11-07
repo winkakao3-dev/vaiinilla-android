@@ -49,6 +49,9 @@ jobs:
       - name: Validate contractual fixtures
         run: python3 scripts/validate_fixtures.py
 
+      - name: Guardias de clases de error
+        run: python3 scripts/guardias_clases_error.py
+
       - name: Audit release scope
         run: ./scripts/audit_release_scope.sh
 
