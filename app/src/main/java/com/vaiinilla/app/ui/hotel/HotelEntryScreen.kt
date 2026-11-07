@@ -11,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +46,7 @@ fun HotelEntryScreen(
     onHome: () -> Unit,
     onCode: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HotelEntryViewModel = viewModel(),
+    viewModel: HotelEntryViewModel = hotelViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.resolve() }
     val destination = viewModel.destination.value
