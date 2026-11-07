@@ -11,7 +11,7 @@ Convenience Email/Password auth for local debugging against project `vaiinilla-b
 
 ## Flow
 
-1. The local debug flow calls `AuthenticateSeedRoleUseCase` when a role needs to be exercised:
+1. The local debug flow calls `FirebaseSeedAuthRepository.authenticateRole` when a role needs to be exercised:
    - Firebase `signInWithEmailAndPassword` with the seed account for that role
    - `getIdToken()` → `POST /api/v1/sesiones/contexto` with `Authorization: Bearer <firebase-id-token>` and `{"membresia_id":"..."}`
    - Vaiinilla JWT stored in `SecureSessionStore` and cached per role in `SeedJwtCache`

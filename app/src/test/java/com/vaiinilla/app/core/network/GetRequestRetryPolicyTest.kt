@@ -46,6 +46,15 @@ class GetRequestRetryPolicyTest {
         assertEquals(4_000L, GetRequestRetryPolicy.delayMillisFor(error, attemptIndex = 0))
     }
 
+    @Test
+    fun `caps a long Retry-After so the network thread is not left asleep`() {
+        val error = apiError(status = 503, retryAfterSeconds = 120)
+        assertEquals(
+            GetRequestRetryPolicy.MAX_RETRY_AFTER_MILLIS,
+            GetRequestRetryPolicy.delayMillisFor(error, attemptIndex = 0),
+        )
+    }
+
     private fun apiError(
         status: Int,
         retryAfterSeconds: Long? = null,
