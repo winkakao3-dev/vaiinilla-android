@@ -100,10 +100,14 @@ import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
 import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CashierUnpaidViewModel
+import com.vaiinilla.app.ui.operational.CashierViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
+import com.vaiinilla.app.ui.operational.KitchenViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
+import com.vaiinilla.app.ui.operational.OperationalRoles
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
+import com.vaiinilla.app.ui.operational.WaiterOrdersViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -251,6 +255,13 @@ private fun AppNavHostContent(
     val launchNavScope = rememberCoroutineScope()
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
+    val cashierViewModel: CashierViewModel = viewModel()
+    val kitchenViewModel: KitchenViewModel = viewModel()
+    val waiterOrdersViewModel: WaiterOrdersViewModel = viewModel()
+    val roles =
+        remember(operationalViewModel, cashierViewModel, kitchenViewModel, waiterOrdersViewModel) {
+            OperationalRoles(operationalViewModel, cashierViewModel, kitchenViewModel, waiterOrdersViewModel)
+        }
     val adminViewModel: AdminViewModel = viewModel()
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
     val adminInventoryViewModel: com.vaiinilla.app.ui.admin.AdminInventoryViewModel = viewModel()
@@ -290,6 +301,9 @@ private fun AppNavHostContent(
     val venueType = orderState.guestVenue?.establishment?.businessType ?: orderState.operationalStatus?.businessType
     LaunchedEffect(venueType) { venueStore.update(venueType) }
     val operationalState by operationalViewModel.uiState
+    val cashierState by cashierViewModel.uiState
+    val kitchenState by kitchenViewModel.uiState
+    val activeRole = roles.activeRole
     val waiterState by waiterViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
     val authorizedAccessState by authorizedAccessViewModel.state
@@ -325,8 +339,8 @@ private fun AppNavHostContent(
     }
     // Efectivo que Caja cobró sin internet y aún no se registra: el cierre de caja espera a que se mande (R5).
     val unsyncedOfflineCash = waiterState.offlineOrders.unregisteredCash.size
-    LaunchedEffect(unsyncedOfflineCash, operationalState.role) {
-        operationalViewModel.setUnsyncedOfflineCash(unsyncedOfflineCash)
+    LaunchedEffect(unsyncedOfflineCash, activeRole) {
+        cashierViewModel.setUnsyncedOfflineCash(unsyncedOfflineCash)
     }
     // Pedidos guardados sin internet de un modo que ya no está abierto (app reiniciada, otro modo): salen solos.
     LaunchedEffect(authorizedAccessState.modes, authorizedAccessState.activeContext?.membershipId) {
@@ -351,8 +365,8 @@ private fun AppNavHostContent(
             ),
         )
     }
-    LaunchedEffect(operationalState.cashSessionOpen) {
-        studentCounterViewModel.setCashOpen(operationalState.cashSessionOpen != false)
+    LaunchedEffect(cashierState.cashSessionOpen) {
+        studentCounterViewModel.setCashOpen(cashierState.cashSessionOpen != false)
     }
 
     // Keep every in-memory copy of the selected venue aligned when persisted metadata
@@ -387,7 +401,7 @@ private fun AppNavHostContent(
     // otro dispositivo y no llega ningún evento push de wallet.
     val lifecycleOwner = LocalLifecycleOwner.current
     // Solo el cliente tiene cartera: el personal recibía 403 en cada regreso a la app.
-    val isClientRole by rememberUpdatedState(operationalState.role == OperationalRole.CLIENT)
+    val isClientRole by rememberUpdatedState(activeRole == OperationalRole.CLIENT)
     val latestVenueId by rememberUpdatedState(currentVenueId)
     // "Hoy te quedan $N" depende del día y de lo que ya se gastó: se pide de nuevo al volver a la app.
     var resumeTick by remember { mutableIntStateOf(0) }
@@ -436,10 +450,10 @@ private fun AppNavHostContent(
         studentAuthState.session?.emailVerified,
         orderState.guestVenue?.establishment?.id,
         authorizedAccessState.activeContext?.role,
-        operationalState.role,
+        activeRole,
     ) {
-        if (orderState.guestVenue != null && operationalState.role == null && currentIdentity().isClient) {
-            operationalViewModel.setRole(OperationalRole.CLIENT)
+        if (orderState.guestVenue != null && activeRole == null && currentIdentity().isClient) {
+            roles.enter(OperationalRole.CLIENT)
         }
     }
 
@@ -512,9 +526,9 @@ private fun AppNavHostContent(
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (!granted) notificationPromptOpen = true
         }
-    LaunchedEffect(operationalState.role) {
+    LaunchedEffect(activeRole) {
         if (
-            operationalState.role != null &&
+            activeRole != null &&
             !notificationPermissionAsked &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !OrderAdvanceNotifier.canPost(appContext)
@@ -562,7 +576,7 @@ private fun AppNavHostContent(
             )
         when (
             resolveWaiterCallAction(
-                operationalRole = operationalState.role,
+                operationalRole = activeRole,
                 accessLoading = authorizedAccessState.loading,
                 waiterModes = waiterModes.size,
                 launchSettled = launchSettled,
@@ -576,7 +590,7 @@ private fun AppNavHostContent(
             WaiterCallAction.ACTIVATE_WAITER -> {
                 onOrderConsumed()
                 authorizedAccessViewModel.activateMode(checkNotNull(chosenMode)) {
-                    operationalViewModel.setRole(OperationalRole.WAITER)
+                    roles.enter(OperationalRole.WAITER)
                     showWaiterBoard()
                 }
             }
@@ -595,7 +609,7 @@ private fun AppNavHostContent(
         pendingOrderTarget,
         studentAuthState.session?.uid,
         studentAuthState.loading,
-        operationalState.role,
+        activeRole,
         authorizedAccessState.loading,
         authorizedAccessState.modes,
         launchSettled,
@@ -619,8 +633,8 @@ private fun AppNavHostContent(
         }
 
         fun openClientOrder() {
-            if (operationalState.role != OperationalRole.CLIENT) {
-                operationalViewModel.setRole(OperationalRole.CLIENT)
+            if (activeRole != OperationalRole.CLIENT) {
+                roles.enter(OperationalRole.CLIENT)
             }
             operationalViewModel.refreshOrder(orderId)
             operationalViewModel.selectOrder(orderId)
@@ -642,7 +656,7 @@ private fun AppNavHostContent(
                 target = target,
                 hasStudentSession = studentAuthState.session != null,
                 studentAuthLoading = studentAuthState.loading,
-                operationalRole = operationalState.role,
+                operationalRole = activeRole,
                 accessLoading = authorizedAccessState.loading,
                 hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT },
             )
@@ -730,7 +744,7 @@ private fun AppNavHostContent(
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
         if (switchingEstablishment) {
-            operationalViewModel.clearRole()
+            roles.clearAll()
         }
         orderFlowViewModel.enterGuestVenue(venue)
         orderFlowViewModel.clearMenuFilters()
@@ -757,7 +771,7 @@ private fun AppNavHostContent(
                 target = OrderNotificationTarget.CLIENT,
                 hasStudentSession = studentAuthState.session != null,
                 studentAuthLoading = studentAuthState.loading,
-                operationalRole = operationalState.role,
+                operationalRole = activeRole,
                 accessLoading = authorizedAccessState.loading,
                 hasStaffModes = authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT },
             ),
@@ -775,7 +789,8 @@ private fun AppNavHostContent(
 
     // Cambiar a cliente desmontaría la pantalla de un cobro o cierre que el servidor ya está moviendo.
     fun linkBlockedByStaffAction(): Boolean {
-        if (authorizedAccessState.activeContext == null || !operationalState.acting) return false
+        val acting = operationalState.acting || cashierState.acting || kitchenState.acting
+        if (authorizedAccessState.activeContext == null || !acting) return false
         Toast
             .makeText(appContext, "Termina lo que estás cobrando y vuelve a abrir el enlace.", Toast.LENGTH_LONG)
             .show()
@@ -785,7 +800,7 @@ private fun AppNavHostContent(
     // Escanear una mesa o una tienda es querer pedir ahí: con un modo de personal activo se sale a cliente.
     fun leaveStaffModeForLink(onLeft: () -> Unit) {
         authorizedAccessViewModel.leaveStaffModeForLink {
-            operationalViewModel.clearRole()
+            roles.clearAll()
             onLeft()
         }
     }
@@ -862,7 +877,7 @@ private fun AppNavHostContent(
 
     fun returnToClientFromAuthorizedMode() {
         authorizedAccessViewModel.returnToClient {
-            operationalViewModel.setRole(OperationalRole.CLIENT)
+            roles.enter(OperationalRole.CLIENT)
             orderFlowViewModel.clearGuestVenue()
             orderFlowViewModel.refresh()
             navController.navigate(Routes.CATALOG) {
@@ -879,7 +894,7 @@ private fun AppNavHostContent(
         if (authorizedAccessViewModel.state.value.activeContext != null) return
         val remembered = authorizedAccessViewModel.rememberedStaffMode() ?: return
         authorizedAccessViewModel.activateMode(remembered) {
-            operationalViewModel.setRole(remembered.role)
+            roles.enter(remembered.role)
             navigateAuthorizedMode(remembered.role)
         }
     }
@@ -978,7 +993,7 @@ private fun AppNavHostContent(
     LaunchedEffect(orderState.createdOrder?.summary?.id) {
         val created = orderState.createdOrder ?: return@LaunchedEffect
         walletViewModel.invalidate()
-        operationalViewModel.setRole(OperationalRole.CLIENT)
+        roles.enter(OperationalRole.CLIENT)
         operationalViewModel.refreshOrder(created.summary.id)
         operationalViewModel.selectOrder(created.summary.id)
         if (navController.currentDestination?.route != Routes.CONFIRMATION) {
@@ -1129,7 +1144,7 @@ private fun AppNavHostContent(
         sharedTableViewModel.clearForSessionTermination()
         ChildDeepLinkStore.reset()
         ReceivedNoticeLog.clear(appContext)
-        operationalViewModel.clearRole()
+        roles.clearAll()
         authorizedAccessViewModel.resetAfterSignOut()
         accountDeletionViewModel.cancel()
     }
@@ -1191,8 +1206,8 @@ private fun AppNavHostContent(
                         orderFlowViewModel.refresh()
                     }
                     if (!orderFlowViewModel.requiresAccountAuth()) {
-                        if (operationalState.role != OperationalRole.CLIENT) {
-                            operationalViewModel.setRole(OperationalRole.CLIENT)
+                        if (activeRole != OperationalRole.CLIENT) {
+                            roles.enter(OperationalRole.CLIENT)
                         } else if (operationalState.orders.isEmpty() && !operationalState.loading) {
                             operationalViewModel.refresh()
                         }
@@ -1214,8 +1229,8 @@ private fun AppNavHostContent(
                     // El vacío muestra "Pedidos anteriores": si el usuario entra
                     // a Carrito antes que a Pedidos, las órdenes aún no cargan.
                     if (!orderFlowViewModel.requiresAccountAuth()) {
-                        if (operationalState.role != OperationalRole.CLIENT) {
-                            operationalViewModel.setRole(OperationalRole.CLIENT)
+                        if (activeRole != OperationalRole.CLIENT) {
+                            roles.enter(OperationalRole.CLIENT)
                         } else if (operationalState.orders.isEmpty() && !operationalState.loading) {
                             operationalViewModel.refresh()
                         }
@@ -1331,14 +1346,14 @@ private fun AppNavHostContent(
                                 }
                         if (remembered != null) {
                             authorizedAccessViewModel.activateMode(remembered) {
-                                operationalViewModel.setRole(remembered.role)
+                                roles.enter(remembered.role)
                                 navigateAuthorizedMode(remembered.role)
                             }
                         } else if (!modesLoaded && destination == LaunchDestination.StaffModes) {
                             // Sin internet al abrir (O04): Mesero o Caja se reabren con lo guardado y la cola sin
                             // conexión guarda los pedidos. Si no se puede, Modos muestra el error y reintenta solo.
                             authorizedAccessViewModel.reopenRememberedModeOffline()?.let { reopened ->
-                                operationalViewModel.setRole(reopened.role)
+                                roles.enter(reopened.role)
                                 navigateAuthorizedMode(reopened.role)
                             }
                         }
@@ -1489,7 +1504,7 @@ private fun AppNavHostContent(
                     onBack = goBack.takeIf { navController.previousBackStackEntry != null },
                     onSelectMode = { mode ->
                         authorizedAccessViewModel.activateMode(mode) {
-                            operationalViewModel.setRole(mode.role)
+                            roles.enter(mode.role)
                             navigateAuthorizedMode(mode.role)
                         }
                     },
@@ -1537,7 +1552,7 @@ private fun AppNavHostContent(
                         onConfigure = {
                             authorizedAccessViewModel.activateMode(mode) {
                                 storeAccessMemory.markSeen(mode.establishmentId)
-                                operationalViewModel.setRole(mode.role)
+                                roles.enter(mode.role)
                                 navigateAuthorizedMode(mode.role)
                             }
                         },
@@ -2164,7 +2179,7 @@ private fun AppNavHostContent(
             composable(Routes.SUPPORT) {
                 val lastOrder =
                     operationalState.orders.firstOrNull()?.takeIf {
-                        operationalState.role ==
+                        activeRole ==
                             OperationalRole.CLIENT
                     }
                 SupportScreen(
@@ -2645,7 +2660,7 @@ private fun AppNavHostContent(
                             }
                         },
                         onViewTracking = {
-                            operationalViewModel.setRole(OperationalRole.CLIENT)
+                            roles.enter(OperationalRole.CLIENT)
                             operationalViewModel.selectOrder(null)
                             val returnedToExistingTracking =
                                 navController.popBackStack(Routes.STUDENT_TRACKING, inclusive = false)
@@ -2663,15 +2678,15 @@ private fun AppNavHostContent(
                     if (venueAuthRequired) {
                         studentAuthViewModel.ensureVenueContext(
                             onReady = {
-                                if (operationalState.role != OperationalRole.CLIENT) {
-                                    operationalViewModel.setRole(OperationalRole.CLIENT)
+                                if (activeRole != OperationalRole.CLIENT) {
+                                    roles.enter(OperationalRole.CLIENT)
                                 }
                             },
                             onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING, replaceReturnScreen = true) },
                             onNeedsVenue = ::navigateChooseVenue,
                         )
-                    } else if (operationalState.role != OperationalRole.CLIENT) {
-                        operationalViewModel.setRole(OperationalRole.CLIENT)
+                    } else if (activeRole != OperationalRole.CLIENT) {
+                        roles.enter(OperationalRole.CLIENT)
                     }
                 }
                 // Los pedidos se abren en la pantalla de recogida (Vainiverso); solo las rentas
@@ -2757,7 +2772,7 @@ private fun AppNavHostContent(
                         errorMessage = studentAuthState.errorMessage,
                         onRetry = {
                             studentAuthViewModel.ensureVenueContext(
-                                onReady = { operationalViewModel.setRole(OperationalRole.CLIENT) },
+                                onReady = { roles.enter(OperationalRole.CLIENT) },
                                 onNeedsAuth = { navigateStudentAuth(Routes.STUDENT_TRACKING) },
                             )
                         },
@@ -2776,7 +2791,7 @@ private fun AppNavHostContent(
                     }
                 }
                 if (authorizedCashier) {
-                    OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    OperationalPresenceLifecycle(OperationalRole.CASHIER, cashierViewModel)
                     val studentCounterState by studentCounterViewModel.uiState
                     val studentCounterOffline by studentCounterViewModel.offlineState.collectAsStateWithLifecycle()
                     var studentsSheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -2787,7 +2802,7 @@ private fun AppNavHostContent(
                         onStop = pendingRefundsViewModel::onHidden,
                     )
                     CashierOperationalScreen(
-                        state = operationalState,
+                        state = cashierState,
                         cashCutContent = { onClose ->
                             val cutScope = authorizedAccessState.activeContext?.membershipId.orEmpty()
                             androidx.compose.runtime.LaunchedEffect(cutScope) {
@@ -2803,37 +2818,37 @@ private fun AppNavHostContent(
                             )
                         },
                         openSearchRequest = cashierSearchRequests,
-                        onBack = returnToModes(navController, operationalViewModel),
-                        onOpenCashSession = operationalViewModel::openCashRegister,
+                        onBack = returnToModes(navController, roles),
+                        onOpenCashSession = cashierViewModel::openCashRegister,
                         onRequestCloseCash = {
                             // Antes de cerrar se intenta mandar ya lo cobrado sin internet.
                             if (waiterState.offlineOrders.unregisteredCash.isNotEmpty()) {
                                 waiterViewModel.sendOfflineOrdersNow()
                             }
-                            operationalViewModel.requestCloseCash()
+                            cashierViewModel.requestCloseCash()
                         },
-                        onDismissCloseCash = operationalViewModel::dismissCloseCash,
-                        onCloseCash = operationalViewModel::closeCashRegister,
-                        onLoadCashDrawer = operationalViewModel::loadCashDrawer,
-                        onSaveDrawerMovement = operationalViewModel::registerDrawerMovement,
-                        onCollect = operationalViewModel::collectCash,
-                        onSearchWalletClients = operationalViewModel::searchWalletClients,
+                        onDismissCloseCash = cashierViewModel::dismissCloseCash,
+                        onCloseCash = cashierViewModel::closeCashRegister,
+                        onLoadCashDrawer = cashierViewModel::loadCashDrawer,
+                        onSaveDrawerMovement = cashierViewModel::registerDrawerMovement,
+                        onCollect = cashierViewModel::collectCash,
+                        onSearchWalletClients = cashierViewModel::searchWalletClients,
                         onOpenWalletUserQr = { walletUserQrOpen = true },
-                        onReloadWallet = operationalViewModel::reloadWallet,
-                        onConfirmPendingReload = operationalViewModel::confirmPendingWalletReload,
-                        onDiscardPendingReload = operationalViewModel::discardPendingWalletReload,
+                        onReloadWallet = cashierViewModel::reloadWallet,
+                        onConfirmPendingReload = cashierViewModel::confirmPendingWalletReload,
+                        onDiscardPendingReload = cashierViewModel::discardPendingWalletReload,
                         deliveryRequiresQr = waiterState.deliveryRequiresQr,
-                        onCashChangeNoticed = operationalViewModel::consumeCashChangeNotice,
+                        onCashChangeNoticed = cashierViewModel::consumeCashChangeNotice,
                         onScanDeliver = { orderId, version ->
                             pendingPickupDelivery = PendingPickupDelivery(orderId, version)
                         },
-                        onDeliver = { orderId, version -> operationalViewModel.deliver(orderId, version) },
-                        onRejectOrder = operationalViewModel::rejectOrder,
-                        onRejectItem = operationalViewModel::rejectItem,
-                        onActionNoticed = operationalViewModel::consumeActionNotice,
+                        onDeliver = { orderId, version -> cashierViewModel.deliver(orderId, version) },
+                        onRejectOrder = cashierViewModel::rejectOrder,
+                        onRejectItem = cashierViewModel::rejectItem,
+                        onActionNoticed = cashierViewModel::consumeActionNotice,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
-                                returnToModes(navController, operationalViewModel)
+                                returnToModes(navController, roles)
                             } else {
                                 null
                             },
@@ -2843,9 +2858,9 @@ private fun AppNavHostContent(
                             navController.navigate(Routes.CASHIER_UNPAID) { launchSingleTop = true }
                         },
                         restrictedMode = authorizedAccessState.activeContext?.restrictedMode,
-                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
+                        onToggleProductAvailable = cashierViewModel::setProductAvailable,
                         onCreateCashierProduct = { draft, bytes, filename, mime, onSuccess ->
-                            operationalViewModel.createCashierProduct(
+                            cashierViewModel.createCashierProduct(
                                 draft = draft,
                                 imageBytes = bytes,
                                 imageFilename = filename,
@@ -2853,9 +2868,9 @@ private fun AppNavHostContent(
                                 onSuccess = onSuccess,
                             )
                         },
-                        onUploadCashierProductImage = operationalViewModel::uploadCashierProductImage,
-                        onUploadStoreImage = operationalViewModel::uploadStoreImage,
-                        onRemoveStoreImage = operationalViewModel::removeStoreImage,
+                        onUploadCashierProductImage = cashierViewModel::uploadCashierProductImage,
+                        onUploadStoreImage = cashierViewModel::uploadStoreImage,
+                        onRemoveStoreImage = cashierViewModel::removeStoreImage,
                         assistantUserKey =
                             authorizedAccessState.activeContext?.membershipId ?: "cashier",
                         onNewCounterOrder = waiterViewModel::openCounterOrder,
@@ -2885,16 +2900,16 @@ private fun AppNavHostContent(
                                 state = pendingRefundsViewModel.uiState.value,
                                 canConfirm =
                                     authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
-                                cashOpen = operationalState.cashSessionOpen,
+                                cashOpen = cashierState.cashSessionOpen,
                                 colors = rememberOperationalColors(),
                                 onConfirm = pendingRefundsViewModel::confirm,
-                                orders = operationalState.orders,
+                                orders = cashierState.orders,
                             )
                         },
                         alertsEntry = {
                             CashierOutboxAlerts(
                                 pending = waiterState.offlineOrders.pending,
-                                orders = operationalState.orders.map { it.summary },
+                                orders = cashierState.orders.map { it.summary },
                                 establishmentId = authorizedAccessState.activeContext?.establishmentId,
                             )
                         },
@@ -2910,16 +2925,16 @@ private fun AppNavHostContent(
                             },
                         staffName = studentAuthState.session?.displayName,
                         notice = waiterState.toastMessage,
-                        onDismissError = operationalViewModel::dismissMutationError,
-                        onRefresh = operationalViewModel::refresh,
+                        onDismissError = cashierViewModel::dismissMutationError,
+                        onRefresh = cashierViewModel::refresh,
                     )
                     if (studentsSheetOpen) {
                         StudentCounterSheet(
                             state = studentCounterState,
                             offline = studentCounterOffline,
-                            catalog = operationalState.catalog,
+                            catalog = cashierState.catalog,
                             canCharge =
-                                operationalState.cashSessionOpen == true &&
+                                cashierState.cashSessionOpen == true &&
                                     authorizedAccessState.activeContext?.restrictedMode != RestrictedMode.READ_ONLY,
                             actions = remember(studentCounterViewModel) { studentCounterViewModel.actions() },
                             onDismiss = {
@@ -2937,20 +2952,20 @@ private fun AppNavHostContent(
                                 waiterViewModel.submitCounterOrder(
                                     lines,
                                     name,
-                                    CashierContext(cashOpen = operationalState.cashSessionOpen),
+                                    CashierContext(cashOpen = cashierState.cashSessionOpen),
                                 )
                             },
                             onPickUpAtBarChange = waiterViewModel::updateCounterPickUpAtBar,
                             submitAction =
-                                if (operationalState.cashSessionOpen == true) "Cobrar después" else "Crear pedido",
+                                if (cashierState.cashSessionOpen == true) "Cobrar después" else "Crear pedido",
                             onSubmitAndCollect =
-                                if (operationalState.cashSessionOpen == true) {
+                                if (cashierState.cashSessionOpen == true) {
                                     { lines, name ->
                                         waiterViewModel.submitCounterOrder(
                                             lines,
                                             name,
                                             CashierContext(cashOpen = true),
-                                            onCreated = operationalViewModel::refreshOrder,
+                                            onCreated = cashierViewModel::refreshOrder,
                                         )
                                     }
                                 } else {
@@ -2965,26 +2980,26 @@ private fun AppNavHostContent(
                 val authorizedKitchen = authorizedAccessState.activeContext?.role == OperationalRole.KITCHEN
                 LaunchedEffect(authorizedKitchen) {
                     if (!authorizedKitchen) {
-                        returnToModes(navController, operationalViewModel)()
+                        returnToModes(navController, roles)()
                     }
                 }
                 if (authorizedKitchen) {
-                    OperationalPresenceLifecycle(OperationalRole.KITCHEN, operationalViewModel)
+                    OperationalPresenceLifecycle(OperationalRole.KITCHEN, kitchenViewModel)
                     val reservedState by reservedOrdersViewModel.uiState
                     var reservedSheetOpen by rememberSaveable { mutableStateOf(false) }
                     LaunchedEffect(authorizedAccessState.activeContext?.establishmentId) {
                         reservedOrdersViewModel.refreshPolicy()
                     }
                     KitchenOperationalScreen(
-                        state = operationalState,
-                        onBack = returnToModes(navController, operationalViewModel),
-                        onStart = operationalViewModel::startKitchen,
-                        onReady = operationalViewModel::markReady,
-                        onReject = operationalViewModel::rejectOrder,
-                        onRejectItem = operationalViewModel::rejectItem,
+                        state = kitchenState,
+                        onBack = returnToModes(navController, roles),
+                        onStart = kitchenViewModel::startKitchen,
+                        onReady = kitchenViewModel::markReady,
+                        onReject = kitchenViewModel::rejectOrder,
+                        onRejectItem = kitchenViewModel::rejectItem,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
-                                returnToModes(navController, operationalViewModel)
+                                returnToModes(navController, roles)
                             } else {
                                 null
                             },
@@ -3002,12 +3017,12 @@ private fun AppNavHostContent(
                             } else {
                                 null
                             },
-                        onActionNoticed = operationalViewModel::consumeActionNotice,
-                        onDismissError = operationalViewModel::dismissMutationError,
-                        onRefresh = operationalViewModel::refresh,
+                        onActionNoticed = kitchenViewModel::consumeActionNotice,
+                        onDismissError = kitchenViewModel::dismissMutationError,
+                        onRefresh = kitchenViewModel::refresh,
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
-                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
-                        onLoadCatalog = operationalViewModel::refreshCatalog,
+                        onToggleProductAvailable = kitchenViewModel::setProductAvailable,
+                        onLoadCatalog = kitchenViewModel::refreshCatalog,
                     )
                     if (reservedSheetOpen) {
                         ReservedOrdersSheet(
@@ -3027,7 +3042,7 @@ private fun AppNavHostContent(
                 val scope = active?.membershipId.orEmpty()
                 LaunchedEffect(authorizedAdmin, scope) {
                     if (!authorizedAdmin) {
-                        returnToModes(navController, operationalViewModel)()
+                        returnToModes(navController, roles)()
                     } else {
                         adminViewModel.onVisible(scope)
                         // Para el menú: si el negocio renta canchas y si la tarjeta suma comisión.
@@ -3085,10 +3100,10 @@ private fun AppNavHostContent(
                                                         it.establishmentId == active?.establishmentId
                                                 }
                                             if (cashier == null) {
-                                                returnToModes(navController, operationalViewModel)()
+                                                returnToModes(navController, roles)()
                                             } else {
                                                 authorizedAccessViewModel.activateMode(cashier) {
-                                                    operationalViewModel.setRole(cashier.role)
+                                                    roles.enter(cashier.role)
                                                     navigateAuthorizedMode(cashier.role)
                                                 }
                                             }
@@ -3174,7 +3189,7 @@ private fun AppNavHostContent(
                         photoUrl = storeState.images.photoUrl,
                         logoUrl = storeState.images.logoUrl,
                         offerWelcome = true,
-                        onChangeMode = returnToModes(navController, operationalViewModel),
+                        onChangeMode = returnToModes(navController, roles),
                     )
                 }
             }
@@ -3187,11 +3202,11 @@ private fun AppNavHostContent(
                     }
                 LaunchedEffect(unpaidRole) {
                     if (unpaidRole == null) {
-                        returnToModes(navController, operationalViewModel)()
+                        returnToModes(navController, roles)()
                     }
                 }
                 if (unpaidRole != null) {
-                    OperationalPresenceLifecycle(unpaidRole, operationalViewModel)
+                    OperationalPresenceLifecycle(unpaidRole, roles.presence(unpaidRole))
                     LaunchedEffect(Unit) { cashierUnpaidViewModel.refresh() }
                     CashierUnpaidAccountsScreen(
                         state = cashierUnpaidViewModel.uiState.value,
@@ -3209,11 +3224,11 @@ private fun AppNavHostContent(
                 val authorizedCashier = authorizedAccessState.activeContext?.role == OperationalRole.CASHIER
                 LaunchedEffect(authorizedCashier) {
                     if (!authorizedCashier) {
-                        returnToModes(navController, operationalViewModel)()
+                        returnToModes(navController, roles)()
                     }
                 }
                 if (authorizedCashier) {
-                    OperationalPresenceLifecycle(OperationalRole.CASHIER, operationalViewModel)
+                    OperationalPresenceLifecycle(OperationalRole.CASHIER, cashierViewModel)
                     DisposableEffect(Unit) {
                         waiterViewModel.onVisible()
                         onDispose { waiterViewModel.onHidden() }
@@ -3249,7 +3264,7 @@ private fun AppNavHostContent(
                             waiterViewModel.submitCounterOrder(
                                 lines,
                                 name,
-                                CashierContext(cashOpen = operationalState.cashSessionOpen),
+                                CashierContext(cashOpen = cashierState.cashSessionOpen),
                             )
                         },
                         onRetryOfflineOrders = waiterViewModel::retryOfflineOrders,
@@ -3270,11 +3285,11 @@ private fun AppNavHostContent(
                 val authorizedWaiter = authorizedAccessState.activeContext?.role == OperationalRole.WAITER
                 LaunchedEffect(authorizedWaiter) {
                     if (!authorizedWaiter) {
-                        returnToModes(navController, operationalViewModel)()
+                        returnToModes(navController, roles)()
                     }
                 }
                 if (authorizedWaiter) {
-                    OperationalPresenceLifecycle(OperationalRole.WAITER, operationalViewModel)
+                    OperationalPresenceLifecycle(OperationalRole.WAITER, waiterOrdersViewModel)
                     DisposableEffect(Unit) {
                         waiterViewModel.onVisible()
                         onDispose { waiterViewModel.onHidden() }
@@ -3285,7 +3300,7 @@ private fun AppNavHostContent(
                     }
                     WaiterOperationalScreen(
                         state = waiterState,
-                        onBack = returnToModes(navController, operationalViewModel),
+                        onBack = returnToModes(navController, roles),
                         onRefresh = waiterViewModel::refresh,
                         onGoing = waiterViewModel::markGoing,
                         onAttended = waiterViewModel::markAttended,
@@ -3315,7 +3330,7 @@ private fun AppNavHostContent(
                         onAlertConsumed = { alertCall = null },
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
-                                returnToModes(navController, operationalViewModel)
+                                returnToModes(navController, roles)
                             } else {
                                 null
                             },
@@ -3344,7 +3359,7 @@ private fun AppNavHostContent(
             alternative = QrScannerAlternative("Buscar cliente por nombre") { walletUserQrOpen = false },
             onPayload = { rawValue ->
                 walletUserQrOpen = false
-                operationalViewModel.resolveWalletUserQr(rawValue)
+                cashierViewModel.resolveWalletUserQr(rawValue)
             },
         )
     }
@@ -3355,7 +3370,7 @@ private fun AppNavHostContent(
             title = "Apunta al QR del pedido del cliente",
             topLabel = "Entregar",
             footer =
-                operationalState.orders
+                cashierState.orders
                     .firstOrNull { it.summary.id == pendingPickupDelivery?.orderId }
                     ?.let { order ->
                         { insets ->
@@ -3369,7 +3384,7 @@ private fun AppNavHostContent(
                 val target = pendingPickupDelivery
                 pendingPickupDelivery = null
                 if (target != null) {
-                    operationalViewModel.deliver(
+                    cashierViewModel.deliver(
                         orderId = target.orderId,
                         expectedVersion = target.expectedVersion,
                         scannedPickupToken = rawValue,
@@ -3396,10 +3411,10 @@ private fun NavHostController.navigateStudent(route: String) {
 
 private fun returnToModes(
     navController: NavHostController,
-    operationalViewModel: OperationalViewModel,
+    roles: OperationalRoles,
 ): () -> Unit =
     {
-        operationalViewModel.clearRole()
+        roles.clearAll()
         navController.navigate(Routes.STAFF_MODES) {
             popUpTo(Routes.DISCOVERY) {
                 inclusive = false
