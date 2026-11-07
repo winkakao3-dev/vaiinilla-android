@@ -1,8 +1,10 @@
 package com.vaiinilla.app.ui.order
 
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.admin.CashbackPreview
 import com.vaiinilla.app.domain.admin.CashbackRule
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.ContractRules
@@ -19,6 +21,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreorderOffer
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
@@ -86,6 +89,15 @@ data class OrderFlowUiState(
     val homeCheckout: HomeCheckoutDraft = HomeCheckoutDraft(),
     val quotingDelivery: Boolean = false,
     val deliveryQuoteError: String? = null,
+    /** Lo que el hotel ofrece al pedir (cargo a la habitación, tarjeta); `null` hasta que se lee o fuera de un hotel. */
+    val hotelConfig: HotelConfig? = null,
+    /** El tipo de negocio que se mira: la VM lo mantiene al día; de él dependen los textos y el pedido a habitación. */
+    val venue: VenueContext = VenueContext.STANDARD,
+    /** El servidor pidió la estancia (ROOM_REQUIRES_STAY): se abre el código de estancia dentro del carrito. */
+    val needsStayCode: Boolean = false,
+    val stayCodeError: String? = null,
+    /** El código de estancia se está ligando: la hoja no deja mandarlo dos veces. */
+    val linkingStay: Boolean = false,
     /** La regla de cashback activa del negocio; `null` si está apagado o no se pudo leer (24). */
     val cashbackRule: CashbackRule? = null,
 )
@@ -103,11 +115,14 @@ enum class PurchaseCelebrationKind {
 
 /** Lo que dice la tarjeta de "¡Pedido recibido!": un pedido a la cuenta no se paga en Caja ahora. */
 internal fun celebrationMessage(
+    venue: VenueContext,
     order: OrderDetail,
     kind: PurchaseCelebrationKind,
 ): String =
     when {
         kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED -> "Tu pago fue autorizado y tu pedido ya está en marcha."
+        order.summary.payAtEnd && SpaceCopy.isRoomOrder(venue, order) ->
+            "Se carga a tu ${venue.vocabulary.room}: la pagas al salir."
         order.summary.payAtEnd -> "Va a tu cuenta: la pagas al final."
         order.summary.destination == OrderDestination.HOME_DELIVERY ->
             if (order.homeDelivery?.hasAmountDue == true) {
@@ -372,7 +387,19 @@ private const val STALE_MENU_NOTICE =
 val OrderFlowUiState.canPayAtEnd: Boolean
     get() =
         checkoutDestination == OrderDestination.IN_SPACE &&
-            (operationalStatus?.allowsPayAtEnd ?: guestVenue?.establishment?.allowsPayAtEnd) == true
+            if (isHotelRoomOrder) {
+                // En un hotel «pagar al final» es el cargo a la habitación y lo enciende el hotel, no la mesa.
+                (hotelConfig ?: HotelConfig()).chargeToRoom
+            } else {
+                (operationalStatus?.allowsPayAtEnd ?: guestVenue?.establishment?.allowsPayAtEnd) == true
+            }
+
+/** ¿El pedido va a la habitación de un hotel? Ahí el pago y los textos cambian. */
+val OrderFlowUiState.isHotelRoomOrder: Boolean
+    get() =
+        venue.capabilities.tablesAreRooms &&
+            checkoutDestination == OrderDestination.IN_SPACE &&
+            SpaceCopy.isRoom(venue, checkoutSpace)
 
 /** Cómo entrega el negocio en mesa o lugar; el invitado sin sesión lo lee de la ficha pública. */
 val OrderFlowUiState.spaceDelivery: SpaceDelivery
@@ -392,7 +419,7 @@ val OrderFlowUiState.payAtEndForNextRound: Boolean
 
 /** ¿Se ofrece pagar con tarjeta? Solo si el dueño la activó en su panel. */
 val OrderFlowUiState.canPayWithCard: Boolean
-    get() = operationalStatus?.acceptsCard == true
+    get() = operationalStatus?.acceptsCard == true && (!isHotelRoomOrder || hotelConfig?.cardAtOrderEnabled == true)
 
 /** ¿Se ofrece pagar con saldo? No si el dueño lo apagó; sin estado operativo todavía, sí (el servidor valida). */
 val OrderFlowUiState.canPayWithBalance: Boolean

@@ -1188,7 +1188,7 @@ internal fun cashierPlaceLabel(
         order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
         else ->
             SpaceCopy.staffDestination(
-                venue,
+               venue,
                 order.summary.destination,
                 order.summary.space,
                 order.summary.pickUpAtBar,

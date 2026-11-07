@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.ui.components.CremeHero
 import com.vaiinilla.app.ui.hotel.hotelViewModel
@@ -55,6 +55,7 @@ fun HotelWelcomeScreen(
         venueName = venue?.establishment?.name.orEmpty(),
         photoUrl = venue?.establishment?.photoUrl,
         stay = state.stay,
+        config = state.config,
         onOrder = onOrder,
         onRequests = onRequests,
         onAccount = onAccount,
@@ -71,6 +72,7 @@ fun HotelWelcomeContent(
     onRequests: () -> Unit,
     onAccount: () -> Unit,
     modifier: Modifier = Modifier,
+    config: HotelConfig = HotelConfig(),
 ) {
     val colors = LocalVaiinillaColors.current
     val venue = LocalVenueContext.current
@@ -102,7 +104,13 @@ fun HotelWelcomeContent(
                     stay?.floor?.let { "Piso $it" },
                 ).joinToString(" · ")
             if (details.isNotEmpty()) {
-                Text(details, color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    details,
+                    color = colors.muted,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
         Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -113,13 +121,58 @@ fun HotelWelcomeContent(
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HotelActionTile("Room service", "Desayuno, cena y bebidas", Icons.Outlined.Restaurant, onOrder, Modifier.weight(1f), "hotel_tile_room_service")
-                HotelActionTile("Limpieza", "Toallas, amenidades", Icons.Outlined.CleaningServices, onRequests, Modifier.weight(1f), "hotel_tile_cleaning")
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HotelActionTile("Salida tardía", "Pide más tiempo", Icons.Outlined.AccessTime, onRequests, Modifier.weight(1f), "hotel_tile_late")
-                HotelActionTile("Mi cuenta", "Cargos a la habitación", Icons.Outlined.Receipt, onAccount, Modifier.weight(1f), "hotel_tile_account")
+            val tiles =
+                buildList<@Composable (Modifier) -> Unit> {
+                    add {
+                        HotelActionTile(
+                            "Room service",
+                            "Desayuno, cena y bebidas",
+                            Icons.Outlined.Restaurant,
+                            onOrder,
+                            it,
+                            "hotel_tile_room_service",
+                        )
+                    }
+                    if (config.requestsEnabled) {
+                        add {
+                            HotelActionTile(
+                                "Limpieza",
+                                "Toallas, amenidades",
+                                Icons.Outlined.CleaningServices,
+                                onRequests,
+                                it,
+                                "hotel_tile_cleaning",
+                            )
+                        }
+                        if (config.lateCheckoutTime != null) {
+                            add {
+                                HotelActionTile(
+                                    "Salida tardía",
+                                    "Pide más tiempo",
+                                    Icons.Outlined.AccessTime,
+                                    onRequests,
+                                    it,
+                                    "hotel_tile_late",
+                                )
+                            }
+                        }
+                    }
+                    add {
+                        HotelActionTile(
+                            "Mi cuenta",
+                            "Cargos a la habitación",
+                            Icons.Outlined.Receipt,
+                            onAccount,
+                            it,
+                            "hotel_tile_account",
+                        )
+                    }
+                }
+            tiles.chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    pair.forEach { tile -> tile(Modifier.weight(1f)) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
         Spacer(Modifier.weight(1f))
@@ -142,7 +195,14 @@ private fun HotelVenuePill(name: String) {
                 .background(Color.Black.copy(alpha = 0.42f))
                 .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Text(name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            name,
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

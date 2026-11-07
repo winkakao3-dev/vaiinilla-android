@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -72,6 +73,7 @@ fun PurchaseSuccessScreen(
         if (!reduceMotion) entry.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 320f))
     }
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
+    val venueContext = LocalVenueContext.current
     val facts = remember(order) { journeyFacts(order, orderJourney(order, venue)) }
     Column(
         modifier =
@@ -125,7 +127,7 @@ fun PurchaseSuccessScreen(
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            text = celebrationMessage(order, kind),
+            text = celebrationMessage(venueContext, order, kind),
             color = colors.ink2,
             fontSize = 15.sp,
             lineHeight = 21.sp,

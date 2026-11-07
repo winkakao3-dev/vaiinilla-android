@@ -52,6 +52,10 @@ data class VenueCapabilities(
     val flagsRentalWordsInMenu: Boolean,
     /** Las mesas del servidor son habitaciones (salvo las que el servidor dijo que son del restaurante). */
     val tablesAreRooms: Boolean,
+    /** «Llamar al mesero» es llamar a recepción. */
+    val waiterIsReception: Boolean,
+    /** La barra del carrito dice «Ver pedido» y no «Pedir ya»: el pedido se carga a la habitación. */
+    val cartBarViewsOrder: Boolean,
 )
 
 /**
@@ -102,6 +106,8 @@ data class VenueContext(
             rentsByTheMoment = isBowling,
             flagsRentalWordsInMenu = !isBowling,
             tablesAreRooms = isHotel,
+            waiterIsReception = isHotel,
+            cartBarViewsOrder = isHotel,
         )
 
     /** Aviso de los últimos minutos de una renta. */
