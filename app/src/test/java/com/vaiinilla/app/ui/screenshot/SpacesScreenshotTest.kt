@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -174,7 +175,7 @@ class SpacesScreenshotTest {
                 detail = detail,
                 loading = false,
                 lastCollection = lastCollection,
-                tick = mutableIntStateOf(0),
+                tick = remember { mutableIntStateOf(0) },
                 acting = false,
                 readOnly = false,
                 colors = colors,
