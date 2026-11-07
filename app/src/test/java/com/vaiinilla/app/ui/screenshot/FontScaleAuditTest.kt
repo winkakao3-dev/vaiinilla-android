@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CashierOperationalScreen
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
@@ -59,7 +60,7 @@ class FontScaleAuditTest : VisualAuditBase() {
             role = OperationalRole.CASHIER,
             orders = BreakUiFixtures.orders(data, muchos = 20),
             cashSessionOpen = true,
-            lastRefreshOk = true,
+            queue = QueueSync.Live,
             catalog = BreakUiFixtures.catalog(data),
         )
 
@@ -67,7 +68,7 @@ class FontScaleAuditTest : VisualAuditBase() {
         OperationalUiState(
             role = OperationalRole.KITCHEN,
             orders = BreakUiFixtures.orders(data, muchos = 20),
-            lastRefreshOk = true,
+            queue = QueueSync.Live,
         )
 
     private fun cart(data: BreakUiData): @Composable () -> Unit {
@@ -108,7 +109,7 @@ class FontScaleAuditTest : VisualAuditBase() {
                 state = state,
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 onChangeMode = {},
             )
         }

@@ -21,6 +21,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
@@ -196,10 +197,10 @@ class HotelStaffDoopScreenshotTest {
             )
         capture("doop_hotel_s01_cocina.png") {
             KitchenOperationalScreen(
-                state = OperationalUiState(orders = orders, lastRefreshOk = true),
+                state = OperationalUiState(orders = orders, queue = QueueSync.Live),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 placeName = "Hotel Casa Vainilla",
             )
         }
