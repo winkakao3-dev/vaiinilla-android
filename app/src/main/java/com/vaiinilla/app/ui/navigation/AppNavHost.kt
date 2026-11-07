@@ -789,7 +789,7 @@ private fun AppNavHostContent(
 
     // Cambiar a cliente desmontaría la pantalla de un cobro o cierre que el servidor ya está moviendo.
     fun linkBlockedByStaffAction(): Boolean {
-        val acting = operationalState.acting || cashierState.acting
+        val acting = operationalState.acting || cashierState.acting || kitchenState.acting
         if (authorizedAccessState.activeContext == null || !acting) return false
         Toast
             .makeText(appContext, "Termina lo que estás cobrando y vuelve a abrir el enlace.", Toast.LENGTH_LONG)

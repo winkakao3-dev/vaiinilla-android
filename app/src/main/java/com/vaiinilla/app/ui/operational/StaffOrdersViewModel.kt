@@ -176,6 +176,8 @@ abstract class StaffOrdersViewModel(
 
     /** Sale del rol sin olvidar nada del turno (cambio de modo): lo último se recuerda para volver pronto. */
     fun release() {
+        // Soltar un rol que nadie tiene no toca nada: la franja de pedidos ilegibles es global.
+        if (state.value.role == null) return
         snapshotStaffState()
         roleGeneration += 1
         pollingJob?.cancel()
