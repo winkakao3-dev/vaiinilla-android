@@ -1413,7 +1413,11 @@ internal fun CallWaiterButton(
             when (current) {
                 CallWaiterView.UNAVAILABLE -> {
                     Text(
-                        "Llamar al mesero todavía no está disponible en esta cafetería.",
+                        if (Venue.isHotel) {
+                            "Llamar a recepción todavía no está disponible en este hotel."
+                        } else {
+                            "Llamar al mesero todavía no está disponible en esta cafetería."
+                        },
                         color = textColor.copy(alpha = 0.55f),
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
@@ -1484,7 +1488,13 @@ internal fun CallWaiterButton(
                         Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
                         Text(
-                            if (waiting) "Puedes volver a llamar en $cooldown s" else "Llamar al mesero",
+                            if (waiting) {
+                                "Puedes volver a llamar en $cooldown s"
+                            } else if (Venue.isHotel) {
+                                "Llamar a recepción"
+                            } else {
+                                "Llamar al mesero"
+                            },
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                         )
@@ -1530,7 +1540,12 @@ private fun CallLiveRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (going) "Tu mesero va en camino" else "Llamando a tu mesero…",
+                when {
+                    Venue.isHotel && going -> "Ya vienen a tu habitación"
+                    Venue.isHotel -> "Llamando a recepción…"
+                    going -> "Tu mesero va en camino"
+                    else -> "Llamando a tu mesero…"
+                },
                 color = textColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Black,
@@ -1617,19 +1632,30 @@ private fun InlinePickupQr(order: OrderDetail) {
 /** «Pagado, Recibido, Preparando, En tu mesa» (Doop L10): el último paso dice dónde termina. */
 private fun foodProgressSteps(order: OrderDetail): List<String> {
     val summary = order.summary
-    val first = if (summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd) "Por pagar" else "Pagado"
+    val toRoom = SpaceCopy.isRoomOrder(order)
+    val first =
+        when {
+            toRoom && summary.payAtEnd -> "Cargado"
+            summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd -> "Por pagar"
+            else -> "Pagado"
+        }
+    val last = foodLastStep(summary, toRoom)
     // Mesa o cancha: «Listo» y «En tu mesa» son pasos distintos; el último se marca hasta que el mesero lo entrega.
-    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", foodLastStep(summary))
-    return listOf(first, "Recibido", "Preparando", foodLastStep(summary))
+    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", last)
+    return listOf(first, "Recibido", "Preparando", last)
 }
 
 /** Mesa o cancha sin «Pasa por él»: lo lleva el mesero. */
 private fun servedAtPlace(order: OrderDetail): Boolean =
     !order.summary.pickUpAtBar && order.summary.space?.type in setOf("mesa", "cancha")
 
-private fun foodLastStep(summary: OrderSummary): String =
+private fun foodLastStep(
+    summary: OrderSummary,
+    toRoom: Boolean = false,
+): String =
     when {
         summary.pickUpAtBar -> "En la barra"
+        toRoom -> "En tu ${Venue.room}"
         summary.space?.type == "mesa" -> "En tu mesa"
         summary.space?.type == "cancha" -> "En tu ${Venue.court}"
         else -> "Listo"

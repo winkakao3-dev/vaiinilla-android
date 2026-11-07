@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.Stay
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,8 @@ import javax.inject.Inject
 data class HotelStayUiState(
     val loading: Boolean = true,
     val stay: Stay? = null,
+    /** Lo que el hotel ofrece; sin respuesta del servidor se usan los valores de siempre (sin salida tardía). */
+    val config: HotelConfig = HotelConfig(),
     val error: String? = null,
     val linking: Boolean = false,
     val linkError: String? = null,
@@ -34,9 +37,19 @@ class HotelStayViewModel
             _state.value = _state.value.copy(loading = true, error = null)
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.myStay() }
+                val config =
+                    result.getOrNull()?.settings
+                        ?: withContext(Dispatchers.IO) { repository.config() }.getOrNull()
                 _state.value =
                     result.fold(
-                        onSuccess = { _state.value.copy(loading = false, stay = it) },
+                        onSuccess = {
+                            _state.value.copy(
+                                loading = false,
+                                stay = it,
+                                config =
+                                    config ?: _state.value.config,
+                            )
+                        },
                         onFailure = {
                             _state.value.copy(
                                 loading = false,

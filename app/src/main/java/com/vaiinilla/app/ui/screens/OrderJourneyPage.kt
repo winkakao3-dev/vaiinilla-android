@@ -99,6 +99,8 @@ import com.vaiinilla.app.core.qr.QrCodeEncoder
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.amountDueOnAcceptance
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
@@ -114,6 +116,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.guest.HotelTrackingContent
 import com.vaiinilla.app.ui.order.CaptionTone
 import com.vaiinilla.app.ui.order.FactTone
 import com.vaiinilla.app.ui.order.JourneyFact
@@ -219,6 +222,16 @@ internal fun OrderJourneyPage(
         } else {
             null
         }
+    // Un pedido a una habitación de hotel se sigue como el marco H04 de Doop.
+    if (SpaceCopy.isRoomOrder(order)) {
+        HotelTrackingContent(
+            order = order,
+            onCallReception = waiter?.let { call -> { call.tap() } },
+            modifier = modifier,
+        )
+        waiter?.let { WaiterCallHost(state = it, place = order.summary.space?.name) }
+        return
+    }
     val arrival = onAnnounceArrival.takeIf { order.canAnnounceArrival(venue.driveThru) }
     val context = LocalContext.current
     var helpOpen by rememberSaveable(key) { mutableStateOf(false) }

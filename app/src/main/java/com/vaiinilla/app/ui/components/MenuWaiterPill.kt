@@ -76,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -303,7 +304,7 @@ private fun CartWaiterBar(
                     haptics.click()
                     cart.onOpen()
                 }.semantics(mergeDescendants = false) {
-                    contentDescription = "Pedir ya: $products, ${cart.total}"
+                    contentDescription = "${if (Venue.isHotel) "Ver pedido" else "Pedir ya"}: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
                 .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -312,7 +313,7 @@ private fun CartWaiterBar(
             AssistantDot(onOpenAssistant)
             Spacer(Modifier.width(12.dp))
         }
-        Text("Pedir ya · ", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(if (Venue.isHotel) "Ver pedido · " else "Pedir ya · ", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
         NumberTicker(value = cart.count, label = "cart-bar-count") { value ->
             Text("$value", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }

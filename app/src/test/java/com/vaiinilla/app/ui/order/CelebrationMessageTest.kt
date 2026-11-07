@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.Venue
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -24,6 +25,25 @@ class CelebrationMessageTest {
             "Tu pago fue autorizado y tu pedido ya está en marcha.",
             celebrationMessage(order(payAtEnd = false), PurchaseCelebrationKind.PAYMENT_CONFIRMED),
         )
+    }
+
+    @Test
+    fun `en un hotel una mesa del restaurante no se carga a la habitacion`() {
+        Venue.update(Venue.HOTEL)
+        try {
+            assertEquals(
+                "Se carga a tu habitación: la pagas al salir.",
+                celebrationMessage(order(payAtEnd = true), PurchaseCelebrationKind.ORDER_RECEIVED),
+            )
+            Venue.markSpace(4, false)
+            assertEquals(
+                "Va a tu cuenta: la pagas al final.",
+                celebrationMessage(order(payAtEnd = true), PurchaseCelebrationKind.ORDER_RECEIVED),
+            )
+        } finally {
+            Venue.markSpace(4, null)
+            Venue.update(null)
+        }
     }
 
     private fun order(payAtEnd: Boolean) =

@@ -18,6 +18,8 @@ import com.vaiinilla.app.data.operational.StaffPresenceCoordinator
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.discovery.DiscoveryFailures
+import com.vaiinilla.app.domain.hotel.HotelErrors
+import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -46,6 +48,7 @@ import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import com.vaiinilla.app.ui.hotel.guest.hotelErrorMessage
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
@@ -97,6 +100,7 @@ class OrderFlowViewModel
         private val orderRepository: OrderRepository,
         private val lastOrderedPlaces: LastOrderedPlaceStore,
         private val sharedTables: SharedTableRepository,
+        private val hotelRepository: HotelRepository,
         /** Solo para leer la regla de cashback (`GET wallets/reglas-cashback`, que el cliente también puede leer). */
         private val cashbackRules: AdminStoreRepository,
     ) : ViewModel() {
@@ -129,6 +133,7 @@ class OrderFlowViewModel
         }
 
         fun enterGuestVenue(venue: GuestVenueContext) {
+            venue.space?.let { Venue.markSpace(it.id, it.isRoom) }
             val storageKey =
                 guestSessionStore.cartStorageKey(
                     venue.establishment.id,
@@ -515,7 +520,48 @@ class OrderFlowViewModel
                 _uiState.value = _uiState.value.copy(operationalStatus = status)
                 refreshCashbackRule(venueId = venue.establishment.id)
             }
+            loadHotelConfig()
             reconcileCartWithCatalog()
+        }
+
+        /** Dentro de un hotel, lo que ofrece al pedir (cargo a la habitación, tarjeta); se conserva lo último si falla. */
+        private fun loadHotelConfig() {
+            if (!Venue.isHotel) {
+                // Lo que ofrecía el hotel anterior no vale en otro negocio.
+                if (_uiState.value.hotelConfig != null) _uiState.value = _uiState.value.copy(hotelConfig = null)
+                return
+            }
+            launchTracked {
+                val config = withContext(Dispatchers.IO) { hotelRepository.config() }.getOrNull() ?: return@launchTracked
+                _uiState.value = _uiState.value.copy(hotelConfig = config)
+            }
+        }
+
+        /**
+         * El servidor no dejó pedir a la habitación porque la cuenta no tiene estancia: se liga con el código que dio
+         * recepción y se reintenta el mismo pedido con la misma llave de idempotencia.
+         */
+        fun linkStayAndRetry(code: String) {
+            if (_uiState.value.linkingStay) return
+            val space = _uiState.value.checkoutSpace
+            _uiState.value = _uiState.value.copy(stayCodeError = null, linkingStay = true)
+            launchTracked {
+                val result = withContext(Dispatchers.IO) { hotelRepository.linkStay(code, space?.id, space?.qrToken) }
+                result.fold(
+                    onSuccess = {
+                        _uiState.value =
+                            _uiState.value.copy(needsStayCode = false, stayCodeError = null, linkingStay = false)
+                        submitOrder()
+                    },
+                    onFailure = {
+                        _uiState.value = _uiState.value.copy(stayCodeError = hotelErrorMessage(it), linkingStay = false)
+                    },
+                )
+            }
+        }
+
+        fun dismissStayCode() {
+            _uiState.value = _uiState.value.copy(needsStayCode = false, stayCodeError = null)
         }
 
         /**
@@ -1368,14 +1414,17 @@ class OrderFlowViewModel
                                 )
                             return@fold
                         }
+                        val needsStay = error.serverCode() == HotelErrors.ROOM_REQUIRES_STAY
                         _uiState.value =
                             _uiState.value.copy(
                                 creatingOrder = false,
+                                needsStayCode = needsStay,
                                 createOrderError =
-                                    if (code == GUEST_CANNOT_USE_BALANCE) {
-                                        "El saldo Vaiinilla es de una cuenta. Paga en caja o con tarjeta."
-                                    } else {
-                                        error.toUserFacingMessage("No se pudo crear el pedido.")
+                                    when {
+                                        needsStay -> hotelErrorMessage(error)
+                                        code == GUEST_CANNOT_USE_BALANCE ->
+                                            "El saldo Vaiinilla es de una cuenta. Paga en caja o con tarjeta."
+                                        else -> error.toUserFacingMessage("No se pudo crear el pedido.")
                                     },
                             )
                         // El servidor no dice cuál producto; el menú vigente sí: se marca para poder quitarlo.

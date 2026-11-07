@@ -121,7 +121,12 @@ internal fun HotelPanel(
 ) {
     val colors = LocalVaiinillaColors.current
     Column(
-        modifier = modifier.fillMaxWidth().clip(HotelTileShape).background(colors.paper2).padding(20.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(HotelTileShape)
+                .background(colors.paper2)
+                .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (title != null) {
@@ -171,7 +176,14 @@ internal fun HotelActionTile(
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black, maxLines = 1)
-            Text(subtitle, color = colors.muted, fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+            Text(
+                subtitle,
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+            )
         }
     }
 }
@@ -204,14 +216,33 @@ internal fun HotelRequestTile(
                 .semantics(mergeDescendants = true) { role = Role.Button },
     ) {
         Box(
-            modifier = Modifier.align(Alignment.TopStart).padding(18.dp).size(56.dp).clip(CircleShape).background(colors.line),
+            modifier =
+                Modifier
+                    .align(
+                        Alignment.TopStart,
+                    ).padding(18.dp)
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(colors.line),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = if (selected) colors.accent else colors.ink, modifier = Modifier.size(28.dp))
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (selected) colors.accent else colors.ink,
+                modifier = Modifier.size(28.dp),
+            )
         }
         if (badge != null) {
             Box(
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(34.dp).clip(CircleShape).background(colors.accent),
+                modifier =
+                    Modifier
+                        .align(
+                            Alignment.TopEnd,
+                        ).padding(12.dp)
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(colors.accent),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(badge, color = colors.accentInk, fontSize = 15.sp, fontWeight = FontWeight.Black)
@@ -221,8 +252,22 @@ internal fun HotelRequestTile(
             modifier = Modifier.align(Alignment.BottomStart).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(title, color = colors.ink, fontSize = 19.sp, lineHeight = 21.sp, fontWeight = FontWeight.Black, maxLines = 2)
-            Text(subtitle, color = colors.muted, fontSize = 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+            Text(
+                title,
+                color = colors.ink,
+                fontSize = 19.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 2,
+            )
+            Text(
+                subtitle,
+                color = colors.muted,
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+            )
         }
     }
 }
@@ -232,7 +277,8 @@ private val MONTHS_ES = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", 
 private fun dateOf(iso: String?): LocalDate? = iso?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
 
 /** «9 de nov» para una fecha ISO (`yyyy-MM-dd` o instante); `null` si no se lee. */
-internal fun shortDate(iso: String?): String? = dateOf(iso)?.let { "${it.dayOfMonth} de ${MONTHS_ES[it.monthValue - 1]}" }
+internal fun shortDate(iso: String?): String? =
+    dateOf(iso)?.let { "${it.dayOfMonth} de ${MONTHS_ES[it.monthValue - 1]}" }
 
 /** «del 6 al 9 de nov», o «del 30 oct al 2 de nov» si cruza de mes; `null` si alguna fecha no se lee. */
 internal fun stayRange(
@@ -260,8 +306,17 @@ internal fun hotelErrorMessage(
     val hotel = generateSequence(error) { it.cause }.filterIsInstance<HotelException>().firstOrNull()
     return when (hotel?.code) {
         HotelErrors.ROOM_REQUIRES_STAY -> "Primero escribe el código de estancia que te dio recepción."
-        "CODIGO_INVALIDO" -> "Ese código no coincide. Revísalo con recepción."
+        HotelErrors.STAY_NOT_FOUND, "CODIGO_INVALIDO" -> "Ese código no coincide o ya venció. Revísalo con recepción."
         "HABITACION_DISTINTA" -> "Ese código es de otra habitación."
+        HotelErrors.ROOM_CHARGE_DISABLED -> "Este hotel no carga pedidos a la habitación. Elige otra forma de pago."
+        HotelErrors.CARD_AT_ORDER_DISABLED -> "Este hotel no cobra con tarjeta al pedir."
+        HotelErrors.OUTSIDE_ORDER_HOURS -> "La cocina no recibe pedidos a esta hora."
+        HotelErrors.REQUESTS_DISABLED -> "Este hotel no recibe solicitudes desde la app."
+        HotelErrors.DND_DISABLED -> "Este hotel no tiene «No molestar» desde la app."
+        HotelErrors.LATE_CHECKOUT_UNAVAILABLE -> "La salida tardía no está disponible."
+        HotelErrors.RATE_LIMITED -> "Demasiados intentos seguidos. Espera un momento y vuelve a escribir tu código."
+        HotelErrors.STAY_GUEST_LIMIT ->
+            "Esta habitación ya tiene ligadas todas las cuentas que permite el hotel. Pídelo en recepción."
         else -> error.toUserFacingMessage(fallback)
     }
 }
