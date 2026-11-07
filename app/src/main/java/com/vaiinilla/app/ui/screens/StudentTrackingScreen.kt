@@ -45,7 +45,6 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,8 +70,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -83,7 +80,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -120,7 +116,6 @@ import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.StudentTab
@@ -1871,75 +1866,6 @@ internal fun itemImageUrls(
 }
 
 @Composable
-private fun OrderItemThumb(
-    imageUrl: String?,
-    size: Dp,
-    corner: Dp,
-    placeholder: ImageVector = Icons.Outlined.Restaurant,
-    tint: Color = OrderTrackingCardText.copy(alpha = 0.55f),
-) {
-    Box(
-        modifier =
-            Modifier
-                .size(size)
-                .clip(RoundedCornerShape(corner))
-                .background(Color.White.copy(alpha = 0.08f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (imageUrl != null) {
-            ProductImage(
-                imageUrl = imageUrl,
-                contentDescription = "",
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Icon(
-                placeholder,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(size * 0.45f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun OrderThumbRow(
-    imageUrls: List<String?>,
-    onAccent: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val shown = imageUrls.take(3)
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        shown.forEach { url ->
-            OrderItemThumb(imageUrl = url, size = 34.dp, corner = 10.dp)
-        }
-        if (imageUrls.size > shown.size) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White.copy(alpha = if (onAccent) 0.3f else 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "+${imageUrls.size - shown.size}",
-                    color = if (onAccent) colors.accentInk else OrderTrackingCardText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun ShowMorePastOrdersButton(
     hiddenCount: Int,
     expanded: Boolean,
@@ -1993,26 +1919,5 @@ private fun ShowMorePastOrdersButton(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun OrderStatusPill(
-    state: OrderState,
-    onAccent: Boolean = false,
-    label: String = state.label,
-) {
-    Surface(
-        color = Color.White.copy(alpha = if (onAccent) 0.55f else 0.16f),
-        shape = RoundedCornerShape(10.dp),
-    ) {
-        Text(
-            label.uppercase(),
-            color = if (onAccent) LocalVaiinillaColors.current.accentInk else OrderTrackingCardText,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 0.8.sp,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-        )
     }
 }

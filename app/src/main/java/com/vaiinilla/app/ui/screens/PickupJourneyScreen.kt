@@ -191,12 +191,6 @@ private fun eased(
     to: Float,
 ): Float = FastOutSlowInEasing.transform(segment(p, from, to))
 
-private fun lerpF(
-    a: Float,
-    b: Float,
-    t: Float,
-): Float = a + (b - a) * t
-
 /** Dónde del mundo se sigue el pedido: la tienda o tu mesa en el plano. */
 private sealed interface PickupScene {
     fun focus(stage: Size): Offset

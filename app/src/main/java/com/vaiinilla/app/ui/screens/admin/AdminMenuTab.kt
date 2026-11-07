@@ -48,7 +48,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1716,16 +1715,6 @@ private fun AdminFieldLabel(
 ) {
     Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
 }
-
-@Composable
-private fun adminSwitchColors(colors: OperationalColors) =
-    SwitchDefaults.colors(
-        checkedThumbColor = colors.accentInk,
-        checkedTrackColor = colors.accentLime,
-        uncheckedThumbColor = colors.textSecondary,
-        uncheckedTrackColor = colors.cardInner,
-        uncheckedBorderColor = colors.cardBorder,
-    )
 
 private val RentalWords =
     Regex("\\b(renta|rentar|cancha|canchas|hora|horas|reserva|p[aá]del)\\b", RegexOption.IGNORE_CASE)
