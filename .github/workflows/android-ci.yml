@@ -52,6 +52,12 @@ jobs:
       - name: Guardias de clases de error
         run: python3 scripts/guardias_clases_error.py
 
+      - name: Guardias ampliadas (contrato app↔backend, controles muertos, cambio de tienda)
+        run: |
+          python3 scripts/contrato_app_backend.py
+          python3 scripts/guardias_controles_muertos.py
+          python3 scripts/guardias_cambio_de_tienda.py
+
       - name: Audit release scope
         run: ./scripts/audit_release_scope.sh
 
