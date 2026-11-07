@@ -9,6 +9,7 @@ enum class VenueKind(
 ) {
     STANDARD(null),
     BOWLING("boliche"),
+    HOTEL("hotel"),
     ;
 
     companion object {
@@ -16,7 +17,10 @@ enum class VenueKind(
     }
 }
 
-/** Cómo se llama lo que se renta: en un boliche las canchas del servidor (`tipo: cancha`) son pistas. */
+/**
+ * Cómo se llama lo que se renta: en un boliche las canchas del servidor (`tipo: cancha`) son pistas y en un hotel
+ * las habitaciones son espacios `mesa` que la app llama «habitación».
+ */
 data class VenueVocabulary(
     val court: String,
     val courts: String,
@@ -29,6 +33,11 @@ data class VenueVocabulary(
 ) {
     val courtTitle: String get() = court.replaceFirstChar(Char::titlecase)
     val courtsTitle: String get() = courts.replaceFirstChar(Char::titlecase)
+
+    val room: String get() = "habitación"
+    val roomTitle: String get() = "Habitación"
+    val rooms: String get() = "habitaciones"
+    val roomsTitle: String get() = "Habitaciones"
 }
 
 /** Lo que el negocio hace distinto según su tipo, para no repetir `if (esBoliche)` en cada pantalla. */
@@ -41,36 +50,48 @@ data class VenueCapabilities(
     val rentsByTheMoment: Boolean,
     /** Una renta de cancha entra como producto con solo llamarlo «renta»: aquí se avisa que se cobra desde Mesas. */
     val flagsRentalWordsInMenu: Boolean,
+    /** Las mesas del servidor son habitaciones (salvo las que el servidor dijo que son del restaurante). */
+    val tablesAreRooms: Boolean,
 )
 
 /**
- * Una sola respuesta a «qué tipo de negocio es y qué cambia por eso». Se inyecta (ver [com.vaiinilla.app.core.venue.VenueContextStore])
- * en lugar de leerse de un estado global.
+ * Una sola respuesta a «qué tipo de negocio es y qué cambia por eso». Se inyecta
+ * (ver [com.vaiinilla.app.core.venue.VenueContextStore]) en lugar de leerse de un estado global.
+ *
+ * [hotelTables] son los espacios que el servidor dijo que NO son habitación en un hotel (`es_habitacion: false`):
+ * las mesas de su restaurante. El pedido no trae ese dato, así que se recuerda por id del espacio.
  */
 data class VenueContext(
     val kind: VenueKind = VenueKind.STANDARD,
+    val hotelTables: Set<Int> = emptySet(),
 ) {
     val isBowling: Boolean get() = kind == VenueKind.BOWLING
+
+    val isHotel: Boolean get() = kind == VenueKind.HOTEL
+
+    fun isHotelTable(id: Int?): Boolean = id != null && id in hotelTables
 
     val vocabulary: VenueVocabulary =
         when (kind) {
             VenueKind.BOWLING ->
                 VenueVocabulary(
-                    "pista",
-                    "pistas",
-                    "Boliche",
-                    "Madera sintética",
-                    null,
-                    "La pista por hora se renta desde Mesas y espacios. Juegos por persona y renta de zapatos sí van aquí como producto.",
+                    court = "pista",
+                    courts = "pistas",
+                    courtExampleSport = "Boliche",
+                    courtExampleSurface = "Madera sintética",
+                    courtTypeChip = null,
+                    menuRentalAdvice =
+                        "La pista por hora se renta desde Mesas y espacios. " +
+                            "Juegos por persona y renta de zapatos sí van aquí como producto.",
                 )
-            VenueKind.STANDARD ->
+            VenueKind.STANDARD, VenueKind.HOTEL ->
                 VenueVocabulary(
-                    "cancha",
-                    "canchas",
-                    "Pádel",
-                    "Pasto sintético",
-                    "Cancha o pista",
-                    "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto.",
+                    court = "cancha",
+                    courts = "canchas",
+                    courtExampleSport = "Pádel",
+                    courtExampleSurface = "Pasto sintético",
+                    courtTypeChip = "Cancha o pista",
+                    menuRentalAdvice = "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto.",
                 )
         }
 
@@ -80,6 +101,7 @@ data class VenueContext(
             drawsLanes = isBowling,
             rentsByTheMoment = isBowling,
             flagsRentalWordsInMenu = !isBowling,
+            tablesAreRooms = isHotel,
         )
 
     /** Aviso de los últimos minutos de una renta. */

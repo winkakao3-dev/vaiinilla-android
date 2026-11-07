@@ -64,6 +64,7 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueKind
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
@@ -95,6 +96,13 @@ import com.vaiinilla.app.ui.discovery.GuestDiscoveryViewModel
 import com.vaiinilla.app.ui.discovery.QrScannerAlternative
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.discovery.QrScannerTableCode
+import com.vaiinilla.app.ui.hotel.HotelEntryScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelAccountScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelRequestsScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelStayCodeScreen
+import com.vaiinilla.app.ui.hotel.guest.HotelWelcomeScreen
+import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
+import com.vaiinilla.app.ui.hotel.staff.HotelRoomsScreen
 import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
@@ -727,6 +735,19 @@ private fun AppNavHostContent(
         entrance = StoreEntrance(code = code?.trim()?.takeIf { it.isNotEmpty() })
     }
 
+    // La habitación de un hotel es una mesa del servidor: solo se sabe que es un hotel cuando llega el estado
+    // operativo del lugar, así que el QR abre el catálogo y de ahí se pasa a la bienvenida del hotel (o al código).
+    var hotelEntryDone by rememberSaveable { mutableStateOf(false) }
+    val venueContext = LocalVenueContext.current
+    val roomSpaceId = orderState.guestVenue?.space?.takeIf { SpaceCopy.isRoom(venueContext, it) }?.id
+    val statusIsHotel = orderState.operationalStatus?.businessType == VenueKind.HOTEL.wire
+    LaunchedEffect(roomSpaceId, statusIsHotel, hotelEntryDone) {
+        if (roomSpaceId != null && statusIsHotel && !hotelEntryDone) {
+            hotelEntryDone = true
+            navController.navigate(Routes.HOTEL_ENTRY) { launchSingleTop = true }
+        }
+    }
+
     fun enterVenueAndOpenCatalog(venue: GuestVenueContext) {
         val switchingEstablishment = isEstablishmentSwitch(orderState.guestVenue, venue)
         if (switchingEstablishment) {
@@ -734,6 +755,7 @@ private fun AppNavHostContent(
         }
         orderFlowViewModel.enterGuestVenue(venue)
         orderFlowViewModel.clearMenuFilters()
+        hotelEntryDone = false
         navController.navigate(Routes.CATALOG) {
             // El menú, el carrito y el seguimiento de abajo eran del negocio anterior: Atrás regresaba allá (#10).
             if (switchingEstablishment) {
@@ -1693,6 +1715,35 @@ private fun AppNavHostContent(
                 )
             }
 
+            composable(Routes.HOTEL_ENTRY) {
+                HotelEntryScreen(
+                    onHome = {
+                        navController.navigate(Routes.HOTEL_HOME) { popUpTo(Routes.HOTEL_ENTRY) { inclusive = true } }
+                    },
+                    onCode = {
+                        navController.navigate(Routes.HOTEL_CODE) { popUpTo(Routes.HOTEL_ENTRY) { inclusive = true } }
+                    },
+                )
+            }
+            composable(Routes.HOTEL_HOME) {
+                HotelWelcomeScreen(
+                    onOrder = { navController.navigate(Routes.CATALOG) { launchSingleTop = true } },
+                    onRequests = { navController.navigate(Routes.HOTEL_REQUESTS) },
+                    onAccount = { navController.navigate(Routes.HOTEL_ACCOUNT) },
+                )
+            }
+            composable(Routes.HOTEL_REQUESTS) { HotelRequestsScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.HOTEL_ACCOUNT) { HotelAccountScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.HOTEL_CODE) {
+                HotelStayCodeScreen(
+                    onLinked = {
+                        navController.navigate(Routes.HOTEL_HOME) { popUpTo(Routes.HOTEL_CODE) { inclusive = true } }
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.HOTEL_HOUSEKEEPING) { HotelRoomsScreen(onBack = { navController.popBackStack() }) }
+            composable(Routes.HOTEL_RECEPTION) { HotelReceptionScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.ORDER_ASSISTANT) {
                 val venue = orderState.guestVenue
                 val table = sharedTableViewModel.uiState.value.table

@@ -36,6 +36,7 @@ data class PublicSpaceDto(
     val id: Int,
     val nombre: String,
     val tipo: String,
+    @SerialName("es_habitacion") val esHabitacion: Boolean? = null,
 )
 
 @Serializable
@@ -78,6 +79,7 @@ fun PublicSpaceDto.toDomain() =
         id = id,
         name = nombre,
         type = tipo,
+        isRoom = esHabitacion,
     )
 
 @Serializable
