@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.arrive
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -50,7 +51,7 @@ internal fun StaffShiftSheet(
         StaffShiftContent(
             modeLabel = modeLabel,
             placeName = placeName,
-            today = LocalDate.now(),
+            today = BusinessTime.today(),
             colors = colors,
             modifier = Modifier.navigationBarsPadding(),
         )
