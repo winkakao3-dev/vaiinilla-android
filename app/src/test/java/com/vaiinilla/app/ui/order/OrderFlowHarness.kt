@@ -42,6 +42,15 @@ internal object OrderFlowHarness {
 
     private inline fun <reified T : Any> untouched(): T = untouched(T::class.java)
 
+    /** Cliente con cuenta propia: sin sesión de escuela, que es lo único que el pedido le pregunta. */
+    private fun signedOutStudent(): com.vaiinilla.app.domain.auth.student.StudentAuthRepository =
+        Proxy.newProxyInstance(
+            com.vaiinilla.app.domain.auth.student.StudentAuthRepository::class.java.classLoader,
+            arrayOf(com.vaiinilla.app.domain.auth.student.StudentAuthRepository::class.java),
+        ) { _, method, _ ->
+            if (method.name == "peekSession") null else throw UnsupportedOperationException("StudentAuthRepository.${method.name}")
+        } as com.vaiinilla.app.domain.auth.student.StudentAuthRepository
+
     fun viewModel(
         context: Context,
         catalog: FakeCatalog,
@@ -56,7 +65,7 @@ internal object OrderFlowHarness {
             retryStripePayment = RetryStripePaymentUseCase(orders),
             discoveryRepository = untouched(),
             guestSessionStore = GuestSessionStore(context, InMemoryGuestKeyVault()),
-            studentAuthRepository = untouched(),
+            studentAuthRepository = signedOutStudent(),
             contextoExchange = untouched(),
             sessionStore = com.vaiinilla.app.ui.operational.FakeSessionStore(com.vaiinilla.app.ui.operational.StaffHarness.jwt()),
             staffPresenceCoordinator = untouched<StaffPresenceCoordinator>(),
