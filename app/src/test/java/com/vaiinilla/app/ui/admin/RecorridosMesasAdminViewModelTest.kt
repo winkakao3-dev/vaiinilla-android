@@ -23,7 +23,13 @@ internal class FakeSpaces : AdminSpacesRepository {
 
     private fun <T> no(): Result<T> = Result.failure(IllegalStateException("no"))
 
-    override fun spaces(): Result<List<ManagedSpace>> = Result.success(emptyList())
+    @Volatile var spaceList: List<ManagedSpace> = emptyList()
+    val patches = CopyOnWriteArrayList<Pair<Int, SpacePatch>>()
+    val savedSchedules = CopyOnWriteArrayList<ReservationSchedule>()
+
+    @Volatile var schedule: ReservationSchedule? = null
+
+    override fun spaces(): Result<List<ManagedSpace>> = Result.success(spaceList)
 
     override fun create(
         name: String,
@@ -52,7 +58,10 @@ internal class FakeSpaces : AdminSpacesRepository {
         spaceId: Int,
         patch: SpacePatch,
         idempotencyKey: String,
-    ): Result<ManagedSpace> = no()
+    ): Result<ManagedSpace> {
+        patches += spaceId to patch
+        return spaceList.firstOrNull { it.id == spaceId }?.let { Result.success(it) } ?: no()
+    }
 
     override fun delete(
         spaceId: Int,
@@ -72,12 +81,15 @@ internal class FakeSpaces : AdminSpacesRepository {
         idempotencyKey: String,
     ): Result<ManagedSpace> = no()
 
-    override fun reservationSchedule(): Result<ReservationSchedule> = no()
+    override fun reservationSchedule(): Result<ReservationSchedule> = schedule?.let { Result.success(it) } ?: no()
 
     override fun saveReservationSchedule(
         schedule: ReservationSchedule,
         idempotencyKey: String,
-    ): Result<ReservationSchedule> = no()
+    ): Result<ReservationSchedule> {
+        savedSchedules += schedule
+        return Result.success(schedule)
+    }
 
     override fun closeWithoutCharging(
         spaceId: Int,
