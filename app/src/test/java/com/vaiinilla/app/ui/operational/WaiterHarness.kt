@@ -183,6 +183,7 @@ internal object WaiterHarness {
         orders: FakeOrders = FakeOrders(),
         catalog: FakeCatalog = FakeCatalog(),
         internet: Boolean = true,
+        reservations: ReservationRepository = FakeReservations(),
     ): WaiterViewModel {
         val queue =
             com.vaiinilla.app.ui.operational.OfflineStaffOrderQueue(
@@ -203,7 +204,7 @@ internal object WaiterHarness {
                 as OfflineStaffOrderRescuer
         return WaiterViewModel(
             waiterRepository = waiter,
-            reservationRepository = FakeReservations(),
+            reservationRepository = reservations,
             catalogRepository = catalog,
             buildCreateOrderRequest = BuildCreateOrderRequestUseCase(),
             createOrder = CreateRemoteOrderUseCase(orders),
