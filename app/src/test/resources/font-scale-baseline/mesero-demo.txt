@@ -1,0 +1,4 @@
+mesero-demo a 200 %: «Escanear QR» se corta
+mesero-demo a 200 %: «MS» se corta
+mesero-demo a 200 %: «MS» se parte a media palabra: «M/»
+mesero-demo a 200 %: «Pide cubiertos o servilletas» sale con elipsis
