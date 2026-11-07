@@ -32,9 +32,16 @@ class RecorridosCajaViewModelTest {
 
     private val ui get() = vm.uiState.value
 
+    /** El arranque deja cosas en vuelo (caja, catálogo) que escriben el mismo estado: se espera a que acaben. */
+    private fun settle() {
+        StaffHarness.awaitUntil("el arranque de Caja") { ui.cashSessionOpen != null && ui.catalog != null }
+        Thread.sleep(100)
+    }
+
     @Test
     fun n05_abrirCajaMandaElFondoConDosDecimales() {
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja se lee cerrada") { ui.cashSessionOpen == false }
         vm.openCashRegister("500")
         StaffHarness.awaitUntil("la caja abierta") { ui.cashSessionOpen == true }
@@ -44,6 +51,7 @@ class RecorridosCajaViewModelTest {
     @Test
     fun n05_unFondoQueNoSeEntiendeNoLlegaAlServidor() {
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja se lee cerrada") { ui.cashSessionOpen == false }
         vm.openCashRegister("abc")
         StaffHarness.awaitUntil("el error") { ui.errorMessage != null }
@@ -54,6 +62,7 @@ class RecorridosCajaViewModelTest {
     @Test
     fun n05_siSePierdeLaRespuestaPeroLaCajaAbrioNoHayError() {
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja se lee cerrada") { ui.cashSessionOpen == false }
         cash.openFails = java.io.IOException("sin red")
         cash.openLandsDespiteError = true
@@ -66,6 +75,7 @@ class RecorridosCajaViewModelTest {
     @Test
     fun n05_elReintentoUsaLaMismaLlave() {
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja se lee cerrada") { ui.cashSessionOpen == false }
         cash.openFails = java.io.IOException("sin red")
         vm.openCashRegister("500")
@@ -79,6 +89,7 @@ class RecorridosCajaViewModelTest {
     fun q02_cerrarLaCajaMandaElEfectivoContadoDeLaSesionAbierta() {
         cash.sessionOpen = true
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja abierta") { ui.cashSessionOpen == true }
         vm.requestCloseCash()
         vm.closeCashRegister("1300.00")
@@ -91,6 +102,7 @@ class RecorridosCajaViewModelTest {
     fun g09_conCuentasPorCobrarElCierreSeBloqueaYLaCajaSigueAbierta() {
         cash.sessionOpen = true
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja abierta") { ui.cashSessionOpen == true }
         cash.closeFails = OrderRepositoryException("CASH_SESSION_HAS_OPEN_ACCOUNTS", "Hay cuentas por cobrar.")
         vm.requestCloseCash()
@@ -104,6 +116,7 @@ class RecorridosCajaViewModelTest {
         wallet.clients = listOf(com.vaiinilla.app.domain.model.WalletClient("u2", "María López", null))
         cash.sessionOpen = true
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja abierta") { ui.cashSessionOpen == true }
         vm.searchWalletClients("mar")
         StaffHarness.awaitUntil("el cliente buscado") { ui.walletClients.map { it.userId } == listOf("u2") }
@@ -119,6 +132,7 @@ class RecorridosCajaViewModelTest {
     @Test
     fun f04_sinCajaAbiertaLaRecargaNoSale() {
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja se lee cerrada") { ui.cashSessionOpen == false }
         vm.reloadWallet("u2", "100")
         Thread.sleep(150)
@@ -128,6 +142,7 @@ class RecorridosCajaViewModelTest {
     @Test
     fun f04_unaBusquedaDeUnaLetraPideDosYNoBusca() {
         vm.start()
+        settle()
         vm.searchWalletClients("m")
         StaffHarness.awaitUntil("el aviso") { ui.errorMessage == "Escribe al menos 2 caracteres para buscar un cliente." }
         assertTrue(ui.walletClients.isEmpty())
@@ -137,6 +152,7 @@ class RecorridosCajaViewModelTest {
     fun f15_conEfectivoSinSincronizarNoSeCierraLaCaja() {
         cash.sessionOpen = true
         vm.start()
+        settle()
         StaffHarness.awaitUntil("la caja abierta") { ui.cashSessionOpen == true }
         vm.setUnsyncedOfflineCash(2)
         vm.requestCloseCash()

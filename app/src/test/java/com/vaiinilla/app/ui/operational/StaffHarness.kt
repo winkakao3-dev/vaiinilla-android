@@ -217,12 +217,15 @@ internal class FakeDevice : DeviceIdentity {
 internal class FakeCatalog : CatalogRepository {
     @Volatile var products: List<Product> = emptyList()
 
+    @Volatile var status: OperationalStatus? = null
+
     @Volatile var availabilityFails: Throwable? = null
     val availabilityCalls = java.util.concurrent.CopyOnWriteArrayList<Pair<Int, Boolean>>()
 
     override fun getCatalog(): Result<Catalog> = Result.success(Catalog(emptyList(), products, null))
 
-    override fun getOperationalStatus(): Result<OperationalStatus> = Result.failure(IllegalStateException("sin estado"))
+    override fun getOperationalStatus(): Result<OperationalStatus> =
+        status?.let { Result.success(it) } ?: Result.failure(IllegalStateException("sin estado"))
 
     override fun createProduct(
         draft: CatalogProductDraft,
