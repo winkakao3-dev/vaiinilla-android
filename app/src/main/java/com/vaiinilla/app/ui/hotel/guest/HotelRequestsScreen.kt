@@ -33,13 +33,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.RequestType
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 /** H05: pedir algo al hotel. Lo elegido se envía junto con «Enviar solicitud · N». */
@@ -47,8 +47,8 @@ import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 fun HotelRequestsScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: HotelRequestsViewModel = viewModel(),
-    stayViewModel: HotelStayViewModel = viewModel(),
+    viewModel: HotelRequestsViewModel = hotelViewModel(),
+    stayViewModel: HotelStayViewModel = hotelViewModel(),
 ) {
     LaunchedEffect(Unit) {
         viewModel.load()

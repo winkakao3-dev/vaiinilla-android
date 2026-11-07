@@ -24,13 +24,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayStatus
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.math.BigDecimal
 
@@ -39,7 +39,7 @@ import java.math.BigDecimal
 fun HotelAccountScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: HotelStayViewModel = viewModel(),
+    viewModel: HotelStayViewModel = hotelViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.load() }
     val state = viewModel.state.value

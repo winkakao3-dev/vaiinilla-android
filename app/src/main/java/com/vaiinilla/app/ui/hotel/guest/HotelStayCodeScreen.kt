@@ -45,8 +45,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 
 internal const val STAY_CODE_LENGTH = 6
@@ -60,7 +60,7 @@ fun HotelStayCodeScreen(
     onLinked: () -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: HotelStayViewModel = viewModel(),
+    viewModel: HotelStayViewModel = hotelViewModel(),
 ) {
     val space =
         activityOrderFlow()
