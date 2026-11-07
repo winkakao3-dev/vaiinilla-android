@@ -2367,15 +2367,6 @@ internal fun KitchenRejectContent(
 
 private const val REJECT_OTHER = "Otro"
 
-/** Etiqueta de una comanda en la fila de cocina, igual al sello de la comanda abierta. */
-internal fun kitchenQueueLabel(order: OrderDetail): String =
-    when (order.summary.state) {
-        OrderState.PENDING_PAYMENT -> if (order.summary.payAtEnd) "En espera" else "Falta pagar"
-        OrderState.PREPARING -> "Preparando"
-        OrderState.READY -> "Lista"
-        else -> "En espera"
-    }
-
 internal val CashShortInk = Color(0xFFB3261E)
 
 /**

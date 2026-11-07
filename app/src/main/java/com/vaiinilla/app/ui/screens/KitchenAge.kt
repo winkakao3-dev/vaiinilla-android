@@ -68,45 +68,6 @@ internal fun kitchenAgeLabel(elapsedMs: Long): String {
     val minutes = elapsedMs.coerceAtLeast(0) / 60_000
     return if (minutes >= 60) "+1 h" else "$minutes min"
 }
-
-// Sobre el papel de la comanda: ámbar 4.9:1 y rojo 5.6:1.
-private val KitchenAgeAmber = Color(0xFF9A5400)
-private val KitchenAgeRed = Color(0xFFB3261E)
-
-/** Tiempo en cocina de la comanda; se actualiza solo y cambia de color a los 10 y a los 20 minutos. */
-@Composable
-internal fun KitchenAgeText(
-    createdAt: String,
-    ink: Color,
-    muted: Color,
-    modifier: Modifier = Modifier,
-) {
-    val elapsed by produceState(elapsedSinceMs(createdAt), createdAt) {
-        while (true) {
-            delay(15_000)
-            value = elapsedSinceMs(createdAt)
-        }
-    }
-    val color =
-        animateSelectionColor(
-            when (elapsed?.let(::kitchenAge)) {
-                KitchenAge.LATE -> KitchenAgeRed
-                KitchenAge.WAITING -> KitchenAgeAmber
-                else -> ink
-            },
-            "kitchen-age",
-        )
-    Row(verticalAlignment = Alignment.Bottom, modifier = modifier) {
-        Text(
-            elapsed?.let(::kitchenAgeLabel) ?: "--",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Black,
-            color = color,
-        )
-        Text("  en cocina", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = muted)
-    }
-}
-
 /** El chip de K01: el tiempo en un fondo verde, ámbar o rojo, para leerlo desde la estufa. */
 @Composable
 internal fun KitchenAgeChip(

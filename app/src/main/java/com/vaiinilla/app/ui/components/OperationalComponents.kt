@@ -129,32 +129,3 @@ fun OrderSummaryCard(
         }
     }
 }
-
-@Composable
-fun OperationalEmptyState(
-    title: String,
-    message: String,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            color = colors.ink,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
-            message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.muted,
-        )
-    }
-}
