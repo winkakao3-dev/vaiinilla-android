@@ -1,7 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
 import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
 import com.vaiinilla.app.domain.model.TipChoice
 
 /**
@@ -28,8 +27,9 @@ internal val TipChoiceSaver: Saver<TipChoice, Any> =
         },
     )
 
+/** Un `listSaver` devuelve null con la lista vacía y entonces se restauraba "todo marcado": aquí vacía se guarda igual. */
 internal val StringSetSaver: Saver<Set<String>, Any> =
-    listSaver(
-        save = { it.toList() },
-        restore = { it.toSet() },
+    Saver(
+        save = { ArrayList(it) },
+        restore = { saved -> (saved as? List<*>).orEmpty().filterIsInstance<String>().toSet() },
     )
