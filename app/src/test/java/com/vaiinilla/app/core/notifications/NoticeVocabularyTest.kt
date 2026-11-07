@@ -48,13 +48,13 @@ class NoticeVocabularyTest {
     @Test
     fun `el aviso de listo para el mesero nombra a quien corresponde`() {
         Venue.update("cafeteria", true)
-        assertEquals("Entregar al espacio del alumno.", OrderAdvanceNotifier.readyForWaiterText())
+        assertEquals("Llévaselo al alumno a su lugar.", OrderAdvanceNotifier.readyForWaiterText())
         Venue.update("restaurante", false)
-        assertEquals("Entregar al espacio del cliente.", OrderAdvanceNotifier.readyForWaiterText())
+        assertEquals("Llévaselo al cliente a su lugar.", OrderAdvanceNotifier.readyForWaiterText())
         Venue.update("boliche", false)
-        assertEquals("Entregar al espacio del cliente.", OrderAdvanceNotifier.readyForWaiterText())
+        assertEquals("Llévaselo al cliente a su lugar.", OrderAdvanceNotifier.readyForWaiterText())
         Venue.update("hotel", false)
-        assertEquals("Entregar a la habitación del huésped.", OrderAdvanceNotifier.readyForWaiterText())
+        assertEquals("Llévaselo al huésped a su habitación.", OrderAdvanceNotifier.readyForWaiterText())
     }
 
     @Test
