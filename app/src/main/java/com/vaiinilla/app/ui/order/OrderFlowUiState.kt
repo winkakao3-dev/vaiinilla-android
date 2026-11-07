@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.order
 
-import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.admin.CashbackPreview
 import com.vaiinilla.app.domain.admin.CashbackRule
@@ -24,6 +23,7 @@ import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage

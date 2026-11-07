@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.hotel.guest
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress

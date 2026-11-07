@@ -468,8 +468,11 @@ class RemoteAdminSpacesRepository(
         category: String?,
     ): Result<SpaceBatchResult> =
         apiClient
-            .post("espacios/lote", json.encodeBatch(type.wire, prefix, from, to, capacity, floor, category), key(idempotencyKey))
-            .mapCatching(json::parseBatch)
+            .post(
+                "espacios/lote",
+                json.encodeBatch(type.wire, prefix, from, to, capacity, floor, category),
+                key(idempotencyKey),
+            ).mapCatching(json::parseBatch)
             .mapApiErrors()
 
     override fun update(

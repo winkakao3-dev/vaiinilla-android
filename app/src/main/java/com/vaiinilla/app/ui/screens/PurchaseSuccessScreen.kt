@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -43,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion

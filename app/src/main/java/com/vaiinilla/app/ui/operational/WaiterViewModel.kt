@@ -949,7 +949,10 @@ class WaiterViewModel
         fun cancelPendingRental(players: Int? = null) {
             val reservation = _uiState.value.pendingRental ?: return
             val kept = _uiState.value.rentalDraft?.takeIf { it.spaceId == reservation.courtId }
-            val typedPlayers = _uiState.value.pendingRentalPlayers?.takeIf { it.rentalId == reservation.id }?.players
+            val typedPlayers =
+                _uiState.value.pendingRentalPlayers
+                    ?.takeIf { it.rentalId == reservation.id }
+                    ?.players
             val maxPlayers = _uiState.value.rentalMaxPlayers
             val draft =
                 (kept ?: RentalDraft(reservation.courtId))

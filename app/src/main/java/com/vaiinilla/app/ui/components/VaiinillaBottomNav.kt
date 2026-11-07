@@ -119,6 +119,7 @@ private val NavDockElevation = 5.dp
 private val NavIconSize = 24.dp
 private val NavLabelSize = 8.sp
 private val NavIconLabelGap = 4.dp
+
 /**
  * Flutter: damping / (2 * sqrt(stiffness * mass)) = 28 / (2 * sqrt(450)) ≈ 0.66
  */

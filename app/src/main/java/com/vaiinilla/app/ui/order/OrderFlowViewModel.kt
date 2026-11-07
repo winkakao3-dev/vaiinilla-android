@@ -49,7 +49,6 @@ import com.vaiinilla.app.domain.repository.AdminStoreRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
-import com.vaiinilla.app.ui.hotel.guest.hotelErrorMessage
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import com.vaiinilla.app.domain.repository.SharedTableRepository
 import com.vaiinilla.app.domain.usecase.BuildCreateOrderRequestUseCase
@@ -63,6 +62,7 @@ import com.vaiinilla.app.domain.usecase.generalKitchenNotes
 import com.vaiinilla.app.domain.usecase.kitchenLineNotesSummary
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
 import com.vaiinilla.app.ui.assistant.AssistantLocalReplies
+import com.vaiinilla.app.ui.hotel.guest.hotelErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -541,7 +541,8 @@ class OrderFlowViewModel
                 return
             }
             launchTracked {
-                val config = withContext(Dispatchers.IO) { hotelRepository.config() }.getOrNull() ?: return@launchTracked
+                val config =
+                    withContext(Dispatchers.IO) { hotelRepository.config() }.getOrNull() ?: return@launchTracked
                 _uiState.value = _uiState.value.copy(hotelConfig = config)
             }
         }

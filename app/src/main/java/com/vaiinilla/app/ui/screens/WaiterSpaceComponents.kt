@@ -130,6 +130,7 @@ private val BillDenominations = listOf(20, 50, 100, 200, 500, 1_000)
 
 private val StateCoral = Color(0xFFE5645A)
 private val StateAmber = Color(0xFFE9A23B)
+
 /** "42 min", "1 h 05 min" o "0:45": lo que queda de un turno, dicho corto. */
 internal fun remainingText(ms: Long): String {
     if (ms <= 0) return "0:00"

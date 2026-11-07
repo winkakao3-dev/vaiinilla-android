@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -65,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.AdminCount
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminPeriod
@@ -77,12 +77,12 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.hotel.admin.HotelAdminSummaryViewModel
-import com.vaiinilla.app.ui.hotel.admin.hotelSummaryItems
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.admin.HotelAdminSummaryViewModel
+import com.vaiinilla.app.ui.hotel.admin.hotelSummaryItems
 import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
@@ -386,7 +386,13 @@ private fun DeclineStepButton(
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("No quiero", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, maxLines = 1)
+            Text(
+                "No quiero",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textSecondary,
+                maxLines = 1,
+            )
         }
     }
 }

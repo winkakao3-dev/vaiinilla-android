@@ -170,7 +170,13 @@ fun AuthorizedModeScreen(
     var expanded by rememberSaveable { mutableStateOf(false) }
     val searchable = businesses.size > COLLAPSED_BUSINESSES
     val matches =
-        if (query.isBlank()) businesses else businesses.filter { it.name.normalizeForSearch().contains(query.normalizeForSearch()) }
+        if (query.isBlank()) {
+            businesses
+        } else {
+            businesses.filter {
+                it.name.normalizeForSearch().contains(query.normalizeForSearch())
+            }
+        }
     val showAll = expanded || query.isNotBlank()
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {

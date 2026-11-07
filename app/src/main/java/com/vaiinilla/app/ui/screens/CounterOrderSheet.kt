@@ -89,6 +89,7 @@ import kotlinx.coroutines.launch
 
 internal const val CUSTOMER_NAME_MAX = 120
 internal const val COUNTER_LINE_QUANTITY_MAX = 20
+
 /** Opciones que trae cada grupo al abrir el producto: las mínimas obligatorias, como en el carrito del cliente. */
 internal fun opcionesIniciales(producto: Product): Set<Int> =
     producto.optionGroups.flatMapTo(linkedSetOf()) { grupo ->

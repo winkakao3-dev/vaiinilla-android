@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.screens.admin
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -83,6 +82,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.vaiinilla.app.core.location.HomeAddressLocator
 import com.vaiinilla.app.core.location.MapsLink
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
@@ -93,13 +93,13 @@ import com.vaiinilla.app.domain.admin.stripeStep
 import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
-import com.vaiinilla.app.ui.hotel.admin.HotelSettingsAdminSection
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.admin.HotelSettingsAdminSection
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField

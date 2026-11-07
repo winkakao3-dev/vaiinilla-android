@@ -110,6 +110,8 @@ import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.counter.TicketAllergyBand
+import com.vaiinilla.app.ui.hotel.staff.HotelKitchenCard
+import com.vaiinilla.app.ui.hotel.staff.HotelKitchenHeader
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.PendingReadyQueue
 import com.vaiinilla.app.ui.operational.QueuePresentation
@@ -118,8 +120,6 @@ import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.operationalLink
 import com.vaiinilla.app.ui.operational.queuePresentation
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.hotel.staff.HotelKitchenCard
-import com.vaiinilla.app.ui.hotel.staff.HotelKitchenHeader
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import kotlinx.coroutines.delay
@@ -442,55 +442,59 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            if (!hotelBoard) item(key = "kitchen-title") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        "Comandas",
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-1).sp,
-                        color = colors.textPrimary,
-                    )
-                    if (onToggleProductAvailable != null && canAct) {
+            if (!hotelBoard) {
+                item(key = "kitchen-title") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
                         Text(
-                            "¿Se acabó algo?",
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            "Comandas",
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-1).sp,
                             color = colors.textPrimary,
-                            modifier =
-                                Modifier
-                                    .physicalPress(scale = PhysicalPressScale.Small) {
-                                        haptics.selection()
-                                        lastTurnedOff = null
-                                        onLoadCatalog()
-                                        soldOutOpen = true
-                                    }.clip(CircleShape)
-                                    .background(colors.cardBackground)
-                                    .border(1.dp, colors.cardBorder, CircleShape)
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
                         )
+                        if (onToggleProductAvailable != null && canAct) {
+                            Text(
+                                "¿Se acabó algo?",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.textPrimary,
+                                modifier =
+                                    Modifier
+                                        .physicalPress(scale = PhysicalPressScale.Small) {
+                                            haptics.selection()
+                                            lastTurnedOff = null
+                                            onLoadCatalog()
+                                            soldOutOpen = true
+                                        }.clip(CircleShape)
+                                        .background(colors.cardBackground)
+                                        .border(1.dp, colors.cardBorder, CircleShape)
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                            )
+                        }
                     }
                 }
             }
 
-            if (!hotelBoard) item(key = "kitchen-view") {
-                SlidingSegments(
-                    labels = listOf("Por comanda", "Por producto"),
-                    selectedIndex = if (byProduct) 1 else 0,
-                    onSelect = { index ->
-                        haptics.selection()
-                        byProductChosen = index == 1
-                    },
-                    trackColor = colors.cardBackground,
-                    indicatorColor = colors.textPrimary,
-                    selectedContentColor = colors.background,
-                    idleContentColor = colors.textSecondary,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            if (!hotelBoard) {
+                item(key = "kitchen-view") {
+                    SlidingSegments(
+                        labels = listOf("Por comanda", "Por producto"),
+                        selectedIndex = if (byProduct) 1 else 0,
+                        onSelect = { index ->
+                            haptics.selection()
+                            byProductChosen = index == 1
+                        },
+                        trackColor = colors.cardBackground,
+                        indicatorColor = colors.textPrimary,
+                        selectedContentColor = colors.background,
+                        idleContentColor = colors.textSecondary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
             if (byProduct) {

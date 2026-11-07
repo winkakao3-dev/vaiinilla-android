@@ -126,9 +126,6 @@ import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
-import com.vaiinilla.app.ui.hotel.staff.HotelChip
-import com.vaiinilla.app.ui.hotel.staff.HotelDeliverSheet
-import com.vaiinilla.app.ui.hotel.staff.HotelRoomsScreen
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
@@ -167,6 +164,9 @@ import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
+import com.vaiinilla.app.ui.hotel.staff.HotelChip
+import com.vaiinilla.app.ui.hotel.staff.HotelDeliverSheet
+import com.vaiinilla.app.ui.hotel.staff.HotelRoomsScreen
 import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterBoardView
@@ -446,7 +446,8 @@ fun WaiterOperationalScreen(
             }
 
             // «Sin internet» solo si de verdad se cortó la red; un fallo del servidor no manda a revisar el wifi.
-            if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty() &&
+            if (state.boardLink == WaiterBoardLink.Offline &&
+                state.tables.isNotEmpty() &&
                 state.boardFailure?.isConnectionLoss != false
             ) {
                 item(key = "waiter-offline", span = fullWidth) {
@@ -744,7 +745,12 @@ fun WaiterOperationalScreen(
                 val toRoom = SpaceCopy.isRoom(venue, open.space.type)
                 if (toRoom || it.needsQrToDeliver(state.deliveryRequiresQr)) {
                     // S02: la entrega a una habitación pide su propia pantalla; el cargo se lee antes de cerrar la hoja.
-                    deliveringCharge = state.spaceDetail?.account?.orders?.firstOrNull { o -> o.id == it.id }?.total
+                    deliveringCharge =
+                        state.spaceDetail
+                            ?.account
+                            ?.orders
+                            ?.firstOrNull { o -> o.id == it.id }
+                            ?.total
                     openTableId = null
                     onCloseSpace()
                     delivering = it
@@ -892,7 +898,9 @@ fun WaiterOperationalScreen(
     if (housekeepingOpen) {
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { housekeepingOpen = false },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+            properties =
+                androidx.compose.ui.window
+                    .DialogProperties(usePlatformDefaultWidth = false),
         ) {
             HotelRoomsScreen(onBack = { housekeepingOpen = false })
         }

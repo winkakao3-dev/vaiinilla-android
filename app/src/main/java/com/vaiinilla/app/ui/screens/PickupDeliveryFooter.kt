@@ -74,7 +74,7 @@ internal fun PickupDeliveryFooter(
                 Text(
                     "PEDIDO #${summary.folio} · ${
                         SpaceCopy.staffDestination(
-                           venue,
+                            venue,
                             summary.destination,
                             summary.space,
                             summary.pickUpAtBar,

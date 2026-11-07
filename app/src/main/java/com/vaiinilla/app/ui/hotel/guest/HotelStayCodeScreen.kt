@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.hotel.guest
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 

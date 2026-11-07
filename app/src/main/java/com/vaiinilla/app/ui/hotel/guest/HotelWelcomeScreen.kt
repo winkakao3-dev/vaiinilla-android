@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.hotel.guest
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.ui.components.CremeHero

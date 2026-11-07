@@ -1,7 +1,7 @@
 package com.vaiinilla.app.ui.order
 
-import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException

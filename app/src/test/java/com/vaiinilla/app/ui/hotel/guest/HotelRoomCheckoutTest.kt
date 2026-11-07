@@ -1,12 +1,12 @@
 package com.vaiinilla.app.ui.hotel.guest
 
-import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.isHotelRoomOrder

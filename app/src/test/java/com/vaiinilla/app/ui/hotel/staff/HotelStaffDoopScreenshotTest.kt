@@ -1,12 +1,11 @@
 package com.vaiinilla.app.ui.hotel.staff
 
-import com.vaiinilla.app.domain.model.VenueContext
-import androidx.compose.runtime.CompositionLocalProvider
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
 import com.vaiinilla.app.domain.hotel.HotelRequest
@@ -20,6 +19,7 @@ import com.vaiinilla.app.domain.hotel.StayOrder
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen

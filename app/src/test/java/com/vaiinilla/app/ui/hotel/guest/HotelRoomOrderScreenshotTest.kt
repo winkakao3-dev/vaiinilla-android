@@ -1,15 +1,14 @@
 package com.vaiinilla.app.ui.hotel.guest
 
-import com.vaiinilla.app.domain.model.VenueContext
-import androidx.compose.runtime.CompositionLocalProvider
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.GuestVenueContext
@@ -19,6 +18,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.screens.CartScreen
 import com.vaiinilla.app.ui.screens.CatalogScreen

@@ -146,15 +146,14 @@ import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.guest.HotelCheckoutRoute
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.asksForDeliveryDate
 import com.vaiinilla.app.ui.order.asksSpaceDelivery
 import com.vaiinilla.app.ui.order.canCreateOrder
 import com.vaiinilla.app.ui.order.canDeliverHome
-import com.vaiinilla.app.ui.hotel.guest.HotelCheckoutRoute
 import com.vaiinilla.app.ui.order.canPayAtEnd
 import com.vaiinilla.app.ui.order.canPayAtRegister
-import com.vaiinilla.app.ui.order.isHotelRoomOrder
 import com.vaiinilla.app.ui.order.canPayWithBalance
 import com.vaiinilla.app.ui.order.canPayWithCard
 import com.vaiinilla.app.ui.order.cartItemCount
@@ -170,6 +169,7 @@ import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.homeDeliveryFee
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.isHomeDelivery
+import com.vaiinilla.app.ui.order.isHotelRoomOrder
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.pickUpAtBarForOrder
 import com.vaiinilla.app.ui.order.requiresOperationalReady
@@ -229,7 +229,8 @@ fun CartScreen(
     val venue = LocalVenueContext.current
     // El teclado: la ventana se encoge en vez de desplazarse; si no, el sistema sube toda la pantalla y además
     // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
-    com.vaiinilla.app.ui.components.ResizeForKeyboard()
+    com.vaiinilla.app.ui.components
+        .ResizeForKeyboard()
     // El pedido a una habitación de hotel se arma como el marco H03 de Doop.
     if (state.isHotelRoomOrder && state.cartLines.isNotEmpty()) {
         HotelCheckoutRoute(
@@ -847,9 +848,22 @@ private fun PaymentMethodOverlay(
                 if (payAtEndAvailable) {
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.Receipt,
-                        title = if (hotelRoom != null) "Cargar a la ${hotelRoom.replaceFirstChar { it.lowercase() }}" else "Pagar al final",
+                        title =
+                            if (hotelRoom !=
+                                null
+                            ) {
+                                "Cargar a la ${hotelRoom.replaceFirstChar { it.lowercase() }}"
+                            } else {
+                                "Pagar al final"
+                            },
                         subtitle =
-                            if (hotelRoom != null) "Se paga al salir" else "Pide lo que quieras y paga toda la cuenta al irte",
+                            if (hotelRoom !=
+                                null
+                            ) {
+                                "Se paga al salir"
+                            } else {
+                                "Pide lo que quieras y paga toda la cuenta al irte"
+                            },
                         selected = payAtEndSelected,
                         enabled = !selectionLocked,
                         onClick = {
@@ -867,7 +881,7 @@ private fun PaymentMethodOverlay(
                         subtitle =
                             if (toTable) {
                                 SpaceCopy.payAtCashierHint(
-                                   venue,
+                                    venue,
                                     spaceType,
                                 )
                             } else {

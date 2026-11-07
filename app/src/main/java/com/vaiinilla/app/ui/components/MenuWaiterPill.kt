@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.components
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -77,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -160,7 +160,13 @@ internal fun MenuWaiterLayer(
         ) {
             AnimatedVisibility(
                 visible = visible && cart != null,
-                enter = if (reduced) fadeIn() else fadeIn(tween(200)) + slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it },
+                enter =
+                    if (reduced) {
+                        fadeIn()
+                    } else {
+                        fadeIn(tween(200)) +
+                            slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it }
+                    },
                 exit = if (reduced) fadeOut() else fadeOut(tween(160)) + slideOutVertically { it / 2 },
             ) {
                 // Se queda con el último carrito mientras sale, para que no se vacíe a media animación.
@@ -206,6 +212,7 @@ internal fun MenuWaiterLayer(
         }
     }
 }
+
 @Composable
 private fun WaiterPill(state: MenuWaiterCallState) {
     val venue = LocalVenueContext.current
@@ -306,7 +313,8 @@ private fun CartWaiterBar(
                     haptics.click()
                     cart.onOpen()
                 }.semantics(mergeDescendants = false) {
-                    contentDescription = "${if (venue.capabilities.cartBarViewsOrder) "Ver pedido" else "Pedir ya"}: $products, ${cart.total}"
+                    contentDescription =
+                        "${if (venue.capabilities.cartBarViewsOrder) "Ver pedido" else "Pedir ya"}: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
                 .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -419,7 +427,12 @@ private fun AssistantPill(onOpen: () -> Unit) {
                 .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = colors.accentInk,
+            modifier = Modifier.size(18.dp),
+        )
         // L01: con letra grande partía «Pregún/tame»: va en un solo renglón que se encoge.
         Text(
             "Pregúntame qué pedir",
@@ -454,7 +467,12 @@ private fun AssistantDot(onOpen: () -> Unit) {
                 .testTag(MENU_ASSISTANT_PILL_TAG),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+        Icon(
+            Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = colors.accent,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

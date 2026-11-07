@@ -1,6 +1,5 @@
 package com.vaiinilla.app.ui.hotel.guest
 
-import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +24,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.hotel.ChargeCategory
 import com.vaiinilla.app.domain.hotel.Stay
 import com.vaiinilla.app.domain.hotel.StayStatus
@@ -143,8 +143,10 @@ fun HotelAccountContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             val eyebrow =
-                listOfNotNull(stay?.roomName ?: venue.vocabulary.roomTitle, shortDate(stay?.checkOut)?.let { "salida el $it" })
-                    .joinToString(" · ")
+                listOfNotNull(
+                    stay?.roomName ?: venue.vocabulary.roomTitle,
+                    shortDate(stay?.checkOut)?.let { "salida el $it" },
+                ).joinToString(" · ")
             Column(modifier = Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(eyebrow, color = colors.muted, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Text(

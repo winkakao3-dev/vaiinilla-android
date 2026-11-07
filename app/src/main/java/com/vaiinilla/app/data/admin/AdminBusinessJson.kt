@@ -330,7 +330,13 @@ class AdminBusinessJson {
             if (patch.setsCapacity) put("capacidad", patch.capacity?.let(::JsonPrimitive) ?: JsonNull)
             if (patch.setsRoom) {
                 put("piso", patch.floor?.let(::JsonPrimitive) ?: JsonNull)
-                put("categoria", patch.category?.trim()?.ifEmpty { null }.orNull())
+                put(
+                    "categoria",
+                    patch.category
+                        ?.trim()
+                        ?.ifEmpty { null }
+                        .orNull(),
+                )
             }
             if (patch.setsMinimum) put("reserva_minima_min", patch.minimumMinutes?.let(::JsonPrimitive) ?: JsonNull)
             if (patch.setsSportAndSurface) {

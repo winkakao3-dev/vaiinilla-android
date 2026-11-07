@@ -112,8 +112,6 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueContext
-import com.vaiinilla.app.ui.hotel.staff.HotelChip
-import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
@@ -148,6 +146,8 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.rentalChargeLabel
+import com.vaiinilla.app.ui.hotel.staff.HotelChip
+import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.CollectedToday
 import com.vaiinilla.app.ui.operational.OperationalUiState
@@ -1190,7 +1190,9 @@ fun CashierOperationalScreen(
     if (receptionOpen) {
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { receptionOpen = false },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+            properties =
+                androidx.compose.ui.window
+                    .DialogProperties(usePlatformDefaultWidth = false),
         ) {
             HotelReceptionScreen(onBack = { receptionOpen = false })
         }
@@ -1221,7 +1223,7 @@ internal fun cashierPlaceLabel(
         order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
         else ->
             SpaceCopy.staffDestination(
-               venue,
+                venue,
                 order.summary.destination,
                 order.summary.space,
                 order.summary.pickUpAtBar,

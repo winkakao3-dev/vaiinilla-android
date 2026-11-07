@@ -1562,7 +1562,7 @@ private fun CallLiveRow(
                 if (going) {
                     if (call.space.name.isBlank()) {
                         "Va a ${SpaceCopy.yourPlace(
-                           venue,
+                            venue,
                             call.space.type,
                         )}"
                     } else {

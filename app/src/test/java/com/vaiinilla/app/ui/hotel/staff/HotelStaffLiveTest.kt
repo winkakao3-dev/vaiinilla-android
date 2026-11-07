@@ -1,9 +1,9 @@
 package com.vaiinilla.app.ui.hotel.staff
 
-import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.InMemoryPickupTokenStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.hotel.RemoteHotelRepository
 import com.vaiinilla.app.data.operational.RemoteCashSessionRepository
 import com.vaiinilla.app.data.operational.RemoteWaiterRepository
@@ -173,7 +173,8 @@ class HotelStaffLiveTest {
     private fun orders(role: String) =
         RemoteOrderRepository(client(role), OrderContractJson(), InMemoryPickupTokenStore())
 
-    private fun waiter(role: String) = RemoteWaiterRepository(client(role), WaiterContractJson(), OrderContractJson(), venueStore)
+    private fun waiter(role: String) =
+        RemoteWaiterRepository(client(role), WaiterContractJson(), OrderContractJson(), venueStore)
 
     /** Deja correr los hilos de IO y el hilo principal hasta que se cumpla la condición. */
     private fun await(
@@ -338,7 +339,10 @@ class HotelStaffLiveTest {
             val space = inKitchen!!.summary.space
             assertNotNull(space)
             assertTrue("el espacio se reconoce como habitación", SpaceCopy.isRoom(venueStore.current, space!!.type))
-            assertEquals("Hab. " + room.name.filter { it.isDigit() }, SpaceCopy.short(venueStore.current, space.type, space.name))
+            assertEquals(
+                "Hab. " + room.name.filter { it.isDigit() },
+                SpaceCopy.short(venueStore.current, space.type, space.name),
+            )
             assertTrue(
                 "cocina lo mete a su fila",
                 com.vaiinilla.app.ui.screens

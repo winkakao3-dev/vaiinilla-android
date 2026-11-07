@@ -1,12 +1,12 @@
 package com.vaiinilla.app.ui.order
 
-import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
