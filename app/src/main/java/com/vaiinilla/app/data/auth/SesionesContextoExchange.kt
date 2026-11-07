@@ -1,11 +1,12 @@
 package com.vaiinilla.app.data.auth
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.data.guest.SchoolJoinCodeStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,11 +19,7 @@ class SesionesContextoExchange
         private val joinCodes: SchoolJoinCodeStore,
     ) : ContextoExchanger {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-                explicitNulls = false
-            }
+            ApiJson.omitNullsWithDefaults
 
         override suspend fun exchange(
             firebaseIdToken: String,
@@ -45,7 +42,7 @@ class SesionesContextoExchange
                             bearer = firebaseIdToken,
                             path = "sesiones/contexto-cliente",
                             body = body,
-                            headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                            headers = idempotencyHeaders(UUID.randomUUID().toString()),
                         ).getOrElse { throw it }
                 json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
             }
@@ -63,7 +60,7 @@ class SesionesContextoExchange
                             bearer = firebaseIdToken,
                             path = "sesiones/contexto",
                             body = body,
-                            headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                            headers = idempotencyHeaders(UUID.randomUUID().toString()),
                         ).getOrElse { throw it }
                 json.decodeFromString<SesionesContextoEnvelopeDto>(raw).data
             }

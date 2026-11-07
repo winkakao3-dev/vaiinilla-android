@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.admin
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
@@ -27,7 +28,6 @@ import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -49,10 +49,7 @@ private data class ForcedCloseDto(
 
 class AdminBusinessJson {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
+        ApiJson.omitNulls
 
     // region Personal
 

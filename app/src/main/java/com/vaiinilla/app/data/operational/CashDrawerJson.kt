@@ -1,10 +1,10 @@
 package com.vaiinilla.app.data.operational
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.repository.CashDrawerMovement
 import com.vaiinilla.app.domain.repository.CashDrawerMovementType
 import com.vaiinilla.app.domain.repository.CashDrawerReport
 import com.vaiinilla.app.domain.repository.CashDrawerSummary
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -15,7 +15,7 @@ import kotlinx.serialization.json.put
 
 /** Lee y arma lo de `sesiones-caja/{id}/movimientos` (N11): el resumen del cajón y sus renglones. */
 internal object CashDrawerJson {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = ApiJson.plain
 
     fun encodeMovement(
         type: CashDrawerMovementType,
@@ -31,6 +31,7 @@ internal object CashDrawerJson {
     fun parseReport(raw: String): CashDrawerReport {
         val data = data(raw)
         val summary = data["resumen"] as? JsonObject ?: error("Falta el resumen del cajón.")
+
         fun amount(key: String): String = text(summary, key) ?: "0.00"
         return CashDrawerReport(
             summary =

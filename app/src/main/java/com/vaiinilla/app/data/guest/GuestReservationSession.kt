@@ -1,11 +1,12 @@
 package com.vaiinilla.app.data.guest
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
@@ -60,7 +61,7 @@ class GuestReservationSession
                         .postPublic(
                             path = "publico/invitados",
                             body = body,
-                            headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                            headers = idempotencyHeaders(UUID.randomUUID().toString()),
                         ).getOrThrow()
                 val data = json.decodeFromString<GuestEnvelopeDto>(raw).data
                 val key =
@@ -174,7 +175,7 @@ class GuestReservationSession
         )
 
         private companion object {
-            val json = Json { ignoreUnknownKeys = true }
+            val json = ApiJson.plain
 
             /** La sesión de invitado dura 15 min; se renueva antes para no llegar con un 401. */
             const val RENEW_AFTER_MS = 10 * 60 * 1000L

@@ -1,12 +1,12 @@
 package com.vaiinilla.app.data.inventory
 
-import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /** Unidades que acepta el backend (migración 140), con cómo se dicen en pantalla. */
 enum class InventoryUnit(
@@ -438,29 +438,20 @@ private data class ReportDto(
 )
 
 private fun <T> Result<T>.mapApiErrors(): Result<T> =
-    fold(
-        onSuccess = { Result.success(it) },
-        onFailure = { error ->
-            Result.failure(
-                if (error is ApiClientException) {
-                    CatalogRepositoryException(error.code, error.message ?: error.code, error)
-                } else {
-                    error
-                },
-            )
-        },
-    )
+    mapApiFailure {
+        CatalogRepositoryException(
+            it.code,
+            it.message ?: it.code,
+            it,
+        )
+    }
 
 /** `/api/v1/inventario` (backend, migración 140). */
 class RemoteInventoryRepository(
     private val apiClient: VaiinillaApiClient,
 ) : InventoryRepository {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-            coerceInputValues = true
-        }
+        ApiJson.omitNullsCoercing
 
     override fun supplies(includeInactive: Boolean): Result<InventorySupplies> =
         apiClient
@@ -667,10 +658,7 @@ class RemoteInventoryRepository(
 }
 
 private val supplyProductsJson =
-    Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-    }
+    ApiJson.coercing
 
 /** Contrato 5: `{data: [{producto_id, nombre, categoria_id, categoria_nombre, cantidad}]}`. */
 internal fun decodeSupplyProducts(raw: String): List<SupplyProductLink> =

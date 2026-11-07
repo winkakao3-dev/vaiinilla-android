@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.school
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.data.school.SchoolAdminJson.JoinCodeChange
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.school.DayClosure
@@ -153,20 +154,15 @@ class RemoteSchoolAdminRepository(
             .map { Unit }
             .mapApiErrors()
 
-    private fun key(idempotencyKey: String) = mapOf("Idempotency-Key" to idempotencyKey)
+    private fun key(idempotencyKey: String) = idempotencyHeaders(idempotencyKey)
 
     /** Los errores del backend llegan con su código para que la pantalla diga qué pasó. */
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    if (error is ApiClientException) {
-                        CatalogRepositoryException(error.code, error.message ?: error.code, error)
-                    } else {
-                        error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            CatalogRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 }

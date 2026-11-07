@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.catalog
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
@@ -46,7 +47,7 @@ class RemoteCatalogRepository(
             .post(
                 "catalogo/productos",
                 parser.encodeProductDraft(draft),
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
             ).mapCatching { parser.parseProduct(it) }
             .mapApiErrors()
 
@@ -59,7 +60,7 @@ class RemoteCatalogRepository(
             .post(
                 "catalogo/productos/$productId/disponibilidad",
                 parser.encodeAvailability(available),
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
             ).mapCatching { parser.parseProduct(it) }
             .mapApiErrors()
 
@@ -77,7 +78,7 @@ class RemoteCatalogRepository(
                 filename = filename,
                 mimeType = mimeType,
                 bytes = bytes,
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { parser.parseProduct(it) }
             .mapApiErrors()
 
@@ -101,7 +102,7 @@ class RemoteCatalogRepository(
                 filename = filename,
                 mimeType = mimeType,
                 bytes = bytes,
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { parser.parseStoreImages(it) }
             .mapApiErrors()
 
@@ -112,22 +113,16 @@ class RemoteCatalogRepository(
         apiClient
             .delete(
                 path = "establecimiento/${kind.wireValue}",
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { parser.parseStoreImages(it) }
             .mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    when (error) {
-                        is ApiClientException ->
-                            CatalogRepositoryException(error.code, error.message ?: error.code, error)
-                        is CatalogRepositoryException -> error
-                        else -> error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            CatalogRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 }

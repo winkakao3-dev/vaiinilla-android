@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.auth.student
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentRequest
 import com.vaiinilla.app.domain.auth.student.StudentEnrollmentResult
 import kotlinx.coroutines.Dispatchers
@@ -8,7 +10,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -29,10 +30,7 @@ class RemoteStudentEnrollmentApi
         private val apiClient: HttpVaiinillaApiClient,
     ) : StudentEnrollmentApi {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            }
+            ApiJson.withDefaults
 
         override suspend fun enroll(
             request: StudentEnrollmentRequest,
@@ -56,13 +54,12 @@ class RemoteStudentEnrollmentApi
                                 path = "identidad/alta",
                                 body = body,
                                 headers =
-                                    mapOf(
-                                        "Idempotency-Key" to
-                                            UUID
-                                                .nameUUIDFromBytes(
-                                                    "vaiinilla:identity:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
-                                                        .toByteArray(StandardCharsets.UTF_8),
-                                                ).toString(),
+                                    idempotencyHeaders(
+                                        UUID
+                                            .nameUUIDFromBytes(
+                                                "vaiinilla:identity:${request.nombre}:${legalVersions.terminosVersion}:${legalVersions.privacidadVersion}"
+                                                    .toByteArray(StandardCharsets.UTF_8),
+                                            ).toString(),
                                     ),
                             ).getOrElse { error ->
                                 if (error is com.vaiinilla.app.core.network.ApiClientException &&

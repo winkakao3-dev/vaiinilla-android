@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.guardianship
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.guardianship.CardReload
 import com.vaiinilla.app.domain.guardianship.CardReloadCheckout
 import com.vaiinilla.app.domain.guardianship.CardReloadRange
@@ -26,7 +27,6 @@ import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.guardianship.StudentRequestStatus
 import com.vaiinilla.app.domain.guardianship.toMoneyOrNull
 import com.vaiinilla.app.domain.school.SchoolAllergen
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -48,7 +48,7 @@ import java.math.BigDecimal
  * significado: un hijo pendiente trae `saldo: null` y `controles: null`, que no son cero.
  */
 class GuardianshipJson {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = ApiJson.plain
 
     /** El `data` del sobre; un sobre con `error` o sin `data` no se acepta. */
     fun data(raw: String): JsonElement {

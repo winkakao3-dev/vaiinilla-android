@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.order
 
 import com.vaiinilla.app.core.contract.mapOrdersTolerant
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -16,7 +17,6 @@ import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.repository.CashLastClose
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -31,12 +31,7 @@ class OrderContractJson
     @Inject
     constructor() {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = true
-                isLenient = false
-                encodeDefaults = true
-            }
+            ApiJson.withDefaults
 
         fun encodeCreateRequest(request: CreateOrderRequest): String = json.encodeToString(request.toDto())
 
@@ -159,6 +154,7 @@ class OrderContractJson
                 }.getOrNull() ?: return null
             if (cobro is JsonNull) return null
             val fields = cobro as? JsonObject ?: return CreationCashCollection(applied = false)
+
             fun text(key: String): String? = (fields[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
             val applied =
                 (fields["aplicado"] as? JsonPrimitive)?.takeUnless { it.isString }?.content?.toBooleanStrictOrNull()
@@ -284,6 +280,7 @@ class OrderContractJson
         fun parseLastClosedSession(raw: String): CashLastClose? {
             val root = json.parseToJsonElement(raw) as? JsonObject ?: return null
             val session = root["data"] as? JsonObject ?: return null
+
             fun text(key: String) = (session[key] as? JsonPrimitive)?.content?.takeIf { it != "null" }
             val counted = text("monto_final") ?: return null
             return CashLastClose(

@@ -2,12 +2,12 @@ package com.vaiinilla.app.data.offline
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderStore
 import com.vaiinilla.app.domain.offline.OfflineStaffOrdersSnapshot
 import com.vaiinilla.app.domain.offline.OfflineStaffScope
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.time.Instant
 import kotlin.random.Random
 
@@ -133,10 +133,6 @@ class PreferencesOfflineStaffOrderStore(
         const val KEY_PREFIX = "offline-orders-"
         const val COLLECT_NOW_MARK = "\"cobrar_ahora\":true"
         val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-                encodeDefaults = true
-            }
+            ApiJson.omitNullsWithDefaults
     }
 }

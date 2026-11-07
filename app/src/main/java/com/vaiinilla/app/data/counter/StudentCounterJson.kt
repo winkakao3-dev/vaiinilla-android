@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.counter
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.counter.CachedStudentCard
 import com.vaiinilla.app.domain.counter.OfflineCounterSnapshot
 import com.vaiinilla.app.domain.counter.OfflineStudentPurchase
@@ -13,7 +14,6 @@ import com.vaiinilla.app.domain.counter.StudentPurchaseItem
 import com.vaiinilla.app.domain.counter.StudentTodayOrder
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import java.math.BigDecimal
 import java.time.Instant
@@ -21,11 +21,7 @@ import java.time.Instant
 /** Contratos de `/alumnos`, `/menu-dias/{fecha}/apartados` y la cola sin conexión que se guarda en el teléfono. */
 class StudentCounterJson {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-            encodeDefaults = true
-        }
+        ApiJson.omitNullsWithDefaults
 
     fun parseCards(raw: String): List<StudentCard> =
         json.decodeFromString<Envelope<List<StudentCardDto>>>(raw).requireData().map { it.toDomain() }
