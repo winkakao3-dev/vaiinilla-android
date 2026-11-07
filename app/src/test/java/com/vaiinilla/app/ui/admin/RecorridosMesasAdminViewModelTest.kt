@@ -10,12 +10,7 @@ import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.repository.AdminSpacesRepository
 import com.vaiinilla.app.ui.operational.FakeReservations
 import com.vaiinilla.app.ui.operational.StaffHarness
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -98,24 +93,16 @@ internal class FakeSpaces : AdminSpacesRepository {
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecorridosMesasAdminViewModelTest {
     private val repo = FakeSpaces()
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
     private lateinit var vm: AdminSpacesViewModel
 
     private val ui get() = vm.uiState.value
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+        StaffHarness.installMain()
         vm = AdminSpacesViewModel(repo, FakeReservations(), VenueContextStore())
         vm.onVisible("negocio-1")
         StaffHarness.awaitUntil("las mesas cargadas") { ui.spaces != null }
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
     }
 
     @Test
