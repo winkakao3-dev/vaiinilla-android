@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import java.time.Duration
 import java.time.Instant
+import java.time.OffsetDateTime
 
 /**
  * Cuánto puede quedarse una comanda sin cambiar de estado antes de avisar a Caja. Cada negocio puede apagarlo o
@@ -43,6 +44,11 @@ object StuckOrderRules {
     /** Estados en los que alguien del negocio tiene que mover el pedido: cobrado, preparando o listo. */
     private val WATCHED = setOf(OrderState.PAID, OrderState.PREPARING, OrderState.READY)
 
+    /** El servidor manda UTC con `Z`; con desfase (`-06:00`) también se entiende. */
+    private fun parseInstant(raw: String): Instant? =
+        runCatching { Instant.parse(raw) }.getOrNull()
+            ?: runCatching { OffsetDateTime.parse(raw).toInstant() }.getOrNull()
+
     /**
      * Pedidos de hoy parados en un estado más tiempo del permitido, del más viejo al más nuevo. Los apartados para
      * otro día no cuentan: esperan su fecha, no a alguien.
@@ -57,7 +63,7 @@ object StuckOrderRules {
             .asSequence()
             .filter { it.state in WATCHED && it.deliveryDate == null }
             .mapNotNull { order ->
-                val changedAt = runCatching { Instant.parse(order.updatedAt) }.getOrNull() ?: return@mapNotNull null
+                val changedAt = parseInstant(order.updatedAt) ?: return@mapNotNull null
                 val waited = Duration.between(changedAt, now)
                 if (waited >=
                     policy.threshold

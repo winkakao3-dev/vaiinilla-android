@@ -57,7 +57,10 @@ interface OutboxSource {
 
 /** Pide un recorrido de la bandeja aunque la app se cierre; lo cumple WorkManager. */
 interface OutboxScheduler {
-    /** Pronto: apenas haya red. Varias peticiones seguidas se juntan en un solo recorrido. */
+    /**
+     * Pronto: apenas haya red. Las peticiones se encadenan una tras otra para no perder lo guardado mientras otro
+     * recorrido ya iba a la mitad; uno sin nada pendiente termina de inmediato.
+     */
     fun requestDrain()
 
     /** Otro intento después de [delayMillis] porque quedó algo por mandar. */

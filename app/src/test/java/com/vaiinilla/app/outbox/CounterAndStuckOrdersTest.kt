@@ -269,6 +269,14 @@ class CounterAndStuckOrdersTest {
     }
 
     @Test
+    fun `entiende la hora con desfase y descarta la que no se lee`() {
+        val withOffset = summary(OrderState.PREPARING, now).copy(updatedAt = "2026-11-09T11:30:00-06:00")
+        val garbage = summary(OrderState.PREPARING, now).copy(updatedAt = "ayer")
+        val stuck = StuckOrderRules.find(listOf(withOffset, garbage), StuckOrderPolicy(), now)
+        assertEquals(listOf(30L), stuck.map { it.minutes })
+    }
+
+    @Test
     fun `el negocio puede apagarlo o cambiar los minutos`() {
         val orders = listOf(summary(OrderState.PREPARING, now.minusSeconds(10 * 60)))
         assertTrue(StuckOrderRules.find(orders, StuckOrderPolicy(), now).isEmpty())
