@@ -133,6 +133,7 @@ internal fun AdminCashCutSection(
         }
         if (!showReport || state.tab == CashCutTab.CUTS) {
             dayCutItems(state, viewModel, colors)
+            dayStartItems(state, viewModel, colors)
         } else {
             reportItems(state, viewModel, colors)
         }
@@ -256,6 +257,43 @@ private fun LazyListScope.dayCutItems(
                 }
             }
             breakdownItems(cut.breakdown, colors, keyPrefix = "day")
+        }
+    }
+}
+
+/** Cada negocio elige a qué hora empieza su día; así un turno de madrugada cuenta en el día que corresponde. */
+private val DAY_START_OPTIONS = listOf("00:00", "03:00", "04:00", "05:00", "06:00")
+
+private fun LazyListScope.dayStartItems(
+    state: AdminCashCutUiState,
+    viewModel: AdminCashCutViewModel,
+    colors: OperationalColors,
+) {
+    val start = state.dayStart ?: return
+    item(key = "day-start-title") { AdminH2("¿A qué hora empieza tu día?", colors) }
+    item(key = "day-start") {
+        AdminPanel(colors) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (DAY_START_OPTIONS + start).distinct().sorted().forEach { hour ->
+                    AdminFilterChip(
+                        label = if (hour == "00:00") "Medianoche" else hour,
+                        selected = hour == start,
+                        colors = colors,
+                        onClick = { viewModel.changeDayStart(hour) },
+                    )
+                }
+            }
+            Box(Modifier.padding(top = 8.dp)) {
+                AdminHint(
+                    if (start == "00:00") {
+                        "El día cambia a la medianoche. Si cierras de madrugada, elige una hora para que esos " +
+                            "turnos cuenten en el día anterior."
+                    } else {
+                        "Lo que pasa antes de las $start cuenta en el día anterior."
+                    },
+                    colors,
+                )
+            }
         }
     }
 }

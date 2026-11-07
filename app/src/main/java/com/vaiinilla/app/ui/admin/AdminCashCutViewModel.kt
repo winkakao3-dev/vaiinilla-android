@@ -71,6 +71,9 @@ data class AdminCashCutUiState(
     val report: AccountingReport? = null,
     val reportLoading: Boolean = false,
     val reportError: String? = null,
+    /** A qué hora empieza el día del negocio ("05:00"); null si no se conoce o no se puede cambiar. */
+    val dayStart: String? = null,
+    val dayStartSaving: Boolean = false,
     val exporting: Boolean = false,
     val csv: CsvExport? = null,
     val notice: String? = null,
@@ -109,6 +112,33 @@ class AdminCashCutViewModel
                 _uiState.value = AdminCashCutUiState()
             }
             refresh()
+            loadDayStart()
+        }
+
+        /** Solo Administración puede leerla: para Caja falla y el ajuste no se ofrece. */
+        private fun loadDayStart() {
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { repository.dayStart() }
+                update { copy(dayStart = result.getOrNull()) }
+            }
+        }
+
+        /** El dueño decide a qué hora empieza su día; el corte se vuelve a pedir con la hora nueva. */
+        fun changeDayStart(hhmm: String) {
+            if (_uiState.value.dayStartSaving || hhmm == _uiState.value.dayStart) return
+            update { copy(dayStartSaving = true) }
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { repository.setDayStart(hhmm) }
+                result
+                    .onSuccess { saved ->
+                        update { copy(dayStartSaving = false, dayStart = saved, day = null, dayCut = null) }
+                        notify("El día empieza a las $saved.")
+                        loadDay()
+                    }.onFailure { error ->
+                        update { copy(dayStartSaving = false) }
+                        notify(error.toUserFacingMessage("No se pudo guardar la hora."), isError = true)
+                    }
+            }
         }
 
         fun refresh() {
