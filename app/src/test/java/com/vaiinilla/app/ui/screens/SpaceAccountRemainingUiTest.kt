@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,7 +80,7 @@ class SpaceAccountRemainingUiTest {
                             detail = detail,
                             loading = false,
                             lastCollection = null,
-                            tick = 0,
+                            tick = mutableIntStateOf(0),
                             acting = false,
                             readOnly = false,
                             colors = colors,

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screenshot
 
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -173,7 +174,7 @@ class SpacesScreenshotTest {
                 detail = detail,
                 loading = false,
                 lastCollection = lastCollection,
-                tick = 0,
+                tick = mutableIntStateOf(0),
                 acting = false,
                 readOnly = false,
                 colors = colors,

@@ -77,6 +77,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -145,6 +147,7 @@ import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.OperationalAssistantGuide
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
@@ -156,19 +159,19 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
+import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
-import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -248,7 +251,7 @@ fun WaiterOperationalScreen(
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
-    var tick by remember { mutableIntStateOf(0) }
+    val tick = rememberTick(1_000)
     var kindFilter by remember { mutableStateOf<String?>(null) }
     var choosingScan by remember { mutableStateOf(false) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
@@ -268,13 +271,6 @@ fun WaiterOperationalScreen(
             isDark = colors.isDark,
         )
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1_000)
-            tick += 1
-        }
-    }
-
     LaunchedEffect(newCallTable) {
         if (newCallTable != null) {
             playAlertFeedback(context)
@@ -291,10 +287,13 @@ fun WaiterOperationalScreen(
                 list
             }
         }
-    val nextUp =
-        remember(state.tables, kindFilter, tick) {
+    // El reloj solo invalida el resultado: la lista se vuelve a leer aquí únicamente si cambió.
+    val nextUp by remember(state.tables, kindFilter) {
+        derivedStateOf {
+            tick.value
             waiterNextUp(state.tables.filter { kindFilter == null || it.space.type == kindFilter })
         }
+    }
     val calling = state.tables.count { it.tableState() == TableState.CALL }
     val readyCount = state.tables.sumOf { table -> table.orders.count { it.state == OrderState.READY } }
     // Lo listo que pide el QR del cliente: es lo que el botón Escanear QR puede entregar.
@@ -1222,7 +1221,7 @@ internal fun waiterTileStatus(
                     if (call.status == CallStatus.EN_CAMINO) {
                         "VA ${(call.takenBy?.name ?: "alguien").uppercase()}"
                     } else {
-                        "LLAMANDO · ${minutesSince(call.createdAt, now)}"
+                        "LLAMANDO · ${RelativeAge.short(call.createdAt, now)}"
                     },
                 detail = call.reason.staffLabel,
                 tone = TileTone.Call,
@@ -1288,18 +1287,6 @@ private fun ordersCaption(table: BoardTable): String? =
         .takeIf { it > 0 }
         ?.let { "$it ${if (it == 1) "pedido" else "pedidos"}" }
 
-private fun minutesSince(
-    iso: String,
-    now: Instant,
-): String {
-    val ms = runCatching { Duration.between(Instant.parse(iso), now).toMillis() }.getOrNull() ?: return "ahora"
-    return when {
-        ms < 60_000 -> "ahora"
-        ms < 3_600_000 -> "${ms / 60_000} min"
-        else -> "${ms / 3_600_000} h"
-    }
-}
-
 /** El color del estado; en claro va más oscuro para que se lea sobre el papel. */
 private fun tileToneColor(
     tone: TileTone,
@@ -1351,7 +1338,7 @@ internal fun waiterNextUp(
             val id = table.space.id
             buildList {
                 table.call?.let { call ->
-                    val since = minutesSince(call.createdAt, now).let { if (it == "ahora") "ahora" else "hace $it" }
+                    val since = RelativeAge.shortAgo(call.createdAt, now)
                     // N10: el motivo va en grande para saber qué llevar antes de ir a la mesa.
                     if (call.status == CallStatus.EN_CAMINO) {
                         val detail = listOfNotNull(call.reason.staffLabel, since, call.clientName).joinToString(" · ")
@@ -1570,13 +1557,18 @@ private fun WaiterNextUpRow(
 @Composable
 private fun WaiterTile(
     table: BoardTable,
-    tick: Int,
+    tick: State<Int>,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    // tick entra en la clave para que "Quedan 32 min" y "Llamando · 1 min" avancen solos.
-    val status = remember(table, tick) { waiterTileStatus(table) }
+    // El reloj entra solo al derivedStateOf: "Quedan 32 min" y "Llamando · 1 min" avanzan sin redibujar el tablero.
+    val status by remember(table) {
+        derivedStateOf {
+            tick.value
+            waiterTileStatus(table)
+        }
+    }
     val urgent = status.tone == TileTone.Call || status.tone == TileTone.Ready
     val ringing = status.tone == TileTone.Call && table.call?.status != CallStatus.EN_CAMINO
     val shape = RoundedCornerShape(22.dp)
@@ -1655,10 +1647,18 @@ private fun WaiterTile(
                 )
             }
             // Avance del turno: se ve de un vistazo cuánto le queda a cada cancha.
-            val progress = spaceTileProgress(table.availability, tick)?.takeIf { status.tone == TileTone.Turn }
-            if (progress != null) {
+            val progress by remember(table) {
+                derivedStateOf {
+                    spaceTileProgress(
+                        table.availability,
+                        tick.value,
+                    )?.let { (it * 200).roundToInt() / 200f }
+                }
+            }
+            val turnProgress = progress?.takeIf { status.tone == TileTone.Turn }
+            if (turnProgress != null) {
                 TurnProgressBar(
-                    fraction = progress,
+                    fraction = turnProgress,
                     track = colors.pillBackground,
                     fill = tone,
                     modifier = Modifier.padding(top = 8.dp),
@@ -1669,28 +1669,13 @@ private fun WaiterTile(
     }
 }
 
-private fun waiterSince(iso: String): String {
-    val ms = elapsedSinceMs(iso) ?: return "ahora"
-    return when {
-        // Las llamadas vencen a los 10 min; el reloj mm:ss solo tiene sentido dentro de la hora.
-        ms < 3_600_000 -> {
-            val totalSeconds = (ms / 1_000).toInt().coerceAtLeast(0)
-            "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
-        }
-        ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
-        // Después de una semana, la fecha: «hace 340 d» no dice nada.
-        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WaiterTableSheet(
     table: BoardTable,
     /** N08: la estación de cada producto por nombre; vacío si el catálogo no llegó. */
     stations: Map<String, PreparationStation> = emptyMap(),
-    tick: Int,
+    tick: State<Int>,
     acting: Boolean,
     readOnly: Boolean,
     colors: OperationalColors,
@@ -2501,19 +2486,28 @@ internal fun waiterSheetOrders(
 private fun WaiterCallCard(
     call: TableCall,
     table: BoardTable,
-    tick: Int,
+    tick: State<Int>,
     enabled: Boolean,
     colors: OperationalColors,
     onGoing: () -> Unit,
     onAttended: () -> Unit,
 ) {
     val going = call.status == CallStatus.EN_CAMINO
-    val since = remember(call, tick) { minutesSince(call.createdAt, Instant.now()) }
+    val since by remember(
+        call,
+    ) { derivedStateOf { tick.value.let { RelativeAge.short(call.createdAt, Instant.now()) } } }
     val last = table.orders.maxByOrNull { it.updatedAt }
-    val lastCaption =
-        remember(last, tick) {
-            last?.let { "#${it.folio} · ${it.state.label.lowercase()}, ${minutesSince(it.updatedAt, Instant.now())}" }
+    val lastCaption by remember(last) {
+        derivedStateOf {
+            tick.value
+            last?.let {
+                "#${it.folio} · ${it.state.label.lowercase()}, ${RelativeAge.short(
+                    it.updatedAt,
+                    Instant.now(),
+                )}"
+            }
         }
+    }
     Column(
         modifier =
             Modifier
