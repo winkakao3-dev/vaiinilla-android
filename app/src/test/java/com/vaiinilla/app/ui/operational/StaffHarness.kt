@@ -16,6 +16,10 @@ import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.Product
+import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderSummary
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.repository.CashSessionRepository
@@ -80,6 +84,7 @@ internal object StaffHarness {
         cash: FakeCashSession = FakeCashSession(),
         wallet: FakeWallet = FakeWallet(),
         session: FakeSessionStore = FakeSessionStore(jwt()),
+        catalog: FakeCatalog = FakeCatalog(),
     ): CashierViewModel =
         CashierViewModel(
             listOrders = ListOrdersUseCase(orders),
@@ -90,7 +95,7 @@ internal object StaffHarness {
             deviceIdentity = FakeDevice(),
             deviceTokenRegistrar = registrar(context, session),
             sessionStore = session,
-            catalogRepository = FakeCatalog(),
+            catalogRepository = catalog,
             collectCash = CollectCashUseCase(orders),
             openCashSession = OpenCashSessionUseCase(cash),
             closeCashSession = CloseCashSessionUseCase(cash),
@@ -99,7 +104,74 @@ internal object StaffHarness {
             pendingWalletReloadStore = PendingWalletReloadStore(context, session),
             cashCutRepository = FakeCashCut(),
         )
+
+    fun kitchenViewModel(
+        context: Context,
+        orders: FakeOrders = FakeOrders(),
+        catalog: FakeCatalog = FakeCatalog(),
+        session: FakeSessionStore = FakeSessionStore(jwt()),
+    ): KitchenViewModel =
+        KitchenViewModel(
+            listOrders = ListOrdersUseCase(orders),
+            getOrder = GetOrderUseCase(orders),
+            transitionOrder = TransitionOrderUseCase(orders),
+            cancelOrder = CancelOrderUseCase(orders),
+            heartbeatRepository = FakeHeartbeat(),
+            deviceIdentity = FakeDevice(),
+            deviceTokenRegistrar = registrar(context, session),
+            sessionStore = session,
+            catalogRepository = catalog,
+        )
 }
+
+internal fun sampleProduct(
+    id: Int,
+    name: String,
+    station: PreparationStation = PreparationStation.KITCHEN,
+) = Product(
+    id = id,
+    categoryId = 1,
+    preparationStation = station,
+    name = name,
+    description = "",
+    ingredients = "",
+    allergens = "",
+    estimatedTimeMinutes = 5,
+    counterPrice = "50.00",
+    digitalPrice = "45.00",
+    available = true,
+    imageUrl = "",
+    optionGroups = emptyList(),
+)
+
+internal fun sampleOrder(
+    id: String,
+    state: OrderState,
+    folio: Int = 7,
+    version: Int = 1,
+) = OrderDetail(
+    summary =
+        OrderSummary(
+            id = id,
+            folio = folio,
+            operationalDate = "2026-11-07",
+            state = state,
+            paymentMethod = PaymentMethod.BALANCE,
+            destination = OrderDestination.TAKE_AWAY,
+            space = null,
+            subtotal = "50.00",
+            combinedSavings = "0.00",
+            cashbackAwarded = "0.00",
+            total = "50.00",
+            version = version,
+            createdAt = "2026-11-07T10:00:00Z",
+            updatedAt = "2026-11-07T10:00:00Z",
+        ),
+    user = null,
+    kitchenNotes = "",
+    items = emptyList(),
+    pickupToken = null,
+)
 
 internal class FakeSessionStore(
     var token: String? = null,
@@ -127,7 +199,12 @@ internal class FakeDevice : DeviceIdentity {
 }
 
 internal class FakeCatalog : CatalogRepository {
-    override fun getCatalog(): Result<Catalog> = Result.success(Catalog(emptyList(), emptyList(), null))
+    @Volatile var products: List<Product> = emptyList()
+
+    @Volatile var availabilityFails: Throwable? = null
+    val availabilityCalls = java.util.concurrent.CopyOnWriteArrayList<Pair<Int, Boolean>>()
+
+    override fun getCatalog(): Result<Catalog> = Result.success(Catalog(emptyList(), products, null))
 
     override fun getOperationalStatus(): Result<OperationalStatus> = Result.failure(IllegalStateException("sin estado"))
 
@@ -140,7 +217,13 @@ internal class FakeCatalog : CatalogRepository {
         productId: Int,
         available: Boolean,
         idempotencyKey: String,
-    ): Result<Product> = Result.failure(IllegalStateException("no"))
+    ): Result<Product> {
+        availabilityCalls += productId to available
+        availabilityFails?.let { return Result.failure(it) }
+        val updated = products.first { it.id == productId }.copy(available = available)
+        products = products.map { if (it.id == productId) updated else it }
+        return Result.success(updated)
+    }
 
     override fun uploadProductImage(
         productId: Int,
@@ -193,7 +276,8 @@ internal class FakeCashCut : CashCutRepository {
 }
 
 internal class FakeOrders : OrderRepository {
-    var orders: List<OrderDetail> = emptyList()
+    @Volatile var orders: List<OrderDetail> = emptyList()
+    val transitionCalls = java.util.concurrent.CopyOnWriteArrayList<Triple<String, OrderState, Int>>()
 
     override fun createOrder(
         request: CreateOrderRequest,
@@ -228,7 +312,13 @@ internal class FakeOrders : OrderRepository {
         expectedVersion: Int,
         idempotencyKey: String,
         pickupToken: String?,
-    ): Result<OrderDetail> = Result.failure(IllegalStateException("no"))
+    ): Result<OrderDetail> {
+        transitionCalls += Triple(orderId, targetState, expectedVersion)
+        val current = orders.firstOrNull { it.summary.id == orderId } ?: return Result.failure(IllegalStateException("no existe"))
+        val moved = current.copy(summary = current.summary.copy(state = targetState, version = expectedVersion + 1))
+        orders = orders.map { if (it.summary.id == orderId) moved else it }
+        return Result.success(moved)
+    }
 }
 
 internal class FakeCashSession : CashSessionRepository {
