@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.contract.UnreadableOrders
+import com.vaiinilla.app.core.network.ApiErrorMapper
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
@@ -136,20 +137,23 @@ abstract class StaffOrdersViewModel(
             // Los pedidos que otro rol no pudo leer no son de este rol: la franja se recalcula.
             UnreadableOrders.clear()
         }
+        // Con otro rol o negocio se arranca de un estado limpio: copiar sobre el anterior dejaba 16 campos del negocio
+        // viejo (efectivo esperado, fondo, cobrado hoy, imágenes, hoja de cierre…) a la vista del nuevo.
+        val base = if (roleChanged) state.value.freshForNewRole(establishmentChanged) else state.value
         state.value =
-            state.value.copy(
+            base.copy(
                 role = role,
                 // La mutación del rol anterior se cancela y su resultado se descarta: no puede dejar
                 // la bandera pegada y apagar todos los botones del rol nuevo.
-                acting = if (roleChanged) false else state.value.acting,
-                catalogBusy = if (roleChanged) false else state.value.catalogBusy,
+                acting = if (roleChanged) false else base.acting,
+                catalogBusy = if (roleChanged) false else base.catalogBusy,
                 cashSessionCheckFailed = false,
-                orders = if (roleChanged) emptyList() else state.value.orders,
+                orders = if (roleChanged) emptyList() else base.orders,
                 latestClientOrder = null,
                 menuOrder = null,
                 selectedOrderId = null,
                 errorMessage = null,
-                lastRefreshOk = if (roleChanged) null else state.value.lastRefreshOk,
+                queue = if (roleChanged) QueueSync.Pending else base.queue,
                 cashSessionOpen = null,
                 walletClients = emptyList(),
                 walletSearchLoading = false,
@@ -157,7 +161,7 @@ abstract class StaffOrdersViewModel(
                 pendingWalletReload = null,
                 catalog = null,
                 cashDrawer = CashDrawerUi(),
-                cashChangeNotice = if (establishmentChanged) null else state.value.cashChangeNotice,
+                cashChangeNotice = if (establishmentChanged) null else base.cashChangeNotice,
             )
         // Con el mismo rol se conserva lo último conocido mientras se vuelve a pedir: borrarlo dejaba Caja en
         // «Revisando la caja» y quitaba «Cerrar caja» del menú hasta que contestara el servidor (en vivo, USAGI).
@@ -228,7 +232,7 @@ abstract class StaffOrdersViewModel(
         val current = state.value
         if (current.role == null) return
         // Solo lo que de verdad se cargó: un estado a medias no ahorra nada.
-        if (current.lastRefreshOk != true && current.cashSessionOpen == null) return
+        if (current.queue !is QueueSync.Live && current.cashSessionOpen == null) return
         lastStaffState =
             StaffStateSnapshot(
                 role = role,
@@ -257,14 +261,12 @@ abstract class StaffOrdersViewModel(
     fun refresh() {
         if (state.value.role == null) return
         val generation = roleGeneration
-        // Mientras la carga siga fallando el error se queda: limpiarlo en cada sondeo lo haría parpadear.
+        // El fallo de la lectura vive en `queue` y se queda hasta que una lectura salga bien; `errorMessage` es solo de
+        // acciones y se limpia por su propio reloj.
         state.value =
             state.value.copy(
                 loading = true,
-                errorMessage =
-                    state.value.errorMessage.takeIf {
-                        mutationErrorVisible || state.value.lastRefreshOk == false
-                    },
+                errorMessage = state.value.errorMessage.takeIf { mutationErrorVisible },
             )
         val seq = ++refreshSeq
         // El personal pide cambios, pero el servidor no avisa de lo que dejó de ser suyo (cobrado por otro
@@ -304,17 +306,16 @@ abstract class StaffOrdersViewModel(
                             latestClientOrder = null,
                             menuOrder = null,
                             lastSyncedAt = newest,
-                            lastRefreshOk = true,
+                            queue = QueueSync.Live,
                             errorMessage = state.value.errorMessage.takeIf { mutationErrorVisible },
                         )
                 },
                 onFailure = { error ->
-                    mutationErrorVisible = false
+                    // Un fallo de lectura no borra el error de una acción que el personal aún está leyendo.
                     state.value =
                         state.value.copy(
                             loading = false,
-                            lastRefreshOk = false,
-                            errorMessage = error.toUserFacingMessage(),
+                            queue = QueueSync.Failed(ApiErrorMapper.map(error)),
                         )
                 },
             )

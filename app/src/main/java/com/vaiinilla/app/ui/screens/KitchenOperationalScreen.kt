@@ -110,6 +110,7 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.counter.TicketAllergyBand
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.operationalLink
 import com.vaiinilla.app.ui.operational.queuePresentation
@@ -295,7 +296,7 @@ fun KitchenOperationalScreen(
     val isPreparing = orderState == OrderState.PREPARING
     val isReady = orderState == OrderState.READY || orderState == OrderState.DELIVERED
     val nextGuidableOrder = upcomingOrders.firstOrNull()
-    val kitchenQueue = queuePresentation(queueOrders.isNotEmpty(), state.lastRefreshOk)
+    val kitchenQueue = queuePresentation(queueOrders.isNotEmpty(), state.queue)
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
             delay(2_200)
@@ -372,7 +373,7 @@ fun KitchenOperationalScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     KitchenStatusPill(
-                        link = operationalLink(state.lastRefreshOk),
+                        link = operationalLink(state.queue),
                         inQueue = queueOrders.size,
                         colors = colors,
                     )
@@ -416,7 +417,7 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            if (state.lastRefreshOk == false && queueOrders.isNotEmpty()) {
+            if (state.queue.lostConnection && queueOrders.isNotEmpty()) {
                 item(key = "kitchen-offline") { StaffOfflineBanner(offline = true, modifier = Modifier.animateItem()) }
             }
 
@@ -538,8 +539,15 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            // Sin comandas cargadas, la tarjeta de la fila ya muestra el error.
-            state.errorMessage?.takeUnless { kitchenQueue == QueuePresentation.Error }?.let { message ->
+            // Con comandas a la vista, un fallo de lectura que no es de red (servidor) se dice con su texto; sin
+            // comandas, la tarjeta de la fila ya muestra el error.
+            val kitchenNotice =
+                state.errorMessage
+                    ?: (state.queue as? QueueSync.Failed)
+                        ?.takeIf { !state.queue.lostConnection && queueOrders.isNotEmpty() }
+                        ?.failure
+                        ?.message()
+            kitchenNotice?.takeUnless { kitchenQueue == QueuePresentation.Error }?.let { message ->
                 item(key = "kitchen-error") {
                     OperationalErrorCard(
                         message = message,
@@ -562,7 +570,7 @@ fun KitchenOperationalScreen(
                         tab != KitchenTab.READY && kitchenQueue == QueuePresentation.Error ->
                             OperationalErrorCard(
                                 title = "No se pudieron cargar las comandas",
-                                message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                                message = state.queue.failureText("Revisa la conexión e inténtalo otra vez."),
                                 colors = colors,
                                 onRetry = onRefresh,
                             )

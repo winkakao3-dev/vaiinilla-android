@@ -114,6 +114,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.network.isConnectionLoss
 import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CartLine
@@ -168,6 +169,7 @@ import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
 import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
+import com.vaiinilla.app.ui.operational.WaiterBoardView
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
@@ -442,7 +444,10 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty()) {
+            // «Sin internet» solo si de verdad se cortó la red; un fallo del servidor no manda a revisar el wifi.
+            if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty() &&
+                state.boardFailure?.isConnectionLoss != false
+            ) {
                 item(key = "waiter-offline", span = fullWidth) {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
                 }
@@ -553,7 +558,7 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            if (state.errorMessage != null && state.tables.isEmpty()) {
+            if (state.boardFailure != null && state.tables.isEmpty()) {
                 item(key = "board-error", span = fullWidth) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
@@ -566,7 +571,7 @@ fun WaiterOperationalScreen(
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                state.errorMessage,
+                                state.errorMessage.orEmpty(),
                                 color = colors.textPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -581,7 +586,7 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            if (state.loading && state.tables.isEmpty()) {
+            if (state.boardView is WaiterBoardView.Loading && state.tables.isEmpty()) {
                 items(6) {
                     Box(
                         modifier =

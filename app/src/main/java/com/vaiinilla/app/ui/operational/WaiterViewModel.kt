@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiErrorMapper
+import com.vaiinilla.app.core.network.ApiFailure
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.mode.AuthorizedMode
@@ -86,7 +88,8 @@ data class WaiterUiState(
     val rentalDurationsFailed: Boolean = false,
     /** R25: cuántos caben en el espacio abierto (`capacidad` de la disponibilidad); sin dato, el tope del servidor. */
     val rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
-    val errorMessage: String? = null,
+    /** Por qué falló la última carga del tablero; null si salió bien. Se queda hasta que una carga salga bien. */
+    val boardFailure: ApiFailure? = null,
     val toastMessage: String? = null,
     val filterAttending: Boolean = false,
     /** Si es false, el mesero entrega en el espacio sin escanear el QR del cliente. */
@@ -132,6 +135,29 @@ data class WaiterUiState(
 
     val boardLink: WaiterBoardLink
         get() = waiterBoardLink(boardLoaded, consecutiveBoardFailures)
+
+    /** El texto del fallo del tablero, ya listo para mostrar. */
+    val errorMessage: String? get() = boardFailure?.message()
+
+    /** Lo que ocupa el lugar del tablero, en un solo valor: cargando, con error o con el tablero a la vista. */
+    val boardView: WaiterBoardView
+        get() =
+            when {
+                boardLoaded -> WaiterBoardView.Ready
+                boardFailure != null -> WaiterBoardView.Error(boardFailure)
+                else -> WaiterBoardView.Loading
+            }
+}
+
+/** Qué se pinta donde va el tablero del Mesero. Un sondeo no cambia entre Error y Loading: solo una carga buena. */
+sealed interface WaiterBoardView {
+    data object Loading : WaiterBoardView
+
+    data class Error(
+        val failure: ApiFailure,
+    ) : WaiterBoardView
+
+    data object Ready : WaiterBoardView
 }
 
 /**
@@ -238,7 +264,8 @@ class WaiterViewModel
 
         /** Una carga del tablero a la vez: otra en vuelo se cancela para que la vieja no pise a la nueva (STAFF-19). */
         fun refresh() {
-            _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
+            // El fallo anterior se queda a la vista mientras se reintenta: borrarlo hacía parpadear el error con el esqueleto.
+            _uiState.value = _uiState.value.copy(loading = true)
             boardJob?.cancel()
             boardJob = viewModelScope.launch { loadBoard() }
         }
@@ -252,7 +279,7 @@ class WaiterViewModel
                     detectNewRejections(board.tables)
                 },
                 onFailure = { error ->
-                    _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
+                    _uiState.value = _uiState.value.withBoardFailure(ApiErrorMapper.map(error))
                 },
             )
         }
@@ -1156,16 +1183,16 @@ internal fun WaiterUiState.withBoard(
         allowsPayAtEnd = board.allowsPayAtEnd,
         spaceDelivery = board.spaceDelivery,
         loading = false,
-        errorMessage = null,
+        boardFailure = null,
         lastBoardRefreshAt = receivedAt,
         consecutiveBoardFailures = 0,
     )
 
 /** Un fallo no borra las mesas: el mesero sigue viendo el último tablero bueno. */
-internal fun WaiterUiState.withBoardFailure(message: String): WaiterUiState =
+internal fun WaiterUiState.withBoardFailure(failure: ApiFailure): WaiterUiState =
     copy(
         loading = false,
-        errorMessage = message,
+        boardFailure = failure,
         consecutiveBoardFailures = consecutiveBoardFailures + 1,
     )
 

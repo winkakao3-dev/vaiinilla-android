@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -39,7 +40,7 @@ class KitchenReadyDelayTest {
             ScreenshotTheme {
                 if (onScreen) {
                     KitchenOperationalScreen(
-                        state = OperationalUiState(orders = listOf(order), lastRefreshOk = true),
+                        state = OperationalUiState(orders = listOf(order), queue = QueueSync.Live),
                         onBack = {},
                         onStart = { _, _ -> },
                         onReady = { id, _ -> ready += id },

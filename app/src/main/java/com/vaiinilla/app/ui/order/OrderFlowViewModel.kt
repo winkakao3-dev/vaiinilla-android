@@ -368,12 +368,7 @@ class OrderFlowViewModel
                 enterGuestVenue(venue)
                 return
             }
-            val previous = _uiState.value
-            _uiState.value =
-                previous.copy(
-                    loading = true,
-                    errorMessage = null,
-                )
+            _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
             launchTracked {
                 val (catalogResult, statusResult) =
                     coroutineScope {
@@ -384,11 +379,16 @@ class OrderFlowViewModel
                 val failure = catalogResult.exceptionOrNull() ?: statusResult.exceptionOrNull()
                 val errorMessage = failure?.toUserFacingMessage()
 
+                // Sobre el estado de ahora, no sobre el de antes de la carga: el carrito y la selección que el cliente
+                // tocó mientras esperaba se perdían. Y una recarga fallida no borra el menú que ya se veía.
+                val current = _uiState.value
+                val freshCatalog = catalogResult.getOrNull()
                 _uiState.value =
-                    previous.copy(
+                    current.copy(
                         loading = false,
-                        catalog = catalogResult.getOrNull(),
-                        operationalStatus = statusResult.getOrNull(),
+                        catalog = freshCatalog ?: current.catalog,
+                        catalogStale = freshCatalog == null && current.catalog != null,
+                        operationalStatus = statusResult.getOrNull() ?: current.operationalStatus,
                         errorMessage = errorMessage,
                     )
                 refreshCashbackRule(venueId = null)
