@@ -93,8 +93,8 @@ class HotelJson {
     ): String =
         buildJsonObject {
             put("codigo", code.trim())
-            spaceId?.let { put("espacio_id", it) }
-            qrToken?.let { put("qr_token", it) }
+            // El servidor exige uno solo de los dos; el QR manda cuando el lugar trae los dos.
+            if (qrToken != null) put("qr_token", qrToken) else spaceId?.let { put("espacio_id", it) }
         }.toString()
 
     fun encodeDoNotDisturb(enabled: Boolean): String = buildJsonObject { put("no_molestar", enabled) }.toString()

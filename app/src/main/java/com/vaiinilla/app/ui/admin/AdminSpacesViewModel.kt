@@ -75,7 +75,7 @@ class AdminSpacesViewModel
             refresh()
         }
 
-        fun refresh() {
+        fun refresh(onDone: (() -> Unit)? = null) {
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.spaces() }
                 _uiState.value =
@@ -88,6 +88,7 @@ class AdminSpacesViewModel
                         },
                     )
                 if (_uiState.value.hasCourts) refreshCourts()
+                onDone?.invoke()
             }
         }
 

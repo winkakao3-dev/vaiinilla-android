@@ -166,7 +166,11 @@ internal fun AdminSpacesSection(
             is SpacesPage.Space -> {
                 val space = state.spaces?.firstOrNull { it.id == current.id }
                 if (space == null) {
-                    LaunchedEffect(Unit) { page = null }
+                    // Una habitación recién creada vive en la lista del hotel y esta aún no la trae: se vuelve a leer
+                    // antes de rendirse, o su QR no se podía abrir hasta reiniciar.
+                    LaunchedEffect(current.id) {
+                        viewModel.refresh { if (viewModel.uiState.value.spaces?.none { it.id == current.id } != false) page = null }
+                    }
                 } else {
                     SpaceDetailPage(space, colors, readOnly, viewModel, onBack = { page = null }) {
                         sheet = SpacesSheet.Edit(space.id)
