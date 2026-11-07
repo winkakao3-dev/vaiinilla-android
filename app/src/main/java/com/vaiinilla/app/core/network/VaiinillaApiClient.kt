@@ -109,7 +109,3 @@ interface VaiinillaApiClient {
         headers: Map<String, String> = emptyMap(),
     ): Result<String> = post(path, body, headers)
 }
-
-class RemoteClientNotConfiguredException(
-    message: String,
-) : IllegalStateException(message)

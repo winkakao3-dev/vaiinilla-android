@@ -136,28 +136,3 @@ class RemoteCashSessionRepository(
             },
         )
 }
-
-class NoOpCashSessionRepository : CashSessionRepository {
-    private var open = true
-
-    override fun openSession(
-        initialAmount: String,
-        idempotencyKey: String,
-    ): Result<Unit> {
-        open = true
-        return Result.success(Unit)
-    }
-
-    override fun hasActiveSession(): Result<Boolean> = Result.success(open)
-
-    override fun activeSessionId(): Result<String?> = Result.success(if (open) "local" else null)
-
-    override fun closeSession(
-        sessionId: String,
-        finalAmount: String,
-        idempotencyKey: String,
-    ): Result<Unit> {
-        open = false
-        return Result.success(Unit)
-    }
-}

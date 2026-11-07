@@ -50,13 +50,6 @@ class RemoteDeviceHeartbeatRepository(
     }
 }
 
-class NoOpDeviceHeartbeatRepository : DeviceHeartbeatRepository {
-    override fun sendHeartbeat(
-        deviceId: String,
-        role: OperationalRole,
-    ): Result<Unit> = Result.success(Unit)
-}
-
 @Serializable
 private data class HeartbeatRequestDto(
     @SerialName("dispositivo") val device: String,
