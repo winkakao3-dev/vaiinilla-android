@@ -6,6 +6,8 @@ data class WalletSnapshot(
     val establishmentId: String?,
     val visibleBalance: String,
     val updatedAt: String?,
+    /** `saldo_congelado`: el negocio no acepta pagos con saldo por ahora; se ve, pero no se usa ni se recarga. */
+    val frozen: Boolean = false,
 )
 
 data class WalletMovement(

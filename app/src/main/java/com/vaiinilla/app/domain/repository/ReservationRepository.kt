@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationRefund
 import java.time.Instant
 
 /** Error del backend al reservar, con su código (`SLOT_TAKEN`, `RESERVATION_NOT_PAYABLE`…). */
@@ -49,10 +50,14 @@ interface ReservationRepository {
         idempotencyKey: String,
     ): Result<ReservationPayment>
 
-    /** Cancela sin reembolso. */
+    /**
+     * Cancela. Sin [refund] no hay reembolso (un apartado, o la del cliente); el personal manda [refund]
+     * para cancelar una renta ya pagada (#28).
+     */
     fun cancel(
         access: ReservationAccess,
         reservationId: String,
         idempotencyKey: String,
+        refund: ReservationRefund? = null,
     ): Result<Reservation>
 }

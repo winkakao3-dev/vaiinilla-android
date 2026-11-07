@@ -3,6 +3,8 @@ package com.vaiinilla.app.data.operational
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.order.OrderContractJson
+import com.vaiinilla.app.domain.repository.CashDrawerMovementType
+import com.vaiinilla.app.domain.repository.CashDrawerReport
 import com.vaiinilla.app.domain.repository.CashLastClose
 import com.vaiinilla.app.domain.repository.CashSessionInfo
 import com.vaiinilla.app.domain.repository.CashSessionRepository
@@ -42,6 +44,10 @@ class RemoteCashSessionRepository(
     override var lastClose: CashLastClose? = null
         private set
 
+    override fun forgetLastClose() {
+        lastClose = null
+    }
+
     private fun readActive(): Result<String> =
         apiClient.get("sesiones-caja/activa").onSuccess { body ->
             suggestedFloat = runCatching { contractJson.parseSuggestedFloat(body) }.getOrNull()
@@ -67,7 +73,17 @@ class RemoteCashSessionRepository(
         readActive()
             .mapCatching { body ->
                 contractJson.parseCashSession(body)?.let { CashSessionInfo(it.id, it.initialAmount, it.openedAt) }
+            }.onSuccess { session ->
+                // Con la caja cerrada `activa` no trae el último cierre: se pide aparte.
+                // Si falla, queda el que había.
+                if (session == null) readLastClose()?.let { lastClose = it }
             }.mapApiErrors()
+
+    private fun readLastClose(): CashLastClose? =
+        apiClient
+            .get("sesiones-caja/ultimo-cierre")
+            .mapCatching { contractJson.parseLastClosedSession(it) }
+            .getOrNull()
 
     override fun closeSession(
         sessionId: String,
@@ -81,6 +97,30 @@ class RemoteCashSessionRepository(
                 headers = mapOf("Idempotency-Key" to idempotencyKey),
             ).map { }
             .mapApiErrors()
+
+    override fun drawerReport(sessionId: String): Result<CashDrawerReport> =
+        apiClient
+            .get("sesiones-caja/$sessionId/movimientos")
+            .mapCatching { CashDrawerJson.parseReport(it) }
+            .mapApiErrors()
+
+    override fun registerDrawerMovement(
+        sessionId: String,
+        type: CashDrawerMovementType,
+        amount: String,
+        reason: String,
+        idempotencyKey: String,
+    ): Result<String?> =
+        apiClient
+            .post(
+                path = "sesiones-caja/$sessionId/movimientos",
+                body = CashDrawerJson.encodeMovement(type, amount, reason),
+                headers = mapOf("Idempotency-Key" to idempotencyKey),
+            ).mapCatching { raw ->
+                // Ya respondió 2xx: el movimiento quedó aunque el cuerpo no se entienda.
+                runCatching { CashDrawerJson.parseExpectedAfterMovement(raw) }.getOrNull()
+                    ?.also { expectedCash = it }
+            }.mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
         fold(

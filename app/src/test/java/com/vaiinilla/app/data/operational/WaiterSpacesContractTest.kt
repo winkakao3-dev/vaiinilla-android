@@ -94,6 +94,55 @@ class WaiterSpacesContractTest {
     }
 
     @Test
+    fun `the prepaid rent of the turn comes apart from the account (U05)`() {
+        val raw =
+            """
+            {"data":{"espacio":{"id":7,"nombre":"Pista 1","tipo":"cancha"},"estado":"ocupada","saldada":true,
+              "sesion":{"id":"s-1","inicio":"2026-09-29T20:00:00.000Z","fin_previsto":"2026-09-29T21:00:00.000Z",
+                        "version":1},
+              "cuenta":{"pedidos":[],"total":0,"pendiente":0,"pagado":0,"saldada":true},
+              "renta":{"pagada":"300.00","minutos":120,"jugadores":4,"nombre_cliente":"Ana"}},
+             "meta":{},"error":null}
+            """.trimIndent()
+
+        val detail = json.parseSessionDetail(raw)
+
+        assertEquals("300.00", detail.rent?.paid)
+        assertEquals(120, detail.rent?.minutes)
+        assertEquals(4, detail.rent?.players)
+        assertEquals("Ana", detail.rent?.customerName)
+        // La renta no entra a lo que falta cobrar.
+        assertEquals("0.00", detail.account?.pending)
+    }
+
+    @Test
+    fun `an older server without rent or players still parses`() {
+        val raw =
+            """
+            {"data":[{"espacio":{"id":7,"nombre":"Pista 1","tipo":"cancha"},"estado":"libre","saldada":true,
+              "gracia_min":5,"proxima_reserva":{"inicio":"2026-09-29T20:00:00.000Z",
+              "fin":"2026-09-29T21:00:00.000Z","estado":"confirmada"}},
+             {"espacio":{"id":8,"nombre":"Pista 2","tipo":"cancha"},"estado":"libre","saldada":true,
+              "gracia_min":5,"proxima_reserva":{"inicio":"2026-09-29T20:00:00.000Z",
+              "fin":"2026-09-29T21:00:00.000Z","estado":"confirmada","jugadores":5,"nombre_cliente":"Luis"}}],
+             "meta":{},"error":null}
+            """.trimIndent()
+
+        val spaces = json.parseAvailability(raw)
+
+        assertNull(spaces[0].nextReservationPlayers)
+        assertNull(spaces[0].nextReservationCustomer)
+        assertEquals(5, spaces[1].nextReservationPlayers)
+        assertEquals("Luis", spaces[1].nextReservationCustomer)
+        val free =
+            json.parseSessionDetail(
+                """{"data":{"espacio":{"id":8,"nombre":"Pista 2","tipo":"cancha"},"estado":"libre",""" +
+                    """"saldada":true,"sesion":null,"cuenta":null},"meta":{},"error":null}""",
+            )
+        assertNull(free.rent)
+    }
+
+    @Test
     fun `parses the account collection with the change`() {
         val raw =
             """{"data":{"espacio":{"id":7,"nombre":"Cancha 1","tipo":"cancha"},"pedidos_cobrados":2,

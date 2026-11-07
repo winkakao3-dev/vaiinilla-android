@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PointOfSale
 import androidx.compose.material.icons.outlined.ReceiptLong
@@ -101,7 +102,11 @@ enum class AdminSection(
     private val baseDescription: String,
     val icon: ImageVector,
 ) {
-    STORE("Flujo de mi tienda", "Pagos con tarjeta, directorio, logo, videos y cómo se pide", Icons.Outlined.Tune),
+    STORE(
+        "Flujo de mi tienda",
+        "Pagos con tarjeta, directorio, logo, teléfono, videos y cómo se pide",
+        Icons.Outlined.Tune,
+    ),
     SCHOOL(
         "Escuela",
         "Código para unirse, recarga con tarjeta, apartar y menú de cada día",
@@ -111,6 +116,16 @@ enum class AdminSection(
     STAFF("Personal", "Invitaciones y accesos del equipo", Icons.Outlined.Group),
     CASHBACK("Cashback y wallet", "La regla de cashback y la cartera de clientes", Icons.Outlined.Savings),
     CASH("Caja", "Abrir y cerrar la caja", Icons.Outlined.PointOfSale),
+    INVENTORY(
+        "Inventario",
+        "Insumos, recetas, conteos y reporte; lo vendido se descuenta solo",
+        Icons.Outlined.Inventory2,
+    ),
+    CUTS(
+        "Cortes y reportes",
+        "Corte de caja por turno y del día, y el reporte para el contador",
+        Icons.Outlined.ReceiptLong,
+    ),
     ;
 
     /** En un boliche dice «pistas» ([Venue]). */
@@ -130,6 +145,10 @@ class AdminSectionsHost(
     val school: com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel? = null,
     /** La pestaña Pedir; null si no hay con qué tomar pedidos. */
     val orderTaker: (@Composable (AdminHeader) -> Unit)? = null,
+    /** Negocio › Inventario; null la esconde. */
+    val inventory: com.vaiinilla.app.ui.admin.AdminInventoryViewModel? = null,
+    /** Negocio › Cortes y reportes; null la esconde. */
+    val cashCut: com.vaiinilla.app.ui.admin.AdminCashCutViewModel? = null,
 )
 
 /** Lo que comparten las cabeceras de las pestañas: el negocio, sus imágenes y el botón de la cuenta. */
@@ -162,6 +181,8 @@ class AdminActions(
         com.vaiinilla.app.domain.model.HomeOrderAction,
         (com.vaiinilla.app.domain.model.OrderDetail) -> Unit,
     ) -> Unit = { _, _, _ -> },
+    /** Con Pedidos a la vista: vuelve a leer «Por aceptar» y los activos sin la rueda de carga. */
+    val onPollOrders: () -> Unit = {},
 )
 
 @Composable
@@ -193,17 +214,31 @@ fun AdminScreen(
     val reduced = reducedMotion()
     val readOnly = restrictedMode == RestrictedMode.READ_ONLY
     val welcome = rememberStoreWelcome(scope)
-    val setup = adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
+    val declinedSteps = rememberDeclinedSetupSteps(scope)
+    val setup =
+        adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
+            .withoutDeclined(declinedSteps.keys)
+    // El dueño o Vaiinilla pueden apagar el asistente de la tienda (asistente_modo «ninguno»).
+    val assistantForStaff = sections.store.uiState.value.config?.assistantMode?.forStaff != false
 
     AdminDialogHost(colors) {
         if (assistantOpen) {
             com.vaiinilla.app.ui.components.ResizeForKeyboard()
-            StoreAssistantScreen(sections.store, colors, readOnly) { assistantOpen = false }
+            StoreAssistantScreen(sections.store, colors, readOnly) {
+                assistantOpen = false
+                // Lo que guardó (menú, mesas, fotos, equipo) sale en Inicio sin reiniciar la app (en vivo, Y01).
+                actions.onRefreshHome()
+                actions.onRefreshCatalog()
+                sections.store.refresh()
+                sections.spaces.refresh()
+                sections.staff.refresh()
+            }
             return@AdminDialogHost
         }
         // Bienvenida (marco AS1): la primera vez que entra a una tienda que todavía no está lista.
         if (offerWelcome &&
             !readOnly &&
+            assistantForStaff &&
             !welcome.seen &&
             sections.store.uiState.value.config != null &&
             showsStoreSetup(setup)
@@ -240,6 +275,7 @@ fun AdminScreen(
                     colors,
                     readOnly,
                     onOpenAssistant = { assistantOpen = true },
+                    assistantForStaff = assistantForStaff,
                 ) { section = null }
             }
             return@AdminDialogHost
@@ -279,9 +315,11 @@ fun AdminScreen(
                                 header = header,
                                 setup = setup,
                                 onOpenOrders = { tab = AdminTab.ORDERS },
-                                onOpenAssistant = if (readOnly) null else ({ assistantOpen = true }),
+                                onOpenAssistant =
+                                    if (readOnly || !assistantForStaff) null else ({ assistantOpen = true }),
                                 onSeeAsCustomer = onChangeMode,
                                 onOpenSection = { section = it },
+                                onDeclineStep = if (readOnly) null else ({ declinedSteps.decline(it.key) }),
                             )
                         AdminTab.MENU ->
                             AdminMenuTab(
@@ -294,6 +332,8 @@ fun AdminScreen(
                                 cardFeeToCustomer = cardFeeToCustomer,
                                 isSchool = isSchool,
                                 takesPreorders = takesPreorders,
+                                inventory = sections.inventory,
+                                scope = scope,
                             )
                         AdminTab.TAKE_ORDER ->
                             sections.orderTaker?.invoke(header)
@@ -316,7 +356,9 @@ fun AdminScreen(
                                 header = header,
                                 sections =
                                     AdminSection.entries.filter {
-                                        it != AdminSection.SCHOOL || (isSchool && sections.school != null)
+                                        (it != AdminSection.SCHOOL || (isSchool && sections.school != null)) &&
+                                            (it != AdminSection.INVENTORY || sections.inventory != null) &&
+                                            (it != AdminSection.CUTS || sections.cashCut != null)
                                     },
                                 host = sections,
                                 readOnly = readOnly,
@@ -366,6 +408,7 @@ private fun adminSetupSteps(
                         done = delivery.enabled,
                         section = AdminSection.STORE,
                         optional = true,
+                        key = "domicilio",
                     ),
                 )
             }
@@ -382,6 +425,7 @@ private fun adminSetupSteps(
                     done = stripeReady,
                     section = AdminSection.STORE,
                     optional = true,
+                    key = "tarjeta",
                 ),
             )
         }
@@ -401,7 +445,17 @@ private fun adminSetupSteps(
                                 com.vaiinilla.app.domain.admin.InvitationState.ACCEPTED,
                             )
                     }
-            add(AdminSetupStep("Cocina invitada", null, done = invited, section = AdminSection.STAFF))
+            // Opcional: hay negocios sin cocina, y si no, la tarjeta volvía cada vez que faltaba (revisión, 4 nov).
+            add(
+                AdminSetupStep(
+                    "Cocina invitada",
+                    null,
+                    done = invited,
+                    section = AdminSection.STAFF,
+                    optional = true,
+                    key = "cocina",
+                ),
+            )
         }
         state.live?.cashOpen?.let { open ->
             add(
@@ -414,6 +468,8 @@ private fun adminSetupSteps(
                     },
                     done = open,
                     section = AdminSection.CASH,
+                    // La caja se cierra cada noche: si contara, la tarjeta volvía todas las mañanas.
+                    optional = true,
                 ),
             )
         }
@@ -509,6 +565,7 @@ private fun AdminSectionContent(
     colors: OperationalColors,
     readOnly: Boolean,
     onOpenAssistant: () -> Unit,
+    assistantForStaff: Boolean = true,
     onBack: () -> Unit,
 ) {
     when (section) {
@@ -527,7 +584,7 @@ private fun AdminSectionContent(
                 colors,
                 readOnly,
                 onBack,
-                onOpenAssistant = onOpenAssistant.takeUnless { readOnly },
+                onOpenAssistant = onOpenAssistant.takeUnless { readOnly || !assistantForStaff },
             )
         }
         AdminSection.SCHOOL ->
@@ -545,6 +602,23 @@ private fun AdminSectionContent(
             LaunchedEffect(scope) { sections.spaces.onVisible(scope) }
             AdminSpacesSection(sections.spaces, colors, readOnly, onBack, sections.tablesBoard?.tables.orEmpty())
         }
+        AdminSection.INVENTORY ->
+            sections.inventory?.let { inventory ->
+                LaunchedEffect(scope) { inventory.onVisible(scope) }
+                AdminInventorySection(
+                    inventory,
+                    state.catalog?.products,
+                    colors,
+                    readOnly,
+                    onBack,
+                    categories = state.catalog?.categories,
+                )
+            }
+        AdminSection.CUTS ->
+            sections.cashCut?.let { cashCut ->
+                LaunchedEffect(scope) { cashCut.onVisible(scope) }
+                AdminCashCutSection(cashCut, colors, onBack)
+            }
         AdminSection.CASH ->
             AdminCashSection(
                 state = state,
@@ -574,7 +648,9 @@ private fun AdminBusinessTab(
     val spaces by host.spaces.uiState
     val detail: (AdminSection) -> String = { businessDetail(it, state, store, spaces, readOnly) }
     val tiles = BusinessTiles.filter { it in sections }
-    val wide = listOf(AdminSection.STORE, AdminSection.SCHOOL).filter { it in sections }
+    val wide =
+        listOf(AdminSection.INVENTORY, AdminSection.CUTS, AdminSection.STORE, AdminSection.SCHOOL)
+            .filter { it in sections }
     if (readOnly) {
         ReadOnlyBusiness(sections, colors, header, detail, onOpen)
         return
@@ -636,11 +712,13 @@ private fun ReadOnlyBusiness(
                 val order =
                     listOf(
                         AdminSection.CASH,
+                        AdminSection.CUTS,
                         AdminSection.STORE,
                         AdminSection.SPACES,
                         AdminSection.STAFF,
                         AdminSection.CASHBACK,
                         AdminSection.SCHOOL,
+                        AdminSection.INVENTORY,
                     ).filter { it in sections }
                 order.forEachIndexed { index, section ->
                     if (index > 0) AdminRowDivider(colors)
@@ -680,7 +758,9 @@ private fun businessDetail(
                 false -> "Cerrada"
                 null -> "Abrir y cerrar"
             }
+        section == AdminSection.CUTS -> "Corte del turno y del día, y reporte para el contador"
         readOnly -> "Solo lectura"
+        section == AdminSection.INVENTORY -> "Insumos, recetas, conteos y reporte"
         section == AdminSection.STORE -> "Pagos, logo, entrega y cómo se pide"
         section == AdminSection.SPACES -> {
             val count = spaces.spaces?.size ?: 0
@@ -859,5 +939,31 @@ private fun rememberStoreWelcome(scope: String): StoreWelcomeMemory {
     return remember(scope) {
         val prefs = context.applicationContext.getSharedPreferences("vaiinilla_admin_bienvenida", Context.MODE_PRIVATE)
         StoreWelcomeMemory(prefs, "vista_$scope")
+    }
+}
+
+/**
+ * Los pasos opcionales de «Para dejar lista tu tienda» a los que el dueño dijo «No quiero», por tienda. Se guarda
+ * solo en el teléfono: el backend no tiene dónde, y basta con que deje de estorbar aquí.
+ */
+internal class DeclinedSetupSteps(
+    private val prefs: SharedPreferences,
+    private val key: String,
+) {
+    var keys by mutableStateOf(prefs.getStringSet(key, emptySet()).orEmpty().toSet())
+        private set
+
+    fun decline(stepKey: String) {
+        keys = keys + stepKey
+        prefs.edit().putStringSet(key, keys).apply()
+    }
+}
+
+@Composable
+private fun rememberDeclinedSetupSteps(scope: String): DeclinedSetupSteps {
+    val context = LocalContext.current
+    return remember(scope) {
+        val prefs = context.applicationContext.getSharedPreferences("vaiinilla_admin_bienvenida", Context.MODE_PRIVATE)
+        DeclinedSetupSteps(prefs, "no_quiero_$scope")
     }
 }

@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -74,6 +78,7 @@ import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.admin.school.AdminSchoolUiState
 import com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel
+import com.vaiinilla.app.ui.operational.StaffOrderDraft
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.admin.school.AdminSchoolSection
@@ -322,9 +327,21 @@ class DoopGaleriaAdminTest {
             spaces = spacesVm(listOf(mesa(1, "Mesa 1"), mesa(2, "Cancha 1", "cancha", "350.00"))),
             cash = AdminCashActions({ _, _ -> }, { _, _ -> }),
             orderTaker =
-                state?.let { s ->
+                state?.let { initial ->
                     { header ->
-                        AdminTakeOrderTab(s, rememberOperationalColors(), header, {}, {}, { _, _ -> })
+                        // R17: el borrador vive en el ViewModel; aquí lo guarda el estado de la prueba.
+                        var s by remember { mutableStateOf(initial) }
+                        AdminTakeOrderTab(
+                            s,
+                            rememberOperationalColors(),
+                            header,
+                            {},
+                            { space -> s = s.copy(adminOrderDraft = s.adminOrderDraft.copy(space = space)) },
+                            { lines, name ->
+                                s = s.copy(adminOrderDraft = s.adminOrderDraft.copy(lines = lines, name = name))
+                            },
+                            {},
+                        )
                     }
                 },
         )
@@ -464,6 +481,7 @@ class DoopGaleriaAdminTest {
             WaiterUiState(
                 counterCatalog = ScreenshotFixtures.catalog(),
                 counterOrderSpace = TableSpace(4, "Mesa 4", "mesa"),
+                adminOrderDraft = StaffOrderDraft(space = TableSpace(4, "Mesa 4", "mesa")),
                 allowsPayAtEnd = true,
             )
         screen(home(), waiter = waiter)
@@ -803,6 +821,7 @@ class DoopGaleriaAdminTest {
             WaiterUiState(
                 counterCatalog = catalog,
                 counterOrderSpace = TableSpace(4, "Mesa 4", "mesa"),
+                adminOrderDraft = StaffOrderDraft(space = TableSpace(4, "Mesa 4", "mesa")),
                 allowsPayAtEnd = true,
             )
         screen(home(), waiter = waiter)

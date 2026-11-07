@@ -887,7 +887,7 @@ private fun ProductDetailDock(
             errorMessage?.let { message ->
                 Text(
                     message,
-                    color = colors.coral,
+                    color = colors.coralText,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     fontWeight = FontWeight.Bold,

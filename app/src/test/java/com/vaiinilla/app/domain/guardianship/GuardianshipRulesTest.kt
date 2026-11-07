@@ -188,10 +188,14 @@ class GuardianshipRulesTest {
     @Test
     fun guardianPushTextsNameTheChild() {
         assertEquals(
-            GuardianPushNotifier.Text("Tilin · Pedido #12", "Tilin su pedido está listo para recoger."),
+            GuardianPushNotifier.Text("Tilin · Pedido #12", "El pedido de Tilin está listo para recoger."),
             GuardianPushNotifier.orderStateText("Tilin", "12", "listo"),
         )
         assertEquals("Tu hijo · Pedido #12", GuardianPushNotifier.orderStateText(null, "12", "cobrado")!!.title)
+        assertEquals(
+            "El pedido de tu hijo está listo para recoger.",
+            GuardianPushNotifier.orderStateText(null, "12", "listo")!!.body,
+        )
         assertNull(GuardianPushNotifier.orderStateText("Tilin", "12", "por_cobrar"))
         assertEquals(
             "Le quedan \$20. Recarga para que no se quede sin comer.",

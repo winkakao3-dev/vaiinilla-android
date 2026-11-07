@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.domain.model.CART_LINE_NOTE_MAX
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.OptionGroup
@@ -77,6 +78,40 @@ class CounterOrderSheetTest {
         assertEquals(listOf(1), counterOrderMatches(menu, "cafe").map { it.id })
         assertEquals(listOf(2), counterOrderMatches(menu, "  LIMO ").map { it.id })
         assertEquals(listOf(1, 2), counterOrderMatches(menu, "").map { it.id })
+    }
+
+    @Test
+    fun `R24 dos piezas del mismo producto pueden ir en lineas con notas distintas`() {
+        val burrito = product(emptyList())
+        var lineas = StaffOrderLines.addUnit(emptyMap(), burrito, emptySet())
+        lineas = StaffOrderLines.addUnit(lineas, burrito, emptySet())
+        assertEquals(1, lineas.size)
+        assertEquals(2, StaffOrderLines.quantityOf(lineas, burrito.id))
+
+        lineas = StaffOrderLines.splitOne(lineas, lineas.keys.first())
+        val nueva = lineas.keys.last()
+        lineas = StaffOrderLines.setNote(lineas, nueva, "  sin cebolla ")
+        assertEquals(2, lineas.size)
+        assertEquals(2, StaffOrderLines.quantityOf(lineas, burrito.id))
+
+        val enviadas = StaffOrderLines.toSubmit(lineas)
+        assertEquals(listOf(1, 1), enviadas.map { it.quantity })
+        assertEquals(listOf("", "sin cebolla"), enviadas.map { it.notes })
+
+        // «+» desde la ficha suma a la línea sin nota; «−» quita de la última.
+        lineas = StaffOrderLines.addUnit(lineas, burrito, emptySet())
+        assertEquals(listOf(2, 1), StaffOrderLines.toSubmit(lineas).map { it.quantity })
+        lineas = StaffOrderLines.removeUnit(lineas, burrito.id)
+        assertEquals(listOf(""), StaffOrderLines.toSubmit(lineas).map { it.notes })
+    }
+
+    @Test
+    fun `R24 una linea de una pieza no se separa y la nota tiene tope`() {
+        val lineas = StaffOrderLines.addUnit(emptyMap(), product(emptyList()), emptySet())
+        val id = lineas.keys.single()
+        assertEquals(lineas, StaffOrderLines.splitOne(lineas, id))
+        val larga = StaffOrderLines.setNote(lineas, id, "x".repeat(200))
+        assertEquals(CART_LINE_NOTE_MAX, larga.getValue(id).notes.length)
     }
 
     private fun group(

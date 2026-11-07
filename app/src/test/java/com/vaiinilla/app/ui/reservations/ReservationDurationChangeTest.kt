@@ -13,7 +13,9 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
+import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -46,6 +49,7 @@ class ReservationDurationChangeTest {
 
     @After
     fun tearDown() {
+        Venue.update(null)
         Dispatchers.resetMain()
     }
 
@@ -81,6 +85,91 @@ class ReservationDurationChangeTest {
         assertNull(viewModel.uiState.value.pending)
         assertTrue(error, error.endsWith("La cancha quedó libre: vuelve a elegirla."))
         assertEquals(listOf("create ahora 60", "cancel r-1", "create ahora 120"), calls)
+    }
+
+    @Test
+    fun `players from the payment sheet swap the hold and keep the time (U03)`() {
+        val viewModel = loadedViewModel()
+        viewModel.rentNow()
+        waitFor { viewModel.uiState.value.pending }
+
+        viewModel.changePendingPlayers(4)
+        val second = waitFor { viewModel.uiState.value.pending?.takeIf { it.players == 4 } }
+        viewModel.changePendingDuration(90)
+        val third = waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        viewModel.onHidden()
+
+        assertEquals(60, second.durationMinutes)
+        // Cambiar el tiempo conserva los jugadores.
+        assertEquals(4, third.players)
+        assertEquals(
+            listOf("create ahora 60", "cancel r-1", "create ahora 60 j4", "cancel r-2", "create ahora 90 j4"),
+            calls,
+        )
+    }
+
+    @Test
+    fun `a new hold does not inherit the players of the previous one`() {
+        val viewModel = loadedViewModel()
+        viewModel.selectPlayers(3)
+
+        viewModel.rentNow()
+        waitFor { viewModel.uiState.value.pending }
+        viewModel.onHidden()
+
+        assertEquals(0, viewModel.uiState.value.players)
+    }
+
+    @Test
+    fun `a resumed rent-now hold is held again from now (R10)`() {
+        val viewModel = loadedViewModel()
+        // «Mis reservas» › «Retomar pago»: su inicio (el minuto en que se apartó) ya pasó y no cae en bloque.
+        val held = reservation("r-9", 60, ReservationState.PENDING_PAYMENT).copy(start = now.plusSeconds(420))
+        viewModel.resumePayment(held)
+        assertTrue(viewModel.uiState.value.pendingStartsNow)
+
+        viewModel.changePendingDuration(90)
+        waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        viewModel.onHidden()
+
+        assertEquals(listOf("cancel r-9", "create ahora 90"), calls)
+    }
+
+    @Test
+    fun `bowling asks for players before renting now and caps them at the lane capacity (R11, R25)`() {
+        Venue.update(Venue.BOWLING)
+        val viewModel = loadedViewModel()
+
+        viewModel.rentNow()
+        // Sin jugadores no se aparta: el resumen los pide primero.
+        assertTrue(viewModel.uiState.value.rentNow)
+        assertFalse(viewModel.uiState.value.canReserve)
+        assertTrue(calls.isEmpty())
+
+        viewModel.selectPlayers(10)
+        assertEquals(6, viewModel.uiState.value.players)
+        viewModel.reserve()
+        waitFor { viewModel.uiState.value.pending }
+        viewModel.onHidden()
+
+        assertEquals(listOf("create ahora 60 j6"), calls)
+    }
+
+    @Test
+    fun `invitado sin qr va directo a entrar con su cuenta y con qr escribe su nombre`() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
+        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()))
+        val viewModel = ReservationsViewModel(FakeRepository(), session)
+
+        viewModel.onVisible(guestSlug = "club", hasAccount = false)
+        assertTrue(viewModel.uiState.value.accountRequired)
+        assertFalse(viewModel.uiState.value.guestEntry)
+
+        viewModel.onVisible(guestSlug = "club", hasAccount = false, cameThroughQr = true)
+        assertFalse(viewModel.uiState.value.accountRequired)
+        assertTrue(viewModel.uiState.value.guestEntry)
+        viewModel.onHidden()
     }
 
     private fun loadedViewModel(): ReservationsViewModel {
@@ -151,6 +240,7 @@ class ReservationDurationChangeTest {
                                 customerPricePerHour = CustomerPrice(card = "350.00", cashOrBalance = "350.00"),
                                 rentable = true,
                                 busy = emptyList(),
+                                capacity = 6,
                             ),
                         ),
                 ),
@@ -170,10 +260,12 @@ class ReservationDurationChangeTest {
             idempotencyKey: String,
             players: Int?,
         ): Result<Reservation> {
-            calls += "create ${start ?: "ahora"} $durationMinutes"
+            calls += "create ${start ?: "ahora"} $durationMinutes" + (players?.let { " j$it" } ?: "")
             if (failNextCreate) return Result.failure(IllegalStateException("Ese horario ya se tomó."))
             created++
-            return Result.success(reservation("r-$created", durationMinutes, ReservationState.PENDING_PAYMENT))
+            return Result.success(
+                reservation("r-$created", durationMinutes, ReservationState.PENDING_PAYMENT).copy(players = players),
+            )
         }
 
         override fun pay(
@@ -188,6 +280,7 @@ class ReservationDurationChangeTest {
             access: ReservationAccess,
             reservationId: String,
             idempotencyKey: String,
+            refund: ReservationRefund?,
         ): Result<Reservation> {
             calls += "cancel $reservationId"
             return Result.success(reservation(reservationId, 60, ReservationState.CANCELLED))

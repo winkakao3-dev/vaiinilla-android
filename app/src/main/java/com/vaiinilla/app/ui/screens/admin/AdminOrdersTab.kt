@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.domain.model.HomeOrderAction
 import com.vaiinilla.app.domain.model.HomeOrderBoard
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -55,13 +56,16 @@ import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.admin.awaitingAcceptance
 import com.vaiinilla.app.ui.components.chargedPaymentLabel
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.amberInk
 import com.vaiinilla.app.ui.theme.Yolk
+import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -148,6 +152,14 @@ private fun OrdersPage(
         actions.onRefreshHome()
         tables?.onRefresh?.invoke()
     }
+    // Un encargo nuevo aparece en «Por aceptar» sin reabrir la app: cada 15 s mientras Pedidos está a la vista, o
+    // en cuanto llega el push del pedido.
+    LaunchedEffect(Unit) {
+        while (true) {
+            OrderPushes.awaitNextPoll { delay(ORDERS_POLL_MS) }
+            actions.onPollOrders()
+        }
+    }
     val photos =
         remember(state.catalog) {
             state.catalog
@@ -157,7 +169,7 @@ private fun OrdersPage(
         }
     val awaiting =
         if (state.orderFilter == AdminOrderFilter.ACTIVE) {
-            state.orders.filter { it.summary.state == OrderState.AWAITING_ACCEPTANCE }
+            awaitingAcceptance(state.awaitingOrders, state.orders)
         } else {
             emptyList()
         }
@@ -170,6 +182,8 @@ private fun OrdersPage(
             state.unpaid
                 ?.accounts
                 .orEmpty()
+                // Un espacio puede traer su turno y, aparte, deuda de turnos cerrados: la ficha muestra el turno.
+                .filter { !it.abandoned }
                 .associateBy { it.spaceId }
         }
     AdminPage(
@@ -190,7 +204,7 @@ private fun OrdersPage(
                         boardTables.forEach { table ->
                             TableTile(
                                 table,
-                                unpaidBySpace[table.space.id]?.total,
+                                unpaidBySpace[table.space.id]?.remaining,
                                 colors,
                             ) { onOpenTable(table.space.id) }
                         }
@@ -215,7 +229,7 @@ private fun OrdersPage(
                     } else {
                         null
                     }
-                if (state.takesHomeOrders) {
+                if (state.takesHomeOrders || awaiting.isNotEmpty()) {
                     AwaitingChip(awaiting.size, mode == OrdersMode.AWAITING, colors) {
                         mode = OrdersMode.AWAITING
                         actions.onSelectOrderFilter(AdminOrderFilter.ACTIVE)
@@ -395,7 +409,7 @@ private fun TableTile(
         when {
             table.call != null -> Triple("Te llaman", colors.coralText, true)
             table.orders.any { it.state == OrderState.READY } -> Triple("Listo para llevar", colors.accentInk, true)
-            owes -> Triple("${moneyLabel(unpaidTotal.orEmpty())} sin pagar", Yolk, true)
+            owes -> Triple("${moneyLabel(unpaidTotal.orEmpty())} sin pagar", colors.amberInk, true)
             table.orders.isNotEmpty() -> Triple("Preparando", colors.accentInk, false)
             table.availability?.state?.let { it != SpaceAvailabilityState.LIBRE } == true ->
                 Triple("Ocupada", colors.textSecondary, false)
@@ -406,7 +420,7 @@ private fun TableTile(
         Modifier
             .physicalPress(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = "${table.space.name}, $label" }
-            .width(78.dp)
+            .widthIn(min = 78.dp, max = 160.dp)
             .height(70.dp)
             .clip(shape)
             .background(colors.cardBackground)
@@ -686,6 +700,9 @@ private fun whereLabel(order: OrderDetail): String? =
 
 private fun whoLabel(order: OrderDetail): String? =
     order.customerName?.takeIf { it.isNotBlank() } ?: order.user?.name?.takeIf { it.isNotBlank() }
+
+/** Cada cuánto se vuelven a pedir los pedidos mientras Pedidos está a la vista; un push lo adelanta. */
+private const val ORDERS_POLL_MS = 15_000L
 
 private val ArrivalFormat = DateTimeFormatter.ofPattern("HH:mm")
 

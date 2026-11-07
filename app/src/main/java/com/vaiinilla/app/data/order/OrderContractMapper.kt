@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.CreateOrderItem
 import com.vaiinilla.app.domain.model.CreateOrderRequest
 import com.vaiinilla.app.domain.model.DeliveryAddress
 import com.vaiinilla.app.domain.model.HomeDeliveryQuote
+import com.vaiinilla.app.domain.model.OfflineCapture
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderHomeDelivery
@@ -34,7 +35,8 @@ fun CreateOrderRequest.toDto(): CreateOrderRequestDto =
         spaceId = spaceId,
         kitchenNotes = kitchenNotes.trim().takeIf { it.isNotEmpty() },
         items = items.map { it.toDto() },
-        payAtEnd = payAtEnd.takeIf { it },
+        payAtEnd = payAtEnd,
+        confirmTakeAway = confirmTakeAway.takeIf { it },
         customerName = customerName?.trim()?.takeIf { it.isNotEmpty() },
         delivery = delivery?.toDto(),
         deliveryDate = deliveryDate?.takeIf { it.isNotBlank() },
@@ -103,6 +105,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                 paymentPending = paymentPending,
                 cancelReason = cancelReason,
                 canceledByRole = canceledByRole,
+                cancelReasonCode = cancelReasonCode,
                 tableSessionId = tableSessionId,
                 deliveryWithoutQr = deliveryWithoutQr,
                 amountPaid = amountPaid,
@@ -159,6 +162,7 @@ fun OrderDetailDto.toDomain(): OrderDetail =
                     fee = deliveryFee?.flexibleText(),
                     deposit = deposit?.flexibleText(),
                     dueOnArrival = dueOnArrival?.flexibleText(),
+                    collectedAtDoorMethod = collectedAtDoor?.method?.trim()?.takeIf { it.isNotEmpty() },
                     code = deliveryCode?.flexibleText(),
                     courierName = courierName?.trim()?.takeIf { it.isNotEmpty() },
                 )
@@ -166,6 +170,10 @@ fun OrderDetailDto.toDomain(): OrderDetail =
         answerBy = answerBy?.let(::serverInstant),
         payBy = payBy?.let(::serverInstant),
         stayId = stayId?.flexibleText(),
+        offlineCapture =
+            offlineCapture?.let {
+                OfflineCapture(capturedAt = it.capturedAt?.let(::serverInstant), localFolio = it.localFolio)
+            },
     )
 
 // El servidor lee estas fechas de to_jsonb: llegan con desfase ("…+00:00"), no con Z.

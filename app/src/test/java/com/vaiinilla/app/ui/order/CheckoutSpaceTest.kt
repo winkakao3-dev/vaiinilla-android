@@ -32,9 +32,17 @@ class CheckoutSpaceTest {
     @Test
     fun `con cancha rentada en curso se ofrece y va primero aunque entro por la mesa`() {
         val s = state(rented = cancha)
-        assertEquals(listOf(mesa, cancha), s.checkoutSpaces)
+        assertEquals(listOf(cancha, mesa), s.checkoutSpaces)
         assertEquals(4, s.checkoutSpaceId)
         assertEquals("Cancha 1", s.selectedSpaceName)
+    }
+
+    @Test
+    fun `al rentar la pista el cliente pasa de la mesa del QR a la pista`() {
+        assertEquals(mesa, state().currentSpace)
+        assertEquals(cancha, state(rented = cancha).currentSpace)
+        // La mesa del QR no se pierde: sigue para la mesa compartida y para cuando acabe la renta.
+        assertEquals(mesa, state(rented = cancha).guestVenue?.space)
     }
 
     @Test
@@ -50,6 +58,19 @@ class CheckoutSpaceTest {
     @Test
     fun `para llevar no manda espacio`() {
         assertNull(state(rented = cancha, destination = OrderDestination.TAKE_AWAY).checkoutSpaceId)
+    }
+
+    @Test
+    fun `sin QR de mesa la cancha rentada basta para pedir en tu pista`() {
+        val s =
+            OrderFlowUiState(
+                guestVenue = GuestVenueContext(establishment = establishment(), space = null),
+                rentedCourt = cancha,
+                selectedSpaceId = cancha.id,
+                checkoutDestination = OrderDestination.IN_SPACE,
+            )
+        assertEquals(listOf(cancha), s.checkoutSpaces)
+        assertEquals(4, s.checkoutSpaceId)
     }
 
     private fun establishment(): PublicEstablishment =

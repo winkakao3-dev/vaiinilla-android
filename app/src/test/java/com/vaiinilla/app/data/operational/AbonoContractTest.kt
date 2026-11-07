@@ -74,6 +74,28 @@ class AbonoContractTest {
     }
 
     @Test
+    fun `each order knows who ordered it from the groups, so a person's part includes their own orders`() {
+        val raw =
+            """
+            {"data":{"espacio":{"id":7,"nombre":"Mesa 1","tipo":"mesa"},"estado":"ocupada","saldada":false,
+             "cuenta":{"pedidos":[
+               {"id":"p1","folio":3,"estado":"listo","total":120,"pendiente_cobro":true,"pagara":null},
+               {"id":"p2","folio":4,"estado":"listo","total":80,"pendiente_cobro":true,"pagara":"Papá"},
+               {"id":"p3","folio":5,"estado":"listo","total":50,"pendiente_cobro":true}],
+             "grupos":[
+               {"etiqueta":"Papá","participante_id":11,"pedidos":["p1"],"total":120,"pagado":0,"pendiente":120},
+               {"etiqueta":"Mamá","participante_id":"12","pedidos":["p2"],"total":80,"pagado":0,"pendiente":80},
+               {"etiqueta":"Pedido general","participante_id":null,"pedidos":["p3"],"total":50,"pagado":0,
+                "pendiente":50}],
+             "total":250,"pendiente":250,"pagado":0,"saldada":false}},
+             "meta":{},"error":null}
+            """.trimIndent()
+        val orders = json.parseSessionDetail(raw).account!!.orders
+        assertEquals(listOf("Papá", "Mamá", null), orders.map { it.owner })
+        assertEquals(listOf("Papá", "Papá", null), orders.map { it.partOf })
+    }
+
+    @Test
     fun `retrying the same abono reuses its key, a new one does not`() {
         val first = abonoIdempotencyKey(7, AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 3, "100.00", null)
         val retry = abonoIdempotencyKey(7, AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 3, "100.00", null)

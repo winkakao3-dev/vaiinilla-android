@@ -10,12 +10,33 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import java.time.Instant
 
 interface OrderRepository {
     fun createOrder(
         request: CreateOrderRequest,
         idempotencyKey: String,
     ): Result<CreatedOrder>
+
+    /**
+     * Cuerpo de `POST /pedidos` para un pedido tomado sin internet: el mismo que [createOrder] mandaría, más
+     * `sin_conexion` con el id que le puso el teléfono, cuándo se tomó y su folio local (migración 161). Con
+     * [collectNow] (Caja ya cobró el efectivo) lleva `cobrar_ahora`, para que llegue cobrado y entre al corte.
+     */
+    fun offlineOrderBody(
+        request: CreateOrderRequest,
+        orderId: String,
+        capturedAt: Instant,
+        localFolio: String,
+        collectNow: Boolean = false,
+    ): String = throw UnsupportedOperationException("Los pedidos sin conexión no están disponibles.")
+
+    /** Manda un pedido guardado sin conexión, tal cual se guardó, con la misma llave en cada intento. */
+    fun sendOfflineOrder(
+        body: String,
+        idempotencyKey: String,
+    ): Result<CreatedOrder> =
+        Result.failure(UnsupportedOperationException("Los pedidos sin conexión no están disponibles."))
 
     fun getOrder(orderId: String): Result<OrderDetail>
 

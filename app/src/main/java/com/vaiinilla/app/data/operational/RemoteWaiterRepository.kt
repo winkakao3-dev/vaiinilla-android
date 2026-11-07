@@ -113,7 +113,8 @@ class RemoteWaiterRepository(
             }.getOrNull()
         if (fetched != null) {
             storePolicyCache = now to fetched
-            fetched.businessType?.let { Venue.update(it) }
+            // Mesero y Caja no pasan por el catálogo: el tipo de negocio (pista o cancha) sale de aquí.
+            fetched.businessType?.let(Venue::update)
         }
         return fetched ?: storePolicyCache?.second ?: DeliveryPolicyDto()
     }

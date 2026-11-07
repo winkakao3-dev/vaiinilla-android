@@ -7,6 +7,8 @@ import com.vaiinilla.app.ui.components.assistantKitchenStartAnchor
 import com.vaiinilla.app.ui.components.assistantQueueOrderAnchor
 import com.vaiinilla.app.ui.components.cashierAssistantGuides
 import com.vaiinilla.app.ui.components.kitchenAssistantGuides
+import com.vaiinilla.app.ui.components.manualGuideMatches
+import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,12 +26,13 @@ class OperationalAssistantCatalogTest {
                 canCreateProduct = false,
             )
 
-        assertEquals(8, guides.size)
+        assertEquals(9, guides.size)
         assertTrue(guides.all { it.demoSteps.size >= 2 })
         assertTrue("entregar-qr" in guides.map { it.id })
         assertTrue("qr-no-lee" in guides.map { it.id })
         assertTrue("estados-pedido" in guides.map { it.id })
         assertTrue("estacion-producto" in guides.map { it.id })
+        assertTrue("cerrar-caja" in guides.map { it.id })
         assertFalse("entregar-manual" in guides.map { it.id })
     }
 
@@ -129,5 +132,28 @@ class OperationalAssistantCatalogTest {
         assertTrue(guide.available)
         assertEquals(assistantQueueOrderAnchor("k-13"), guide.steps.single().anchorId)
         assertEquals(AssistantAdvance.Tap, guide.steps.single().advance)
+    }
+
+    @Test
+    fun `el buscador del manual ignora acentos y mayusculas y busca en los pasos`() {
+        val guides =
+            cashierAssistantGuides(
+                readyOrderId = null,
+                readyOrderFolio = null,
+                firstProductId = null,
+                cashSessionOpen = true,
+                canCreateProduct = false,
+            )
+
+        fun search(query: String) = guides.filter { manualGuideMatches(it, query) }.map { it.id }
+
+        assertTrue("cerrar-caja" in search("cerrar"))
+        assertTrue("cerrar-caja" in search("CERRAR CAJA"))
+        assertTrue("cerrar-caja" in search("cierro"))
+        assertTrue("estacion-producto" in search("estacion"))
+        assertTrue("qr-no-lee" in search("invalido"))
+        assertEquals(guides.size, search("  ").size)
+        assertTrue(search("zzz").isEmpty())
+        assertTrue(waiterAssistantGuides().any { manualGuideMatches(it, "mesa") })
     }
 }

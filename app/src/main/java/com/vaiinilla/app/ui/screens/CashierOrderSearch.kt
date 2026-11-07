@@ -45,6 +45,7 @@ import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.components.orderStateLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import java.text.Normalizer
 
@@ -222,7 +223,7 @@ private fun CashierSearchRow(
     val summary = order.summary
     val who =
         listOfNotNull(
-            if (summary.destination.name == "TAKE_AWAY") "Para llevar" else SpaceCopy.staffDestination(summary.destination, summary.space),
+            SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar),
             staffCustomerName(order),
         ).joinToString(" · ")
     Row(
@@ -253,7 +254,9 @@ private fun CashierSearchRow(
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(moneyLabel(summary.total), color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp)
             Text(
-                summary.state.label.uppercase(),
+                // Un pedido a la cuenta sin pagar no está «Cobrado» (R30).
+                (if (summary.payAtEnd && summary.paymentPending) "A la cuenta" else orderStateLabel(summary))
+                    .uppercase(),
                 color = colors.textSecondary,
                 fontWeight = FontWeight.Black,
                 fontSize = 10.5.sp,

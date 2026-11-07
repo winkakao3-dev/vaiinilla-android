@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,8 +15,8 @@ class AdminSetupStepsTest {
         )
     private val optionalPending =
         listOf(
-            AdminSetupStep("Entrega a domicilio", "Opcional", done = false, optional = true),
-            AdminSetupStep("Pagos con tarjeta", "Opcional", done = false, optional = true),
+            AdminSetupStep("Entrega a domicilio", "Opcional", done = false, optional = true, key = "domicilio"),
+            AdminSetupStep("Pagos con tarjeta", "Opcional", done = false, optional = true, key = "tarjeta"),
         )
 
     @Test
@@ -35,5 +36,20 @@ class AdminSetupStepsTest {
     @Test
     fun `sin pasos no hay tarjeta`() {
         assertFalse(showsStoreSetup(emptyList()))
+    }
+
+    @Test
+    fun `No quiero quita el paso opcional pendiente y deja los demas`() {
+        val setup = required + optionalPending
+        val left = setup.withoutDeclined(setOf("tarjeta"))
+        assertEquals(required + optionalPending.first(), left)
+    }
+
+    @Test
+    fun `No quiero no quita un paso obligatorio ni uno ya hecho`() {
+        val pendingRequired = AdminSetupStep("Caja abierta", null, done = false, key = "caja")
+        val doneOptional = optionalPending.last().copy(done = true)
+        val setup = listOf(pendingRequired, doneOptional)
+        assertEquals(setup, setup.withoutDeclined(setOf("caja", "tarjeta")))
     }
 }

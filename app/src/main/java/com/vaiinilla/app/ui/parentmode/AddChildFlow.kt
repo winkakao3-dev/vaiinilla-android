@@ -129,8 +129,8 @@ private class ChildForm {
 }
 
 /**
- * Agregar a un hijo en tres pasos, a pantalla completa: el código de la escuela (solo si el tutor todavía no lo
- * dio), quién es (sus datos o el código que saca él en su app, con el aviso de privacidad) y qué sigue: su primera
+ * Agregar a un hijo en tres pasos, a pantalla completa: el código de la escuela (la app siempre lo pide, F17; el
+ * servidor lo valida en POST /tutelas/habilitar), quién es (sus datos o el código que saca él en su app, con el aviso de privacidad) y qué sigue: su primera
  * recarga, o esperar a que la escuela apruebe al tutor.
  */
 @Composable
@@ -141,7 +141,7 @@ internal fun AddChildFlow(
     onParentUnlocked: () -> Unit = {},
     /** Los hijos que ya cuidas: el código de uno de ellos no agrega a nadie y hay que decirlo (QAIOS-31). */
     knownChildIds: Set<String> = emptySet(),
-    /** No ha dado el código de la escuela y no cuida a nadie: el flujo empieza por ahí. */
+    /** Empieza por el código de la escuela; Cartera y Opciones de la escuela siempre lo piden (F17). */
     startsWithSchoolCode: Boolean = false,
     schoolName: String? = null,
     /** Paso 3: abre la ficha del hijo recién agregado; con un monto, directo en recargarle eso. */

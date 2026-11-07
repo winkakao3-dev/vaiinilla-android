@@ -165,10 +165,8 @@ internal fun ReceivedNoticesContent(
             groups.forEachIndexed { groupIndex, (label, group) ->
                 item(key = "group-$label") {
                     Column(modifier = Modifier.padding(top = 18.dp).arrive(index = groupIndex + 1, key = label)) {
-                        // Sin pendientes, el único grupo no necesita nombre.
-                        if (pending.isNotEmpty()) {
-                            ClientCap(label, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
-                        }
+                        // Siempre con su nombre: sin él, «Anteriores» se leía como una lista suelta (en vivo, W04).
+                        ClientCap(label, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
                         ClientCard {
                             group.forEachIndexed { index, notice ->
                                 LaunchedEffect(notice.id) { onResolve(notice) }
@@ -276,7 +274,7 @@ private fun noticeIcon(notice: ReceivedNotice): ImageVector {
             when (alert) {
                 "por_cobrar" -> Icons.Outlined.PointOfSale
                 "nueva_comanda" -> Icons.Outlined.Restaurant
-                "listo_mesero" -> Icons.Outlined.RoomService
+                "listo_mesero", "listo_barra" -> Icons.Outlined.RoomService
                 "llamada_mesa" -> Icons.Outlined.NotificationsActive
                 "turno_por_terminar" -> Icons.Outlined.Schedule
                 "pedido_domicilio" -> Icons.Outlined.DeliveryDining

@@ -125,6 +125,10 @@ data class SpaceAvailability(
     val nextReservationEnd: String? = null,
     /** `pendiente_pago` o `confirmada`. */
     val nextReservationState: String? = null,
+    /** Boliche: cuántos juegan en la siguiente reserva; null sin dato. */
+    val nextReservationPlayers: Int? = null,
+    /** A nombre de quién está la siguiente reserva; null sin dato. */
+    val nextReservationCustomer: String? = null,
 ) {
     val rentable: Boolean
         get() = space.type == "cancha" && pricePerHour != null
@@ -167,7 +171,18 @@ data class AccountOrder(
     val pending: Boolean,
     /** Alias de quien dijo "esto lo pago yo" en la mesa compartida. */
     val payer: String? = null,
-)
+    /**
+     * R13: lo que falta cobrar de este pedido (`restante`): sin lo ya pagado. Es lo que el servidor suma para el
+     * total esperado. Un servidor anterior no lo manda y se usa el total.
+     */
+    val due: String = total,
+    /** I07: alias de quien lo pidió en la mesa compartida (su grupo en la cuenta); null sin grupo. */
+    val owner: String? = null,
+) {
+    /** De quién es la parte: quien dijo "esto lo pago yo" o, si nadie, quien lo pidió. */
+    val partOf: String?
+        get() = payer ?: owner
+}
 
 data class SpaceAccount(
     val orders: List<AccountOrder>,
@@ -188,6 +203,20 @@ data class SpaceSessionDetail(
     val availability: SpaceAvailability,
     val session: SpaceSessionInfo?,
     val account: SpaceAccount?,
+    /** La renta ya pagada del turno; no forma parte de lo que falta cobrar. null sin renta. */
+    val rent: SpaceRent? = null,
+)
+
+/**
+ * Lo pagado por rentar la pista o cancha en este turno (U05). Es su propio pedido, así que no está en
+ * `cuenta.pedidos` ni en lo que falta cobrar: se muestra aparte para que la cuenta cuadre con el cliente.
+ */
+data class SpaceRent(
+    val paid: String,
+    val minutes: Int,
+    /** Boliche: cuántos juegan; null sin dato. */
+    val players: Int? = null,
+    val customerName: String? = null,
 )
 
 /** Cómo se cobra una cuenta abierta: efectivo en la caja o con la terminal de tarjeta del negocio. */
@@ -248,10 +277,23 @@ data class RejectedOrder(
     val id: String,
     val folio: Int,
     val reason: String?,
-    /** `cocina` o `cajero`. */
+    /** Quién lo canceló: `cocina`, `cajero`, `admin`, `cliente` o null (el sistema, p. ej. una reserva cancelada). */
     val byRole: String?,
 ) {
-    val byLabel: String get() = if (byRole == "cajero") "Caja" else "Cocina"
+    /** Cada rol con su nombre: antes todo lo que no era Caja se anunciaba como Cocina (R28). */
+    val byLabel: String
+        get() =
+            when (byRole) {
+                "cajero" -> "Caja"
+                "cocina" -> "Cocina"
+                "admin" -> "Administración"
+                "cliente" -> "El cliente"
+                else -> "El sistema"
+            }
+
+    /** El personal lo «rechazó»; el cliente o el sistema lo «canceló». */
+    val verb: String
+        get() = if (byRole == "cajero" || byRole == "cocina" || byRole == "admin") "rechazó" else "canceló"
 }
 
 data class WaiterBoard(

@@ -20,6 +20,9 @@ data class PublicEstablishmentDto(
     @SerialName("whatsapp_url") val whatsappUrl: String? = null,
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
     @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
+    // Un servidor sin la migración 180 no lo manda: vale true, como hasta ahora.
+    @SerialName("asistente_clientes") val assistantForCustomers: Boolean = true,
+    @SerialName("tipo") val businessType: String? = null,
 )
 
 @Serializable
@@ -55,6 +58,8 @@ fun PublicEstablishmentDto.toDomain() =
         whatsappUrl = whatsappUrl.httpsOrNull(),
         allowsPayAtEnd = allowsPayAtEnd,
         spaceDelivery = SpaceDelivery.fromWire(spaceDelivery),
+        assistantForCustomers = assistantForCustomers,
+        businessType = businessType?.takeIf { it.isNotBlank() },
     )
 
 // Las imágenes se descargan sin sesión: solo https.
