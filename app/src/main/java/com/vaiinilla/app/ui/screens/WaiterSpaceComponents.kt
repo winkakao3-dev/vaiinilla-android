@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -733,7 +734,7 @@ internal fun WaiterSpaceSection(
                         )
                     }
                     // La pregunta se queda hasta que confirme o cancele; si se iba sola, parecía que no pasaba nada.
-                    var confirmingRelease by remember { mutableStateOf(false) }
+                    var confirmingRelease by rememberSaveable { mutableStateOf(false) }
                     if (ordersInCourse > 0) {
                         Text(
                             "Hay pedidos sin entregar: no se puede liberar todavía.",
@@ -1148,12 +1149,12 @@ internal fun CollectAccountContent(
     blockedReason: String? = null,
 ) {
     val payableIds = payable.map { it.id }.toSet()
-    var chosen by remember(selectionKey) { mutableStateOf(payableIds) }
+    var chosen by rememberSaveable(selectionKey, stateSaver = StringSetSaver) { mutableStateOf(payableIds) }
     val selected = chosen intersect payableIds
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
     val splitLocked = paidInAmount.signum() > 0
-    var split by remember(initialSplit) {
+    var split by rememberSaveable(initialSplit) {
         mutableStateOf(
             if (splitLocked &&
                 initialSplit in SplitMode.WHOLE_ORDERS
@@ -1165,8 +1166,8 @@ internal fun CollectAccountContent(
         )
     }
     if (splitLocked && split in SplitMode.WHOLE_ORDERS) split = SplitMode.AMOUNT
-    var abonoText by remember { mutableStateOf("") }
-    var people by remember(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
+    var abonoText by rememberSaveable { mutableStateOf("") }
+    var people by rememberSaveable(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
     val byOrders = onAbono == null || split in SplitMode.WHOLE_ORDERS
     val splitting = (onAbono == null || split == SplitMode.ORDERS) && payable.size >= 2
     val allSelected = selected.size == payable.size
@@ -1186,16 +1187,16 @@ internal fun CollectAccountContent(
         }
     val abonoValid = byOrders || AccountSplit.isValidAmount(totalAmount, remainingAmount)
     val totalLabel = Money.format(totalAmount)
-    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
+    var tipChoice by rememberSaveable(stateSaver = TipChoiceSaver) { mutableStateOf<TipChoice>(TipChoice.None) }
     val tipAmount = if (allowTip) tipChoice.amountFor(totalAmount) else BigDecimal.ZERO
     // Lo que paga la mesa: la cuenta más la propina. El total esperado sigue siendo la cuenta.
     val chargeAmount = totalAmount + tipAmount
     val chargeLabel = Money.format(chargeAmount)
     // Lo que el cajero escribió; sin tocar nada el efectivo sigue al total (cobro justo).
-    var typed by remember { mutableStateOf<String?>(null) }
-    var method by remember { mutableStateOf(AccountPaymentMethod.CASH) }
-    var tipOpen by remember { mutableStateOf(false) }
-    var otherCash by remember { mutableStateOf(false) }
+    var typed by rememberSaveable { mutableStateOf<String?>(null) }
+    var method by rememberSaveable { mutableStateOf(AccountPaymentMethod.CASH) }
+    var tipOpen by rememberSaveable { mutableStateOf(false) }
+    var otherCash by rememberSaveable { mutableStateOf(false) }
     val withTerminal = allowTerminal && method == AccountPaymentMethod.TERMINAL
     val text = typed ?: chargeLabel
     val received = MoneyInput.parse(text)

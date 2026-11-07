@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -170,12 +171,12 @@ internal fun CounterOrderSheet(
     /** Solo en Caja: con las dos formas de entrega, marca si el cliente pasa por él a la barra. */
     onPickUpAtBarChange: ((Boolean) -> Unit)? = null,
 ) {
-    var nombre by remember { mutableStateOf("") }
-    var buscar by remember { mutableStateOf("") }
+    var nombre by rememberSaveable { mutableStateOf("") }
+    var buscar by rememberSaveable { mutableStateOf("") }
     var lineas by remember { mutableStateOf<Map<Int, CartLine>>(emptyMap()) }
-    var categoria by remember { mutableStateOf<Int?>(null) }
+    var categoria by rememberSaveable { mutableStateOf<Int?>(null) }
     // Con productos armados, deslizar, «atrás» o la X no tiran el pedido: primero se pregunta.
-    var confirmarDescarte by remember { mutableStateOf(false) }
+    var confirmarDescarte by rememberSaveable { mutableStateOf(false) }
     val hayPedido by rememberUpdatedState(lineas.isNotEmpty())
     val confirmChange =
         remember {
