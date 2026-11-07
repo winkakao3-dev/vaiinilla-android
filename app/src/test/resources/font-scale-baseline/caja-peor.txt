@@ -1,0 +1,10 @@
+caja-peor a 130 %: «12 Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla, Té, 3 🌮 Tacos al pastor (orden de 5), Paquete fiesta de fin de curso para 30 alumnos (incluye pastel, aguas frescas y bocadillos), COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML, 30 Vaso con agua natural» sale con elipsis
+caja-peor a 130 %: «8 activos · 1 pausados» se encima con «Escanear QR para entregar»
+caja-peor a 130 %: «Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla» sale con elipsis
+caja-peor a 130 %: «Comer aquí · Terraza de la cancha de básquetbol (junto a la tienda escolar) · María Guadalupe Hernández Villaseñor de la Fuente» sale con elipsis
+caja-peor a 130 %: «Sin foto» se corta
+caja-peor a 200 %: «12 Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla, Té, 3 🌮 Tacos al pastor (orden de 5), Paquete fiesta de fin de curso para 30 alumnos (incluye pastel, aguas frescas y bocadillos), COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML, 30 Vaso con agua natural» sale con elipsis
+caja-peor a 200 %: «23 oct» se corta
+caja-peor a 200 %: «Cada pedido dice dos cosas: cómo va y si ya pagó. Toca uno para cobrarlo o entregarlo.» se encima con «Escanear QR para entregar»
+caja-peor a 200 %: «Comer aquí · Terraza de la cancha de básquetbol (junto a la tienda escolar) · María Guadalupe Hernández Villaseñor de la Fuente» sale con elipsis
+caja-peor a 200 %: «Falta pagar» se parte a media palabra: «Falta paga/»
