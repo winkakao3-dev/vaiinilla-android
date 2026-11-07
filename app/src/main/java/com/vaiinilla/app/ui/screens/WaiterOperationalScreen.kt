@@ -249,14 +249,14 @@ fun WaiterOperationalScreen(
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
     // R18: una pantalla recién compuesta (Admin › Pedidos › tocar una mesa) abre la hoja que el ViewModel ya tiene abierta.
-    var openTableId by remember { mutableStateOf(state.openSpaceId) }
+    var openTableId by rememberSaveable { mutableStateOf(state.openSpaceId) }
     LaunchedEffect(state.openSpaceId) { state.openSpaceId?.let { openTableId = it } }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
-    var scannerOpen by remember { mutableStateOf(false) }
+    var scannerOpen by rememberSaveable { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
     val tick = rememberTick(1_000)
-    var kindFilter by remember { mutableStateOf<String?>(null) }
-    var choosingScan by remember { mutableStateOf(false) }
+    var kindFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var choosingScan by rememberSaveable { mutableStateOf(false) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, assistantRole)
     val assistantFocusRequester = remember { FocusRequester() }
@@ -1721,7 +1721,7 @@ private fun WaiterTableSheet(
     val venue = LocalVenueContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // Cobrar reemplaza el contenido de esta misma hoja en lugar de abrir otra encima.
-    var collecting by remember(table.space.id) { mutableStateOf(false) }
+    var collecting by rememberSaveable(table.space.id) { mutableStateOf(false) }
     LaunchedEffect(lastCollection) { if (lastCollection != null) collecting = false }
     val account = spaceDetail?.account
     val reduced = reducedMotion()
@@ -2205,7 +2205,7 @@ internal fun WaiterSheetOrderRow(
     stations: Map<String, PreparationStation> = emptyMap(),
 ) {
     // La pregunta se queda hasta que el mesero confirme o cancele: si se iba sola, parecía que el botón no hacía nada.
-    var confirming by remember(order.id) { mutableStateOf(false) }
+    var confirming by rememberSaveable(order.id) { mutableStateOf(false) }
     val split =
         remember(order.itemsSummary, stations) {
             splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
@@ -2326,7 +2326,7 @@ private fun WaiterDeliverSheet(
     onScan: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var code by remember(order.id) { mutableStateOf("") }
+    var code by rememberSaveable(order.id) { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,

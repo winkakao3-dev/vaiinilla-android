@@ -244,9 +244,9 @@ fun CashierOperationalScreen(
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
-    var addProductSheetOpen by remember { mutableStateOf(false) }
-    var cashDrawerOpen by remember { mutableStateOf(false) }
-    var cashCutOpen by remember { mutableStateOf(false) }
+    var addProductSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var cashDrawerOpen by rememberSaveable { mutableStateOf(false) }
+    var cashCutOpen by rememberSaveable { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
     val tick = rememberTick(CASHIER_AGE_REFRESH_MS)
@@ -290,20 +290,20 @@ fun CashierOperationalScreen(
         }
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
-    var walletSheetOpen by remember { mutableStateOf(false) }
-    var searchOpen by remember { mutableStateOf(false) }
+    var walletSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(openSearchRequest) { if (openSearchRequest > 0) searchOpen = true }
-    var choosingOrderPlace by remember { mutableStateOf(false) }
+    var choosingOrderPlace by rememberSaveable { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
-    var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
+    var selectedCashierOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     // Lo que el cajero lleva escrito (efectivo y propina) por pedido. Vive fuera de la lista: el sondeo
     // trae una copia nueva del pedido cada pocos segundos y la tarjeta se rehace, pero el cobro sigue.
     val cashDrafts = remember { mutableStateMapOf<String, CashierCashDraft>() }
     // El diálogo de rechazo apunta al pedido que se tocó, no al que esté arriba cuando se confirme.
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
-    var openCashSheet by remember { mutableStateOf(false) }
+    var openCashSheet by rememberSaveable { mutableStateOf(false) }
     var browsingClosed by rememberSaveable { mutableStateOf(false) }
     // El conteo del cierre vive en la ruta y no en la hoja: ir a «Ver cuentas por cobrar» cierra la hoja, y al
     // volver el cajero no tiene que contar el cajón otra vez. Se borra cuando la caja ya quedó cerrada.
@@ -1951,15 +1951,15 @@ private fun AddProductSheet(
     val colors = rememberOperationalColors()
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
-    var name by remember { mutableStateOf("") }
-    var priceStr by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var priceStr by rememberSaveable { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<String?>(null) }
     var selectedImageBytes by remember { mutableStateOf<ByteArray?>(null) }
     var selectedImageFilename by remember { mutableStateOf<String?>(null) }
     var selectedImageMime by remember { mutableStateOf<String?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
-    var submitted by remember { mutableStateOf(false) }
-    var selectedStation by remember { mutableStateOf(PreparationStation.CASHIER) }
+    var submitted by rememberSaveable { mutableStateOf(false) }
+    var selectedStation by rememberSaveable { mutableStateOf(PreparationStation.CASHIER) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val photoPicker =
