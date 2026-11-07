@@ -61,6 +61,17 @@ internal object StaffHarness {
         kotlinx.coroutines.Dispatchers.setMain(mainThread.asCoroutineDispatcher())
     }
 
+    /**
+     * Las pruebas que ponían su propio hilo principal lo quitaban al terminar (resetMain) y dejaban sin él a las
+     * corutinas que aún tenían ViewModels de las pruebas con arnés: la siguiente prueba con runTest fallaba por
+     * excepciones sin atrapar. En vez de quitarlo, se devuelve el del arnés.
+     */
+    @Synchronized
+    fun restoreMain() {
+        mainInstalled = true
+        kotlinx.coroutines.Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+    }
+
     fun jwt(establishment: String = "est-1"): String {
         val payload = """{"uid":"u1","rol":"cajero","establecimiento_id":"$establishment","membresia_id":"m1"}"""
         return "h." + Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray()) + ".s"

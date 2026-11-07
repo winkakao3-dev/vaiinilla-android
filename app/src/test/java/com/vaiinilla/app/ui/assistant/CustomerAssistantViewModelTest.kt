@@ -8,7 +8,6 @@ import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.assistant.CustomerAssistantTurn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -27,7 +26,7 @@ class CustomerAssistantViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
     }
 
     @Test

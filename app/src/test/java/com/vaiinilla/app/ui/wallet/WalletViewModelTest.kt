@@ -8,7 +8,6 @@ import com.vaiinilla.app.domain.repository.WalletRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,7 +24,7 @@ class WalletViewModelTest {
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
     @After
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() = com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
 
     @Test
     fun `clearing the session drops the balance and a late response does not bring it back`() {

@@ -36,7 +36,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
@@ -225,7 +224,7 @@ class StudentAuthViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        com.vaiinilla.app.ui.operational.StaffHarness.restoreMain()
     }
 
     @Test
