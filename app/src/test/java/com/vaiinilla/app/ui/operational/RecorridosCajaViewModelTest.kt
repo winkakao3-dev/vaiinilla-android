@@ -155,7 +155,10 @@ class RecorridosCajaViewModelTest {
         settle()
         StaffHarness.awaitUntil("la caja abierta") { ui.cashSessionOpen == true }
         vm.setUnsyncedOfflineCash(2)
+        StaffHarness.awaitUntil("el efectivo sin sincronizar") { ui.unsyncedOfflineCash == 2 }
         vm.requestCloseCash()
+        StaffHarness.awaitUntil("el cierre pedido") { ui.closeCash != null }
+        Thread.sleep(100)
         vm.closeCashRegister("1300.00")
         StaffHarness.awaitUntil("el aviso de cierre") { ui.closeCash?.errorMessage == unsyncedOfflineCashNotice(2) }
         assertTrue(cash.closeCalls.isEmpty())
