@@ -279,7 +279,7 @@ class VideoScreenshotTest {
                 state = OperationalUiState(role = OperationalRole.KITCHEN, orders = listOf(paid, preparing)),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 onChangeMode = {},
             )
         }

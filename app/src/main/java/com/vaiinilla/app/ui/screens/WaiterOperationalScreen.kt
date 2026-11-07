@@ -217,6 +217,7 @@ fun WaiterOperationalScreen(
     onConfirmRental: (String) -> Unit = {},
     /** R16: con los jugadores tocados en el cobro que aún no se mandaban. */
     onCancelRental: (Int?) -> Unit = {},
+    onPendingRentalPlayers: (Int) -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     /** Pedido de mostrador a nombre de un cliente que no usa la app; se cobra en efectivo en Caja. */
     onOpenCounterOrder: () -> Unit = {},
@@ -800,6 +801,8 @@ fun WaiterOperationalScreen(
             durations = state.rentalDurations,
             onChange = onChangeRental,
             maxPlayers = state.rentalMaxPlayers,
+            playersDraft = state.pendingRentalPlayers?.takeIf { it.rentalId == rental.id }?.players,
+            onPlayersDraft = onPendingRentalPlayers,
         )
     }
 

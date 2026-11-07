@@ -114,6 +114,8 @@ data class WaiterUiState(
     val pendingRental: Reservation? = null,
     /** Lo elegido para rentar el espacio abierto; sobrevive a cerrar el cobro. */
     val rentalDraft: RentalDraft? = null,
+    /** Jugadores tocados en la hoja de cobro que aún no se vuelven a apartar (R16); vive aquí para sobrevivir a girar. */
+    val pendingRentalPlayers: PendingRentalPlayers? = null,
     /** Pedido de mostrador: hoja abierta, catálogo cargado y envío en curso. */
     val counterOrderOpen: Boolean = false,
     val counterCatalog: Catalog? = null,
@@ -159,6 +161,12 @@ sealed interface WaiterBoardView {
 
     data object Ready : WaiterBoardView
 }
+
+/** Los jugadores de la hoja de cobro de la renta [rentalId]; con otra renta (un nuevo apartado) ya no valen. */
+data class PendingRentalPlayers(
+    val rentalId: String,
+    val players: Int,
+)
 
 /**
  * Pedido a medio armar del admin en «Pedir»: las líneas (por id de línea, ver [StaffOrderLines]), el nombre y a dónde
@@ -477,7 +485,23 @@ class WaiterViewModel
 
         fun closeSpace() {
             openSpaceId = null
-            _uiState.value = _uiState.value.copy(spaceDetail = null, spaceDetailLoading = false, rentalDraft = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    spaceDetail = null,
+                    spaceDetailLoading = false,
+                    rentalDraft = null,
+                    pendingRentalPlayers = null,
+                )
+        }
+
+        /** R16: guarda los jugadores tocados en la hoja de cobro; no se pierden al girar ni al cerrar la hoja. */
+        fun setPendingRentalPlayers(players: Int) {
+            val rental = _uiState.value.pendingRental ?: return
+            _uiState.value =
+                _uiState.value.copy(
+                    pendingRentalPlayers =
+                        PendingRentalPlayers(rental.id, players.coerceIn(0, _uiState.value.rentalMaxPlayers)),
+                )
         }
 
         /** U04: guarda lo elegido en el picker de la renta del espacio. */
@@ -852,6 +876,7 @@ class WaiterViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 pendingRental = reservation,
+                                pendingRentalPlayers = null,
                                 rentalDraft =
                                     (draft ?: RentalDraft(current.courtId))
                                         .copy(minutes = minutes, players = wantedPlayers ?: 0),
@@ -864,12 +889,15 @@ class WaiterViewModel
                             _uiState.value =
                                 _uiState.value.copy(
                                     pendingRental = null,
+                                    pendingRentalPlayers = null,
                                     rentalDraft =
                                         (draft ?: RentalDraft(current.courtId))
                                             .copy(minutes = minutes, players = wantedPlayers ?: 0),
                                 )
                             showToast("No se pudo volver a apartar: ${error.toUserFacingMessage()}", isError = true)
                         } else {
+                            // El apartado sigue igual: el stepper regresa a lo que tiene la reserva.
+                            _uiState.value = _uiState.value.copy(pendingRentalPlayers = null)
                             showToast("No se pudo cambiar la renta: ${error.toUserFacingMessage()}", isError = true)
                         }
                     },
@@ -897,7 +925,8 @@ class WaiterViewModel
                 result.fold(
                     onSuccess = { payment ->
                         // Cobrada: lo elegido ya no hace falta.
-                        _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = null)
+                        _uiState.value =
+                            _uiState.value.copy(pendingRental = null, rentalDraft = null, pendingRentalPlayers = null)
                         val change =
                             payment.cashChange
                                 ?.takeIf { it != "0.00" }
@@ -920,13 +949,16 @@ class WaiterViewModel
         fun cancelPendingRental(players: Int? = null) {
             val reservation = _uiState.value.pendingRental ?: return
             val kept = _uiState.value.rentalDraft?.takeIf { it.spaceId == reservation.courtId }
+            val typedPlayers = _uiState.value.pendingRentalPlayers?.takeIf { it.rentalId == reservation.id }?.players
+            val maxPlayers = _uiState.value.rentalMaxPlayers
             val draft =
                 (kept ?: RentalDraft(reservation.courtId))
                     .copy(
                         minutes = reservation.durationMinutes,
-                        players = (players ?: reservation.players ?: 0).coerceIn(0, _uiState.value.rentalMaxPlayers),
+                        players = (players ?: typedPlayers ?: reservation.players ?: 0).coerceIn(0, maxPlayers),
                     )
-            _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = draft)
+            _uiState.value =
+                _uiState.value.copy(pendingRental = null, rentalDraft = draft, pendingRentalPlayers = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {

@@ -1973,13 +1973,14 @@ internal fun RentalCollectSheet(
     onChange: ((minutes: Int, players: Int?) -> Unit)? = null,
     /** R25: cuántos caben en la pista. */
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
+    /** R16: los jugadores tocados que aún no se mandan; los guarda el ViewModel (null = los de la reserva). */
+    playersDraft: Int? = null,
+    onPlayersDraft: (Int) -> Unit = {},
 ) {
     val venue = LocalVenueContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    // R16: el borrador de jugadores vive aquí, no en los controles, para que «Cobrar» y cerrar lo vean.
-    var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
-    // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
-    LaunchedEffect(confirming) { if (!confirming) players = rental.players ?: 0 }
+    // R16: el borrador de jugadores lo guarda el ViewModel, para que «Cobrar», cerrar y girar lo vean.
+    val players = playersDraft ?: (rental.players ?: 0)
     val askPlayers = onChange != null && venue.capabilities.asksPlayerCount
     val playersDirty = askPlayers && players != (rental.players ?: 0)
     // R11: una renovación (empieza al terminar el turno) hereda los jugadores; la renta de ahora los pide.
@@ -2016,7 +2017,7 @@ internal fun RentalCollectSheet(
                     colors = colors,
                     onChange = onChange,
                     players = players,
-                    onPlayers = { players = it },
+                    onPlayers = onPlayersDraft,
                     maxPlayers = maxPlayers,
                     minPlayers = if (renewal) 0 else 1,
                 )

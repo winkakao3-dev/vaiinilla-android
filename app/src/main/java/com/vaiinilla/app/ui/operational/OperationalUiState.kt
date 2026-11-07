@@ -74,6 +74,8 @@ data class OperationalUiState(
     val cashDrawer: CashDrawerUi = CashDrawerUi(),
     /** «Cobrado hoy» con todos los métodos (GET /sesiones-caja/cortes); null hasta que llega o si falla. */
     val collectedToday: CollectedToday? = null,
+    /** Cocina: comandas marcadas «lista» que aún se pueden deshacer, por id de pedido. */
+    val pendingReady: Map<String, PendingReady> = emptyMap(),
 ) {
     val selectedOrder: OrderDetail?
         get() = orders.firstOrNull { it.summary.id == selectedOrderId }
