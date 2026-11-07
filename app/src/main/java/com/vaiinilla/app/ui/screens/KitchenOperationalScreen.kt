@@ -86,6 +86,7 @@ import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.offlineCaptureLabel
 import com.vaiinilla.app.domain.model.skipsKitchen
@@ -113,6 +114,8 @@ import com.vaiinilla.app.ui.operational.WaiterBoardLink
 import com.vaiinilla.app.ui.operational.operationalLink
 import com.vaiinilla.app.ui.operational.queuePresentation
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
+import com.vaiinilla.app.ui.hotel.staff.HotelKitchenCard
+import com.vaiinilla.app.ui.hotel.staff.HotelKitchenHeader
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
 import kotlinx.coroutines.delay
@@ -230,7 +233,10 @@ fun KitchenOperationalScreen(
 
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var chosenTab by rememberSaveable { mutableStateOf<KitchenTab?>(null) }
-    var byProduct by rememberSaveable { mutableStateOf(false) }
+    // S01: en un hotel la cocina es un solo tablero de habitaciones (HotelKitchenBoard); sin pestañas ni vista por producto.
+    val hotelBoard = Venue.isHotel
+    var byProductChosen by rememberSaveable { mutableStateOf(false) }
+    val byProduct = byProductChosen && !hotelBoard
     // N02: «lista» espera 10 s para poder deshacerla sin servidor; al salir de la pantalla se manda ya.
     val pendingReady = remember { mutableStateMapOf<String, Pair<Int, Long>>() }
     val currentOnReady by rememberUpdatedState(onReady)
@@ -274,10 +280,14 @@ fun KitchenOperationalScreen(
     val newOrders = queueOrders.filter { kitchenTabOf(it) == KitchenTab.NEW }
     val preparingOrders = queueOrders.filter { kitchenTabOf(it) == KitchenTab.PREPARING }
     val tabOrders =
-        when (tab) {
-            KitchenTab.NEW -> newOrders
-            KitchenTab.PREPARING -> preparingOrders
-            KitchenTab.READY -> readyOrders
+        if (hotelBoard) {
+            queueOrders
+        } else {
+            when (tab) {
+                KitchenTab.NEW -> newOrders
+                KitchenTab.PREPARING -> preparingOrders
+                KitchenTab.READY -> readyOrders
+            }
         }
     val upcomingOrders = queueOrders.filterNot { it.summary.id == activeOrder?.summary?.id }
     val orderState = activeOrder?.summary?.state ?: OrderState.PAID
@@ -415,7 +425,26 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            item(key = "kitchen-title") {
+            if (hotelBoard) {
+                item(key = "kitchen-title") {
+                    HotelKitchenHeader(
+                        count = queueOrders.size,
+                        onSoldOut =
+                            if (onToggleProductAvailable != null && canAct) {
+                                {
+                                    haptics.selection()
+                                    lastTurnedOff = null
+                                    onLoadCatalog()
+                                    soldOutOpen = true
+                                }
+                            } else {
+                                null
+                            },
+                    )
+                }
+            }
+
+            if (!hotelBoard) item(key = "kitchen-title") {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -450,13 +479,13 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            item(key = "kitchen-view") {
+            if (!hotelBoard) item(key = "kitchen-view") {
                 SlidingSegments(
                     labels = listOf("Por comanda", "Por producto"),
                     selectedIndex = if (byProduct) 1 else 0,
                     onSelect = { index ->
                         haptics.selection()
-                        byProduct = index == 1
+                        byProductChosen = index == 1
                     },
                     trackColor = colors.cardBackground,
                     indicatorColor = colors.textPrimary,
@@ -489,7 +518,7 @@ fun KitchenOperationalScreen(
                 }
             }
 
-            if (!byProduct) {
+            if (!byProduct && !hotelBoard) {
                 item(key = "kitchen-tabs") {
                     val counts = listOf(newOrders.size, preparingOrders.size, readyOrders.size)
                     SlidingSegments(
@@ -557,6 +586,34 @@ fun KitchenOperationalScreen(
                 // Sin cobrar, el servidor no deja rechazar: solo cobrado o en preparación.
                 val canReject = canAct && inKitchen
                 val first = order.summary.id == tabOrders.first().summary.id
+                if (hotelBoard) {
+                    HotelKitchenCard(
+                        order = order,
+                        acting = state.acting,
+                        canAct = canAct,
+                        readyDeadline = pendingReady[order.summary.id]?.second,
+                        onPrimary = {
+                            haptics.impact()
+                            selectedOrderId = order.summary.id
+                            if (orderTab == KitchenTab.PREPARING) {
+                                pendingReady[order.summary.id] =
+                                    order.summary.version to System.currentTimeMillis() + KITCHEN_UNDO_MS
+                            } else {
+                                onStart(order.summary.id, order.summary.version)
+                            }
+                        },
+                        onUndoReady = {
+                            haptics.selection()
+                            pendingReady.remove(order.summary.id)
+                        },
+                        onMore = if (canReject) ({ moreOrderId = order.summary.id }) else null,
+                        modifier =
+                            Modifier
+                                .animateItem()
+                                .assistantAnchor(assistantRegistry, assistantQueueOrderAnchor(order.summary.id)),
+                    )
+                    return@items
+                }
                 KitchenOrderCard(
                     order = order,
                     acting = state.acting,
