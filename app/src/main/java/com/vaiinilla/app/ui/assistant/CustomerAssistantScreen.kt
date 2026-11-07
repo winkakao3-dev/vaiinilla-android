@@ -81,6 +81,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Lo que el asistente de pedidos puede hacer fuera de la plática; lo conecta la navegación. */
@@ -224,7 +225,7 @@ fun CustomerAssistantScreen(
                 when {
                     state.needsName ->
                         NameCard(guestName, state.enteringName, state.nameError, colors, onSubmitName)
-                    state.thinking -> Bubble("Escribiendo…", mine = false, colors = colors, muted = true)
+                    state.thinking -> ThinkingBubble(colors)
                     state.error != null ->
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Text(state.error, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.ink2)
@@ -423,6 +424,28 @@ private fun Welcome(
 }
 
 /** Lo del cliente va en burbuja; lo del asistente corre a todo el ancho, como texto de la pantalla. */
+/**
+ * El modelo tarda de 5 a 40 segundos y la respuesta llega completa al final: el texto avanza para que no parezca
+ * trabado. Se compone de nuevo con cada pregunta, así que empieza desde el primer paso.
+ */
+@Composable
+private fun ThinkingBubble(colors: VaiinillaColors) {
+    var step by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        delay(4_000)
+        step = 1
+        delay(16_000)
+        step = 2
+    }
+    val text =
+        when (step) {
+            0 -> "Revisando el menú…"
+            1 -> "Armando tu respuesta…"
+            else -> "Tarda más de lo normal, pero sigo en eso…"
+        }
+    Bubble(text, mine = false, colors = colors, muted = true)
+}
+
 @Composable
 private fun Bubble(
     text: String,

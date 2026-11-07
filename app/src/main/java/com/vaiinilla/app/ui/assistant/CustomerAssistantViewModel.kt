@@ -52,6 +52,12 @@ class CustomerAssistantViewModel
         val state: State<CustomerAssistantState> = _state
         private var scope: String? = null
         private var establishmentId: String? = null
+        private var context: String? = null
+
+        /** Dónde está y qué sabe la app del cliente (ver [AssistantPlaceNote]); se manda en la siguiente pregunta. */
+        fun setContext(note: String?) {
+            context = note
+        }
 
         /** Otro negocio u otra mesa empiezan plática nueva. */
         fun onVisible(
@@ -150,6 +156,7 @@ class CustomerAssistantViewModel
             _state.value = _state.value.copy(thinking = true, error = null)
             val conversation = _state.value.conversation
             val place = establishmentId
+            val note = context
             viewModelScope.launch {
                 val needsName = withContext(Dispatchers.IO) { repository.needsGuestName() }
                 if (conversation != _state.value.conversation) return@launch
@@ -161,7 +168,7 @@ class CustomerAssistantViewModel
                 val result =
                     withContext(Dispatchers.IO) {
                         runCatching { prepare() }.fold(
-                            onSuccess = { repository.reply(turns, place) },
+                            onSuccess = { repository.reply(turns, place, note) },
                             onFailure = { Result.failure(it) },
                         )
                     }

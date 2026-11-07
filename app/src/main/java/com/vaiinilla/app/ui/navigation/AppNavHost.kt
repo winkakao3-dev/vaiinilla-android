@@ -58,6 +58,7 @@ import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.data.counter.AndroidConnectivityWatcher
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.counter.CounterScope
+import com.vaiinilla.app.domain.guardianship.compactMoney
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -74,6 +75,8 @@ import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.AdminViewModel
+import com.vaiinilla.app.ui.assistant.AssistantPlaceFacts
+import com.vaiinilla.app.ui.assistant.AssistantPlaceNote
 import com.vaiinilla.app.ui.assistant.CustomerAssistantActions
 import com.vaiinilla.app.ui.assistant.CustomerAssistantScreen
 import com.vaiinilla.app.ui.assistant.CustomerAssistantViewModel
@@ -1798,15 +1801,48 @@ private fun AppNavHostContent(
                     assistantViewModel.onVisible("$establishmentId:$assistantPlaceId", establishmentId)
                 }
                 val prepare: suspend () -> Unit = { orderFlowViewModel.ensureClientContext() }
+                val assistantPlace =
+                    rentedCourt
+                        ?.takeIf { assistantSpaceId == it.id }
+                        ?.let { SpaceCopy.named(it.type, it.name) }
+                        ?: venue?.space?.let { SpaceCopy.named(it.type, it.name) }
+                        ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) }
+                val assistantVenue = LocalVenueContext.current
+                val assistantInRoom =
+                    rentedCourt?.takeIf { assistantSpaceId == it.id } == null &&
+                        (
+                            venue?.space?.let { SpaceCopy.isRoom(assistantVenue, it) }
+                                ?: table?.let {
+                                    SpaceCopy.isRoom(assistantVenue, it.spaceType) && !assistantVenue.isHotelTable(it.spaceId)
+                                }
+                                ?: false
+                        )
+                val guardianControls = guardianControlsViewModel.controls
+                val hotelConfig = orderState.hotelConfig
+                val assistantNote =
+                    AssistantPlaceNote.build(
+                        AssistantPlaceFacts(
+                            kind = assistantVenue.kind,
+                            isSchool = assistantVenue.isSchool,
+                            placeName = assistantPlace,
+                            placeIsRoom = assistantInRoom,
+                            chargeToRoom = hotelConfig?.chargeToRoom ?: true,
+                            kitchenFrom = hotelConfig?.kitchenFrom,
+                            kitchenTo = hotelConfig?.kitchenTo,
+                            payAtEnd = orderState.operationalStatus?.allowsPayAtEnd == true,
+                            cart = orderState.cartLines.map { "${it.quantity} × ${it.product.name}" },
+                            allergens = guardianControls?.allergens.orEmpty().map { it.label },
+                            availableToday = guardianControls?.availableToday?.let(::compactMoney),
+                            hasGuardianBlocks =
+                                guardianControls != null &&
+                                    (guardianControls.blockedProductIds.isNotEmpty() || guardianControls.blockedCategoryIds.isNotEmpty()),
+                        ),
+                    )
+                LaunchedEffect(assistantNote) { assistantViewModel.setContext(assistantNote) }
                 CustomerAssistantScreen(
                     state = assistantViewModel.state.value,
                     venueName = venue?.establishment?.name,
-                    place =
-                        rentedCourt
-                            ?.takeIf { assistantSpaceId == it.id }
-                            ?.let { SpaceCopy.named(it.type, it.name) }
-                            ?: venue?.space?.let { SpaceCopy.named(it.type, it.name) }
-                            ?: table?.let { SpaceCopy.named(it.spaceType, it.spaceName) },
+                    place = assistantPlace,
                     customerName =
                         (studentAuthState.session?.displayName ?: orderFlowViewModel.guestDisplayName())
                             .takeIf { it.isNotBlank() }
