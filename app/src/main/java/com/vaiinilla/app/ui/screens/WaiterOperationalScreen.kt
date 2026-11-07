@@ -112,6 +112,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -120,6 +121,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -1020,6 +1022,7 @@ private fun WaiterFilterRow(
     onAttending: () -> Unit,
     onKind: (String) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1029,14 +1032,17 @@ private fun WaiterFilterRow(
         // Con un solo tipo de espacio el filtro repetiría "Todas".
         if (kinds.size > 1) {
             kinds.forEach { type ->
-                WaiterFilterChip(kindPlural(type), !attending && kind == type, colors) { onKind(type) }
+                WaiterFilterChip(kindPlural(venue, type), !attending && kind == type, colors) { onKind(type) }
             }
         }
     }
 }
 
-private fun kindPlural(type: String): String {
-    val label = SpaceCopy.kindLabel(type)
+private fun kindPlural(
+    venue: VenueContext,
+    type: String,
+): String {
+    val label = SpaceCopy.kindLabel(venue, type)
     return if (label.endsWith("l")) "${label}es" else "${label}s"
 }
 
@@ -1719,6 +1725,7 @@ private fun WaiterTableSheet(
     toastMessage: String? = null,
     toastIsError: Boolean = false,
 ) {
+    val venue = LocalVenueContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // Cobrar reemplaza el contenido de esta misma hoja en lugar de abrir otra encima.
     var collecting by remember(table.space.id) { mutableStateOf(false) }
@@ -1830,7 +1837,7 @@ private fun WaiterTableSheet(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     listOfNotNull(
-                                        SpaceCopy.kindLabel(table.space.type).uppercase(),
+                                        SpaceCopy.kindLabel(venue, table.space.type).uppercase(),
                                         openedAt?.let { "CUENTA ABIERTA $it" },
                                     ).joinToString(" · "),
                                     color = colors.textSecondary,
@@ -2060,7 +2067,9 @@ internal fun splitByStation(
         }
     // R8: «ninguna» (sin preparación) también se recoge en Caja; solo lo desconocido o de Cocina espera a Cocina.
     val (counter, kitchen) =
-        lines.partition { line -> stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN } }
+        lines.partition { line ->
+            stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN }
+        }
     return StationSplit(counter = counter, kitchen = kitchen)
 }
 

@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.admin.AdminCount
 import com.vaiinilla.app.domain.admin.AdminDailySales
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
@@ -210,7 +211,7 @@ class DoopGaleriaAdminTest {
     )
 
     private fun spacesVm(spaces: List<ManagedSpace>?) =
-        AdminSpacesViewModel(hung<AdminSpacesRepository>(), hung<ReservationRepository>()).apply {
+        AdminSpacesViewModel(hung<AdminSpacesRepository>(), hung<ReservationRepository>(), VenueContextStore()).apply {
             put(
                 AdminSpacesUiState(
                     spaces = spaces,

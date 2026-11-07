@@ -5,7 +5,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.needsPickupQr
@@ -104,7 +104,12 @@ internal fun pickupRejectionHint(order: OrderDetail): String? {
     val rejected = order.rejectedWhileMaking()
     val first = rejected.firstOrNull() ?: return null
     if (rejected.size > 1) return "${rejected.size} productos no se pudieron hacer. Lo demás sigue."
-    val reason = first.rejection?.reason?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
+    val reason =
+        first.rejection
+            ?.reason
+            ?.trim()
+            ?.trimEnd('.')
+            ?.takeIf { it.isNotEmpty() }
     return if (reason != null) {
         "${first.productName} no se pudo: $reason. Lo demás sigue."
     } else {
@@ -114,6 +119,7 @@ internal fun pickupRejectionHint(order: OrderDetail): String? {
 
 /** Mismo copy que la PWA (`order-labels.ts`). Una renta se cuenta por la cancha, no por el estado del pedido. */
 internal fun pickupHint(
+    venue: VenueContext,
     order: OrderDetail,
     now: Instant = Instant.now(),
     zone: ZoneId = BusinessTime.zone,
@@ -134,9 +140,10 @@ internal fun pickupHint(
                     now.atZone(zone).toLocalDate(),
                 )
             }
-            CourtMoment.PLAYING -> "Te quedan $minutes min en ${order.rentalCourtName ?: "tu ${Venue.court}"}."
+            CourtMoment.PLAYING ->
+                "Te quedan $minutes min en ${order.rentalCourtName ?: "tu ${venue.vocabulary.court}"}."
             CourtMoment.LAST_MINUTES ->
-                if (Venue.isBowling) "Quedan $minutes min de pista." else "Quedan $minutes min: los reflectores ya bajaron."
+                venue.lastMinutesNotice(minutes)
             CourtMoment.DONE -> "Gracias por jugar."
         }
     }

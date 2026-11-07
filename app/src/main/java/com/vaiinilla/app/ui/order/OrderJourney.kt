@@ -6,7 +6,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.deadlineLabel
 import com.vaiinilla.app.domain.model.needsCashCollection
@@ -176,6 +176,7 @@ internal fun journeySeat(order: OrderDetail): JourneySeat? =
 
 /** Los pasos de la barra de progreso; vacía cuando el tipo se cuenta de otra forma (la renta) o ya se cerró. */
 internal fun journeySteps(
+    venue: VenueContext,
     order: OrderDetail,
     journey: OrderJourney,
 ): List<String> {
@@ -194,7 +195,7 @@ internal fun journeySteps(
         OrderJourney.TABLE -> listOf(first, "Preparando", "Listo", "En tu mesa")
         OrderJourney.BAR -> listOf(first, "Preparando", "Listo", "Entregado")
         OrderJourney.SEAT -> listOf(first, "Preparando", "En camino", "Entregado")
-        OrderJourney.COURT_FOOD -> listOf(first, "Preparando", "Listo", "En tu ${Venue.court}")
+        OrderJourney.COURT_FOOD -> listOf(first, "Preparando", "Listo", "En tu ${venue.vocabulary.court}")
         OrderJourney.SCHOOL -> listOf("Apartado", "Ese día", "Listo", "Recogido")
         OrderJourney.PREORDER_PICKUP -> listOf("Enviado", "Aceptado", "Anticipo", "Haciéndose", "Recogido")
         OrderJourney.HOME_DELIVERY -> listOf("Enviado", "Aceptado", "Haciéndose", "En camino", "Entregado")
@@ -208,7 +209,8 @@ internal fun journeyStepIndex(
     journey: OrderJourney,
     today: LocalDate = LocalDate.now(BusinessTime.zone),
 ): Int {
-    val steps = journeySteps(order, journey)
+    // Solo importa cuántos pasos hay y si no hay ninguno: el vocabulario de cada paso no cambia eso.
+    val steps = journeySteps(VenueContext.STANDARD, order, journey)
     if (steps.isEmpty()) return -1
     val state = order.summary.state
     if (state == OrderState.DELIVERED) return steps.size
@@ -557,14 +559,17 @@ internal fun journeyNote(
 }
 
 /** El nombre corto de cada tipo, para la fila de arriba: «Pedido #27 · en la barra». */
-internal fun journeyKindLabel(journey: OrderJourney): String =
+internal fun journeyKindLabel(
+    venue: VenueContext,
+    journey: OrderJourney,
+): String =
     when (journey) {
         OrderJourney.COUNTER -> "para llevar"
         OrderJourney.DRIVE_THRU -> "drive-thru"
         OrderJourney.TABLE -> "en tu mesa"
         OrderJourney.BAR -> "en la barra"
         OrderJourney.SEAT -> "a tu asiento"
-        OrderJourney.COURT_FOOD -> "a tu ${Venue.court}"
+        OrderJourney.COURT_FOOD -> "a tu ${venue.vocabulary.court}"
         OrderJourney.COURT_RENTAL -> "renta"
         OrderJourney.SCHOOL -> "comedor"
         OrderJourney.PREORDER_PICKUP -> "para recoger"
@@ -613,6 +618,7 @@ private fun OrderDetail.depositPaid(): Boolean =
 
 /** La etiqueta en mayúsculas sobre el título: en qué va y, si cabe, dónde. */
 internal fun journeyCaption(
+    venue: VenueContext,
     order: OrderDetail,
     journey: OrderJourney,
     today: LocalDate = LocalDate.now(BusinessTime.zone),
@@ -640,7 +646,7 @@ internal fun journeyCaption(
         state == OrderState.NOT_PICKED_UP -> JourneyCaption("No recogido", CaptionTone.PROBLEM)
         state == OrderState.EXPIRED -> JourneyCaption("Expirado", CaptionTone.PROBLEM)
         state == OrderState.DELIVERED ->
-            JourneyCaption(journeySteps(order, journey).lastOrNull() ?: "Entregado", done)
+            JourneyCaption(journeySteps(venue, order, journey).lastOrNull() ?: "Entregado", done)
         order.cashDue() -> JourneyCaption("Por pagar · en Caja", waiting)
         state == OrderState.AWAITING_ACCEPTANCE ->
             JourneyCaption(
@@ -693,7 +699,7 @@ internal fun journeyCaption(
                 OrderJourney.TABLE -> JourneyCaption("Preparando · te lo llevan", waiting)
                 OrderJourney.BAR -> JourneyCaption("Preparando · en la barra", waiting)
                 OrderJourney.SEAT -> JourneyCaption("Preparando · a tu asiento", waiting)
-                OrderJourney.COURT_FOOD -> JourneyCaption("Preparando · a tu ${Venue.court}", waiting)
+                OrderJourney.COURT_FOOD -> JourneyCaption("Preparando · a tu ${venue.vocabulary.court}", waiting)
                 OrderJourney.SCHOOL ->
                     JourneyCaption(journeySchedule(order)?.let { "Apartado · para el $it" } ?: "Apartado", done)
                 OrderJourney.PREORDER_PICKUP, OrderJourney.HOME_DELIVERY ->

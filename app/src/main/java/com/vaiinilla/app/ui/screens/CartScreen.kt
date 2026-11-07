@@ -111,6 +111,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -223,9 +224,11 @@ fun CartScreen(
     onConfirmTakeAwayWithSeat: () -> Unit = {},
     onDismissTakeAwayWithSeat: () -> Unit = {},
 ) {
+    val venue = LocalVenueContext.current
     // El teclado: la ventana se encoge en vez de desplazarse; si no, el sistema sube toda la pantalla y además
     // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
-    com.vaiinilla.app.ui.components.ResizeForKeyboard()
+    com.vaiinilla.app.ui.components
+        .ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val density = LocalDensity.current
@@ -260,7 +263,7 @@ fun CartScreen(
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(state.checkoutSpace?.type)
+            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(venue, state.checkoutSpace?.type)
             OrderDestination.HOME_DELIVERY -> "A domicilio"
         }
     val productCountLabel =
@@ -723,6 +726,7 @@ private fun PaymentMethodOverlay(
     /** «Ganas $4.60 de cashback (1%)…»; `null` con el cashback apagado (24). */
     cashbackLine: String? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
     val initialAllowed =
@@ -841,7 +845,14 @@ private fun PaymentMethodOverlay(
                         icon = Icons.Outlined.Payments,
                         title = "Pago en caja",
                         subtitle =
-                            if (toTable) SpaceCopy.payAtCashierHint(spaceType) else "Pagas en caja antes de recogerlo",
+                            if (toTable) {
+                                SpaceCopy.payAtCashierHint(
+                                    venue,
+                                    spaceType,
+                                )
+                            } else {
+                                "Pagas en caja antes de recogerlo"
+                            },
                         selected = selectedMethod == PaymentMethod.CASH,
                         enabled = !selectionLocked,
                         onClick = {
@@ -1171,12 +1182,13 @@ private fun DeliverySummaryRow(
     readyInMinutes: Int?,
     onChange: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val title =
         when {
             state.isHomeDelivery -> "A domicilio"
             state.checkoutDestination == OrderDestination.IN_SPACE ->
-                "${SpaceCopy.destinationTitle(state.checkoutSpace?.type)} · ${state.selectedSpaceName}"
+                "${SpaceCopy.destinationTitle(venue, state.checkoutSpace?.type)} · ${state.selectedSpaceName}"
             else -> "Para llevar"
         }
     val how =

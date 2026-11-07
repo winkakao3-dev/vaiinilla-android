@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.guest.GuestIdentityRequiredException
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
@@ -49,7 +50,7 @@ class GuestReservationTest {
     @Test
     fun enterStoresIdentityAndUsesCachedSessionWithoutRenewing() {
         val api = FakeApi { path, _, _, _ -> handle(path) }
-        val session = GuestReservationSession(api, store)
+        val session = GuestReservationSession(api, store, VenueContextStore())
 
         session.enter("demo", "Ana").getOrThrow()
 
@@ -65,7 +66,7 @@ class GuestReservationTest {
     @Test
     fun enterWithSpaceTokenSendsItAndRenewalKeepsIt() {
         val api = FakeApi { path, _, _, _ -> handle(path) }
-        val session = GuestReservationSession(api, store)
+        val session = GuestReservationSession(api, store, VenueContextStore())
 
         session.enter("demo", "Ana", spaceToken = "token-del-lugar").getOrThrow()
         val create = api.callsTo("publico/invitados").single()
@@ -86,7 +87,7 @@ class GuestReservationTest {
     @Test
     fun enterWithoutSpaceTokenDoesNotSendOne() {
         val api = FakeApi { path, _, _, _ -> handle(path) }
-        val session = GuestReservationSession(api, store)
+        val session = GuestReservationSession(api, store, VenueContextStore())
 
         session.enter("demo", "Ana").getOrThrow()
 
@@ -98,7 +99,7 @@ class GuestReservationTest {
     fun bearerRenewsWithStoredKeyWhenNoSessionIsCached() {
         store.saveGuest(name = "Ana", key = "llave-1")
         val api = FakeApi { path, _, _, _ -> handle(path) }
-        val session = GuestReservationSession(api, store)
+        val session = GuestReservationSession(api, store, VenueContextStore())
 
         assertEquals("jwt-renewed", session.bearer("demo").getOrThrow())
         assertTrue(
@@ -122,7 +123,7 @@ class GuestReservationTest {
                     handle(path)
                 }
             }
-        val session = GuestReservationSession(api, store)
+        val session = GuestReservationSession(api, store, VenueContextStore())
 
         val result = session.bearer("demo")
 
@@ -142,7 +143,7 @@ class GuestReservationTest {
                     handle(path)
                 }
             }
-        val session = GuestReservationSession(api, store)
+        val session = GuestReservationSession(api, store, VenueContextStore())
 
         val result = session.bearer("demo")
 
@@ -191,8 +192,8 @@ class GuestReservationTest {
     private fun repository(api: FakeApi) =
         RemoteReservationRepository(
             apiClient = api,
-            contractJson = ReservationContractJson(OrderContractJson()),
-            guestSession = GuestReservationSession(api, store),
+            contractJson = ReservationContractJson(OrderContractJson(), VenueContextStore()),
+            guestSession = GuestReservationSession(api, store, VenueContextStore()),
         )
 
     private fun handle(path: String): Result<String> =

@@ -117,11 +117,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.zxing.common.BitMatrix
 import com.vaiinilla.app.core.qr.QrCodeEncoder
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.openTableCallSpaceId
@@ -325,6 +325,7 @@ private fun PickupJourney(
     venue: JourneyVenue = JourneyVenue(),
     onAnnounceArrival: (() -> Unit)? = null,
 ) {
+    val venueContext = LocalVenueContext.current
     val palette = LocalScene.current
     val reduceMotion = reducedMotion()
     val haptics = LocalHapticFeedback.current
@@ -386,17 +387,17 @@ private fun PickupJourney(
     val place = pickupPlace(order)
     // Tu mesa en el plano cuando el pedido se come aquí; si no, se sigue en la tienda.
     val scene =
-        remember(place, order.summary.space, order.reservation, Venue.isBowling) {
+        remember(place, order.summary.space, order.reservation, venueContext) {
             val space = order.summary.space
             val reservation = order.reservation
             when {
                 place == PickupPlace.COURT && reservation != null ->
                     PickupScene.Court(
                         CourtRental(
-                            name = order.rentalCourtName ?: Venue.courtTitle,
+                            name = order.rentalCourtName ?: venueContext.vocabulary.courtTitle,
                             start = reservation.start,
                             end = reservation.end,
-                            bowling = isLaneRental(order.rentalCourtName),
+                            bowling = isLaneRental(venueContext, order.rentalCourtName),
                         ),
                     )
                 place == PickupPlace.TABLE ->
@@ -981,7 +982,8 @@ private fun StatusSheet(
             entrance.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 180f))
         }
     }
-    val steps = journeySteps(order, journey)
+    val venueContext = LocalVenueContext.current
+    val steps = journeySteps(venueContext, order, journey)
     val stepIndex = journeyStepIndex(order, journey)
     val progress = remember { Animatable(stepIndex + 1f) }
     LaunchedEffect(stepIndex) {
@@ -1043,7 +1045,9 @@ private fun StatusSheet(
                 )
             }
             AnimatedContent(
-                targetState = pickupRejectionHint(order) ?: journeyHint(order, journey, now) ?: pickupHint(order, now),
+                targetState =
+                    pickupRejectionHint(order) ?: journeyHint(order, journey, now)
+                        ?: pickupHint(venueContext, order, now),
                 transitionSpec = { fadeIn(spring(stiffness = 180f)) togetherWith fadeOut(spring(stiffness = 300f)) },
                 label = "pickup_hint",
             ) { hint ->

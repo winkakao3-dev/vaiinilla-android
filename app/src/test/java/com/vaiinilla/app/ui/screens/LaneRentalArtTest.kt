@@ -1,35 +1,29 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.domain.model.Venue
-import org.junit.After
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LaneRentalArtTest {
-    @After
-    fun resetVenue() {
-        Venue.update(null)
-    }
-
     @Test
     fun `in a bowling alley the rental draws the lane, not the padel court`() {
-        Venue.update(Venue.BOWLING)
-        assertTrue(isLaneRental("Pista 1"))
-        assertTrue(isLaneRental(null))
+        val venue = VenueContext.of("boliche")
+        assertTrue(isLaneRental(venue, "Pista 1"))
+        assertTrue(isLaneRental(venue, null))
     }
 
     @Test
     fun `a padel court keeps the court art`() {
-        Venue.update("club")
-        assertFalse(isLaneRental("Cancha 2"))
-        assertFalse(isLaneRental(null))
+        val venue = VenueContext.of("club")
+        assertFalse(isLaneRental(venue, "Cancha 2"))
+        assertFalse(isLaneRental(venue, null))
     }
 
     @Test
     fun `a lane named like one draws the lane even before the store type loads`() {
-        Venue.update(null)
-        assertTrue(isLaneRental("Boliche 3"))
-        assertTrue(isLaneRental("Carril de bolos"))
+        val venue = VenueContext.STANDARD
+        assertTrue(isLaneRental(venue, "Boliche 3"))
+        assertTrue(isLaneRental(venue, "Carril de bolos"))
     }
 }

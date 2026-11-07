@@ -6,6 +6,7 @@ import com.vaiinilla.app.data.order.OrderDetailDto
 import com.vaiinilla.app.data.order.toDomain
 import com.vaiinilla.app.domain.admin.HomeBusinessRules
 import com.vaiinilla.app.domain.admin.HomeDeliverySettings
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.admin.AdminOrderFilter
 import com.vaiinilla.app.ui.components.needsPickupQr
 import com.vaiinilla.app.ui.components.paymentWireLabel
@@ -28,6 +29,8 @@ import java.time.ZonedDateTime
 
 /** Las mismas pruebas que `HomeDeliveryTests.swift` de iOS (CASA-01 a 11), contra el contrato del 30 oct. */
 class HomeDeliveryTest {
+    private val venue = VenueContext.STANDARD
+
     private val items = listOf(CreateOrderItem(productId = 1, quantity = 1, optionIds = emptyList()))
     private val zone = ZoneId.of("America/Chihuahua")
 
@@ -284,11 +287,11 @@ class HomeDeliveryTest {
     fun `listo a domicilio no dice que se recoge en la barra`() {
         assertEquals(
             "Está listo para salir.",
-            trackingStepDescription(OrderState.READY, OrderDestination.HOME_DELIVERY, PaymentMethod.CASH, null),
+            trackingStepDescription(venue, OrderState.READY, OrderDestination.HOME_DELIVERY, PaymentMethod.CASH, null),
         )
         assertEquals(
             "Recógelo en la barra.",
-            trackingStepDescription(OrderState.READY, OrderDestination.TAKE_AWAY, PaymentMethod.CASH, null),
+            trackingStepDescription(venue, OrderState.READY, OrderDestination.TAKE_AWAY, PaymentMethod.CASH, null),
         )
     }
 

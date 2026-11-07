@@ -4,6 +4,7 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.ContractRules
@@ -12,7 +13,6 @@ import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.StripePaymentSession
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -35,13 +35,14 @@ class GuestOrderGateway
         private val orderContractJson: OrderContractJson,
         private val pickupTokenStore: PickupTokenStore,
         private val parser: ContractResponseParser,
+        private val venueContext: VenueContextStore,
     ) {
         fun operationalStatus(establishmentSlug: String): Result<OperationalStatus> =
             guestSession
                 .withBearer(establishmentSlug) { bearer -> apiClient.getWithBearer(bearer, "estado-operativo") }
                 .mapCatching(parser::parseOperationalStatus)
                 .mapApiErrors()
-                .onSuccess { Venue.update(it.businessType) }
+                .onSuccess { venueContext.update(it.businessType) }
 
         fun create(
             establishmentSlug: String,
@@ -67,7 +68,9 @@ class GuestOrderGateway
 
         /** Pedidos del invitado en [establishmentSlug], con seguimiento en vivo. Sin llave no hay lista. */
         fun list(establishmentSlug: String): Result<List<OrderDetail>> {
-            val key = store.readGuestKey() ?: return Result.failure(GuestIdentityRequiredException())
+            val key =
+                store.readGuestKey()
+                    ?: return Result.failure(GuestIdentityRequiredException(venueContext.current.vocabulary.court))
             val body =
                 buildJsonObject {
                     put("establecimiento_slug", establishmentSlug)
