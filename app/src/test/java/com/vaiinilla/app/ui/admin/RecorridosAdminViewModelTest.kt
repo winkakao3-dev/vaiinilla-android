@@ -101,11 +101,23 @@ internal class FakeAdmin(
 }
 
 internal class FakeStore : AdminStoreRepository {
+    @Volatile var config: Result<StoreConfig> = Result.failure(IllegalStateException("sin configuración"))
+
+    @Volatile var cashback: CashbackRule? = null
+
+    @Volatile var wallet: Result<AdminWalletSummary> = Result.failure(IllegalStateException("sin cartera"))
+    val flows = CopyOnWriteArrayList<StoreFlow>()
+    val cashbackSaved = CopyOnWriteArrayList<CashbackRule>()
+    val walletPeriods = CopyOnWriteArrayList<AdminPeriod>()
+
     private fun <T> no(): Result<T> = Result.failure(IllegalStateException("no"))
 
-    override fun config(): Result<StoreConfig> = no()
+    override fun config(): Result<StoreConfig> = config
 
-    override fun saveFlow(flow: StoreFlow): Result<StoreConfig> = no()
+    override fun saveFlow(flow: StoreFlow): Result<StoreConfig> {
+        flows += flow
+        return config.map { it.copy(releaseGraceMinutes = flow.releaseGraceMinutes, orderWindows = flow.orderWindows) }
+    }
 
     override fun saveVideos(videos: List<StoreVideo>): Result<StoreConfig> = no()
 
@@ -125,14 +137,21 @@ internal class FakeStore : AdminStoreRepository {
         idempotencyKey: String,
     ): Result<StripeSetup> = no()
 
-    override fun cashbackRule(): Result<CashbackRule?> = Result.success(null)
+    override fun cashbackRule(): Result<CashbackRule?> = Result.success(cashback)
 
     override fun saveCashbackRule(
         rule: CashbackRule,
         idempotencyKey: String,
-    ): Result<CashbackRule> = no()
+    ): Result<CashbackRule> {
+        cashbackSaved += rule
+        cashback = rule
+        return Result.success(rule)
+    }
 
-    override fun walletSummary(period: AdminPeriod): Result<AdminWalletSummary> = no()
+    override fun walletSummary(period: AdminPeriod): Result<AdminWalletSummary> {
+        walletPeriods += period
+        return wallet
+    }
 
     override fun liveCounts(): Result<AdminLiveCounts> = no()
 }
