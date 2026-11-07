@@ -260,6 +260,8 @@ data class OrderDetailDto(
     /** Plazos de un encargo (EQUIPO-53); un servidor anterior no los envía. */
     @SerialName("aceptar_antes_de") val answerBy: String? = null,
     @SerialName("pagar_antes_de") val payBy: String? = null,
+    /** Hotel: la estancia de la habitación (llega como número o texto); un servidor anterior no lo envía. */
+    @SerialName("estancia_id") val stayId: JsonPrimitive? = null,
     /** Pedido tomado sin internet (migración 161); un servidor anterior no lo envía. */
     @SerialName("sin_conexion") val offlineCapture: OfflineCaptureDto? = null,
 )

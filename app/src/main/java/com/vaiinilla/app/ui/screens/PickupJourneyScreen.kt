@@ -734,10 +734,11 @@ private fun CelebrationCard(
     onPlaced: (Rect) -> Unit = {},
     guestNotice: String? = null,
 ) {
+    val venue = LocalVenueContext.current
     val c = LocalScene.current
     val paid = kind == PurchaseCelebrationKind.PAYMENT_CONFIRMED
     val title = if (paid) "¡Compra confirmada!" else "¡Pedido recibido!"
-    val message = celebrationMessage(order, kind)
+    val message = celebrationMessage(venue, order, kind)
     val leaving = 1f - shown
     GlassPanel(
         backdrop = backdrop,

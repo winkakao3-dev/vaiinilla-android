@@ -39,6 +39,11 @@ data class PublicSpace(
     val type: String,
     /** Código del QR escaneado: con él el cliente se une a la mesa compartida. */
     val qrToken: String? = null,
+    /**
+     * Solo en un negocio hotel (`es_habitacion` al resolver el QR): `true` es una habitación y `false` una mesa del
+     * restaurante del hotel. `null` = el servidor no lo dice (otro negocio o un servidor anterior).
+     */
+    val isRoom: Boolean? = null,
 )
 
 data class GuestVenueContext(

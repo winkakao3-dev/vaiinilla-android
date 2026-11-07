@@ -42,7 +42,7 @@ class GuestOrderGateway
                 .withBearer(establishmentSlug) { bearer -> apiClient.getWithBearer(bearer, "estado-operativo") }
                 .mapCatching(parser::parseOperationalStatus)
                 .mapApiErrors()
-                .onSuccess { venueContext.update(it.businessType) }
+                .onSuccess { venueContext.update(it.businessType, it.isSchool) }
 
         fun create(
             establishmentSlug: String,

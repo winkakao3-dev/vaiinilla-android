@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -76,10 +77,13 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.hotel.admin.HotelAdminSummaryViewModel
+import com.vaiinilla.app.ui.hotel.admin.hotelSummaryItems
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
@@ -143,7 +147,10 @@ internal fun AdminHomeTab(
     /** «No quiero» en un paso opcional; null lo esconde (solo lectura). */
     onDeclineStep: ((AdminSetupStep) -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     var choosingPeriod by remember { mutableStateOf(false) }
+    val hotel = if (venue.capabilities.hasHotelAdmin) hotelViewModel<HotelAdminSummaryViewModel>() else null
+    LaunchedEffect(hotel) { hotel?.refresh() }
     val presentDialog = LocalAdminDialog.current
     val status = state.operationalStatus
     val receiving = status?.let { it.acceptingOrders && it.withinOrderWindow }
@@ -187,6 +194,7 @@ internal fun AdminHomeTab(
                 )
             }
         }
+        hotel?.let { hotelSummaryItems(it.uiState.value, colors, it::refresh) }
         item(key = "ventas-titulo") {
             SalesHeader(periodLabel(state), colors, Modifier.adminRise(3)) { choosingPeriod = true }
         }

@@ -2,6 +2,7 @@ package com.vaiinilla.app.core.notifications
 
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -29,6 +30,7 @@ class NoticeExplanationTest {
     fun cashierAlertGoesToCashierAndExplainsTheOtherBusiness() {
         val explanation =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf("type" to "staff_alert", "alert" to "por_cobrar", "orderId" to "p-1", "folio" to "10"),
                 isRemote = true,
             )
@@ -36,6 +38,7 @@ class NoticeExplanationTest {
         assertEquals("p-1", explanation.orderId)
         val reason =
             explanation.reason(
+                VenueContext.STANDARD,
                 listOf(
                     membership(OperationalRole.WAITER, usagi, "USAGI"),
                     membership(OperationalRole.CASHIER, michi, "Michi Market"),
@@ -51,11 +54,13 @@ class NoticeExplanationTest {
     fun barCommandGoesToCashierAndKitchenCommandToKitchen() {
         val bar =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf("type" to "staff_alert", "alert" to "nueva_comanda", "station" to "caja"),
                 isRemote = true,
             )
         val kitchen =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf("type" to "staff_alert", "alert" to "nueva_comanda"),
                 isRemote = true,
             )
@@ -67,6 +72,7 @@ class NoticeExplanationTest {
     fun shiftEndingGoesToWaiterAndCashier() {
         val explanation =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf("type" to "staff_alert", "alert" to "turno_por_terminar", "espacio_nombre" to "Cancha 2"),
                 isRemote = true,
             )
@@ -79,6 +85,7 @@ class NoticeExplanationTest {
     fun childOrderIsPersonalAndKeepsItsBusiness() {
         val explanation =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf(
                     "type" to "order_state",
                     "orderId" to "p-2",
@@ -97,6 +104,7 @@ class NoticeExplanationTest {
     fun localOrderNoticeSaysTheAppMadeIt() {
         val explanation =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf("type" to "order_state", "orderId" to "p-3", "state" to "cobrado"),
                 isRemote = false,
             )
@@ -105,17 +113,26 @@ class NoticeExplanationTest {
 
     @Test
     fun unknownNoticeIsStillExplained() {
-        assertEquals("Otro aviso", NoticeExplanation.explain(mapOf("type" to "nuevo"), isRemote = true).kind)
+        assertEquals(
+            "Otro aviso",
+            NoticeExplanation.explain(VenueContext.STANDARD, mapOf("type" to "nuevo"), isRemote = true).kind,
+        )
     }
 
     @Test
     fun reasonWhenTheAccountNoLongerHasTheRole() {
         val explanation =
             NoticeExplanation.explain(
+                VenueContext.STANDARD,
                 mapOf("type" to "staff_alert", "alert" to "listo_mesero"),
                 isRemote = true,
             )
-        val reason = explanation.reason(listOf(membership(OperationalRole.CASHIER, usagi, "USAGI")), openMode = null)
+        val reason =
+            explanation.reason(
+                VenueContext.STANDARD,
+                listOf(membership(OperationalRole.CASHIER, usagi, "USAGI")),
+                openMode = null,
+            )
         assertTrue(reason.contains("no tiene Mesero"))
     }
 

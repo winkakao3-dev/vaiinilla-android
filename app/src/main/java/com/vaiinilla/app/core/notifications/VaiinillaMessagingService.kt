@@ -63,7 +63,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             }
         if (data["type"] == "order_state" || data["type"] == "staff_alert") OrderPushes.notifyChanged()
         // Todo aviso se anota, también el que no se pudo mostrar: es justo el que hay que explicar.
-        val explanation = NoticeExplanation.explain(data, isRemote = true)
+        val explanation = NoticeExplanation.explain(venueContext.current, data, isRemote = true)
         ReceivedNoticeLog.record(
             context = applicationContext,
             id = noticeId,
@@ -157,6 +157,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             val callId = data["llamada_id"] ?: data["llamadaId"] ?: return null
             return OrderAdvanceNotifier.notifyTableCall(
                 context = applicationContext,
+                venue = venueContext.current,
                 callId = callId,
                 spaceName = data["espacio_nombre"] ?: data["espacioNombre"].orEmpty(),
                 reason = data["motivo"],
@@ -176,6 +177,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         val folio = data["folio"]?.toIntOrNull() ?: return null
         return OrderAdvanceNotifier.notifyStaff(
             context = applicationContext,
+            venue = venueContext.current,
             orderId = orderId,
             folio = folio,
             alert = alert,
@@ -191,6 +193,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
         val callId = data["llamada_id"] ?: data["llamadaId"] ?: "mesero"
         return OrderAdvanceNotifier.notifyCallerOnTheWay(
             context = applicationContext,
+            venue = venueContext.current,
             callId = callId,
             noticeId = noticeId,
         )
