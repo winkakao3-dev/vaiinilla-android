@@ -1151,7 +1151,7 @@ internal fun CollectAccountContent(
     blockedReason: String? = null,
 ) {
     val payableIds = payable.map { it.id }.toSet()
-    var chosen by rememberSaveable(selectionKey, stateSaver = IntSetSaver) { mutableStateOf(payableIds) }
+    var chosen by rememberSaveable(selectionKey, stateSaver = StringSetSaver) { mutableStateOf(payableIds) }
     val selected = chosen intersect payableIds
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()

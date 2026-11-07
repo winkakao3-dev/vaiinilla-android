@@ -28,7 +28,7 @@ internal val TipChoiceSaver: Saver<TipChoice, Any> =
         },
     )
 
-internal val IntSetSaver: Saver<Set<Int>, Any> =
+internal val StringSetSaver: Saver<Set<String>, Any> =
     listSaver(
         save = { it.toList() },
         restore = { it.toSet() },

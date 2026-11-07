@@ -28,10 +28,10 @@ class SavedDraftStateTest {
 
     @Test
     fun `los pedidos marcados vuelven igual`() {
-        val chosen = setOf(3, 7, 12)
-        val saved = with(IntSetSaver) { scope.save(chosen) }!!
+        val chosen = setOf("pedido-3", "pedido-7", "pedido-12")
+        val saved = with(StringSetSaver) { scope.save(chosen) }!!
 
-        assertEquals(chosen, IntSetSaver.restore(saved))
-        assertEquals(emptySet<Int>(), IntSetSaver.restore(with(IntSetSaver) { scope.save(emptySet()) }!!))
+        assertEquals(chosen, StringSetSaver.restore(saved))
+        assertEquals(emptySet<String>(), StringSetSaver.restore(with(StringSetSaver) { scope.save(emptySet()) }!!))
     }
 }
