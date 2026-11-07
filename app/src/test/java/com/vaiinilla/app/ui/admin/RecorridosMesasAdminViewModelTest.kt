@@ -22,7 +22,7 @@ import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 
-private class FakeSpaces : AdminSpacesRepository {
+internal class FakeSpaces : AdminSpacesRepository {
     @Volatile var batchResult: Result<SpaceBatchResult> = Result.success(SpaceBatchResult(10, 10, emptyList()))
     val batches = CopyOnWriteArrayList<List<Any?>>()
 
