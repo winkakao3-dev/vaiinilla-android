@@ -21,11 +21,7 @@ import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.order.DismissedClientOrdersStore
 import com.vaiinilla.app.data.wallet.PendingWalletReload
 import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
-import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CatalogProductDraft
-import com.vaiinilla.app.domain.model.ContractRules
-import com.vaiinilla.app.domain.model.Money
-import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -37,7 +33,6 @@ import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CashDrawerMovementType
-import com.vaiinilla.app.domain.repository.CashDrawerRules
 import com.vaiinilla.app.domain.repository.CashSessionRepository
 import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
@@ -57,7 +52,6 @@ import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.components.rentalChargeLabel
 import com.vaiinilla.app.ui.discovery.QrPayload
 import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -72,7 +66,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -599,9 +592,9 @@ class OperationalViewModel
         /** Abre la caja con el fondo que el cajero contó; el servidor lo guarda como monto inicial del arqueo. */
         fun openCashRegister(initialAmount: String) {
             if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.acting) return
-            val wireAmount = MoneyInput.toWire(initialAmount)
+            val wireAmount = CashierMoneyRules.openingWireAmount(initialAmount)
             if (wireAmount == null) {
-                showMutationError("Escribe el efectivo con el que abres la caja (puede ser 0).")
+                showMutationError(CashierMoneyRules.OPENING_AMOUNT_ERROR)
                 return
             }
             val generation = roleGeneration
@@ -698,17 +691,9 @@ class OperationalViewModel
             if (_uiState.value.role != OperationalRole.CASHIER || _uiState.value.cashSessionOpen != true) return
             val drawer = _uiState.value.cashDrawer
             if (drawer.saving) return
-            val positive = amount.toBigDecimalOrNull()?.signum() == 1
-            if (!positive || !CashDrawerRules.validReason(reason)) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        cashDrawer =
-                            drawer.copy(
-                                saveError =
-                                    "Escribe un monto mayor a cero y un motivo de ${CashDrawerRules.REASON_MIN} a " +
-                                        "${CashDrawerRules.REASON_MAX} letras.",
-                            ),
-                    )
+            val movementError = CashierMoneyRules.drawerMovementError(amount, reason)
+            if (movementError != null) {
+                _uiState.value = _uiState.value.copy(cashDrawer = drawer.copy(saveError = movementError))
                 return
             }
             val fingerprint = listOf(type.wireValue, amount, reason.trim()).joinToString("|")
@@ -927,21 +912,18 @@ class OperationalViewModel
             ) {
                 return
             }
-            val normalizedAmount = amount.trim()
-            val validAmount =
-                ContractRules.isValidMoney(normalizedAmount) &&
-                    runCatching { BigDecimal(normalizedAmount) > BigDecimal.ZERO }.getOrDefault(false)
-            if (!validAmount) {
-                showMutationError("El monto debe ser positivo y tener dos decimales (ej. 100.00).")
-                return
-            }
+            val normalizedAmount =
+                when (val check = CashierMoneyRules.checkReload(amount)) {
+                    is CashierMoneyRules.ReloadCheck.Valid -> check.amount
+                    is CashierMoneyRules.ReloadCheck.Invalid -> {
+                        showMutationError(check.message)
+                        return
+                    }
+                }
             val stored = pendingWalletReloadStore.read()
             if (stored != null && (stored.userId != userId || stored.amount != normalizedAmount)) {
                 publishPendingWalletReload(stored)
-                showMutationError(
-                    "Hay una recarga anterior sin confirmar (${pendingReloadLabel(stored)}). " +
-                        "Confírmala o descártala antes de hacer otra.",
-                )
+                showMutationError(CashierMoneyRules.pendingReloadBlockMessage(stored))
                 return
             }
             val userName =
@@ -1098,22 +1080,15 @@ class OperationalViewModel
             // versión que el servidor tiene ahora, no con la del render viejo.
             val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
             val version = freshest?.summary?.version ?: expectedVersion
-            // "200" o "200,5" son montos válidos: el contrato los quiere con dos decimales ("200.00").
-            val normalizedAmount = MoneyInput.toWire(amountReceived) ?: amountReceived.trim()
-            val received =
-                normalizedAmount
-                    .takeIf { ContractRules.isValidMoney(it) }
-                    ?.let { runCatching { BigDecimal(it) }.getOrNull() }
-            if (received == null) {
-                showMutationError("Escribe el efectivo recibido (ej. 100 o 100.50).")
-                return
-            }
-            val total = freshest?.summary?.cashAmountDue?.let { runCatching { Money.parse(it) }.getOrNull() }
-            val tipAmount = tip?.let { runCatching { BigDecimal(it) }.getOrNull() } ?: BigDecimal.ZERO
-            if (total != null && received < total + tipAmount) {
-                showMutationError("El efectivo recibido no cubre el total del pedido más la propina.")
-                return
-            }
+            val cashDue = freshest?.summary?.cashAmountDue
+            val normalizedAmount =
+                when (val check = CashierMoneyRules.checkCollection(amountReceived, cashDue, tip)) {
+                    is CashierMoneyRules.CollectionCheck.Valid -> check.wireAmount
+                    is CashierMoneyRules.CollectionCheck.Invalid -> {
+                        showMutationError(check.message)
+                        return
+                    }
+                }
             val generation = roleGeneration
             val establishmentAtStart = roleEstablishmentId
             mutationErrorVisible = false
@@ -1955,25 +1930,6 @@ internal fun staffMutationMessage(error: Throwable): String {
     }
 }
 
-/**
- * Lo que Caja dice al cobrar: el folio y el cambio, que el cajero necesita mientras cuenta el efectivo. Una renta
- * no es un pedido: «Renta de Pista 3 cobrada» (en vivo, D03).
- */
-internal fun cashCollectionNotice(receipt: CashCollectionResult): String {
-    val change = runCatching { Money.parse(receipt.change) }.getOrNull()
-    val what =
-        if (receipt.order.reservation != null) {
-            "${rentalChargeLabel(receipt.order)} cobrada"
-        } else {
-            "Pedido #${receipt.order.summary.folio} cobrado"
-        }
-    return if (change != null && change > BigDecimal.ZERO) {
-        "$what · Cambio: ${moneyLabel(receipt.change)}"
-    } else {
-        "$what · Sin cambio"
-    }
-}
-
 /** Otro negocio solo si los dos se conocen: un token sin el claim no cuenta como cambio. */
 internal fun isOtherEstablishment(
     previous: String?,
@@ -1982,30 +1938,6 @@ internal fun isOtherEstablishment(
 
 /** El servidor devuelve a lo más esta cantidad por página; una lista de ese tamaño puede estar cortada. */
 internal const val FULL_LIST_LIMIT = 50
-
-/**
- * Una recarga rechazada por el servidor (4xx) nunca abonó saldo: el registro
- * pendiente se puede descartar. Errores de red/timeout/5xx son ambiguos — el
- * POST pudo haber llegado — así que el registro se conserva para el replay.
- */
-internal fun isDefinitiveWalletReloadFailure(error: Throwable): Boolean =
-    (error as? WalletRepositoryException)?.httpStatus.let { status ->
-        status != null && status in 400..499 && status != HTTP_REQUEST_TIMEOUT && status != HTTP_TOO_MANY_REQUESTS
-    }
-
-private const val HTTP_REQUEST_TIMEOUT = 408
-private const val HTTP_TOO_MANY_REQUESTS = 429
-
-/** Una recarga persistida de otro turno ya no se repite sola: hace falta que el cajero la reconozca. */
-internal fun isStalePendingReload(
-    pending: PendingWalletReload,
-    nowMs: Long,
-): Boolean = pending.storedAtEpochMs <= 0L || nowMs - pending.storedAtEpochMs > PENDING_RELOAD_AUTO_RETRY_MS
-
-private const val PENDING_RELOAD_AUTO_RETRY_MS = 30 * 60_000L
-
-private fun pendingReloadLabel(pending: PendingWalletReload): String =
-    moneyLabel(pending.amount) + (pending.userName?.let { " a $it" }.orEmpty())
 
 /** Suma lo que llegó a lo que ya hay; un pedido que llega con versión anterior a la guardada no la pisa. */
 internal fun mergeOrders(
