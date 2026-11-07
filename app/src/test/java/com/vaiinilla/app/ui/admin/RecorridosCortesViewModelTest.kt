@@ -6,12 +6,7 @@ import com.vaiinilla.app.data.cashcut.CashCutRepository
 import com.vaiinilla.app.data.cashcut.DayCut
 import com.vaiinilla.app.data.cashcut.ShiftCut
 import com.vaiinilla.app.ui.operational.StaffHarness
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -102,25 +97,17 @@ private class FakeCashCuts : CashCutRepository {
 class RecorridosCortesViewModelTest {
     private val repo = FakeCashCuts()
     private val today = LocalDate.of(2026, 11, 9)
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
     private lateinit var vm: AdminCashCutViewModel
 
     private val ui get() = vm.uiState.value
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+        StaffHarness.installMain()
         vm = AdminCashCutViewModel(repo)
         vm.today = { today }
         vm.onVisible("negocio-1")
         StaffHarness.awaitUntil("el corte del día") { ui.dayCut != null && ui.dayStart == "05:00" }
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
     }
 
     @Test

@@ -12,12 +12,8 @@ import com.vaiinilla.app.data.inventory.InventoryUnit
 import com.vaiinilla.app.data.inventory.MovementResult
 import com.vaiinilla.app.data.inventory.RecipeLine
 import com.vaiinilla.app.data.inventory.SupplyProductLink
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
+import com.vaiinilla.app.ui.operational.StaffHarness
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -132,24 +128,16 @@ private class FakeInventory : InventoryRepository {
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecorridosInventarioViewModelTest {
     private val repo = FakeInventory()
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
     private lateinit var vm: AdminInventoryViewModel
 
     private val ui get() = vm.uiState.value
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+        StaffHarness.installMain()
         vm = AdminInventoryViewModel(repo)
         vm.onVisible("negocio-1")
         wait("el inventario cargado") { ui.supplies != null && ui.products != null && !ui.loading }
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
     }
 
     private fun wait(

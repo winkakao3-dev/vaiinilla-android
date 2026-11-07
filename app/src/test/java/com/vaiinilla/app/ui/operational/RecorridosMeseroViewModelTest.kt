@@ -3,12 +3,7 @@ package com.vaiinilla.app.ui.operational
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.WaiterBoard
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -26,22 +21,14 @@ import org.robolectric.annotation.Config
 @Config(sdk = [33])
 class RecorridosMeseroViewModelTest {
     private val repo = FakeWaiterRepository()
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
     private lateinit var vm: WaiterViewModel
 
     private val ui get() = vm.uiState.value
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+        StaffHarness.installMain()
         vm = WaiterHarness.viewModel(repo)
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
     }
 
     private fun load(board: WaiterBoard) {

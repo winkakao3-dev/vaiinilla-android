@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.operational
 
 import android.content.Context
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.test.setMain
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
 import com.vaiinilla.app.core.security.SecureSessionStore
@@ -45,6 +47,20 @@ import java.util.Base64
 
 /** Arnés de ViewModels de personal en la JVM: repositorios en memoria, sin red. */
 internal object StaffHarness {
+    private val mainThread: java.util.concurrent.ExecutorService by lazy { java.util.concurrent.Executors.newSingleThreadExecutor() }
+    private var mainInstalled = false
+
+    /**
+     * Un solo hilo para el estado, como el hilo principal de verdad (con varios, dos escrituras se pisan), puesto una
+     * vez por proceso: ponerlo y quitarlo por prueba chocaba con corutinas de ViewModels de pruebas anteriores.
+     */
+    @Synchronized
+    fun installMain() {
+        if (mainInstalled) return
+        mainInstalled = true
+        kotlinx.coroutines.Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+    }
+
     fun jwt(establishment: String = "est-1"): String {
         val payload = """{"uid":"u1","rol":"cajero","establecimiento_id":"$establishment","membresia_id":"m1"}"""
         return "h." + Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray()) + ".s"
@@ -279,10 +295,26 @@ internal class FakeOrders : OrderRepository {
     @Volatile var orders: List<OrderDetail> = emptyList()
     val transitionCalls = java.util.concurrent.CopyOnWriteArrayList<Triple<String, OrderState, Int>>()
 
+    val createdRequests = java.util.concurrent.CopyOnWriteArrayList<Pair<CreateOrderRequest, String>>()
+
+    @Volatile var createFails: Throwable? = null
+
     override fun createOrder(
         request: CreateOrderRequest,
         idempotencyKey: String,
-    ): Result<CreatedOrder> = Result.failure(IllegalStateException("no"))
+    ): Result<CreatedOrder> {
+        createdRequests += request to idempotencyKey
+        createFails?.let { return Result.failure(it) }
+        return Result.success(CreatedOrder(sampleOrder("nuevo-${createdRequests.size}", OrderState.PAID, folio = 7)))
+    }
+
+    override fun offlineOrderBody(
+        request: CreateOrderRequest,
+        orderId: String,
+        capturedAt: java.time.Instant,
+        localFolio: String,
+        collectNow: Boolean,
+    ): String = """{"id":"$orderId","folio_local":"$localFolio"}"""
 
     override fun getOrder(orderId: String): Result<OrderDetail> =
         orders.firstOrNull { it.summary.id == orderId }?.let { Result.success(it) }

@@ -6,12 +6,8 @@ import com.vaiinilla.app.domain.assistant.AssistantProductCard
 import com.vaiinilla.app.domain.assistant.CustomerAssistantReply
 import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.assistant.CustomerAssistantTurn
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
+import com.vaiinilla.app.ui.operational.StaffHarness
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,7 +22,6 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecorridosAsistenteViewModelTest {
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
     private val replies = CopyOnWriteArrayList<CustomerAssistantReply>()
     private val seenTurns = CopyOnWriteArrayList<List<CustomerAssistantTurn>>()
 
@@ -47,14 +42,7 @@ class RecorridosAsistenteViewModelTest {
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
+        StaffHarness.installMain()
     }
 
     private fun card(id: Int, name: String) = AssistantProductCard(id, name, "60.00", null, true, false, 8)

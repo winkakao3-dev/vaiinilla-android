@@ -1,12 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
 import com.vaiinilla.app.domain.model.OrderState
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -27,19 +22,11 @@ import org.robolectric.annotation.Config
 class RecorridosCocinaViewModelTest {
     private val orders = FakeOrders()
     private val catalog = FakeCatalog()
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+        StaffHarness.installMain()
         catalog.products = listOf(sampleProduct(1, "Hamburguesa"), sampleProduct(2, "Refresco"))
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
     }
 
     private fun kitchen() = StaffHarness.kitchenViewModel(RuntimeEnvironment.getApplication(), orders, catalog)

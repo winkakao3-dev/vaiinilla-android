@@ -182,12 +182,18 @@ internal object WaiterHarness {
         waiter: FakeWaiterRepository,
         orders: FakeOrders = FakeOrders(),
         catalog: FakeCatalog = FakeCatalog(),
+        internet: Boolean = true,
     ): WaiterViewModel {
         val queue =
             com.vaiinilla.app.ui.operational.OfflineStaffOrderQueue(
                 repository = orders,
                 store = MemoryOfflineStore(),
-                connectivity = ConnectivityWatcher { AutoCloseable { } },
+                connectivity =
+                    object : ConnectivityWatcher {
+                        override fun onReconnect(callback: () -> Unit) = AutoCloseable { }
+
+                        override fun hasInternet() = internet
+                    },
             )
         val unsafeClass = Class.forName("sun.misc.Unsafe")
         val field = unsafeClass.getDeclaredField("theUnsafe")

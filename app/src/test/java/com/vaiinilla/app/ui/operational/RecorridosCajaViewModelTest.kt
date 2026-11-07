@@ -1,12 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -28,20 +23,11 @@ class RecorridosCajaViewModelTest {
     private val cash = FakeCashSession()
     private val wallet = FakeWallet()
     private lateinit var vm: CashierViewModel
-    private lateinit var mainThread: java.util.concurrent.ExecutorService
 
     @Before
     fun setUp() {
-        mainThread = java.util.concurrent.Executors.newSingleThreadExecutor()
-        // Un solo hilo para el estado, como el hilo principal de verdad: con otro, dos escrituras se pisan.
-        Dispatchers.setMain(mainThread.asCoroutineDispatcher())
+        StaffHarness.installMain()
         vm = StaffHarness.cashierViewModel(RuntimeEnvironment.getApplication(), cash = cash, wallet = wallet)
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        mainThread.shutdownNow()
     }
 
     private val ui get() = vm.uiState.value
