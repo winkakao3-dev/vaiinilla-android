@@ -342,7 +342,7 @@ internal object BreakUiCases {
                             state = state,
                             onBack = {},
                             onStart = { _, _ -> },
-                            onReady = { _, _ -> },
+                            onMarkReady = { _, _ -> },
                             onChangeMode = {},
                         )
                     }

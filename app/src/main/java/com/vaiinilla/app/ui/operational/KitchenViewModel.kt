@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.operational
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
+import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.SecureSessionStore
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
@@ -15,7 +16,10 @@ import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
 import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -46,6 +50,10 @@ class KitchenViewModel
             catalogRepository = catalogRepository,
         ) {
         private var kitchenPolicyLoaded = false
+        private val readyQueue = PendingReadyQueue()
+
+        // Las marcas salen una por una: la acción de la fila ignora una segunda mientras la primera sigue en vuelo.
+        private val readySending = Mutex()
 
         override fun onRoleReset(establishmentChanged: Boolean) {
             kitchenPolicyLoaded = false
@@ -84,26 +92,86 @@ class KitchenViewModel
             }
         }
 
-        fun markReady(
+        /**
+         * «Marcar lista» con ventana de deshacer: la marca espera [PendingReadyQueue.UNDO_WINDOW_MS] aquí, no en la
+         * pantalla, así que girar el teléfono, cambiar de pestaña o salir no la pierde (y varias a la vez se mandan
+         * todas).
+         */
+        fun requestReady(
             orderId: String,
             expectedVersion: Int,
         ) {
+            if (state.value.role == null) return
             if (staleForTransition(orderId, OrderState.READY)) return
-            val version = freshVersion(orderId, expectedVersion)
-            performMutation(successNotice = ::kitchenActionNotice) {
-                transitionOrder(
-                    orderId = orderId,
-                    targetState = OrderState.READY,
-                    expectedVersion = version,
-                    idempotencyKey =
-                        MutationIdempotency.orderTransition(
-                            orderId,
-                            OrderState.READY.wireValue,
-                            version,
-                            pickupToken = null,
-                        ),
-                ).getOrThrow()
+            readyQueue.add(orderId, freshVersion(orderId, expectedVersion), System.currentTimeMillis())
+            publishPendingReady()
+            val generation = roleGeneration
+            viewModelScope.launch {
+                delay(PendingReadyQueue.UNDO_WINDOW_MS)
+                if (generation == roleGeneration) sendReady(readyQueue.takeDue(System.currentTimeMillis()))
             }
+        }
+
+        fun undoReady(orderId: String) {
+            if (readyQueue.undo(orderId)) publishPendingReady()
+        }
+
+        /** Manda ya todas las marcas en espera: al salir de la pantalla, con Atrás o al soltar el rol (B04). */
+        fun flushPendingReady() {
+            val all = readyQueue.drain()
+            if (all.isEmpty()) return
+            publishPendingReady()
+            sendReady(all)
+        }
+
+        override fun onBeforeRelease() = flushPendingReady()
+
+        private fun publishPendingReady() {
+            if (state.value.role == null) return
+            state.value = state.value.copy(pendingReady = readyQueue.snapshot())
+        }
+
+        private fun sendReady(items: List<PendingReady>) {
+            if (items.isEmpty()) return
+            publishPendingReady()
+            val generation = roleGeneration
+            viewModelScope.launch {
+                readySending.withLock { items.forEach { sendOneReady(it, generation) } }
+            }
+        }
+
+        private suspend fun sendOneReady(
+            item: PendingReady,
+            generation: Long,
+        ) {
+            val version = freshVersion(item.orderId, item.version)
+            val result =
+                runCatchingCancellable {
+                    withContext(Dispatchers.IO) {
+                        transitionOrder(
+                            orderId = item.orderId,
+                            targetState = OrderState.READY,
+                            expectedVersion = version,
+                            idempotencyKey =
+                                MutationIdempotency.orderTransition(
+                                    item.orderId,
+                                    OrderState.READY.wireValue,
+                                    version,
+                                    pickupToken = null,
+                                ),
+                        ).getOrThrow()
+                    }
+                }
+            // La petición ya salió aunque se haya soltado el rol; solo la pantalla de otro rol no debe recibirla.
+            if (generation != roleGeneration || state.value.role != OperationalRole.KITCHEN) return
+            result
+                .onSuccess { order ->
+                    applyServerOrder(order)
+                    state.value = state.value.copy(actionNotice = kitchenActionNotice(order))
+                }.onFailure { error ->
+                    showMutationError(staffMutationMessage(error))
+                    if (isStaleOrderError(error)) requestFullSync()
+                }
         }
 
         private fun refreshKitchenPolicy(generation: Long) {

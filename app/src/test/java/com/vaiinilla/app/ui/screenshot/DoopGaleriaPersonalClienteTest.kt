@@ -292,7 +292,7 @@ class DoopGaleriaPersonalClienteTest {
             _,
             _,
             ->
-        }, onReady = { _, _ -> })
+        }, onMarkReady = { _, _ -> })
 
     @Test fun cn01_por_producto() {
         draw { Kitchen() }
@@ -911,7 +911,7 @@ class DoopGaleriaPersonalClienteTest {
                     _,
                     ->
                 },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
             )
         }
         tap("Preparando")
@@ -942,7 +942,7 @@ class DoopGaleriaPersonalClienteTest {
                     _,
                     ->
                 },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
             )
         }
         shot("cN09_solo_lo_suyo")
