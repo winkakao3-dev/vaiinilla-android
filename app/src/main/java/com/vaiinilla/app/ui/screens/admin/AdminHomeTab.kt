@@ -73,13 +73,17 @@ import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
 import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
 import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MIN
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.ui.admin.AdminPeriodPreset
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.hotel.admin.HotelAdminSummaryViewModel
+import com.vaiinilla.app.ui.hotel.admin.hotelSummaryItems
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
@@ -144,6 +148,8 @@ internal fun AdminHomeTab(
     onDeclineStep: ((AdminSetupStep) -> Unit)? = null,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
+    val hotel = if (Venue.isHotel) hotelViewModel<HotelAdminSummaryViewModel>() else null
+    LaunchedEffect(hotel) { hotel?.refresh() }
     val presentDialog = LocalAdminDialog.current
     val status = state.operationalStatus
     val receiving = status?.let { it.acceptingOrders && it.withinOrderWindow }
@@ -187,6 +193,7 @@ internal fun AdminHomeTab(
                 )
             }
         }
+        hotel?.let { hotelSummaryItems(it.uiState.value, colors, it::refresh) }
         item(key = "ventas-titulo") {
             SalesHeader(periodLabel(state), colors, Modifier.adminRise(3)) { choosingPeriod = true }
         }
