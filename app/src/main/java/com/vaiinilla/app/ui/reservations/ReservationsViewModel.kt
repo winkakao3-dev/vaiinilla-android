@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 import javax.inject.Inject
 
 data class ReservationsUiState(
@@ -72,8 +71,11 @@ data class ReservationsUiState(
 
     val canReserve: Boolean
         get() =
-            selectedCourt != null && selectedDuration != null && (rentNow || selectedStart != null) &&
-                playersReady && !working
+            selectedCourt != null &&
+                selectedDuration != null &&
+                (rentNow || selectedStart != null) &&
+                playersReady &&
+                !working
 }
 
 /**
@@ -306,6 +308,7 @@ class ReservationsViewModel
                     selectedDuration = state.selectedDuration?.takeIf { it in durations } ?: durations.firstOrNull(),
                 )
         }
+
         fun selectStart(start: Instant) {
             val state = _uiState.value
             val day = state.day ?: return
@@ -436,7 +439,7 @@ class ReservationsViewModel
             viewModelScope.launch {
                 val released =
                     withContext(Dispatchers.IO) {
-                        repository.cancel(access, reservation.id, UUID.randomUUID().toString())
+                        retryKeys.withKey("cancel", reservation.id) { repository.cancel(access, reservation.id, it) }
                     }
                 released.exceptionOrNull()?.let { error ->
                     _uiState.value = _uiState.value.copy(working = false, error = error.userMessage())
@@ -444,16 +447,18 @@ class ReservationsViewModel
                 }
                 val held =
                     withContext(Dispatchers.IO) {
-                        repository.create(
-                            access = access,
-                            courtId = reservation.courtId,
-                            start = start,
-                            durationMinutes = minutes,
-                            customerName = null,
-                            idempotencyKey = UUID.randomUUID().toString(),
-                            // Cambiar el tiempo no borra cuántos juegan.
-                            players = players,
-                        )
+                        retryKeys.withKey("resize", reservation.id, start, minutes, players) { key ->
+                            repository.create(
+                                access = access,
+                                courtId = reservation.courtId,
+                                start = start,
+                                durationMinutes = minutes,
+                                customerName = null,
+                                idempotencyKey = key,
+                                // Cambiar el tiempo no borra cuántos juegan.
+                                players = players,
+                            )
+                        }
                     }
                 held.fold(
                     onSuccess = { next ->
@@ -532,7 +537,7 @@ class ReservationsViewModel
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
-                        repository.cancel(access, reservation.id, UUID.randomUUID().toString())
+                        retryKeys.withKey("cancel", reservation.id) { repository.cancel(access, reservation.id, it) }
                     }
                 result.fold(
                     onSuccess = {

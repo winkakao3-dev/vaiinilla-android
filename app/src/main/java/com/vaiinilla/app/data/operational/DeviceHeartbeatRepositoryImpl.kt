@@ -1,22 +1,19 @@
 package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 class RemoteDeviceHeartbeatRepository(
     private val apiClient: VaiinillaApiClient,
 ) : DeviceHeartbeatRepository {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
+        ApiJson.withDefaults
 
     override fun sendHeartbeat(
         deviceId: String,

@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.core.contract.mapOrdersTolerant
 import com.vaiinilla.app.core.contract.mapSkippingUnknown
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.data.contract.MetaDto
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.repository.AbonoMode
@@ -29,7 +30,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
@@ -543,12 +543,7 @@ class WaiterContractJson
     @Inject
     constructor() {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = true
-                isLenient = false
-                encodeDefaults = true
-            }
+            ApiJson.withDefaults
 
         fun parseBoard(raw: String): List<BoardTable> {
             val envelope = json.decodeFromString<BoardEnvelopeDto>(raw)

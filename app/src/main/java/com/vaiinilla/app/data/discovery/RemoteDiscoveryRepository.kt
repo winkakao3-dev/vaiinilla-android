@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.discovery
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.Catalog
@@ -8,7 +9,6 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.SpaceResolveResult
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.Locale
 
 // Punto decimal fijo: con un locale como es-ES el separador sería coma y el backend no lo lee.
@@ -19,10 +19,7 @@ class RemoteDiscoveryRepository(
     private val parser: ContractResponseParser,
 ) : DiscoveryRepository {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
+        ApiJson.withDefaults
 
     override fun searchEstablishments(
         query: String,

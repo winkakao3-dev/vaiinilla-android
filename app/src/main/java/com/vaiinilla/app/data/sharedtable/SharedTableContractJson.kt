@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.sharedtable
 
 import com.vaiinilla.app.core.contract.mapOrdersTolerant
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SharedTableAmounts
@@ -10,7 +11,6 @@ import com.vaiinilla.app.domain.model.SharedTableParticipant
 import com.vaiinilla.app.domain.model.SharedTableRent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
@@ -105,10 +105,7 @@ class SharedTableContractJson
     @Inject
     constructor() {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-            }
+            ApiJson.omitNulls
 
         /** La mesa, o null si el cliente no está en ninguna (`data: null`). */
         fun parseTable(raw: String): SharedTable? {

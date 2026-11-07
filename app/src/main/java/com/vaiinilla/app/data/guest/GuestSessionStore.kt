@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.guest
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.security.GuestKeyVault
 import com.vaiinilla.app.core.security.KeystoreGuestKeyVault
 import com.vaiinilla.app.domain.model.CartLine
@@ -13,7 +14,6 @@ import com.vaiinilla.app.domain.model.SpaceDelivery
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,10 +33,7 @@ class GuestSessionStore
 
         private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            }
+            ApiJson.withDefaults
 
         fun readVenue(): GuestVenueContext? {
             val establishmentId = prefs.getString(KEY_ESTABLISHMENT_ID, null) ?: return null

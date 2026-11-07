@@ -1,8 +1,11 @@
 package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
@@ -39,26 +42,17 @@ import kotlinx.serialization.json.jsonObject
 
 private const val EMPTY_BODY = "{}"
 
-private fun key(idempotencyKey: String) = mapOf("Idempotency-Key" to idempotencyKey)
+private fun key(idempotencyKey: String) = idempotencyHeaders(idempotencyKey)
 
 /** Los errores del backend llegan con su código para que la pantalla diga qué pasó. */
 private fun <T> Result<T>.mapApiErrors(): Result<T> =
-    fold(
-        onSuccess = { Result.success(it) },
-        onFailure = { error ->
-            Result.failure(
-                if (error is ApiClientException) {
-                    CatalogRepositoryException(
-                        error.code,
-                        error.message ?: error.code,
-                        error,
-                    )
-                } else {
-                    error
-                },
-            )
-        },
-    )
+    mapApiFailure {
+        CatalogRepositoryException(
+            it.code,
+            it.message ?: it.code,
+            it,
+        )
+    }
 
 class RemoteAdminStaffRepository(
     private val apiClient: VaiinillaApiClient,
@@ -136,7 +130,7 @@ class RemoteAdminStoreRepository(
     private val apiClient: VaiinillaApiClient,
     private val json: AdminBusinessJson = AdminBusinessJson(),
 ) : AdminStoreRepository {
-    private val plain = Json { ignoreUnknownKeys = true }
+    private val plain = ApiJson.plain
     private val assistantJson = StoreAssistantJson()
 
     override fun config(): Result<StoreConfig> =

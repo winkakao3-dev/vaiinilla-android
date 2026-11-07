@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.guest
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.core.security.PickupTokenStore
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.OrderContractJson
@@ -55,7 +56,7 @@ class GuestOrderGateway
                             bearer = bearer,
                             path = "pedidos",
                             body = orderContractJson.encodeCreateRequest(request),
-                            headers = mapOf("Idempotency-Key" to idempotencyKey),
+                            headers = idempotencyHeaders(idempotencyKey),
                         )
                     }.getOrThrow()
             }.mapCatching(orderContractJson::parseCreatedOrder)
@@ -97,7 +98,7 @@ class GuestOrderGateway
                     apiClient.postWithBearer(
                         bearer = bearer,
                         path = "pedidos/$orderId/pago/stripe",
-                        headers = mapOf("Idempotency-Key" to idempotencyKey),
+                        headers = idempotencyHeaders(idempotencyKey),
                     )
                 }.mapCatching(orderContractJson::parseStripeRetry)
                 .mapApiErrors()
@@ -114,23 +115,18 @@ class GuestOrderGateway
                     bearer = firebaseIdToken,
                     path = "invitados/reclamar",
                     body = body,
-                    headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                    headers = idempotencyHeaders(UUID.randomUUID().toString()),
                 ).map { guestSession.forgetIdentity() }
         }
 
         private fun <T> Result<T>.mapApiErrors(): Result<T> =
-            fold(
-                onSuccess = { Result.success(it) },
-                onFailure = { error ->
-                    Result.failure(
-                        if (error is ApiClientException) {
-                            OrderRepositoryException(error.code, error.message ?: error.code, error)
-                        } else {
-                            error
-                        },
-                    )
-                },
-            )
+            mapApiFailure {
+                OrderRepositoryException(
+                    it.code,
+                    it.message ?: it.code,
+                    it,
+                )
+            }
 
         private companion object {
             const val NOT_FOUND = "NOT_FOUND"

@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.guardianship
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.domain.guardianship.CardReload
 import com.vaiinilla.app.domain.guardianship.CardReloadCheckout
 import com.vaiinilla.app.domain.guardianship.ChildWallet
@@ -127,7 +128,7 @@ class RemoteDependentAccountRepository(
         return result.mapGuardianshipErrors()
     }
 
-    private fun key(idempotencyKey: String) = mapOf("Idempotency-Key" to idempotencyKey)
+    private fun key(idempotencyKey: String) = idempotencyHeaders(idempotencyKey)
 
     private companion object {
         const val CANCEL_REASON = "Cancelado por su tutor"

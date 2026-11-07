@@ -20,7 +20,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 import javax.inject.Inject
 
 data class AdminStaffUiState(
@@ -151,12 +150,12 @@ class AdminStaffViewModel
 
         fun resend(invitation: StaffInvitation) =
             mutate("Invitación reenviada a ${invitation.email}.") {
-                repository.resend(invitation.id, UUID.randomUUID().toString()).map { }
+                retryKeys.withKey("resend", invitation.id) { repository.resend(invitation.id, it) }.map { }
             }
 
         fun revoke(invitation: StaffInvitation) =
             mutate("Invitación revocada.") {
-                repository.revoke(invitation.id, UUID.randomUUID().toString()).map { }
+                retryKeys.withKey("revoke", invitation.id) { repository.revoke(invitation.id, it) }.map { }
             }
 
         fun changeRole(
@@ -164,14 +163,14 @@ class AdminStaffViewModel
             role: StaffRole,
             onDone: () -> Unit,
         ) = mutate("Rol actualizado.", onDone) {
-            repository.changeRole(membership.id, role, UUID.randomUUID().toString()).map { }
+            retryKeys.withKey("role", membership.id, role) { repository.changeRole(membership.id, role, it) }.map { }
         }
 
         fun deactivate(
             membership: StaffMembership,
             onDone: () -> Unit,
         ) = mutate("Acceso desactivado.", onDone) {
-            repository.deactivate(membership.id, UUID.randomUUID().toString())
+            retryKeys.withKey("deactivate", membership.id) { repository.deactivate(membership.id, it) }
         }
 
         private fun mutate(

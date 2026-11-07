@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.guardianship
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.domain.guardianship.Dependent
 import com.vaiinilla.app.domain.guardianship.DependentContextGrant
 import com.vaiinilla.app.domain.guardianship.DependentControls
@@ -200,7 +201,7 @@ class RemoteGuardianshipRepository(
             .mapCatching(json::parseBlocked)
             .mapGuardianshipErrors()
 
-    private fun key(idempotencyKey: String) = mapOf("Idempotency-Key" to idempotencyKey)
+    private fun key(idempotencyKey: String) = idempotencyHeaders(idempotencyKey)
 
     private companion object {
         const val BASE = "tutelas"

@@ -1,7 +1,8 @@
 package com.vaiinilla.app.data.operational
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.repository.CashDrawerMovementType
 import com.vaiinilla.app.domain.repository.CashDrawerReport
@@ -22,7 +23,7 @@ class RemoteCashSessionRepository(
             .post(
                 path = "sesiones-caja",
                 body = contractJson.encodeOpenCashSession(initialAmount),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching {
                 contractJson.parseCashSession(it)
                 Unit
@@ -94,7 +95,7 @@ class RemoteCashSessionRepository(
             .post(
                 path = "sesiones-caja/$sessionId/cerrar",
                 body = contractJson.encodeCloseCashSession(finalAmount),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).map { }
             .mapApiErrors()
 
@@ -115,24 +116,20 @@ class RemoteCashSessionRepository(
             .post(
                 path = "sesiones-caja/$sessionId/movimientos",
                 body = CashDrawerJson.encodeMovement(type, amount, reason),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching { raw ->
                 // Ya respondió 2xx: el movimiento quedó aunque el cuerpo no se entienda.
-                runCatching { CashDrawerJson.parseExpectedAfterMovement(raw) }.getOrNull()
+                runCatching { CashDrawerJson.parseExpectedAfterMovement(raw) }
+                    .getOrNull()
                     ?.also { expectedCash = it }
             }.mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    when (error) {
-                        is ApiClientException ->
-                            OrderRepositoryException(error.code, error.message ?: error.code, error)
-                        else -> error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            OrderRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it,
+            )
+        }
 }

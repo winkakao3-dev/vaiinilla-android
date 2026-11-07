@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.account
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.domain.account.AccountDeletionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +24,7 @@ class RemoteAccountDeletionRepository
                         bearer = firebaseIdToken,
                         path = "identidad/cuenta",
                         body = BODY,
-                        headers = mapOf("Idempotency-Key" to idempotencyKey),
+                        headers = idempotencyHeaders(idempotencyKey),
                     ).map { }
             }
 

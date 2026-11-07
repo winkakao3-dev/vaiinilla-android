@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.operational
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.domain.repository.PendingRefund
 import com.vaiinilla.app.domain.repository.PendingRefundRepository
 import com.vaiinilla.app.domain.repository.RefundMethod
@@ -8,7 +10,6 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
 /** `/devoluciones`: las pendientes y su confirmación por Caja. */
@@ -30,16 +31,13 @@ class RemotePendingRefundRepository(
             .post(
                 path = "devoluciones/$refundId/confirmaciones",
                 body = PendingRefundJson.encodeConfirmation(method, note),
-                headers = mapOf("Idempotency-Key" to idempotencyKey),
+                headers = idempotencyHeaders(idempotencyKey),
             ).mapCatching(PendingRefundJson::parseOne)
 }
 
 internal object PendingRefundJson {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
+        ApiJson.omitNulls
 
     fun parseList(raw: String): List<PendingRefund> {
         val envelope = json.decodeFromString<RefundListEnvelopeDto>(raw)

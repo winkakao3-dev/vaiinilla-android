@@ -1,12 +1,12 @@
 package com.vaiinilla.app.data.auth.student
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,10 +26,7 @@ class RemoteAccessEmailApi
         private val apiClient: HttpVaiinillaApiClient,
     ) : AccessEmailApi {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-            }
+            ApiJson.omitNulls
 
         override suspend fun sendVerification(firebaseIdToken: String): Result<Unit> =
             withContext(Dispatchers.IO) {
