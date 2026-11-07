@@ -10,6 +10,8 @@ import com.vaiinilla.app.domain.offline.OfflineStaffOrderStore
 import com.vaiinilla.app.domain.offline.OfflineStaffOrdersSnapshot
 import com.vaiinilla.app.domain.offline.OfflineStaffScope
 import com.vaiinilla.app.domain.offline.cashNotRegisteredProblem
+import com.vaiinilla.app.domain.outbox.DrainOutcome
+import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import com.vaiinilla.app.domain.repository.OrderRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -57,6 +59,8 @@ class OfflineStaffOrderQueue(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val now: () -> Instant = Instant::now,
     private val today: () -> String = { LocalDate.now().toString() },
+    /** Pide un recorrido de la bandeja de salida: con la app cerrada, WorkManager manda lo guardado. */
+    private val outbox: OutboxScheduler = OutboxScheduler.None,
 ) {
     private val _state = MutableStateFlow(OfflineStaffOrdersState())
     val state: StateFlow<OfflineStaffOrdersState> = _state.asStateFlow()
@@ -146,6 +150,7 @@ class OfflineStaffOrderQueue(
         snapshot = snapshot.copy(nextSequence = snapshot.nextSequence + 1, orders = snapshot.orders + order)
         save()
         publish()
+        outbox.requestDrain()
         return order
     }
 
@@ -262,17 +267,17 @@ class OfflineStaffOrderQueue(
     suspend fun rescue(
         rescued: OfflineStaffScope,
         /** El pedido creado si la respuesta se entendió; null si llegó (2xx) pero no se pudo leer. */
-        send: (body: String, idempotencyKey: String) -> Result<CreatedOrder?>,
-    ) {
+        send: suspend (body: String, idempotencyKey: String) -> Result<CreatedOrder?>,
+    ): DrainOutcome {
         if (synchronized(this) { rescued == staffScope }) {
             launchFlush()
-            return
+            return if (snapshot.pending.isEmpty()) DrainOutcome.DONE else DrainOutcome.RETRY_LATER
         }
-        if (!sending.tryLock()) return
+        if (!sending.tryLock()) return DrainOutcome.RETRY_LATER
         try {
             var stored = withContext(io) { store.load(rescued, today()) }
             for (order in stored.pending) {
-                if (synchronized(this) { rescued == staffScope }) return
+                if (synchronized(this) { rescued == staffScope }) return DrainOutcome.DONE
                 var registeredFolio: Int? = null
                 val problem =
                     if (OfflineStaffOrderRules.isTooOld(order, now())) {
@@ -282,7 +287,9 @@ class OfflineStaffOrderQueue(
                         val error = result.exceptionOrNull()
                         val created = result.getOrNull()
                         when {
-                            error == null && created != null && order.collectedCash &&
+                            error == null &&
+                                created != null &&
+                                order.collectedCash &&
                                 created.cashCollectionNotApplied -> {
                                 forgetFailures(order.id)
                                 registeredFolio = created.summary.folio
@@ -297,7 +304,7 @@ class OfflineStaffOrderQueue(
                                 OfflineStaffOrderRules.SERVER_FAILURE_PROBLEM
                             OfflineStaffOrderRules.shouldRetryLater(error) -> {
                                 if (!OfflineStaffOrderRules.isServerError(error)) forgetFailures(order.id)
-                                return
+                                return DrainOutcome.RETRY_LATER
                             }
                             else -> error.toUserFacingMessage("No se pudo registrar el pedido.")
                         }
@@ -319,6 +326,7 @@ class OfflineStaffOrderQueue(
                     }
                 withContext(io) { store.save(rescued, stored) }
             }
+            return DrainOutcome.DONE
         } finally {
             sending.unlock()
         }

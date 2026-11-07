@@ -20,6 +20,7 @@ import com.vaiinilla.app.domain.counter.StudentCredentialPayload
 import com.vaiinilla.app.domain.counter.StudentPurchaseItem
 import com.vaiinilla.app.domain.counter.StudentPurchaseRules
 import com.vaiinilla.app.domain.counter.StudentTodayOrder
+import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import com.vaiinilla.app.ui.components.moneyLabel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
@@ -99,19 +100,21 @@ class StudentCounterViewModel
         connectivity: ConnectivityWatcher,
         private val io: CoroutineDispatcher,
         scopeOverride: CoroutineScope?,
+        outbox: OutboxScheduler = OutboxScheduler.None,
     ) : ViewModel() {
         @Inject
         constructor(
             repository: StudentCounterRepository,
             store: OfflineCounterStore,
             connectivity: ConnectivityWatcher,
-        ) : this(repository, store, connectivity, Dispatchers.IO, null)
+            outbox: OutboxScheduler,
+        ) : this(repository, store, connectivity, Dispatchers.IO, null, outbox)
 
         private val work: CoroutineScope = scopeOverride ?: viewModelScope
         private val _uiState = mutableStateOf(StudentCounterUiState())
         val uiState: State<StudentCounterUiState> = _uiState
 
-        val offline = OfflineCounterQueue(repository, store, connectivity, work, io)
+        val offline = OfflineCounterQueue(repository, store, connectivity, work, io, outbox = outbox)
         val offlineState: StateFlow<OfflineCounterState> = offline.state
 
         private var chargeKey = UUID.randomUUID().toString()

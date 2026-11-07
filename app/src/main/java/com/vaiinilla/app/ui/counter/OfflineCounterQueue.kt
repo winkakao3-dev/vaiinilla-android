@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.counter
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.counter.CounterScope
+import com.vaiinilla.app.domain.counter.CounterShiftRegistry
 import com.vaiinilla.app.domain.counter.OfflineCounterRules
 import com.vaiinilla.app.domain.counter.OfflineCounterSnapshot
 import com.vaiinilla.app.domain.counter.OfflineCounterStore
@@ -10,6 +11,7 @@ import com.vaiinilla.app.domain.counter.OfflineStudentPurchase
 import com.vaiinilla.app.domain.counter.StudentCard
 import com.vaiinilla.app.domain.counter.StudentCounterRepository
 import com.vaiinilla.app.domain.counter.StudentPurchaseItem
+import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -49,6 +51,8 @@ class OfflineCounterQueue(
     private val io: CoroutineDispatcher,
     private val now: () -> Instant = Instant::now,
     private val today: () -> String = { LocalDate.now().toString() },
+    /** Pide un recorrido de la bandeja de salida: con la app cerrada, WorkManager manda lo guardado. */
+    private val outbox: OutboxScheduler = OutboxScheduler.None,
 ) {
     private val _state = MutableStateFlow(OfflineCounterState())
     val state: StateFlow<OfflineCounterState> = _state.asStateFlow()
@@ -69,6 +73,7 @@ class OfflineCounterQueue(
         if (this.counterScope == counterScope) return
         stop()
         this.counterScope = counterScope
+        CounterShiftRegistry.enter(counterScope)
         snapshot = store.load(counterScope, today())
         publish()
         reconnect = connectivity.onReconnect { launchFlush() }
@@ -95,6 +100,11 @@ class OfflineCounterQueue(
         // Un envío en curso no debe seguir mandando compras de la cola anterior con la sesión nueva (FLOW-20).
         flushJob?.cancel()
         flushJob = null
+        counterScope?.let {
+            CounterShiftRegistry.leave(it)
+            // Lo que quedó por mandar sale desde la bandeja aunque Caja ya no esté abierta.
+            if (snapshot.pending.isNotEmpty()) outbox.requestDrain()
+        }
         counterScope = null
         snapshot = OfflineCounterSnapshot(day = today())
         _state.value = OfflineCounterState()
@@ -136,6 +146,7 @@ class OfflineCounterQueue(
         snapshot = snapshot.copy(purchases = snapshot.purchases.filterNot { it.id == key } + purchase)
         save()
         publish()
+        outbox.requestDrain()
     }
 
     /** Manda las pendientes una por una. Se detiene en la primera falla de conexión y reintenta después. */

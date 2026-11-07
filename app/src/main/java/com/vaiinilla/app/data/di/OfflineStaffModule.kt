@@ -4,6 +4,7 @@ import android.content.Context
 import com.vaiinilla.app.data.offline.PreferencesOfflineStaffOrderStore
 import com.vaiinilla.app.domain.counter.ConnectivityWatcher
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderStore
+import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.ui.operational.OfflineStaffOrderQueue
 import dagger.Module
@@ -29,5 +30,6 @@ object OfflineStaffModule {
         repository: OrderRepository,
         store: OfflineStaffOrderStore,
         connectivity: ConnectivityWatcher,
-    ): OfflineStaffOrderQueue = OfflineStaffOrderQueue(repository, store, connectivity)
+        outbox: OutboxScheduler,
+    ): OfflineStaffOrderQueue = OfflineStaffOrderQueue(repository, store, connectivity, outbox = outbox)
 }

@@ -5,16 +5,23 @@ import android.net.http.HttpResponseCache
 import android.util.Log
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.vaiinilla.app.core.error.GlobalCrashReporterInstaller
+import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
+import javax.inject.Inject
 
 @HiltAndroidApp
 class VaiinillaApplication : Application() {
+    @Inject
+    lateinit var outbox: OutboxScheduler
+
     override fun onCreate() {
         super.onCreate()
         installCrashReporting()
         installGlobalCrashReporter()
         installHttpResponseCache()
+        // Lo que se guardó sin internet antes de cerrar la app sale en cuanto haya red; sin nada guardado no hace nada.
+        outbox.requestDrain()
     }
 
     private fun installCrashReporting() {
