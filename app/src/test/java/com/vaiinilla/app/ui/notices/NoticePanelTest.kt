@@ -9,6 +9,7 @@ import com.vaiinilla.app.core.notifications.NoticePhoneContext
 import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -70,7 +71,15 @@ class NoticePanelTest {
 
     @Test
     fun pendingFollowsTheAlertAndTheOrderState() {
-        fun explain(alert: String) = NoticeExplanation.explain(mapOf("type" to "staff_alert", "alert" to alert), true)
+        fun explain(alert: String) =
+            NoticeExplanation.explain(
+                VenueContext.STANDARD,
+                mapOf(
+                    "type" to "staff_alert",
+                    "alert" to alert,
+                ),
+                true,
+            )
 
         assertTrue(explain("por_cobrar").isPending(found("USAGI", "por_cobrar")))
         assertFalse(explain("por_cobrar").isPending(found("USAGI", "listo")))
@@ -83,7 +92,7 @@ class NoticePanelTest {
         assertFalse(explain("por_cobrar").isPending(null))
         assertFalse(
             NoticeExplanation
-                .explain(mapOf("type" to "order_state"), true)
+                .explain(VenueContext.STANDARD, mapOf("type" to "order_state"), true)
                 .isPending(found("USAGI", "por_cobrar")),
         )
     }

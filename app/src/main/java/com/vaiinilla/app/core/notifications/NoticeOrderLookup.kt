@@ -2,11 +2,13 @@ package com.vaiinilla.app.core.notifications
 
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,7 @@ class NoticeOrderLookup
         private val authRepository: StudentAuthRepository,
         private val apiClient: HttpVaiinillaApiClient,
         private val contractJson: OrderContractJson,
+        private val venueContext: VenueContextStore,
     ) {
         suspend fun lookUp(
             orderId: String,
@@ -52,7 +55,7 @@ class NoticeOrderLookup
                                 .getOrThrow()
                         }
                     val order = contractJson.parseOrderDetail(raw)
-                    return NoticeLookup.Found(summary(order, mode), System.currentTimeMillis())
+                    return NoticeLookup.Found(summary(venueContext.current, order, mode), System.currentTimeMillis())
                 } catch (cancel: CancellationException) {
                     throw cancel
                 } catch (error: Throwable) {
@@ -77,12 +80,13 @@ class NoticeOrderLookup
             }
 
             fun summary(
+                venue: VenueContext,
                 order: OrderDetail,
                 mode: AuthorizedMode,
             ): NoticeOrderSummary =
                 NoticeOrderSummary(
                     establishmentName = mode.establishmentName,
-                    readAs = "${mode.role.label} en ${mode.establishmentName}",
+                    readAs = "${venue.roleLabel(mode.role, mode.isSchool)} en ${mode.establishmentName}",
                     folio = order.summary.folio,
                     status = order.summary.state.label,
                     stateWire = order.summary.state.wireValue,

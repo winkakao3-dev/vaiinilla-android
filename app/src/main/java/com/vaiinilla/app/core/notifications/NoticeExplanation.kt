@@ -2,6 +2,8 @@ package com.vaiinilla.app.core.notifications
 
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 
 /**
  * Qué es un aviso, quién lo provoca y a quién va, leído solo de lo que trae. Los textos siguen a
@@ -39,6 +41,7 @@ data class NoticeExplanation(
 
     /** Por qué este teléfono recibió el aviso, comparando sus modos con los modos a los que va. */
     fun reason(
+        venue: VenueContext,
         memberships: List<NoticeMembership>,
         openMode: String?,
     ): String {
@@ -46,11 +49,14 @@ data class NoticeExplanation(
             return "Va a una persona y no a un modo: llega a todos los teléfonos donde esa cuenta tiene sesión."
         }
         val matching = memberships.filter { it.role in roles }
-        val modes = roles.joinToString(" o ") { it.label }
+        val modes = roles.joinToString(" o ") { venue.roleLabel(it) }
         if (matching.isEmpty()) {
             return "Esta cuenta no tiene $modes en ningún negocio ahora. Pudo tenerlo cuando llegó el aviso."
         }
-        val places = matching.joinToString(", ") { "${it.role.label} en ${it.establishmentName}" }
+        val places =
+            matching.joinToString(
+                ", ",
+            ) { "${venue.roleLabel(it.role, it.isSchool)} en ${it.establishmentName}" }
         val open = openMode?.let { " La app estaba en «$it»." }.orEmpty()
         return "Esta cuenta tiene $places. El servidor manda el aviso a cada teléfono de las cuentas con $modes " +
             "en el negocio del pedido, aunque la app esté en otro modo o en otro negocio.$open"
@@ -66,6 +72,7 @@ data class NoticeExplanation(
             ).map { it.wireValue }.toSet()
 
         fun explain(
+            venue: VenueContext,
             payload: Map<String, String>,
             isRemote: Boolean,
         ): NoticeExplanation {
@@ -120,7 +127,7 @@ data class NoticeExplanation(
                 type == "staff_alert" && alert == "listo_mesero" ->
                     make(
                         "Mesero · listo",
-                        "Un pedido está listo para llevarlo a su mesa o espacio.",
+                        "Un pedido está listo para llevarlo a su ${venue.vocabulary.waitingPlace}.",
                         "Cocina o Caja, al marcarlo listo.",
                         "Meseros del negocio del pedido.",
                         listOf(OperationalRole.WAITER),
@@ -137,7 +144,7 @@ data class NoticeExplanation(
                     make(
                         "Mesero · llamada",
                         "$space llama a un mesero.",
-                        "La persona sentada en $space.",
+                        "La persona ${venue.vocabulary.seatedPerson} en $space.",
                         "Meseros del negocio de ese espacio.",
                         listOf(OperationalRole.WAITER),
                     )
@@ -205,7 +212,7 @@ data class NoticeExplanation(
                 type == "mesero_en_camino" ->
                     make(
                         "Mesero en camino",
-                        "Tu mesero va a tu mesa.",
+                        "Tu mesero va a ${SpaceCopy.yourPlace(venue, null)}.",
                         "El mesero, al tomar tu llamada.",
                         "La persona que llamó al mesero.",
                         emptyList(),

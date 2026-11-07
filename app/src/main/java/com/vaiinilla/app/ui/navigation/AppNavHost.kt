@@ -350,11 +350,26 @@ private fun AppNavHostContent(
                 account = session.email,
                 openMode =
                     authorizedAccessState.activeContext
-                        ?.let { "${it.role.label} en ${it.establishmentName}" }
-                        ?: "Cliente",
+                        ?.let { context ->
+                            val school =
+                                authorizedAccessState.modes
+                                    .firstOrNull { it.membershipId == context.membershipId }
+                                    ?.isSchool
+                            "${venueStore.current.roleLabel(
+                                context.role,
+                                school ?: venueStore.current.isSchool,
+                            )} en ${context.establishmentName}"
+                        }
+                        ?: venueStore.current.customer.title,
                 memberships =
                     authorizedAccessState.modes.map {
-                        NoticeMembership(it.membershipId, it.role, it.establishmentId, it.establishmentName)
+                        NoticeMembership(
+                            it.membershipId,
+                            it.role,
+                            it.establishmentId,
+                            it.establishmentName,
+                            it.isSchool,
+                        )
                     },
             ),
         )
@@ -739,7 +754,11 @@ private fun AppNavHostContent(
     // operativo del lugar, así que el QR abre el catálogo y de ahí se pasa a la bienvenida del hotel (o al código).
     var hotelEntryDone by rememberSaveable { mutableStateOf(false) }
     val venueContext = LocalVenueContext.current
-    val roomSpaceId = orderState.guestVenue?.space?.takeIf { SpaceCopy.isRoom(venueContext, it) }?.id
+    val roomSpaceId =
+        orderState.guestVenue
+            ?.space
+            ?.takeIf { SpaceCopy.isRoom(venueContext, it) }
+            ?.id
     val statusIsHotel = orderState.operationalStatus?.businessType == VenueKind.HOTEL.wire
     LaunchedEffect(roomSpaceId, statusIsHotel, hotelEntryDone) {
         if (roomSpaceId != null && statusIsHotel && !hotelEntryDone) {

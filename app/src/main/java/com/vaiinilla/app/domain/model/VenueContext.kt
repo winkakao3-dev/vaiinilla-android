@@ -30,6 +30,14 @@ data class VenueVocabulary(
     val courtTypeChip: String?,
     /** Aviso del admin al crear un producto que no es una renta (el negocio renta ese espacio desde Mesas). */
     val menuRentalAdvice: String,
+    /** Adónde lleva el mesero lo que Cocina dejó listo: «lugar», o «habitación» en un hotel. */
+    val deliveryPlace: String,
+    /** El espacio al que va un pedido listo, como lo dice la explicación de un aviso. */
+    val waitingPlace: String,
+    /** Cómo se dice que la persona que llamó está en su espacio: «sentada» u «hospedada». */
+    val seatedPerson: String,
+    /** Lo que llama al mesero: «mesa», o «habitación» en un hotel. */
+    val callingSpace: String,
 ) {
     val courtTitle: String get() = court.replaceFirstChar(Char::titlecase)
     val courtsTitle: String get() = courts.replaceFirstChar(Char::titlecase)
@@ -72,6 +80,8 @@ data class VenueCapabilities(
 data class VenueContext(
     val kind: VenueKind = VenueKind.STANDARD,
     val hotelTables: Set<Int> = emptySet(),
+    /** Una escuela es una cafetería con `modo_escuela`: no tiene un `tipo` propio. */
+    val isSchool: Boolean = false,
 ) {
     val isBowling: Boolean get() = kind == VenueKind.BOWLING
 
@@ -91,6 +101,10 @@ data class VenueContext(
                     menuRentalAdvice =
                         "La pista por hora se renta desde Mesas y espacios. " +
                             "Juegos por persona y renta de zapatos sí van aquí como producto.",
+                    deliveryPlace = "lugar",
+                    waitingPlace = "mesa o espacio",
+                    seatedPerson = "sentada",
+                    callingSpace = "mesa",
                 )
             VenueKind.STANDARD, VenueKind.HOTEL ->
                 VenueVocabulary(
@@ -99,7 +113,12 @@ data class VenueContext(
                     courtExampleSport = "Pádel",
                     courtExampleSurface = "Pasto sintético",
                     courtTypeChip = "Cancha o pista",
-                    menuRentalAdvice = "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto.",
+                    menuRentalAdvice =
+                        "Este negocio renta canchas desde Mesas y espacios. No crees la renta como producto.",
+                    deliveryPlace = if (isHotel) "habitación" else "lugar",
+                    waitingPlace = if (isHotel) "habitación" else "mesa o espacio",
+                    seatedPerson = if (isHotel) "hospedada" else "sentada",
+                    callingSpace = if (isHotel) "habitación" else "mesa",
                 )
         }
 
@@ -116,6 +135,18 @@ data class VenueContext(
             hasHotelAdmin = isHotel,
         )
 
+    /** Cómo se llama aquí a quien pide: «alumno», «huésped» o «cliente». */
+    val customer: Customer get() = Customer.of(kind, isSchool)
+
+    /**
+     * La etiqueta de un modo para un aviso: el modo cliente se llama Alumno en una escuela y Huésped en un hotel. Un
+     * aviso puede ser de otro negocio que el abierto, por eso la escuela se puede pasar aparte.
+     */
+    fun roleLabel(
+        role: OperationalRole,
+        school: Boolean = isSchool,
+    ): String = if (role == OperationalRole.CLIENT) Customer.of(kind, school).title else role.label
+
     /** Aviso de los últimos minutos de una renta. */
     fun lastMinutesNotice(minutes: Int): String =
         if (isBowling) "Quedan $minutes min de pista." else "Quedan $minutes min: los reflectores ya bajaron."
@@ -124,5 +155,28 @@ data class VenueContext(
         val STANDARD = VenueContext()
 
         fun of(type: String?): VenueContext = VenueContext(VenueKind.fromWire(type))
+    }
+}
+
+/** Quien pide en el negocio, con el nombre que le toca según el tipo. */
+enum class Customer(
+    val lower: String,
+    val title: String,
+) {
+    STUDENT("alumno", "Alumno"),
+    GUEST("huésped", "Huésped"),
+    CUSTOMER("cliente", "Cliente"),
+    ;
+
+    companion object {
+        fun of(
+            kind: VenueKind,
+            school: Boolean,
+        ): Customer =
+            when {
+                school -> STUDENT
+                kind == VenueKind.HOTEL -> GUEST
+                else -> CUSTOMER
+            }
     }
 }
