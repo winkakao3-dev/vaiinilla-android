@@ -34,3 +34,7 @@ Una entrada pendiente se marca ` | HECHA` sola cuando quien espera su turno dete
 - lleva más de 30 min sin ningún proceso vivo con esa carpeta como directorio de trabajo (gradlew, `gradle-build.sh`, claude, etc.). El tiempo se mide con marcas en `~/.cache/gradle-queue/vivo/`.
 
 No se mata ningún proceso. Las ramas con cabeza suelta (`(detached ...)`) solo se liberan por inactividad.
+## Daemons al terminar
+
+- Al terminar, `gradle-build.sh` y `vbuild` ejecutan `./gradlew --stop`, pero solo si no hay otra `gradlew`, `gradle-build.sh` o `vbuild` viva y ningún worktree con entrada pendiente en la cola tiene procesos. Es best-effort: nunca hace fallar el build. `GRADLE_KEEP_DAEMON=1` lo desactiva.
+- `org.gradle.daemon.idletimeout` en `~/.gradle/gradle.properties` baja de 900000 a 300000 (5 min). Los daemons ociosos retenían ~5 GB de los 8 GB de la Mac.

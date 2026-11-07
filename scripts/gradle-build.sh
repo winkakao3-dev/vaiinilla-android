@@ -35,6 +35,22 @@ liberar_si_vencida() { # $1 ruta  $2 rama
   return 1
 }
 
+# Best-effort: apaga los daemons solo si no queda nadie más usando Gradle. GRADLE_KEEP_DAEMON=1 lo desactiva.
+parar_si_vacia() { # $1 = carpeta con gradlew
+  [ "${GRADLE_KEEP_DAEMON:-0}" = 1 ] && return 0
+  (
+    otros=$(pgrep -f 'GradleWrapperMain|scripts/gradle-build\.sh|/vbuild( |$)' | grep -vxE "$$|$PPID")
+    [ -n "$otros" ] && exit 0
+    if [ -f "$COLA" ]; then
+      cwds=$(lsof -d cwd -Fn 2>/dev/null)
+      while IFS= read -r ruta; do
+        [ "$ruta" = "$1" ] && continue
+        grep -q "^n$ruta" <<<"$cwds" && exit 0
+      done < <(awk -F' \\| ' '/^#/||/^$/{next} /\| HECHA *$/{next} $3!="?"{print $3}' "$COLA")
+    fi
+    cd "$1" && ./gradlew --stop >/dev/null 2>&1
+  ) 2>/dev/null || true
+}
 if [ "${GRADLE_QUEUE_BYPASS:-0}" != 1 ] && esta_en_cola; then
   while :; do
     sig=$(primero_pendiente)
@@ -59,4 +75,5 @@ trap 'rm -rf "$LOCK"' EXIT INT TERM
 ./gradlew "$@"
 rc=$?
 if [ $rc -eq 0 ] && [ "${GRADLE_QUEUE_BYPASS:-0}" != 1 ] && esta_en_cola; then marcar_hecha "$AQUI"; fi
+parar_si_vacia "$AQUI"
 exit $rc
