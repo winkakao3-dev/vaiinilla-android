@@ -78,6 +78,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.mode.AuthorizedModeContext
 import com.vaiinilla.app.domain.model.OperationalRole
@@ -169,7 +170,7 @@ fun AuthorizedModeScreen(
     var expanded by rememberSaveable { mutableStateOf(false) }
     val searchable = businesses.size > COLLAPSED_BUSINESSES
     val matches =
-        if (query.isBlank()) businesses else businesses.filter { it.name.contains(query.trim(), ignoreCase = true) }
+        if (query.isBlank()) businesses else businesses.filter { it.name.normalizeForSearch().contains(query.normalizeForSearch()) }
     val showAll = expanded || query.isNotBlank()
 
     WalletScreenShell(modifier = Modifier.fillMaxSize()) {

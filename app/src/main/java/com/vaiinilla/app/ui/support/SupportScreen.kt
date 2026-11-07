@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.text.normalizeForSearch
 import com.vaiinilla.app.ui.components.ClientCap
 import com.vaiinilla.app.ui.components.ClientCard
 import com.vaiinilla.app.ui.components.ClientCardDivider
@@ -111,10 +112,10 @@ data class SupportLastOrder(
 
 /** Temas cuyo título o texto contienen la búsqueda; sin búsqueda, todos. */
 internal fun supportTopicsMatching(query: String): List<SupportCard> {
-    val needle = query.trim()
+    val needle = query.normalizeForSearch()
     if (needle.isEmpty()) return SupportCopy.cards
     return SupportCopy.cards.filter {
-        it.title.contains(needle, ignoreCase = true) || it.body.contains(needle, ignoreCase = true)
+        it.title.normalizeForSearch().contains(needle) || it.body.normalizeForSearch().contains(needle)
     }
 }
 
@@ -140,9 +141,9 @@ fun SupportScreen(
     var openTopic by rememberSaveable { mutableStateOf<String?>(null) }
     var mailFailed by rememberSaveable { mutableStateOf(false) }
     val topics = supportTopicsMatching(query)
-    val needle = query.trim()
+    val needle = query.normalizeForSearch()
     val hasLegal = termsUrl.isNotBlank() || privacyUrl.isNotBlank()
-    val showLegal = hasLegal && (needle.isEmpty() || "$LEGAL_TOPIC legales".contains(needle, ignoreCase = true))
+    val showLegal = hasLegal && (needle.isEmpty() || "$LEGAL_TOPIC legales".normalizeForSearch().contains(needle))
 
     fun writeTo(mailto: String) {
         haptics.click()
