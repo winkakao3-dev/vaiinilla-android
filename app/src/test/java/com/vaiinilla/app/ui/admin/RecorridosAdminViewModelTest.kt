@@ -37,14 +37,28 @@ internal class FakeAdmin(
 
     private fun <T> no(): Result<T> = Result.failure(IllegalStateException("no"))
 
-    override fun summary(period: AdminPeriod): Result<AdminSummary> = no()
+    @Volatile var summaryResult: Result<AdminSummary> = Result.failure(IllegalStateException("sin resumen"))
+    val summaryPeriods = CopyOnWriteArrayList<AdminPeriod>()
+    val orderQueries = CopyOnWriteArrayList<Pair<Set<com.vaiinilla.app.domain.model.OrderState>, String?>>()
+    val orderPages = java.util.concurrent.ConcurrentHashMap<String, AdminOrdersPage>()
+
+    @Volatile var ordersFail: Throwable? = null
+
+    override fun summary(period: AdminPeriod): Result<AdminSummary> {
+        summaryPeriods += period
+        return summaryResult
+    }
 
     override fun unpaidAccounts(): Result<AdminUnpaidAccounts> = no()
 
     override fun orders(
         states: Set<com.vaiinilla.app.domain.model.OrderState>,
         cursor: String?,
-    ): Result<AdminOrdersPage> = no()
+    ): Result<AdminOrdersPage> {
+        orderQueries += states to cursor
+        ordersFail?.let { return Result.failure(it) }
+        return Result.success(orderPages[cursor ?: "primera"] ?: AdminOrdersPage(emptyList(), null))
+    }
 
     override fun createCategory(
         input: AdminCategoryInput,
