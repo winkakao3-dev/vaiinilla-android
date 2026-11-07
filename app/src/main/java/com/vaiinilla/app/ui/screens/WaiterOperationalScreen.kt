@@ -123,6 +123,9 @@ import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
+import com.vaiinilla.app.ui.hotel.staff.HotelChip
+import com.vaiinilla.app.ui.hotel.staff.HotelDeliverSheet
+import com.vaiinilla.app.ui.hotel.staff.HotelRoomsScreen
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
@@ -237,6 +240,7 @@ fun WaiterOperationalScreen(
     /** En vivo, I09: las cuentas de mesas y canchas sin cobrar, también de turnos cerrados. */
     onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
@@ -246,6 +250,8 @@ fun WaiterOperationalScreen(
     var openTableId by remember { mutableStateOf(state.openSpaceId) }
     LaunchedEffect(state.openSpaceId) { state.openSpaceId?.let { openTableId = it } }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
+    var deliveringCharge by rememberSaveable { mutableStateOf<String?>(null) }
+    var housekeepingOpen by rememberSaveable { mutableStateOf(false) }
     var scannerOpen by remember { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
     var tick by remember { mutableIntStateOf(0) }
@@ -411,7 +417,7 @@ fun WaiterOperationalScreen(
 
                 item(span = fullWidth) {
                     Text(
-                        "Mesas",
+                        if (venue.capabilities.staffWorksRooms) venue.vocabulary.roomsTitle else "Mesas",
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Black,
                         fontSize = 44.sp,
@@ -419,6 +425,21 @@ fun WaiterOperationalScreen(
                         lineHeight = 46.sp,
                         modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
                     )
+                }
+                if (venue.capabilities.staffWorksRooms) {
+                    // El ama de llaves entra como mesero: el tablero de habitaciones (S03) se abre desde aquí.
+                    item(span = fullWidth) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            HotelChip(
+                                label = "Estado de habitaciones",
+                                selected = false,
+                                onClick = {
+                                    haptics.selection()
+                                    housekeepingOpen = true
+                                },
+                            )
+                        }
+                    }
                 }
             }
 
@@ -715,7 +736,10 @@ fun WaiterOperationalScreen(
             onGoing = { onGoing(it) },
             onAttended = { onAttended(it) },
             onDeliver = {
-                if (it.needsQrToDeliver(state.deliveryRequiresQr)) {
+                val toRoom = SpaceCopy.isRoom(venue, open.space.type)
+                if (toRoom || it.needsQrToDeliver(state.deliveryRequiresQr)) {
+                    // S02: la entrega a una habitación pide su propia pantalla; el cargo se lee antes de cerrar la hoja.
+                    deliveringCharge = state.spaceDetail?.account?.orders?.firstOrNull { o -> o.id == it.id }?.total
                     openTableId = null
                     onCloseSpace()
                     delivering = it
@@ -810,6 +834,28 @@ fun WaiterOperationalScreen(
     }
     delivering?.let { held ->
         val order = liveDelivering ?: held
+        val roomSpace =
+            state.tables
+                .firstOrNull { table -> table.orders.any { it.id == held.id } }
+                ?.space
+                ?.takeIf { SpaceCopy.isRoom(venue, it.type) }
+        if (roomSpace != null) {
+            HotelDeliverSheet(
+                room = SpaceCopy.short(venue, roomSpace.type, roomSpace.name),
+                itemsSummary = order.itemsSummary,
+                acting = state.acting,
+                charge = deliveringCharge,
+                onDismiss = {
+                    delivering = null
+                    deliveringCharge = null
+                },
+                onConfirm = {
+                    deliverSent = true
+                    onDeliver(order, null)
+                },
+            )
+            return@let
+        }
         WaiterDeliverSheet(
             order = order,
             acting = state.acting,
@@ -834,6 +880,15 @@ fun WaiterOperationalScreen(
                 onDeliver(scannerOrder, raw)
             },
         )
+    }
+
+    if (housekeepingOpen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { housekeepingOpen = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            HotelRoomsScreen(onBack = { housekeepingOpen = false })
+        }
     }
 
     if (choosingScan) {

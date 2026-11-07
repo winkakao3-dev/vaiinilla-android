@@ -56,6 +56,8 @@ data class VenueCapabilities(
     val waiterIsReception: Boolean,
     /** La barra del carrito dice «Ver pedido» y no «Pedir ya»: el pedido se carga a la habitación. */
     val cartBarViewsOrder: Boolean,
+    /** El personal trabaja habitaciones: tablero de room service en Cocina, habitaciones en Mesero y recepción en Caja. */
+    val staffWorksRooms: Boolean,
 )
 
 /**
@@ -108,6 +110,7 @@ data class VenueContext(
             tablesAreRooms = isHotel,
             waiterIsReception = isHotel,
             cartBarViewsOrder = isHotel,
+            staffWorksRooms = isHotel,
         )
 
     /** Aviso de los últimos minutos de una renta. */
