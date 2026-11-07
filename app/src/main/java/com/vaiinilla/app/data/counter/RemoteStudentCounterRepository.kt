@@ -42,6 +42,20 @@ class RemoteStudentCounterRepository(
                 idempotencyHeaders(idempotencyKey),
             ).mapCatching(orderJson::parseOrderDetail)
 
+    override fun purchaseAs(
+        bearer: String,
+        studentId: String,
+        items: List<StudentPurchaseItem>,
+        idempotencyKey: String,
+    ): Result<OrderDetail> =
+        apiClient
+            .postWithBearer(
+                bearer,
+                "$STUDENTS/$studentId/compras",
+                json.encodePurchase(items, null),
+                idempotencyHeaders(idempotencyKey),
+            ).mapCatching(orderJson::parseOrderDetail)
+
     override fun assignCredential(
         studentId: String,
         kind: StudentCredentialKind,

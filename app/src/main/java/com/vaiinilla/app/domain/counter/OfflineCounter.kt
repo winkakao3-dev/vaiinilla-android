@@ -173,6 +173,29 @@ interface OfflineCounterStore {
         scope: CounterScope,
         snapshot: OfflineCounterSnapshot,
     )
+
+    /** Los turnos de Caja que tienen ventas por mandar en este teléfono, para mandarlas con la app cerrada. */
+    fun scopesWithPurchases(): List<CounterScope> = emptyList()
+}
+
+/**
+ * Turnos de Caja con la cola abierta en pantalla. Esa cola manda lo suyo; la bandeja de salida no la toca para no
+ * pisar su copia en memoria.
+ */
+object CounterShiftRegistry {
+    private val active =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet<CounterScope>()
+
+    fun enter(scope: CounterScope) {
+        active.add(scope)
+    }
+
+    fun leave(scope: CounterScope) {
+        active.remove(scope)
+    }
+
+    fun isActive(scope: CounterScope): Boolean = active.contains(scope)
 }
 
 /** Avisa cuando el teléfono vuelve a tener red, para mandar lo guardado sin esperar al siguiente intento. */

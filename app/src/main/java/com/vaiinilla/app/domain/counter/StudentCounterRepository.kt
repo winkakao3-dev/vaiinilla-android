@@ -17,6 +17,14 @@ interface StudentCounterRepository {
         idempotencyKey: String,
     ): Result<OrderDetail>
 
+    /** La misma venta con el token de otra membresía, para mandarla desde la bandeja de salida con la app cerrada. */
+    fun purchaseAs(
+        bearer: String,
+        studentId: String,
+        items: List<StudentPurchaseItem>,
+        idempotencyKey: String,
+    ): Result<OrderDetail> = Result.failure(UnsupportedOperationException("Sin soporte para mandar con otro token."))
+
     fun assignCredential(
         studentId: String,
         kind: StudentCredentialKind,
