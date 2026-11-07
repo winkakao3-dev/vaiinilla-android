@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -66,8 +67,12 @@ fun playAlertFeedback(context: Context) {
     }
     runCatching {
         val vibrator =
-            context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-                ?: context.getSystemService(Vibrator::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Vibrator::class.java)
+            }
         vibrator?.vibrate(VibrationEffect.createWaveform(AlertPattern, -1), AlertAudio)
     }
 }
