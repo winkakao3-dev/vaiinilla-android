@@ -41,4 +41,12 @@ class SupportCopyTest {
         assertEquals(listOf("Pagos"), supportTopicsMatching("stripe").map { it.title })
         assertEquals(emptyList<SupportCard>(), supportTopicsMatching("zzz"))
     }
+
+    @Test
+    fun `search ignores accents and capitals like Papa and Papá`() {
+        // W02/G04: «configuracion» sin acento encuentra «Configuración»; «DESPUES» encuentra «después».
+        assertEquals(listOf("Tu cuenta"), supportTopicsMatching("configuracion").map { it.title })
+        assertEquals(listOf("Tu cuenta"), supportTopicsMatching("Configuración").map { it.title })
+        assertEquals(listOf("Pedidos y saldo"), supportTopicsMatching("DESPUES").map { it.title })
+    }
 }
