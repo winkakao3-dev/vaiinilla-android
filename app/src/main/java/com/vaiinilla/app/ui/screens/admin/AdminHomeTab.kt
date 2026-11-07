@@ -83,6 +83,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
@@ -147,7 +148,7 @@ internal fun AdminHomeTab(
     onDeclineStep: ((AdminSetupStep) -> Unit)? = null,
 ) {
     var choosingPeriod by remember { mutableStateOf(false) }
-    val hotel = if (Venue.isHotel) androidx.lifecycle.viewmodel.compose.viewModel<HotelAdminSummaryViewModel>() else null
+    val hotel = if (Venue.isHotel) hotelViewModel<HotelAdminSummaryViewModel>() else null
     LaunchedEffect(hotel) { hotel?.refresh() }
     val presentDialog = LocalAdminDialog.current
     val status = state.operationalStatus

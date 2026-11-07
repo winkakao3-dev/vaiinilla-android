@@ -28,12 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.admin.SpaceRules
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRoom
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
 import com.vaiinilla.app.ui.screens.admin.AdminLoadError
@@ -215,7 +215,7 @@ internal fun HotelRoomsAdminSection(
     readOnly: Boolean,
     onBack: () -> Unit,
     onOpenRoom: (Int) -> Unit,
-    viewModel: HotelRoomsAdminViewModel = viewModel(),
+    viewModel: HotelRoomsAdminViewModel = hotelViewModel(),
 ) {
     val state by viewModel.uiState
     val context = LocalContext.current

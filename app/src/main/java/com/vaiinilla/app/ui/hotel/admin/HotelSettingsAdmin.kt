@@ -20,12 +20,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.ui.components.moneyLabel
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.admin.AdminCapsLabel
 import com.vaiinilla.app.ui.screens.admin.AdminLoadError
@@ -130,7 +130,7 @@ internal fun HotelSettingsAdminSection(
     colors: OperationalColors,
     readOnly: Boolean,
     onBack: () -> Unit,
-    viewModel: HotelSettingsAdminViewModel = viewModel(),
+    viewModel: HotelSettingsAdminViewModel = hotelViewModel(),
 ) {
     val state by viewModel.uiState
     LaunchedEffect(Unit) { viewModel.refresh() }
