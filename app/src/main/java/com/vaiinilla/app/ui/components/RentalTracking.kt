@@ -149,7 +149,7 @@ fun rentalTimeLeft(
 /** "1 h 30", "2 h" o "45 min". */
 private fun durationLabel(duration: Duration): String {
     val hours = duration.toHours()
-    val minutes = duration.toMinutesPart()
+    val minutes = (duration.toMinutes() % 60).toInt()
     return when {
         hours == 0L -> "$minutes min"
         minutes == 0 -> "$hours h"
