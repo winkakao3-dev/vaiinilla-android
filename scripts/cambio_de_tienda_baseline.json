@@ -1,0 +1,18 @@
+{
+ "actionNotice": "POR REVISAR",
+ "cashOpenedAt": "POR REVISAR",
+ "cashOpeningAmount": "POR REVISAR",
+ "catalogFailed": "POR REVISAR",
+ "closeCash": "POR REVISAR",
+ "collectedToday": "POR REVISAR",
+ "expectedCash": "POR REVISAR",
+ "heartbeatOnline": "estado de la red del teléfono, no del negocio",
+ "kitchenPreparesUnpaid": "POR REVISAR",
+ "lastSyncedAt": "POR REVISAR",
+ "loading": "bandera de carga, no es dato del negocio",
+ "storeImageBusy": "POR REVISAR",
+ "storeImageNotice": "POR REVISAR",
+ "storeImages": "POR REVISAR",
+ "suggestedCashFloat": "POR REVISAR",
+ "unsyncedOfflineCash": "POR REVISAR"
+}

@@ -1,0 +1,28 @@
+carrito-peor a 130 %: «$1,998 · 12 × $166.50 · Bistec de res a la mexicana con jitomate, cebolla y un toque de chipotle +$35.50 · Crema extra +$6 · Aguacate extra +$18 · Queso extra +$10 · Frijoles extra +$8 · Totopos aparte para que no se aguaden» sale con elipsis
+carrito-peor a 130 %: «68/90» se encima con «$7,150»
+carrito-peor a 130 %: «COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML» sale con elipsis
+carrito-peor a 130 %: «Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla» sale con elipsis
+carrito-peor a 130 %: «Lo recoge la maestra Rocío a las 12:30 en la puerta de la dirección.» se encima con «$7,150»
+carrito-peor a 130 %: «Lo recoge la maestra Rocío a las 12:30 en la puerta de la dirección.» se encima con «6 productos · Para llevar»
+carrito-peor a 130 %: «Lo recoge la maestra Rocío a las 12:30 en la puerta de la dirección.» se encima con «68/90»
+carrito-peor a 130 %: «Lo recoge la maestra Rocío a las 12:30 en la puerta de la dirección.» se encima con «Pagar»
+carrito-peor a 130 %: «Nota: Sin cebolla y la salsa aparte, por favor: es para un niño alérgico al cacahuate.» sale con elipsis
+carrito-peor a 130 %: «Paquete fiesta de fin de curso para 30 alumnos (incluye pastel, aguas frescas y bocadillos)» sale con elipsis
+carrito-peor a 130 %: «Vaso con agua natural» sale con elipsis
+carrito-peor a 130 %: «🌮 Tacos al pastor (orden de 5)» sale con elipsis
+carrito-peor a 200 %: «$1,998 · 12 × $166.50 · Bistec de res a la mexicana con jitomate, cebolla y un toque de chipotle +$35.50 · Crema extra +$6 · Aguacate extra +$18 · Queso extra +$10 · Frijoles extra +$8 · Totopos aparte para que no se aguaden» sale con elipsis
+carrito-peor a 200 %: «$65» se encima con «Pagar»
+carrito-peor a 200 %: «12» se corta
+carrito-peor a 200 %: «12» se parte a media palabra: «1/»
+carrito-peor a 200 %: «1» se encima con «$7,150»
+carrito-peor a 200 %: «30» se corta
+carrito-peor a 200 %: «30» se parte a media palabra: «3/»
+carrito-peor a 200 %: «6 productos · Para llevar» se corta
+carrito-peor a 200 %: «COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML» sale con elipsis
+carrito-peor a 200 %: «Chilaquiles verdes con pollo deshebrado, crema, queso fresco, cebolla morada, aguacate y frijoles refritos de la olla» sale con elipsis
+carrito-peor a 200 %: «C» se encima con «Pagar»
+carrito-peor a 200 %: «Nota: Sin cebolla y la salsa aparte, por favor: es para un niño alérgico al cacahuate.» sale con elipsis
+carrito-peor a 200 %: «Paquete fiesta de fin de curso para 30 alumnos (incluye pastel, aguas frescas y bocadillos)» sale con elipsis
+carrito-peor a 200 %: «Vaso con agua natural» sale con elipsis
+carrito-peor a 200 %: «Vaso con agua natural» se encima con «6 productos · Para llevar»
+carrito-peor a 200 %: «🌮 Tacos al pastor (orden de 5)» sale con elipsis

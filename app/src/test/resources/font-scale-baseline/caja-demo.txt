@@ -1,0 +1,5 @@
+caja-demo a 130 %: «Burrito norteño» sale con elipsis
+caja-demo a 130 %: «Para llevar» sale con elipsis
+caja-demo a 200 %: «20 jul» se corta
+caja-demo a 200 %: «Burrito norteño» sale con elipsis
+caja-demo a 200 %: «Para llevar» sale con elipsis

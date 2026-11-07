@@ -1,0 +1,16 @@
+mesero-peor a 130 %: «BARRA_EXTERIOR_LADO_ESTACIONAMIENTO» sale con elipsis
+mesero-peor a 130 %: «BARRA_EXTERIOR_LADO_ESTACIONAMIENTO» se parte a media palabra: «ARRA_EXTERIO/»
+mesero-peor a 130 %: «Salón de usos múltiples, mesa larga del fondo junto a las ventanas» sale con elipsis
+mesero-peor a 130 %: «Terraza de la cancha de básquetbol (junto a la tienda escolar)» sale con elipsis
+mesero-peor a 200 %: «Algo está mal con su pedido» sale con elipsis
+mesero-peor a 200 %: «BARRA_EXTERIOR_LADO_ESTACIONAMIENTO» sale con elipsis
+mesero-peor a 200 %: «BARRA_EXTERIOR_LADO_ESTACIONAMIENTO» se parte a media palabra: «BARRA_EXT/»
+mesero-peor a 200 %: «Escanear QR» se corta
+mesero-peor a 200 %: «LIBRE» se encima con «Tomar pedido»
+mesero-peor a 200 %: «MS» se corta
+mesero-peor a 200 %: «MS» se parte a media palabra: «M/»
+mesero-peor a 200 %: «Pide cubiertos o servilletas» sale con elipsis
+mesero-peor a 200 %: «Salón de usos múltiples, mesa larga del fondo junto a las ventanas» sale con elipsis
+mesero-peor a 200 %: «Salón de usos múltiples, mesa larga del fondo junto a las ventanas» se encima con «Tomar pedido»
+mesero-peor a 200 %: «Terraza de la cancha de básquetbol (junto a la tienda escolar)» sale con elipsis
+mesero-peor a 200 %: «VA BARTOLOMÉ FITZGERALD RAMÍREZ» sale con elipsis
