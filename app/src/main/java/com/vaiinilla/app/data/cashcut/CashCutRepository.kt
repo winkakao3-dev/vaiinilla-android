@@ -6,6 +6,11 @@ import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.put
 import java.time.LocalDate
 
 /** Si lo contado al cerrar cuadra con lo esperado, sobra o falta. */
@@ -217,6 +222,12 @@ interface CashCutRepository {
         from: LocalDate,
         to: LocalDate,
     ): Result<String>
+
+    /** A qué hora empieza el día del negocio ("05:00"); null si el servidor todavía no la conoce. */
+    fun dayStart(): Result<String?>
+
+    /** Cambia la hora en que empieza el día del negocio y devuelve la que quedó. */
+    fun setDayStart(hhmm: String): Result<String>
 }
 
 @Serializable
@@ -427,6 +438,14 @@ private data class PeriodDto(
 
 /** Lectura del JSON, aparte para probarla sin red. */
 object CashCutJson {
+    /** `hora_inicio_dia` de la configuración del negocio; null si el servidor no la manda (sin la migración 203). */
+    fun dayStart(raw: String): String? {
+        val data = (json.parseToJsonElement(raw) as? JsonObject)?.get("data") as? JsonObject
+        return (data?.get("hora_inicio_dia") as? JsonPrimitive)?.contentOrNull?.take(5)
+    }
+
+    fun dayStartBody(hhmm: String): String = buildJsonObject { put("hora_inicio_dia", hhmm) }.toString()
+
     private val json =
         Json {
             ignoreUnknownKeys = true
@@ -507,5 +526,14 @@ class RemoteCashCutRepository(
     ): Result<String> =
         apiClient
             .get("reportes/contable", mapOf("desde" to from.toString(), "hasta" to to.toString(), "formato" to "csv"))
+            .mapApiErrors()
+
+    override fun dayStart(): Result<String?> =
+        apiClient.get("establecimiento/configuracion").mapCatching(CashCutJson::dayStart).mapApiErrors()
+
+    override fun setDayStart(hhmm: String): Result<String> =
+        apiClient
+            .patch("establecimiento/configuracion", CashCutJson.dayStartBody(hhmm))
+            .mapCatching { CashCutJson.dayStart(it) ?: hhmm }
             .mapApiErrors()
 }
