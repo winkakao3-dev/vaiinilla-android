@@ -121,7 +121,8 @@ object OrderAdvanceNotifier {
         val name = customerName?.trim()?.takeIf { it.isNotEmpty() }
         return when (alert) {
             "por_cobrar" -> "Pedido #$folio por cobrar" to "Entró un pedido en efectivo."
-            "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
+            // No todo lo que llega a cocina está cobrado: lo de una habitación o de una cuenta abierta se paga al final.
+            "nueva_comanda" -> "Nueva comanda #$folio" to "Entró un pedido para preparar."
             "listo_mesero" ->
                 "Pedido #$folio listo" to
                     if (name != null) {

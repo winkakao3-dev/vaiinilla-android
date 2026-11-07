@@ -1,12 +1,13 @@
 package com.vaiinilla.app.data.hotel
 
+import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.admin.AdminBusinessJson
-import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.data.discovery.SpaceResolveEnvelope
 import com.vaiinilla.app.data.discovery.toDomain
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.SpaceType
+import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreTemplate
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
 import com.vaiinilla.app.domain.hotel.HotelConfig
@@ -20,6 +21,8 @@ import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.StayStatus
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.ui.components.callReasons
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -135,6 +138,15 @@ class HotelContractTest {
         assertEquals("Habitación", SpaceType.TABLE.label(venue))
         assertTrue(SpaceCopy.isRoom(venue, "mesa"))
         assertFalse(SpaceCopy.isRoom(venue, "barra"))
+    }
+
+    @Test
+    fun `a hotel guest does not ask reception for the bill and kitchen pushes never say paid`() {
+        assertTrue(CallReason.CUENTA in callReasons(venue))
+        store.update("hotel")
+        assertFalse(CallReason.CUENTA in callReasons(venue))
+        val (_, text) = OrderAdvanceNotifier.staffAlertText(venue, 1, "nueva_comanda")
+        assertFalse(text.contains("cobrado"))
     }
 
     @Test

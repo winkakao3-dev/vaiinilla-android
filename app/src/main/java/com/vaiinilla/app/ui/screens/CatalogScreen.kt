@@ -603,7 +603,8 @@ private fun CatalogContent(
                 count = state.cartItemCount,
                 total = moneyLabel(state.cartPreviewTotal),
                 onClick = { onOpenCart?.invoke() },
-                modifier = Modifier.align(Alignment.BottomCenter),
+                // Arriba de la barra de pestañas: sin esto quedaba escondida detrás de ella.
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaiinillaBottomNavTop - 4.dp),
             )
         }
 

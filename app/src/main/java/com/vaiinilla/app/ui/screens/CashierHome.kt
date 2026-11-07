@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.TableRestaurant
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -62,11 +63,13 @@ internal fun CashierQuickActions(
     modifier: Modifier = Modifier,
     pendingSpaces: Int? = null,
     onSpaces: (() -> Unit)? = null,
+    /** Hotel: Recepción (llegadas, check-in, cargos y salidas) vive dentro de Caja. */
+    onReception: (() -> Unit)? = null,
 ) {
     val venue = LocalVenueContext.current
     val configuration = LocalConfiguration.current
     val fontScale = LocalDensity.current.fontScale
-    val count = listOfNotNull(onNewOrder, onReload, onSpaces).size
+    val count = listOfNotNull(onNewOrder, onReload, onSpaces, onReception).size
     val spacesLabel =
         if (pendingSpaces != null && pendingSpaces > 0) {
             "Mesas y ${venue.vocabulary.courts} · $pendingSpaces"
@@ -108,6 +111,17 @@ internal fun CashierQuickActions(
                     onClick = onSpaces,
                 )
             }
+            if (onReception != null) {
+                QuickAction(
+                    RECEPTION_LABEL,
+                    Icons.Outlined.Hotel,
+                    colors,
+                    true,
+                    Modifier,
+                    wide = true,
+                    onClick = onReception,
+                )
+            }
         }
         return
     }
@@ -144,8 +158,20 @@ internal fun CashierQuickActions(
                 onClick = onSpaces,
             )
         }
+        if (onReception != null) {
+            QuickAction(
+                RECEPTION_LABEL,
+                Icons.Outlined.Hotel,
+                colors,
+                true,
+                Modifier.weight(1f),
+                onClick = onReception,
+            )
+        }
     }
 }
+
+private const val RECEPTION_LABEL = "Recepción · llegadas y salidas"
 
 /**
  * ¿Los accesos rápidos de Caja van en renglones? Cada mosaico necesita unos 100 dp por cada 1.0 de escala de letra
@@ -322,7 +348,11 @@ internal fun CashierNewOrderSheet(
         ActionPill(label = "Para llevar", enabled = true, loading = false, colors = colors, onClick = onTakeAway)
         when (status) {
             null -> {
-                Text("O en una mesa:", fontSize = 13.sp, color = colors.textSecondary)
+                Text(
+                    if (LocalVenueContext.current.isHotel) "O a una habitación o mesa:" else "O en una mesa:",
+                    fontSize = 13.sp,
+                    color = colors.textSecondary,
+                )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
