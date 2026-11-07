@@ -107,13 +107,6 @@ class CashierViewModel
             cashSessionRepository.forgetLastClose()
         }
 
-        override fun onRuntimeModeChanged() {
-            if (state.value.role == null) return
-            refreshCashSession()
-            refresh()
-            refreshCatalog()
-        }
-
         override fun refreshCatalog() {
             loadStoreImages()
             val generation = roleGeneration

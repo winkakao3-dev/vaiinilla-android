@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.contract.UnreadableOrders
 import com.vaiinilla.app.core.network.ApiClientException
-import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.DeviceTokenRegistrar
@@ -14,54 +13,31 @@ import com.vaiinilla.app.core.notifications.OrderPushes
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.JwtContextScope
 import com.vaiinilla.app.core.security.SecureSessionStore
-import com.vaiinilla.app.data.cashcut.CashCutRepository
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.data.order.DismissedClientOrdersStore
-import com.vaiinilla.app.data.wallet.PendingWalletReload
-import com.vaiinilla.app.data.wallet.PendingWalletReloadStore
-import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
-import com.vaiinilla.app.domain.model.OrderTransitions
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.RefundOutcome
-import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
 import com.vaiinilla.app.domain.repository.CallReason
-import com.vaiinilla.app.domain.repository.CashDrawerMovementType
-import com.vaiinilla.app.domain.repository.CashSessionRepository
-import com.vaiinilla.app.domain.repository.CatalogRepository
-import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
-import com.vaiinilla.app.domain.repository.DeviceIdentity
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
-import com.vaiinilla.app.domain.repository.StoreImageKind
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.WaiterRepository
-import com.vaiinilla.app.domain.repository.WalletRepository
-import com.vaiinilla.app.domain.repository.WalletRepositoryException
 import com.vaiinilla.app.domain.usecase.AnnounceArrivalUseCase
-import com.vaiinilla.app.domain.usecase.CancelOrderUseCase
-import com.vaiinilla.app.domain.usecase.CloseCashSessionUseCase
-import com.vaiinilla.app.domain.usecase.CollectCashUseCase
 import com.vaiinilla.app.domain.usecase.GetOrderUseCase
 import com.vaiinilla.app.domain.usecase.ListOrdersUseCase
-import com.vaiinilla.app.domain.usecase.OpenCashSessionUseCase
-import com.vaiinilla.app.domain.usecase.TransitionOrderUseCase
 import com.vaiinilla.app.ui.components.moneyLabel
-import com.vaiinilla.app.ui.discovery.QrPayload
-import com.vaiinilla.app.ui.discovery.QrPayloadParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -77,12 +53,7 @@ class OperationalViewModel
     constructor(
         private val listOrders: ListOrdersUseCase,
         private val getOrder: GetOrderUseCase,
-        private val transitionOrder: TransitionOrderUseCase,
-        private val cancelOrder: CancelOrderUseCase,
         private val announceArrivalUseCase: AnnounceArrivalUseCase,
-        private val heartbeatRepository: DeviceHeartbeatRepository,
-        private val deviceIdentity: DeviceIdentity,
-        private val catalogRepository: CatalogRepository,
         private val dismissedClientOrdersStore: DismissedClientOrdersStore,
         private val deviceTokenRegistrar: DeviceTokenRegistrar,
         private val waiterRepository: WaiterRepository,
@@ -90,13 +61,11 @@ class OperationalViewModel
         private val guestSessionStore: GuestSessionStore,
         private val guestCheckoutPolicy: GuestCheckoutPolicy,
         private val sessionStore: SecureSessionStore,
-    ) : ViewModel(),
-        OperationalPresence {
+    ) : ViewModel() {
         private val _uiState = mutableStateOf(OperationalUiState())
         val uiState: State<OperationalUiState> = _uiState
 
         private var pollingJob: Job? = null
-        private var lastUpdatedSince: String? = null
         private var roleGeneration: Long = 0
         private var dismissedClientOrderIds: Set<String> = dismissedClientOrdersStore.read()
         private var mutationJob: Job? = null
@@ -108,23 +77,13 @@ class OperationalViewModel
         private var clientTrackingBaselineReady = false
         private var mutationErrorVisible = false
 
-        /** Abrir/cerrar caja, crear producto o llamar mesero: el reintento reusa la llave hasta que confirman. */
+        /** Llamar al mesero: el reintento reusa la llave hasta que confirman. */
         private val retryKeys = RetryKeys()
         private var errorClearJob: Job? = null
 
         // Cada refresh() lleva su número: una respuesta más vieja que la ya aplicada se descarta.
         private var refreshSeq = 0L
         private var appliedRefreshSeq = 0L
-        private var pollsSinceFullSync = 0
-        private var fullSyncRequested = false
-
-        // Avisos de personal ya dados (o sembrados en la primera carga) para no repetir el mismo.
-        private val alertedKeys = mutableSetOf<String>()
-        private var staffBaselineReady = false
-
-        // Sin repetición: un aviso que nadie escuchaba (pantalla apagada o en otro modo) ya no sirve después.
-        private val _staffAlerts = MutableSharedFlow<StaffAlert>(extraBufferCapacity = 16)
-        override val staffAlerts: SharedFlow<StaffAlert> = _staffAlerts
 
         // El negocio del último rol puesto; cambiar de negocio con el mismo rol limpia como cambiar de rol.
         private var roleEstablishmentId: String? = null
@@ -132,38 +91,22 @@ class OperationalViewModel
         // El negocio del JWT con que se leyeron los pedidos del cliente. Con cuenta, al entrar a otro lugar el JWT
         // cambia después de poner el rol: el pedido del anterior («En la cancha · Pista 3») se quedaba (#10).
         private var clientOrdersEstablishmentId: String? = null
-        private val heartbeatCoordinator =
-            OperationalHeartbeatCoordinator(
-                scope = viewModelScope,
-                repository = heartbeatRepository,
-                deviceId = deviceIdentity::id,
-                onResult = { online ->
-                    if (_uiState.value.role != null) {
-                        _uiState.value = _uiState.value.copy(heartbeatOnline = online)
-                    }
-                },
-            )
 
+        /** Cliente o Administración; el personal de Caja, Cocina y Mesero tiene su propio ViewModel. */
         fun setRole(role: OperationalRole) {
             val establishmentId = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
             val establishmentChanged = isOtherEstablishment(roleEstablishmentId, establishmentId)
-            val previousEstablishmentId = roleEstablishmentId
             if (establishmentId != null) roleEstablishmentId = establishmentId
-            // Caja de otro negocio con el mismo rol: los pedidos y el aviso «Renta … cobrada» eran del anterior.
             val roleChanged = _uiState.value.role != role || establishmentChanged
-            val previousState = _uiState.value
             if (roleChanged) {
-                // De Caja a cliente y de vuelta, sin pasar por Modos: también se recuerda lo último de Caja.
-                snapshotStaffState(previousEstablishmentId)
                 roleGeneration += 1
-                lastUpdatedSince = null
                 mutationJob?.cancel()
                 mutationJob = null
                 clientTrackingBaselineReady = false
                 errorClearJob?.cancel()
                 errorClearJob = null
                 mutationErrorVisible = false
-                resetStaffSync()
+                resetRefreshSeq()
                 // Los pedidos que el rol anterior no pudo leer no son de este rol: la franja se recalcula.
                 UnreadableOrders.clear()
             }
@@ -173,29 +116,13 @@ class OperationalViewModel
                     // La mutación del rol anterior se cancela y su resultado se descarta: no puede dejar
                     // la bandera pegada y apagar todos los botones del rol nuevo.
                     acting = if (roleChanged) false else _uiState.value.acting,
-                    catalogBusy = if (roleChanged) false else _uiState.value.catalogBusy,
-                    cashSessionCheckFailed = false,
                     orders = if (roleChanged) emptyList() else _uiState.value.orders,
                     latestClientOrder = if (roleChanged) null else _uiState.value.latestClientOrder,
                     menuOrder = if (roleChanged) null else _uiState.value.menuOrder,
                     selectedOrderId = null,
                     errorMessage = null,
                     lastRefreshOk = if (roleChanged) null else _uiState.value.lastRefreshOk,
-                    cashSessionOpen = null,
-                    walletClients = emptyList(),
-                    walletSearchLoading = false,
-                    walletReloadReceipt = null,
-                    pendingWalletReload = null,
-                    catalog = null,
-                    cashDrawer = CashDrawerUi(),
-                    cashChangeNotice = if (establishmentChanged) null else _uiState.value.cashChangeNotice,
                 )
-            // Con el mismo rol se conserva lo último conocido mientras se vuelve a pedir: borrarlo dejaba Caja en
-            // «Revisando la caja» y quitaba «Cerrar caja» del menú hasta que contestara el servidor (en vivo, USAGI).
-            val known = if (roleChanged) takeStaffSnapshot(role, roleEstablishmentId) else previousState
-            if (known != null && role != OperationalRole.CLIENT && role != OperationalRole.ADMIN) {
-                _uiState.value = _uiState.value.keepKnownStaffState(known, restoreOrders = roleChanged)
-            }
             // Administración tiene su propia pantalla y su propio ViewModel: aquí no se sondean pedidos.
             if (role == OperationalRole.ADMIN) {
                 pollingJob?.cancel()
@@ -203,48 +130,20 @@ class OperationalViewModel
             }
             refresh()
             startPolling()
-            // Registra el token FCM apenas hay contexto: cliente recibe avances
-            // de su pedido y staff recibe alertas de su establecimiento.
+            // Registra el token FCM apenas hay contexto: el cliente recibe los avances de su pedido.
             deviceTokenRegistrar.register()
         }
 
-        /** El JWT de cliente es de otro negocio que el de la lista: lo del anterior se suelta antes de leer. */
-        private fun dropClientOrdersOfAnotherEstablishment() {
-            val current = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
-            val previous = clientOrdersEstablishmentId
-            if (current != null) clientOrdersEstablishmentId = current
-            if (!isOtherEstablishment(previous, current)) return
-            _uiState.value =
-                _uiState.value.copy(
-                    orders = emptyList(),
-                    latestClientOrder = null,
-                    menuOrder = null,
-                    selectedOrderId = null,
-                )
-        }
-
-        /**
-         * Lo último que se supo de un rol de personal al soltarlo. Volver al mismo rol y negocio poco después (Atrás
-         * a Por cobrar, reabrir el modo) arranca con esto en vez de «Revisando la caja» y «Cargando pedidos», y sin
-         * perder «Cerrar caja»; la primera carga trae la lista completa y la concilia.
-         */
-        private var lastStaffState: StaffStateSnapshot? = null
-
-        /** Suelta el rol sin tirar lo que se recuerda del turno: el que entra a otro modo no pierde su caja. */
+        /** Suelta el rol (cambio de modo o vuelta a Modos): el cliente no recuerda nada del turno anterior. */
         fun releaseRole() {
-            snapshotStaffState()
             roleGeneration += 1
             pollingJob?.cancel()
             pollingJob = null
-            // La mutación en vuelo NO se cancela: su POST ya salió y el cobro de Caja deja su aviso para
-            // cuando el cajero vuelva; las demás se descartan al ver que cambió la generación.
-            heartbeatCoordinator.stop()
-            resetStaffSync()
-            lastUpdatedSince = null
             clientTrackingBaselineReady = false
             mutationErrorVisible = false
             errorClearJob?.cancel()
             errorClearJob = null
+            resetRefreshSeq()
             UnreadableOrders.clear()
             _uiState.value = OperationalUiState()
         }
@@ -252,62 +151,17 @@ class OperationalViewModel
         /** Vuelve a Modos. */
         fun clearRole() = releaseRole()
 
-        private fun snapshotStaffState(establishmentId: String? = roleEstablishmentId) {
-            val current = _uiState.value
-            val role = current.role ?: return
-            if (role == OperationalRole.CLIENT || role == OperationalRole.ADMIN) return
-            // Solo lo que de verdad se cargó: un estado a medias no ahorra nada.
-            if (current.lastRefreshOk != true && current.cashSessionOpen == null) return
-            lastStaffState =
-                StaffStateSnapshot(
-                    role = role,
-                    establishmentId = establishmentId,
-                    takenAtMs = System.currentTimeMillis(),
-                    state = current,
-                )
-        }
-
-        /** La foto del mismo rol y negocio, si es reciente; se usa una sola vez. */
-        private fun takeStaffSnapshot(
-            role: OperationalRole,
-            establishmentId: String?,
-        ): OperationalUiState? {
-            val snapshot = lastStaffState ?: return null
-            if (!snapshot.matches(role, establishmentId, System.currentTimeMillis())) return null
-            lastStaffState = null
-            return snapshot.state
-        }
-
-        fun selectOrder(orderId: String?) {
-            dismissMutationError()
-            _uiState.value = _uiState.value.copy(selectedOrderId = orderId)
-        }
-
-        fun dismissClientOrder(orderId: String) {
-            if (orderId.isBlank()) return
-            dismissedClientOrdersStore.dismiss(orderId)
-            dismissedClientOrderIds = dismissedClientOrdersStore.read()
-            if (_uiState.value.role == OperationalRole.CLIENT) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        orders = _uiState.value.orders.filterNot { it.summary.id == orderId },
-                        menuOrder = _uiState.value.menuOrder?.takeUnless { it.summary.id == orderId },
-                        selectedOrderId = _uiState.value.selectedOrderId.takeUnless { it == orderId },
-                        errorMessage = null,
-                    )
-            }
+        private fun resetRefreshSeq() {
+            refreshSeq = 0
+            appliedRefreshSeq = 0
         }
 
         /** Pedidos del cliente: los de la cuenta o, sin cuenta, los del invitado en el negocio que mira. */
-        private fun loadOrders(
-            role: OperationalRole,
-            updatedSince: String?,
-        ): Result<List<OrderDetail>> {
+        private fun loadOrders(): Result<List<OrderDetail>> {
             val venue = guestSessionStore.readVenue()
             val slug = venue?.establishment?.slug
-            if (role != OperationalRole.CLIENT) return listOrders(role, updatedSince)
             if (slug == null || !guestCheckoutPolicy.allows(venue)) {
-                return listOrders(role, updatedSince).map(listOrders::withRecoveredPickupTokens)
+                return listOrders(OperationalRole.CLIENT, null).map(listOrders::withRecoveredPickupTokens)
             }
             if (!guestOrders.hasIdentity()) return Result.success(emptyList())
             return guestOrders.list(slug)
@@ -315,10 +169,11 @@ class OperationalViewModel
 
         fun refresh() {
             val role = _uiState.value.role ?: return
+            if (role != OperationalRole.CLIENT) return
             val generation = roleGeneration
-            if (role == OperationalRole.CLIENT) dropClientOrdersOfAnotherEstablishment()
+            dropClientOrdersOfAnotherEstablishment()
             val pollEstablishment = clientOrdersEstablishmentId
-            if (role == OperationalRole.CLIENT && _uiState.value.orders.isEmpty()) {
+            if (_uiState.value.orders.isEmpty()) {
                 listOrders.cachedClientOrders()?.let { cached ->
                     if (generation == roleGeneration && _uiState.value.role == role) {
                         val visible =
@@ -351,68 +206,40 @@ class OperationalViewModel
                         },
                 )
             val seq = ++refreshSeq
-            // El personal pide cambios, pero el servidor no avisa de lo que dejó de ser suyo (cobrado por otro
-            // cajero, cancelado, expirado): cada cierto tiempo se pide la lista completa y se concilia.
-            val fullSync = role != OperationalRole.CLIENT && isFullSyncDue()
             viewModelScope.launch {
-                // Client orders always fetch the full list (like iOS): the delta can miss
-                // transitions that don't bump updatedAt. Staff keeps the delta.
-                val since = if (role == OperationalRole.CLIENT || fullSync) null else lastUpdatedSince
-                val result = withContext(Dispatchers.IO) { loadOrders(role, since) }
+                // El cliente siempre pide la lista completa (como iOS): el delta puede perder transiciones que
+                // no mueven updatedAt.
+                val result = withContext(Dispatchers.IO) { loadOrders() }
                 if (generation != roleGeneration || _uiState.value.role != role) return@launch
                 // Salió con el JWT del negocio anterior y ya se cambió: traería sus pedidos de vuelta.
-                if (role == OperationalRole.CLIENT && pollEstablishment != clientOrdersEstablishmentId) return@launch
+                if (pollEstablishment != clientOrdersEstablishmentId) return@launch
                 // Una respuesta que salió antes de otra ya aplicada traería el estado viejo encima del nuevo.
                 if (seq < appliedRefreshSeq) return@launch
                 appliedRefreshSeq = seq
                 result.fold(
                     onSuccess = { orders ->
-                        if (role == OperationalRole.CLIENT) {
-                            emitClientOrderAdvances(
-                                previous = _uiState.value.orders,
-                                incoming = orders,
-                            )
-                        }
+                        emitClientOrderAdvances(
+                            previous = _uiState.value.orders,
+                            incoming = orders,
+                        )
                         // El pedido abierto que la lista ya no trae no se suelta: se pide por su id, así su página
                         // sigue al servidor (una renta cobrada en Caja dejaba de verse en «Por pagar»; en vivo, D03).
                         val keptSelected =
                             _uiState.value.selectedOrder
-                                ?.takeIf { role == OperationalRole.CLIENT }
                                 ?.takeIf { selected -> orders.none { it.summary.id == selected.summary.id } }
-                        // Full-list fetch for CLIENT replaces state (iOS parity); staff merges deltas.
-                        val merged =
-                            when {
-                                role == OperationalRole.CLIENT ->
-                                    keepNewerVersions(_uiState.value.orders, orders) + listOfNotNull(keptSelected)
-                                fullSync -> reconcileOrders(_uiState.value.orders, orders)
-                                else -> mergeOrders(_uiState.value.orders, orders)
-                            }
-                        if (fullSync) {
-                            pollsSinceFullSync = 0
-                            fullSyncRequested = false
-                        }
+                        val merged = keepNewerVersions(_uiState.value.orders, orders) + listOfNotNull(keptSelected)
                         val latestClientOrder =
-                            if (role == OperationalRole.CLIENT) {
-                                resolveLatestClientOrder(
-                                    previous = _uiState.value.latestClientOrder,
-                                    incoming = orders,
-                                )
-                            } else {
-                                null
-                            }
+                            resolveLatestClientOrder(
+                                previous = _uiState.value.latestClientOrder,
+                                incoming = orders,
+                            )
                         val newest = merged.maxOfOrNull { it.summary.updatedAt }
-                        if (newest != null) {
-                            lastUpdatedSince = deltaCursor(newest)
-                        }
                         val visibleOrders =
                             filterDismissedClientOrders(
                                 role = role,
                                 orders = merged,
                                 dismissedOrderIds = dismissedClientOrderIds,
                             )
-                        if (role == OperationalRole.KITCHEN) {
-                            announceStaffOrders(role, visibleOrders)
-                        }
                         _uiState.value =
                             _uiState.value.copy(
                                 loading = false,
@@ -421,8 +248,7 @@ class OperationalViewModel
                                 menuOrder = visibleLatestMenuOrder(latestClientOrder, dismissedClientOrderIds),
                                 lastSyncedAt = newest,
                                 lastRefreshOk = true,
-                                errorMessage =
-                                    _uiState.value.errorMessage.takeIf { mutationErrorVisible },
+                                errorMessage = _uiState.value.errorMessage.takeIf { mutationErrorVisible },
                             )
                         keptSelected?.takeUnless { it.summary.state.isClosed }?.let { refreshOrder(it.summary.id) }
                     },
@@ -439,35 +265,87 @@ class OperationalViewModel
             }
         }
 
-        /** La primera carga solo siembra lo que ya había; después, cada pedido nuevo para este rol avisa una vez. */
-        private fun announceStaffOrders(
-            role: OperationalRole,
-            orders: List<OrderDetail>,
-        ) {
-            val fresh = staffAlertsFor(role, orders).filter { alertedKeys.add(it.key) }
-            if (staffBaselineReady) fresh.forEach { _staffAlerts.tryEmit(it) }
-            staffBaselineReady = true
+        /** [block] devuelve el pedido que dejó el servidor; el cliente solo avisa que llegó (drive-thru). */
+        private fun performMutation(block: () -> OrderDetail) {
+            if (_uiState.value.role == null || _uiState.value.acting) return
+            val role = _uiState.value.role
+            val generation = roleGeneration
+            mutationErrorVisible = false
+            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null, actionNotice = null)
+            mutationJob =
+                viewModelScope.launch {
+                    val result = runCatchingCancellable { withContext(Dispatchers.IO) { block() } }
+                    if (generation != roleGeneration || _uiState.value.role != role) return@launch
+                    result
+                        .onSuccess { order ->
+                            val updated =
+                                _uiState.value.orders
+                                    .filterNot { it.summary.id == order.summary.id } + order
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    acting = false,
+                                    orders = updated.sortedByDescending { it.summary.updatedAt },
+                                    selectedOrderId = order.summary.id,
+                                )
+                        }.onFailure { error ->
+                            _uiState.value = _uiState.value.copy(acting = false)
+                            showMutationError(staffMutationMessage(error))
+                            // Pedido cancelado, ya avanzado o de otro: la tarjeta que se ve ya no es la real.
+                            if (isStaleOrderError(error)) refresh()
+                        }
+                }
         }
 
-        private fun isFullSyncDue(): Boolean {
-            if (fullSyncRequested || lastUpdatedSince == null) return true
-            pollsSinceFullSync += 1
-            return pollsSinceFullSync >= FULL_SYNC_EVERY_POLLS
+        private fun startPolling() {
+            pollingJob?.cancel()
+            pollingJob =
+                viewModelScope.launch {
+                    while (isActive) {
+                        // El alumno sigue su pedido al ritmo de siempre; un push de pedido adelanta la consulta.
+                        OrderPushes.awaitNextPoll { delay(POLL_INTERVAL_MS) }
+                        refresh()
+                    }
+                }
         }
 
-        /** Pide la lista completa en el siguiente refresh (tras un error de estado o un cierre de caja). */
-        private fun requestFullSync() {
-            fullSyncRequested = true
-            refresh()
+        override fun onCleared() {
+            pollingJob?.cancel()
+            super.onCleared()
         }
 
-        private fun resetStaffSync() {
-            refreshSeq = 0
-            appliedRefreshSeq = 0
-            pollsSinceFullSync = 0
-            fullSyncRequested = false
-            alertedKeys.clear()
-            staffBaselineReady = false
+        /** El JWT de cliente es de otro negocio que el de la lista: lo del anterior se suelta antes de leer. */
+        private fun dropClientOrdersOfAnotherEstablishment() {
+            val current = sessionStore.readAccessToken()?.let(JwtContextScope::establishmentId)
+            val previous = clientOrdersEstablishmentId
+            if (current != null) clientOrdersEstablishmentId = current
+            if (!isOtherEstablishment(previous, current)) return
+            _uiState.value =
+                _uiState.value.copy(
+                    orders = emptyList(),
+                    latestClientOrder = null,
+                    menuOrder = null,
+                    selectedOrderId = null,
+                )
+        }
+
+        fun selectOrder(orderId: String?) {
+            dismissMutationError()
+            _uiState.value = _uiState.value.copy(selectedOrderId = orderId)
+        }
+
+        fun dismissClientOrder(orderId: String) {
+            if (orderId.isBlank()) return
+            dismissedClientOrdersStore.dismiss(orderId)
+            dismissedClientOrderIds = dismissedClientOrdersStore.read()
+            if (_uiState.value.role == OperationalRole.CLIENT) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        orders = _uiState.value.orders.filterNot { it.summary.id == orderId },
+                        menuOrder = _uiState.value.menuOrder?.takeUnless { it.summary.id == orderId },
+                        selectedOrderId = _uiState.value.selectedOrderId.takeUnless { it == orderId },
+                        errorMessage = null,
+                    )
+            }
         }
 
         /**
@@ -542,80 +420,9 @@ class OperationalViewModel
             }
         }
 
-        /**
-         * El pedido que se ve ya no está en un estado desde el que se pueda pedir [target] (otro dispositivo lo
-         * movió): se avisa y se pide la lista completa en vez de mandar una petición que el servidor rechazaría.
-         * Si el pedido no está en la lista no se sabe, y decide el servidor.
-         */
-        private fun staleForTransition(
-            orderId: String,
-            target: OrderState,
-        ): Boolean {
-            val current = _uiState.value.orders.firstOrNull { it.summary.id == orderId } ?: return false
-            if (OrderTransitions.canRequest(current.summary.state, target)) return false
-            showMutationError("Ese pedido ya cambió de estado. Actualizando la lista…")
-            requestFullSync()
-            return true
-        }
-
-        private fun freshVersion(
-            orderId: String,
-            fallback: Int,
-        ): Int =
-            _uiState.value.orders
-                .firstOrNull { it.summary.id == orderId }
-                ?.summary
-                ?.version ?: fallback
-
         /** Drive-thru: el cliente avisa que ya llegó; Cocina y Caja lo ven en el pedido. */
         fun announceArrival(orderId: String) {
             performMutation { announceArrivalUseCase(orderId).getOrThrow() }
-        }
-
-        fun deliver(
-            orderId: String,
-            expectedVersion: Int,
-            scannedPickupToken: String? = null,
-        ) {
-            // Si el escáner leyó el QR equivocado (cuenta del alumno o del
-            // establecimiento), avisar en vez de mandar un token que el
-            // servidor va a rechazar y que el polling borraría del banner.
-            scannedPickupToken?.trim()?.takeIf(String::isNotEmpty)?.let { scanned ->
-                when (QrPayloadParser.parse(scanned).getOrNull()) {
-                    is QrPayload.User -> {
-                        showMutationError("Ese QR es la cuenta del alumno, no su pedido. Pide el QR de recogida.")
-                        return
-                    }
-                    is QrPayload.Establishment -> {
-                        showMutationError("Ese QR es del establecimiento, no de un pedido.")
-                        return
-                    }
-                    else -> Unit
-                }
-            }
-            if (staleForTransition(orderId, OrderState.DELIVERED)) return
-            val freshest = _uiState.value.orders.firstOrNull { it.summary.id == orderId }
-            val version = freshest?.summary?.version ?: expectedVersion
-            val pickupToken =
-                scannedPickupToken
-                    ?.trim()
-                    ?.takeIf(String::isNotEmpty)
-                    ?: freshest?.pickupToken
-            performMutation {
-                transitionOrder(
-                    orderId = orderId,
-                    targetState = OrderState.DELIVERED,
-                    expectedVersion = version,
-                    idempotencyKey =
-                        MutationIdempotency.orderTransition(
-                            orderId,
-                            OrderState.DELIVERED.wireValue,
-                            version,
-                            pickupToken,
-                        ),
-                    pickupToken = pickupToken,
-                ).getOrThrow()
-            }
         }
 
         fun trackingHint(order: OrderDetail): String =
@@ -643,45 +450,6 @@ class OperationalViewModel
                     order.homeDelivery?.code?.let { "Va en camino. Dicta el código $it al recibirlo." }
                         ?: "Tu pedido va en camino."
             }
-
-        /** [successNotice] arma la confirmación con el pedido que devolvió el servidor, nunca antes. */
-        private fun performMutation(
-            successNotice: (OrderDetail) -> String? = { null },
-            block: () -> OrderDetail,
-        ) {
-            val role = _uiState.value.role ?: return
-            if (_uiState.value.acting) {
-                // El personal tocó un botón que se ignoró: que lo sepa en vez de quedarse esperando.
-                if (role != OperationalRole.CLIENT) showMutationError("Espera un momento: hay otra acción en curso.")
-                return
-            }
-            val generation = roleGeneration
-            mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(acting = true, errorMessage = null, actionNotice = null)
-            mutationJob =
-                viewModelScope.launch {
-                    val result = runCatchingCancellable { withContext(Dispatchers.IO) { block() } }
-                    if (generation != roleGeneration || _uiState.value.role != role) return@launch
-                    result
-                        .onSuccess { order ->
-                            val updated =
-                                _uiState.value.orders
-                                    .filterNot { it.summary.id == order.summary.id } + order
-                            _uiState.value =
-                                _uiState.value.copy(
-                                    acting = false,
-                                    orders = updated.sortedByDescending { it.summary.updatedAt },
-                                    selectedOrderId = order.summary.id,
-                                    actionNotice = successNotice(order),
-                                )
-                        }.onFailure { error ->
-                            _uiState.value = _uiState.value.copy(acting = false)
-                            showMutationError(staffMutationMessage(error))
-                            // Pedido cancelado, ya avanzado o de otro: la tarjeta que se ve ya no es la real.
-                            if (isStaleOrderError(error)) requestFullSync()
-                        }
-                }
-        }
 
         fun consumeActionNotice() {
             if (_uiState.value.actionNotice != null) {
@@ -719,44 +487,6 @@ class OperationalViewModel
             }
         }
 
-        private fun startPolling() {
-            pollingJob?.cancel()
-            pollingJob =
-                viewModelScope.launch {
-                    while (isActive) {
-                        // El alumno sigue su pedido al ritmo de siempre; el personal baja a un minuto minimizado.
-                        // Un push de pedido adelanta la consulta.
-                        OrderPushes.awaitNextPoll {
-                            if (_uiState.value.role == OperationalRole.CLIENT) {
-                                delay(POLL_INTERVAL_MS)
-                            } else {
-                                awaitNextStaffPoll(POLL_INTERVAL_MS)
-                            }
-                        }
-                        refresh()
-                    }
-                }
-        }
-
-        override fun onOperationalForeground(role: OperationalRole) {
-            if (_uiState.value.role != role) return
-            heartbeatCoordinator.start(role)
-            _uiState.value = _uiState.value.copy(heartbeatOnline = false)
-            // Al volver de segundo plano pudo pasar de todo: se concilia la lista completa.
-            if (role != OperationalRole.CLIENT && role != OperationalRole.ADMIN) requestFullSync()
-        }
-
-        override fun onOperationalBackground(role: OperationalRole) {
-            if (_uiState.value.role != role) return
-            heartbeatCoordinator.pause()
-            _uiState.value = _uiState.value.copy(heartbeatOnline = null)
-        }
-
-        fun onRuntimeModeChanged() {
-            if (_uiState.value.role == null) return
-            refresh()
-        }
-
         fun applyGalleryClientOrders(
             orders: List<OrderDetail>,
             selectedOrderId: String?,
@@ -777,11 +507,6 @@ class OperationalViewModel
                     lastRefreshOk = true,
                 )
             mutationErrorVisible = false
-        }
-
-        override fun onCleared() {
-            pollingJob?.cancel()
-            super.onCleared()
         }
 
         suspend fun currentWaiterCall(espacioId: Int): Result<TableCall?> =
@@ -805,12 +530,8 @@ class OperationalViewModel
             }
 
         private companion object {
-            const val CASH_HAS_OPEN_ACCOUNTS_CODE = "CASH_SESSION_HAS_OPEN_ACCOUNTS"
             const val POLL_INTERVAL_MS = 5_000L
             const val MUTATION_ERROR_VISIBLE_MS = 9_000L
-            const val MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
-            const val MIN_REJECTION_REASON = 3
-            const val FULL_SYNC_EVERY_POLLS = 6
         }
     }
 

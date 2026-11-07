@@ -589,11 +589,6 @@ abstract class StaffOrdersViewModel(
         state.value = state.value.copy(heartbeatOnline = null)
     }
 
-    open fun onRuntimeModeChanged() {
-        if (state.value.role == null) return
-        refresh()
-    }
-
     fun setProductAvailable(
         productId: Int,
         available: Boolean,

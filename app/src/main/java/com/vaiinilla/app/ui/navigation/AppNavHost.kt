@@ -99,14 +99,15 @@ import com.vaiinilla.app.ui.mode.AuthorizedAccessViewModel
 import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
 import com.vaiinilla.app.ui.operational.CashierContext
-import com.vaiinilla.app.ui.operational.CashierViewModel
-import com.vaiinilla.app.ui.operational.KitchenViewModel
 import com.vaiinilla.app.ui.operational.CashierUnpaidViewModel
+import com.vaiinilla.app.ui.operational.CashierViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
+import com.vaiinilla.app.ui.operational.KitchenViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
 import com.vaiinilla.app.ui.operational.OperationalRoles
 import com.vaiinilla.app.ui.operational.OperationalViewModel
 import com.vaiinilla.app.ui.operational.PendingRefundsViewModel
+import com.vaiinilla.app.ui.operational.WaiterOrdersViewModel
 import com.vaiinilla.app.ui.operational.WaiterViewModel
 import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -256,9 +257,10 @@ private fun AppNavHostContent(
     val operationalViewModel: OperationalViewModel = viewModel()
     val cashierViewModel: CashierViewModel = viewModel()
     val kitchenViewModel: KitchenViewModel = viewModel()
+    val waiterOrdersViewModel: WaiterOrdersViewModel = viewModel()
     val roles =
-        remember(operationalViewModel, cashierViewModel, kitchenViewModel) {
-            OperationalRoles(operationalViewModel, cashierViewModel, kitchenViewModel)
+        remember(operationalViewModel, cashierViewModel, kitchenViewModel, waiterOrdersViewModel) {
+            OperationalRoles(operationalViewModel, cashierViewModel, kitchenViewModel, waiterOrdersViewModel)
         }
     val adminViewModel: AdminViewModel = viewModel()
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
@@ -787,7 +789,8 @@ private fun AppNavHostContent(
 
     // Cambiar a cliente desmontaría la pantalla de un cobro o cierre que el servidor ya está moviendo.
     fun linkBlockedByStaffAction(): Boolean {
-        if (authorizedAccessState.activeContext == null || !(operationalState.acting || cashierState.acting)) return false
+        val acting = operationalState.acting || cashierState.acting
+        if (authorizedAccessState.activeContext == null || !acting) return false
         Toast
             .makeText(appContext, "Termina lo que estás cobrando y vuelve a abrir el enlace.", Toast.LENGTH_LONG)
             .show()
@@ -3286,7 +3289,7 @@ private fun AppNavHostContent(
                     }
                 }
                 if (authorizedWaiter) {
-                    OperationalPresenceLifecycle(OperationalRole.WAITER, operationalViewModel)
+                    OperationalPresenceLifecycle(OperationalRole.WAITER, waiterOrdersViewModel)
                     DisposableEffect(Unit) {
                         waiterViewModel.onVisible()
                         onDispose { waiterViewModel.onHidden() }
