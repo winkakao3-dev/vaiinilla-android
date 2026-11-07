@@ -176,7 +176,10 @@ class HotelContractTest {
         assertEquals("tu habitación", SpaceCopy.yourPlace("mesa"))
         assertEquals("A tu habitación", SpaceCopy.destinationTitle("mesa"))
         assertEquals("Selecciona tu habitación", SpaceCopy.pickPrompt("mesa"))
-        assertEquals("Tu pedido está listo. En un momento te lo llevan a tu habitación.", SpaceCopy.readyInSpace("mesa"))
+        assertEquals(
+            "Tu pedido está listo. En un momento te lo llevan a tu habitación.",
+            SpaceCopy.readyInSpace("mesa"),
+        )
         assertEquals("Hab. 304", SpaceCopy.short("mesa", "Habitación 304"))
         assertEquals("tu cancha", SpaceCopy.yourPlace("cancha"))
     }
