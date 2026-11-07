@@ -27,7 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -405,15 +404,6 @@ fun CremeDivider(modifier: Modifier = Modifier) {
                 .background(colors.line),
     )
 }
-
-/** Ocupa también el margen lateral de la lista que lo contiene: la fila se desliza hasta el borde de la pantalla. */
-fun Modifier.cremeBleed(margin: Dp): Modifier =
-    layout { measurable, constraints ->
-        val extra = (margin * 2).roundToPx()
-        val width = constraints.maxWidth + extra
-        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
-        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
-    }
 
 private val MONTHS_ES = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 
