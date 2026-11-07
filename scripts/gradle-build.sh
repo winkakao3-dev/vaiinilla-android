@@ -19,7 +19,7 @@ marcar_hecha() {
   awk -F' \\| ' -v OFS=' | ' -v p="$1" '$3==p && !/\| HECHA *$/{print $0" | HECHA"; next} {print}' "$COLA" > "$COLA.tmp" && mv "$COLA.tmp" "$COLA"
 }
 
-# Libera una entrada pendiente si su rama ya entró a origin/main o si su worktree lleva >30 min sin procesos vivos.
+# Libera una entrada pendiente si su rama ya entró a origin/main o si su worktree lleva >${GRADLE_QUEUE_IDLE_MIN:-10} min sin procesos vivos.
 liberar_si_vencida() { # $1 ruta  $2 rama
   local ruta=$1 rama=$2 estado="$HOME/.cache/gradle-queue/vivo" m
   mkdir -p "$estado"; m="$estado/$(echo "$ruta" | tr '/' '_')"
@@ -31,7 +31,7 @@ liberar_si_vencida() { # $1 ruta  $2 rama
   fi
   if lsof -d cwd -Fn 2>/dev/null | grep -q "^n$ruta"; then touch "$m"; return 1; fi
   [ -e "$m" ] || touch "$m"
-  if [ -n "$(find "$m" -mmin +30 2>/dev/null)" ]; then echo "Libero '$ruta': 30 min sin procesos vivos." >&2; return 0; fi
+  if [ -n "$(find "$m" -mmin +${GRADLE_QUEUE_IDLE_MIN:-10} 2>/dev/null)" ]; then echo "Libero '$ruta': ${GRADLE_QUEUE_IDLE_MIN:-10} min sin procesos vivos." >&2; return 0; fi
   return 1
 }
 
