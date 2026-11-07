@@ -24,10 +24,10 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.screens.KitchenAge
 import com.vaiinilla.app.ui.screens.MoreDots
-import com.vaiinilla.app.ui.screens.elapsedSinceMs
 import com.vaiinilla.app.ui.screens.kitchenAge
 import com.vaiinilla.app.ui.screens.kitchenAgeLabel
 import com.vaiinilla.app.ui.screens.kitchenAgeStart
@@ -83,10 +83,10 @@ internal fun HotelKitchenCard(
     val summary = order.summary
     val preparing = summary.state == OrderState.PREPARING
     val start = kitchenAgeStart(summary)
-    val elapsed by produceState(elapsedSinceMs(start), start) {
+    val elapsed by produceState(RelativeAge.elapsedMs(start), start) {
         while (true) {
             delay(15_000)
-            value = elapsedSinceMs(start)
+            value = RelativeAge.elapsedMs(start)
         }
     }
     val age = elapsed?.let { kitchenAge(it) } ?: KitchenAge.FRESH

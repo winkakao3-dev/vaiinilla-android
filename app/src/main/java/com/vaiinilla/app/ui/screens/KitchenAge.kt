@@ -16,13 +16,14 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.time.BusinessTime
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.animateSelectionColor
 import kotlinx.coroutines.delay
 import java.time.Instant
@@ -81,10 +82,10 @@ internal fun KitchenAgeText(
     muted: Color,
     modifier: Modifier = Modifier,
 ) {
-    val elapsed by produceState(elapsedSinceMs(createdAt), createdAt) {
+    val elapsed by produceState(RelativeAge.elapsedMs(createdAt), createdAt) {
         while (true) {
             delay(15_000)
-            value = elapsedSinceMs(createdAt)
+            value = RelativeAge.elapsedMs(createdAt)
         }
     }
     val color =
@@ -113,10 +114,10 @@ internal fun KitchenAgeChip(
     createdAt: String,
     modifier: Modifier = Modifier,
 ) {
-    val elapsed by produceState(elapsedSinceMs(createdAt), createdAt) {
+    val elapsed by produceState(RelativeAge.elapsedMs(createdAt), createdAt) {
         while (true) {
             delay(15_000)
-            value = elapsedSinceMs(createdAt)
+            value = RelativeAge.elapsedMs(createdAt)
         }
     }
     val (bg, fg) =

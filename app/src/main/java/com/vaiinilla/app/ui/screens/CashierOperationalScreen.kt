@@ -61,6 +61,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -129,6 +131,7 @@ import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
@@ -142,9 +145,9 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
+import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.rentalChargeLabel
-import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.CollectedToday
 import com.vaiinilla.app.ui.operational.OperationalUiState
@@ -248,7 +251,7 @@ fun CashierOperationalScreen(
     var cashCutOpen by remember { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
-    var tick by remember { mutableIntStateOf(0) }
+    val tick = rememberTick(CASHIER_AGE_REFRESH_MS)
     val context = LocalContext.current
     // La foto de un producto existente se reemplaza aquí: el alta lleva su propia
     // selección de imagen dentro del sheet.
@@ -271,12 +274,6 @@ fun CashierOperationalScreen(
                 )
             }
         }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1_000)
-            tick += 1
-        }
-    }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.CASHIER)
     val assistantFocusRequester = remember { FocusRequester() }
@@ -1275,28 +1272,10 @@ internal fun cashierScanTarget(
 internal fun staffCustomerName(order: OrderDetail): String? =
     order.customerName?.takeIf { it.isNotBlank() } ?: order.user?.name?.takeIf { it.isNotBlank() }
 
-internal fun elapsedSinceMs(iso: String): Long? =
-    runCatching {
-        java.time.Duration
-            .between(java.time.Instant.parse(iso), java.time.Instant.now())
-            .toMillis()
-    }.getOrNull()
+private fun elapsedShort(iso: String): String = RelativeAge.elapsedMs(iso)?.let { RelativeAge.ago(it) } ?: "recién"
 
-private fun elapsedShort(
-    iso: String,
-    tick: Int,
-): String {
-    tick.hashCode()
-    val ms = elapsedSinceMs(iso) ?: return "recién"
-    return when {
-        ms < 60_000 -> "ahora"
-        ms < 3_600_000 -> "hace ${ms / 60_000} min"
-        ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
-        // Después de una semana, la fecha: «hace 340 d» no dice nada.
-        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
-    }
-}
+/** El «hace X min» de la fila cambia por minutos: no hace falta un reloj de segundos. */
+private const val CASHIER_AGE_REFRESH_MS = 15_000L
 
 @Composable
 private fun ProductGridCard(
@@ -1527,7 +1506,7 @@ internal fun OperationalErrorCard(
 @Composable
 private fun CashierQueueCard(
     orders: List<OrderDetail>,
-    tick: Int,
+    tick: State<Int>,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     onOpen: (OrderDetail) -> Unit,
@@ -1558,12 +1537,13 @@ private fun CashierQueueCard(
 @Composable
 private fun QueueTicketRow(
     order: OrderDetail,
-    tick: Int,
+    tick: State<Int>,
     colors: OperationalColors,
     onClick: () -> Unit,
 ) {
     val venue = LocalVenueContext.current
     val summary = order.summary
+    val age by remember(summary.createdAt) { derivedStateOf { tick.value.let { elapsedShort(summary.createdAt) } } }
     Row(
         modifier =
             Modifier
@@ -1604,7 +1584,7 @@ private fun QueueTicketRow(
                 modifier = Modifier.padding(top = 2.dp),
             )
             Text(
-                elapsedShort(summary.createdAt, tick),
+                age,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textSecondary,

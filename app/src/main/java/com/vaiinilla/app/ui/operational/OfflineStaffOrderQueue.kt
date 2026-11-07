@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.offline.cashNotRegisteredProblem
 import com.vaiinilla.app.domain.outbox.DrainOutcome
 import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import com.vaiinilla.app.domain.repository.OrderRepository
+import com.vaiinilla.app.domain.time.BusinessTime
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.time.Instant
-import java.time.LocalDate
 import java.util.UUID
 
 /** Lo que Mesero y Caja muestran de la cola de pedidos sin conexión. */
@@ -58,7 +58,7 @@ class OfflineStaffOrderQueue(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val now: () -> Instant = Instant::now,
-    private val today: () -> String = { LocalDate.now().toString() },
+    private val today: () -> String = { BusinessTime.today().toString() },
     /** Pide un recorrido de la bandeja de salida: con la app cerrada, WorkManager manda lo guardado. */
     private val outbox: OutboxScheduler = OutboxScheduler.None,
 ) {

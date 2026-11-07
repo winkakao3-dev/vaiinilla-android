@@ -66,15 +66,14 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.paymentWireLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
-import com.vaiinilla.app.ui.notices.NoticePanel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import java.time.DayOfWeek
-import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
@@ -828,18 +827,4 @@ internal fun WeekStrip(
 
 private val WeekLetters = listOf("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM")
 
-private fun sinceLabel(iso: String): String? =
-    runCatching {
-        val minutes =
-            java.time.Duration
-                .between(Instant.parse(iso), Instant.now())
-                .toMinutes()
-        when {
-            minutes < 1 -> "ahora"
-            minutes < 60 -> "hace $minutes min"
-            minutes < 1440 -> "hace ${minutes / 60} h"
-            minutes < 7 * 1440 -> "hace ${minutes / 1440} d"
-            // Después de una semana, la fecha: «hace 340 d» no dice nada.
-            else -> NoticePanel.shortDate(Instant.parse(iso).toEpochMilli())
-        }
-    }.getOrNull()
+private fun sinceLabel(iso: String): String? = RelativeAge.elapsedMs(iso)?.let { RelativeAge.ago(it) }
