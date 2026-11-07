@@ -1,5 +1,6 @@
 package com.vaiinilla.app.domain
 
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.reservations.ReservationContractJson
 import com.vaiinilla.app.domain.model.BusyInterval
@@ -107,7 +108,7 @@ class ReservationSlotsTest {
 }
 
 class ReservationContractJsonTest {
-    private val json = ReservationContractJson(OrderContractJson())
+    private val json = ReservationContractJson(OrderContractJson(), VenueContextStore())
 
     @Test
     fun `lee la disponibilidad del dia con precios al cliente y lo ocupado`() {

@@ -65,8 +65,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.Money
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.CashDrawerSummary
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -199,6 +199,7 @@ fun CashCloseContent(
     /** El `resumen` del cajón: con él la hoja desglosa igual que el corte (R37). */
     drawerSummary: CashDrawerSummary? = null,
 ) {
+    val venue = LocalVenueContext.current
     // Con el resumen del cajón, lo que debe haber es el suyo: es la lectura más reciente del servidor.
     val shownExpected = drawerSummary?.expected ?: expectedCash
     val ownCount = rememberSaveable(stateSaver = CashCountDraft.Saver) { mutableStateOf(CashCountDraft()) }
@@ -256,7 +257,7 @@ fun CashCloseContent(
                 CashWarningCard(
                     title = "Hay una cuenta sin cobrar",
                     body =
-                        "Una mesa o ${Venue.court} pidió pagar al final y todavía no se cobra. " +
+                        "Una mesa o ${venue.vocabulary.court} pidió pagar al final y todavía no se cobra. " +
                             "Cóbrala antes de cerrar para no perder ese dinero.",
                     action =
                         onOpenAccounts?.let { open ->
@@ -561,6 +562,7 @@ internal fun closeBreakdown(
             "Movimientos del turno (neto)" to signedCents(net),
         )
     }
+
     fun nonZero(value: String): Boolean = (value.toBigDecimalOrNull()?.signum() ?: 0) != 0
     return buildList {
         add("Fondo al abrir" to moneyLabelCents(summary.opening))

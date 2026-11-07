@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.domain.repository.SpaceAvailabilityState
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
@@ -62,6 +62,7 @@ fun CourtsCarousel(
     /** Abre la renta de canchas; sin él, las tarjetas solo informan. */
     onOpen: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     if (courts.isEmpty()) return
     val colors = LocalVaiinillaColors.current
     val free = courts.count { it.isFreeNow }
@@ -81,7 +82,7 @@ fun CourtsCarousel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
-                Text(Venue.courtsTitle, color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(venue.vocabulary.courtsTitle, color = colors.ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
                 Row(modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)) {
                     NumberTicker(value = free, label = "courts-free") { count ->
                         Text("$count", color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)

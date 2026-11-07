@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.AccountSplit
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
@@ -79,7 +80,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.AbonoMode
@@ -347,6 +348,7 @@ internal fun WaiterSpaceSection(
     /** Lo que dice el tablero del espacio: trae la siguiente reserva (el detalle de la sesión no). */
     nextReservation: SpaceAvailability? = null,
 ) {
+    val venue = LocalVenueContext.current
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(acting) { if (!acting) busyKey = null }
@@ -450,7 +452,7 @@ internal fun WaiterSpaceSection(
         val rent = detail.rent
         if (rent != null) {
             Text(
-                rentPaidLine(rent),
+                rentPaidLine(venue, rent),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
@@ -1747,9 +1749,12 @@ private fun rentalLabel(minutes: Int): String =
     }
 
 /** «Renta de pista · pagada $300 (2 h)»: lo ya pagado del turno, que no se vuelve a cobrar. */
-internal fun rentPaidLine(rent: SpaceRent): String =
+internal fun rentPaidLine(
+    venue: VenueContext,
+    rent: SpaceRent,
+): String =
     buildString {
-        append("Renta de ${Venue.court} · pagada ${moneyLabel(rent.paid)}")
+        append("Renta de ${venue.vocabulary.court} · pagada ${moneyLabel(rent.paid)}")
         if (rent.minutes > 0) append(" (${rentalLabel(rent.minutes)})")
     }
 
@@ -1806,6 +1811,7 @@ internal fun RentalDurationPicker(
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     onConfirm: (minutes: Int, players: Int?, name: String?) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     var localMinutes by remember(durations) { mutableStateOf<Int?>(null) }
     var localPlayers by remember { mutableIntStateOf(0) }
     var localName by remember { mutableStateOf("") }
@@ -1847,7 +1853,7 @@ internal fun RentalDurationPicker(
     }
     // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos. R11: es obligatorio (el
     // servidor responde PLAYERS_REQUIRED sin ellos); la renovación conserva los del turno.
-    val askPlayers = Venue.isBowling && !renewal
+    val askPlayers = venue.capabilities.asksPlayerCount && !renewal
     val playersMissing = askPlayers && players == 0
     val showName = askName && !renewal
     Column(modifier = modifier.fillMaxWidth()) {
@@ -1969,12 +1975,13 @@ internal fun RentalCollectSheet(
     /** R25: cuántos caben en la pista. */
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
 ) {
+    val venue = LocalVenueContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // R16: el borrador de jugadores vive aquí, no en los controles, para que «Cobrar» y cerrar lo vean.
     var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
     // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
     LaunchedEffect(confirming) { if (!confirming) players = rental.players ?: 0 }
-    val askPlayers = onChange != null && Venue.isBowling
+    val askPlayers = onChange != null && venue.capabilities.asksPlayerCount
     val playersDirty = askPlayers && players != (rental.players ?: 0)
     // R11: una renovación (empieza al terminar el turno) hereda los jugadores; la renta de ahora los pide.
     val renewal = remember(rental.id) { rental.start.isAfter(Instant.now()) }
@@ -1990,7 +1997,7 @@ internal fun RentalCollectSheet(
             payable = emptyList(),
             confirming = confirming,
             colors = colors,
-            title = "Rentar ${rental.courtName ?: Venue.court} · ${rentalLabel(rental.durationMinutes)}",
+            title = "Rentar ${rental.courtName ?: venue.vocabulary.court} · ${rentalLabel(rental.durationMinutes)}",
             // #16: el servidor solo cobra la renta de mostrador en efectivo; la hoja lo dice en lugar de esconderlo.
             allowTerminal = false,
             allowTip = false,
@@ -2036,8 +2043,9 @@ internal fun RentalCollectControls(
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     minPlayers: Int = 0,
 ) {
+    val venue = LocalVenueContext.current
     // Cada cambio vuelve a apartar: los toques del stepper se juntan y se manda solo el último.
-    if (onChange != null && Venue.isBowling) {
+    if (onChange != null && venue.capabilities.asksPlayerCount) {
         LaunchedEffect(rental.id, players) {
             if (players == (rental.players ?: 0)) return@LaunchedEffect
             delay(PLAYERS_SETTLE_MS)
@@ -2057,7 +2065,7 @@ internal fun RentalCollectControls(
                     ChipButton(
                         label = rentalLabel(minutes),
                         // R11: sin jugadores, volver a apartar con otro tiempo lo rechazaría el servidor.
-                        enabled = enabled && !(Venue.isBowling && minPlayers > 0 && players == 0),
+                        enabled = enabled && !(venue.capabilities.asksPlayerCount && minPlayers > 0 && players == 0),
                         colors = colors,
                         modifier = Modifier.weight(1f),
                         selected = minutes == rental.durationMinutes,
@@ -2067,7 +2075,7 @@ internal fun RentalCollectControls(
                 }
             }
         }
-        if (onChange != null && Venue.isBowling) {
+        if (onChange != null && venue.capabilities.asksPlayerCount) {
             PlayersStepper(
                 players = players,
                 enabled = enabled,
@@ -2094,7 +2102,8 @@ private fun CourtTurnHero(
     endsAt: String?,
     modifier: Modifier = Modifier,
 ) {
-    val bowling = Venue.isBowling
+    val venue = LocalVenueContext.current
+    val bowling = venue.capabilities.drawsLanes
     val field =
         animateSelectionColor(
             when {
@@ -2161,7 +2170,11 @@ private fun CourtTurnHero(
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBowlingLane(line: Color) {
     val gutter = size.height * 0.14f
     drawRect(Color.Black.copy(alpha = 0.25f), size = Size(size.width, gutter))
-    drawRect(Color.Black.copy(alpha = 0.25f), topLeft = Offset(0f, size.height - gutter), size = Size(size.width, gutter))
+    drawRect(
+        Color.Black.copy(alpha = 0.25f),
+        topLeft = Offset(0f, size.height - gutter),
+        size = Size(size.width, gutter),
+    )
     // Tablones de la madera.
     val boards = 8
     val laneHeight = size.height - 2 * gutter

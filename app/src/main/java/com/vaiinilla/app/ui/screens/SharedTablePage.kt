@@ -36,10 +36,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,11 +58,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.SharedTable
-import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SharedTableRent
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.ui.components.ClientCap
@@ -98,9 +99,12 @@ internal fun tablePayLine(table: SharedTable): String {
 }
 
 /** «Renta de pista · pagada $300 (2 h) · 4 jugadores». */
-internal fun sharedRentLine(rent: SharedTableRent): String =
+internal fun sharedRentLine(
+    venue: VenueContext,
+    rent: SharedTableRent,
+): String =
     buildString {
-        append("Renta de ${Venue.court} · pagada ${tableMoney(rent.paid)}")
+        append("Renta de ${venue.vocabulary.court} · pagada ${tableMoney(rent.paid)}")
         val minutes = rent.minutes
         if (minutes > 0) {
             append(" (")
@@ -137,6 +141,7 @@ fun SharedTablePage(
     waiter: MenuWaiterCallState?,
     modifier: Modifier = Modifier,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val scope = rememberCoroutineScope()
     val canCallWaiter = waiter != null && waiter.phase != MenuWaiterPhase.UNAVAILABLE
@@ -155,7 +160,7 @@ fun SharedTablePage(
             table.rent?.let { rent ->
                 // U05: la renta ya se pagó al apartar; se ve aparte y no entra en lo que falta.
                 Text(
-                    sharedRentLine(rent),
+                    sharedRentLine(venue, rent),
                     color = colors.muted,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -163,7 +168,14 @@ fun SharedTablePage(
                 )
             }
             MyOrders(table, error.takeIf { errorFolio != null }, errorFolio, modifier = Modifier.arrive(2))
-            OthersAtTable(table, busy, onClaim, error.takeIf { errorFolio != null }, errorFolio, modifier = Modifier.arrive(3))
+            OthersAtTable(
+                table,
+                busy,
+                onClaim,
+                error.takeIf { errorFolio != null },
+                errorFolio,
+                modifier = Modifier.arrive(3),
+            )
             if (canCallWaiter) {
                 WaiterCard(waiter!!, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp).arrive(4))
             }
@@ -173,7 +185,11 @@ fun SharedTablePage(
                     color = colors.coralText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier =
+                        Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp).semantics {
+                            liveRegion =
+                                LiveRegionMode.Polite
+                        },
                 )
             }
         }
@@ -193,10 +209,16 @@ fun SharedTablePage(
         }
     }
     if (confirmingLeave) {
-        val noun = SharedSpaceWords.of(table.spaceType).thePlace
+        val noun = SharedSpaceWords.of(venue, table.spaceType).thePlace
         // Un toque suelto no debe sacar a nadie de una cuenta con partes sin pagar (COMPRA-19).
         val pendingLine =
-            if (table.myShare.pending.signum() > 0) " Aún tienes ${tableMoney(table.myShare.pending)} por pagar de tu parte." else ""
+            if (table.myShare.pending.signum() >
+                0
+            ) {
+                " Aún tienes ${tableMoney(table.myShare.pending)} por pagar de tu parte."
+            } else {
+                ""
+            }
         AlertDialog(
             onDismissRequest = { confirmingLeave = false },
             title = { Text("¿Salir de $noun?") },
@@ -221,6 +243,7 @@ private fun TableHeader(
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val people = table.participants.size
     Row(
@@ -229,7 +252,8 @@ private fun TableHeader(
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                SharedSpaceWords.of(table.spaceType).title + " · " + (if (people <= 1) "solo tú" else "$people personas"),
+                SharedSpaceWords.of(venue, table.spaceType).title + " · " +
+                    (if (people <= 1) "solo tú" else "$people personas"),
                 color = colors.muted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -265,6 +289,7 @@ private fun ShareTiles(
     table: SharedTable,
     modifier: Modifier = Modifier,
 ) {
+    val venue = LocalVenueContext.current
     // «Tu parte» es lo tuyo; lo que dijiste que pagas de otros se suma abajo, en el pago.
     val mine = table.groups.firstOrNull { it.isMe }?.amounts
     val (mineValue, mineNote) =
@@ -277,7 +302,7 @@ private fun ShareTiles(
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         ShareTile("Tu parte", mineValue, mineNote, Modifier.weight(1f))
         ShareTile(
-            "Toda ${SharedSpaceWords.of(table.spaceType).thePlace}",
+            "Toda ${SharedSpaceWords.of(venue, table.spaceType).thePlace}",
             tableMoney(all.total),
             when {
                 // R21: lo abonado ya está en caja aunque los pedidos sigan abiertos; se dice cuánto falta.
@@ -313,7 +338,13 @@ private fun ShareTile(
             color = colors.ink,
             modifier = Modifier.padding(top = 4.dp),
         )
-        Text(note, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 2.dp))
+        Text(
+            note,
+            color = colors.muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }
 
@@ -325,7 +356,11 @@ private fun MyOrders(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
-    val orders = table.groups.firstOrNull { it.isMe }?.orders.orEmpty()
+    val orders =
+        table.groups
+            .firstOrNull { it.isMe }
+            ?.orders
+            .orEmpty()
     Column(modifier) {
         ClientCap("Tus pedidos", Modifier.padding(start = 20.dp, top = 26.dp, bottom = 10.dp))
         ClientCard(Modifier.padding(horizontal = 16.dp)) {
@@ -339,8 +374,17 @@ private fun MyOrders(
                 if (index > 0) ClientCardDivider()
                 val payer = (tableOrderClaim(order) as? TableClaim.OtherPays)?.alias
                 TableRow(
-                    title = "Pedido #${order.folio}" + order.itemsSummary.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(),
-                    subtitle = listOfNotNull(tableOrderStateLabel(order), payer?.let { "lo paga $it" }).joinToString(" · "),
+                    title =
+                        "Pedido #${order.folio}" +
+                            order.itemsSummary
+                                .takeIf { it.isNotBlank() }
+                                ?.let { " · $it" }
+                                .orEmpty(),
+                    subtitle =
+                        listOfNotNull(
+                            tableOrderStateLabel(order),
+                            payer?.let { "lo paga $it" },
+                        ).joinToString(" · "),
                     error = claimError.takeIf { order.folio == claimErrorFolio },
                 ) {
                     Text(tableMoney(order.total), color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.Black)
@@ -365,6 +409,7 @@ private fun OthersAtTable(
     claimErrorFolio: Int?,
     modifier: Modifier = Modifier,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val others = table.orderedGroups.filter { !it.isMe }
     val withOrders = others.filter { it.orders.isNotEmpty() }
@@ -376,7 +421,10 @@ private fun OthersAtTable(
     if (rows.isEmpty()) return
     val aliases = rows.map { it.alias }.distinct()
     Column(modifier) {
-        ClientCap("Otros en ${SharedSpaceWords.of(table.spaceType).thePlace}", Modifier.padding(start = 20.dp, top = 26.dp, bottom = 10.dp))
+        ClientCap(
+            "Otros en ${SharedSpaceWords.of(venue, table.spaceType).thePlace}",
+            Modifier.padding(start = 20.dp, top = 26.dp, bottom = 10.dp),
+        )
         ClientCard(Modifier.padding(horizontal = 16.dp)) {
             rows.forEachIndexed { index, row ->
                 if (index > 0) ClientCardDivider()
@@ -386,7 +434,10 @@ private fun OthersAtTable(
                     title = if (order != null) "${row.alias} · #${order.folio}" else row.alias,
                     subtitle =
                         if (order != null) {
-                            listOf(order.itemsSummary, tableMoney(order.total)).filter { it.isNotBlank() }.joinToString(" · ")
+                            listOf(
+                                order.itemsSummary,
+                                tableMoney(order.total),
+                            ).filter { it.isNotBlank() }.joinToString(" · ")
                         } else {
                             "Aún no pide"
                         },
@@ -397,7 +448,12 @@ private fun OthersAtTable(
                         when (val claim = tableOrderClaim(order)) {
                             null -> PaidTag()
                             is TableClaim.OtherPays ->
-                                Text("Lo paga ${claim.alias}", color = colors.muted, fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(
+                                    "Lo paga ${claim.alias}",
+                                    color = colors.muted,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                )
                             is TableClaim.Toggle ->
                                 PayPill(
                                     // Encendida, la píldora ya dice que es tuyo: sin la palomita del renglón viejo.
@@ -428,7 +484,13 @@ private fun TableRow(
             leading?.invoke()
             Column(Modifier.weight(1f)) {
                 Text(title, color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-                Text(subtitle, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 2.dp))
+                Text(
+                    subtitle,
+                    color = colors.muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
             trailing()
         }
@@ -451,7 +513,11 @@ private fun Initial(
     ink: Color,
 ) {
     Box(
-        Modifier.size(34.dp).clip(CircleShape).background(fill).clearAndSetSemantics {},
+        Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(fill)
+            .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {
         Text(initialOf(alias), color = ink, fontSize = 13.sp, fontWeight = FontWeight.Black)
@@ -554,14 +620,29 @@ private fun WaiterCard(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            Modifier.size(34.dp).clip(CircleShape).background(colors.paper).clearAndSetSemantics {},
+            Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(colors.paper)
+                .clearAndSetSemantics {},
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Notifications, contentDescription = null, tint = colors.ink2, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Outlined.Notifications,
+                contentDescription = null,
+                tint = colors.ink2,
+                modifier = Modifier.size(16.dp),
+            )
         }
         Column(Modifier.weight(1f)) {
             Text("Tu mesero", color = colors.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-            Text(subtitle, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 2.dp))
+            Text(
+                subtitle,
+                color = colors.muted,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
         val waiting = call == null && waiter.cooldown > 0
         Box(
@@ -610,7 +691,13 @@ private fun PayBar(
                 .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp),
         ) {
             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).semantics(mergeDescendants = true) {}) {
-                Text(tablePayLine(table), color = colors.ink2, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(
+                    tablePayLine(table),
+                    color = colors.ink2,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
                 Text(amount, color = colors.ink, fontSize = 14.sp, fontWeight = FontWeight.Black)
             }
             if (onPay != null) {

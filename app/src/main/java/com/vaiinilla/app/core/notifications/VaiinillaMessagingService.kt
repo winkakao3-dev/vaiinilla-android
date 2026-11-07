@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier.Shown
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import dagger.hilt.android.AndroidEntryPoint
@@ -23,6 +24,9 @@ import javax.inject.Inject
 class VaiinillaMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var tokenRegistrar: DeviceTokenRegistrar
+
+    @Inject
+    lateinit var venueContext: VenueContextStore
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -94,6 +98,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             } ?: return null
         return OrderAdvanceNotifier.notify(
             applicationContext,
+            venueContext.current,
             orderId,
             folio,
             state,

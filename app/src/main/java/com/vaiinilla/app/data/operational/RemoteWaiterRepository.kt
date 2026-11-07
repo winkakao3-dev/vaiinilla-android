@@ -4,12 +4,12 @@ import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.core.network.mapApiFailure
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.guest.GuestClientAccess
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceDelivery
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AbonoResult
@@ -31,6 +31,7 @@ class RemoteWaiterRepository(
     private val apiClient: VaiinillaApiClient,
     private val contractJson: WaiterContractJson,
     private val orderContractJson: OrderContractJson,
+    private val venueContext: VenueContextStore,
     /** Sin cuenta, el cliente llama al mesero con la sesión del invitado. */
     private val guestAccess: GuestClientAccess? = null,
 ) : WaiterRepository {
@@ -116,7 +117,7 @@ class RemoteWaiterRepository(
         if (fetched != null) {
             storePolicyCache = now to fetched
             // Mesero y Caja no pasan por el catálogo: el tipo de negocio (pista o cancha) sale de aquí.
-            fetched.businessType?.let(Venue::update)
+            fetched.businessType?.let(venueContext::update)
         }
         return fetched ?: storePolicyCache?.second ?: DeliveryPolicyDto()
     }

@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -105,11 +106,11 @@ import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.CourtsCarousel
-import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.HeroGlassPill
+import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.MenuCartShortcut
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
@@ -671,6 +672,7 @@ private fun MenuHero(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
+    val venueContext = LocalVenueContext.current
     val venue = state.guestVenue
     val establishment = venue?.establishment
     val name = establishment?.name ?: "Menú"
@@ -743,7 +745,7 @@ private fun MenuHero(
                 // Con una pista rentada en curso, el cliente ya está allá y no en la mesa del QR.
                 state.currentSpace?.let { space ->
                     Text(
-                        text = "${space.name} · ${SpaceCopy.kindLabel(space.type).lowercase()}",
+                        text = "${space.name} · ${SpaceCopy.kindLabel(venueContext, space.type).lowercase()}",
                         color = colors.ink,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,

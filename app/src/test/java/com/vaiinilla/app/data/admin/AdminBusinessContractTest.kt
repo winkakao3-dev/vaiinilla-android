@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
 import com.vaiinilla.app.domain.admin.InvitationState
@@ -240,7 +241,7 @@ class AdminBusinessContractTest {
                     "pedidos" to """{"data":[{},{}],"meta":{"cursor":"x"}}""",
                 ),
             )
-        val counts = RemoteAdminStoreRepository(client).liveCounts().getOrThrow()
+        val counts = RemoteAdminStoreRepository(client, VenueContextStore()).liveCounts().getOrThrow()
         assertEquals(1, counts.pendingInvitations)
         assertEquals(false, counts.cashOpen)
         assertEquals(2, counts.activeOrders)
@@ -250,7 +251,11 @@ class AdminBusinessContractTest {
     @Test
     fun `forced close sends forzar with the required reason`() {
         val client = ScriptedClient(emptyMap())
-        val result = RemoteAdminSpacesRepository(client).closeWithoutCharging(4, " Se fue sin pagar ", "k1").getOrThrow()
+        val result =
+            RemoteAdminSpacesRepository(
+                client,
+                VenueContextStore(),
+            ).closeWithoutCharging(4, " Se fue sin pagar ", "k1").getOrThrow()
         assertEquals("espacios/4/sesion/cierres", client.lastPath)
         assertEquals("""{"forzar":true,"motivo":"Se fue sin pagar"}""", client.lastBody)
         assertEquals("k1", client.lastHeaders["Idempotency-Key"])

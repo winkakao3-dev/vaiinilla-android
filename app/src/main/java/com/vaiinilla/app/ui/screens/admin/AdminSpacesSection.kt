@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceDraft
@@ -68,7 +69,7 @@ import com.vaiinilla.app.domain.admin.SpaceType
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationState
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.components.ProductImage
@@ -132,6 +133,7 @@ internal fun AdminSpacesSection(
     /** Cómo va cada espacio ahora, del tablero del mesero; vacío si no hay con qué cargarlo. */
     board: List<com.vaiinilla.app.domain.repository.BoardTable> = emptyList(),
 ) {
+    val venue = LocalVenueContext.current
     val state by viewModel.uiState
     var sheet by remember { mutableStateOf<SpacesSheet?>(null) }
     var page by remember { mutableStateOf<SpacesPage?>(null) }
@@ -264,11 +266,11 @@ internal fun AdminSpacesSection(
             }
         is SpacesSheet.Release ->
             AdminConfirmSheet(
-                title = "Liberar ${Venue.court}",
+                title = "Liberar ${venue.vocabulary.court}",
                 message =
                     "Se cancela la reserva de ${current.reservation.customerName ?: "este cliente"} " +
-                        "y la ${Venue.court} queda libre.",
-                confirmLabel = "Liberar ${Venue.court}",
+                        "y la ${venue.vocabulary.court} queda libre.",
+                confirmLabel = "Liberar ${venue.vocabulary.court}",
                 colors = colors,
                 busy = state.saving,
                 onDismiss = close,
@@ -296,6 +298,7 @@ private fun SpacesList(
     onOpen: (SpacesPage) -> Unit,
     onSheet: (SpacesSheet) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val spaces = state.spaces
     AdminSectionPage(
         title = "Mesas y espacios",
@@ -330,7 +333,7 @@ private fun SpacesList(
             spaces == null -> item { AdminHint("Cargando espacios…", colors) }
             spaces.isEmpty() -> item { SpacesEmpty(colors, readOnly, enabled, Modifier.adminRise(1), onSheet) }
             else ->
-                spaceGroups(spaces).forEachIndexed { index, (title, members) ->
+                spaceGroups(venue, spaces).forEachIndexed { index, (title, members) ->
                     item(key = "g-$title") {
                         Column(Modifier.adminRise(index + 1).animateItem()) {
                             AdminCapsLabel(
@@ -388,14 +391,17 @@ private fun boardStatus(table: com.vaiinilla.app.domain.repository.BoardTable): 
         else -> "Libre" to AdminBadgeTone.NEUTRAL
     }
 
-private fun spaceGroups(spaces: List<ManagedSpace>): List<Pair<String, List<ManagedSpace>>> {
+private fun spaceGroups(
+    venue: VenueContext,
+    spaces: List<ManagedSpace>,
+): List<Pair<String, List<ManagedSpace>>> {
     val sorted = spaces.sortedBy { naturalKey(it.name) }
     val order = SpaceType.entries.map { it.wire }.toMutableList()
     sorted.forEach { if (it.typeWire !in order) order.add(it.typeWire) }
     return order.mapNotNull { wire ->
         val members = sorted.filter { it.typeWire == wire }
         if (members.isEmpty()) return@mapNotNull null
-        plural(SpaceType.entries.firstOrNull { it.wire == wire }?.label ?: wire) to members
+        plural(SpaceType.entries.firstOrNull { it.wire == wire }?.label(venue) ?: wire) to members
     }
 }
 
@@ -412,6 +418,7 @@ private fun SpaceRow(
     status: Pair<String, AdminBadgeTone>? = null,
     onClick: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val price = space.hourlyPrice
     AdminRow(
         title = space.name,
@@ -421,7 +428,7 @@ private fun SpaceRow(
                 space.isCourt && price != null -> "Renta ${moneyLabel(price)} por hora"
                 space.capacity != null ->
                     if (space.capacity == 1) "1 persona" else "${space.capacity} personas"
-                else -> space.code?.let { "Código $it" } ?: (space.type?.label ?: space.typeWire)
+                else -> space.code?.let { "Código $it" } ?: (space.type?.label(venue) ?: space.typeWire)
             },
         dimmed = !space.active,
         onClick = onClick,
@@ -474,6 +481,7 @@ private fun SpacesEmpty(
     modifier: Modifier,
     onSheet: (SpacesSheet) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.padding(top = 72.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             repeat(2) { row ->
@@ -500,7 +508,7 @@ private fun SpacesEmpty(
             modifier = Modifier.padding(top = 28.dp),
         )
         Text(
-            "Crea tus mesas, la barra o una ${Venue.court}. Cada una tiene su QR para que el cliente pida desde su lugar.",
+            "Crea tus mesas, la barra o una ${venue.vocabulary.court}. Cada una tiene su QR para que el cliente pida desde su lugar.",
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textMuted,
@@ -549,6 +557,7 @@ private fun SpaceDetailPage(
     onBack: () -> Unit,
     onEdit: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val state by viewModel.uiState
     AdminSectionPage(
         title = space.name,
@@ -563,7 +572,8 @@ private fun SpaceDetailPage(
         item {
             Text(
                 when (space.type) {
-                    SpaceType.COURT -> "Ponlo en la ${Venue.court}. Al escanearlo, el cliente pide y su pedido llega aquí."
+                    SpaceType.COURT ->
+                        "Ponlo en la ${venue.vocabulary.court}. Al escanearlo, el cliente pide y su pedido llega aquí."
                     SpaceType.BAR -> "Ponlo en la barra. Al escanearlo, el cliente pide y su pedido llega a la barra."
                     else -> "Ponlo en la mesa. Al escanearlo, el cliente pide y su pedido llega a esta mesa."
                 },
@@ -599,10 +609,11 @@ private fun CreateSheet(
     onCreateOne: (String, SpaceType, Int?) -> Unit,
     onCreateMany: (SpaceType, String, Int?, Int?, Int?) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     var many by remember { mutableStateOf(startWithMany) }
     var type by remember { mutableStateOf(SpaceType.TABLE) }
     var name by remember { mutableStateOf("") }
-    var prefix by remember { mutableStateOf(SpaceType.TABLE.label) }
+    var prefix by remember { mutableStateOf(SpaceType.TABLE.label(venue)) }
     var howMany by remember { mutableStateOf("6") }
     var from by remember { mutableStateOf("1") }
     var people by remember { mutableStateOf("") }
@@ -617,9 +628,10 @@ private fun CreateSheet(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             (if (many) SpaceType.batchTypes else SpaceType.entries).forEach { option ->
                 // Fuera de un boliche el mismo tipo sirve para canchas y pistas: que se encuentre.
-                val chip = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label
+                val chip =
+                    (if (option == SpaceType.COURT) venue.vocabulary.courtTypeChip else null) ?: option.label(venue)
                 ChipButton(label = chip, enabled = !saving, colors = colors, selected = option == type) {
-                    if (prefix == type.label) prefix = option.label
+                    if (prefix == type.label(venue)) prefix = option.label(venue)
                     type = option
                 }
             }
@@ -696,7 +708,7 @@ private fun CreateSheet(
             }
             AdminSheetError(error)
             AdminPrimaryButton(
-                title = "Crear $count ${spaceCountLabel(type, count)} con su QR",
+                title = "Crear $count ${spaceCountLabel(venue, type, count)} con su QR",
                 colors = colors,
                 busy = saving,
                 enabled = count in 1..SpaceRules.MAX_BATCH && prefix.isNotBlank(),
@@ -726,11 +738,12 @@ private fun CreateSheet(
 }
 
 private fun spaceCountLabel(
+    venue: VenueContext,
     type: SpaceType,
     count: Int,
 ): String {
-    val one = type.label.lowercase()
-    return if (count == 1) one else plural(type.label).lowercase()
+    val one = type.label(venue).lowercase()
+    return if (count == 1) one else plural(type.label(venue)).lowercase()
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -744,6 +757,7 @@ private fun EditSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val context = LocalContext.current
     var name by remember(space.id) { mutableStateOf(space.name) }
     var people by remember(space.id) { mutableStateOf(space.capacity?.toString().orEmpty()) }
@@ -766,7 +780,15 @@ private fun EditSheet(
             }
         }
     AdminSheet(
-        title = if (space.isCourt) "Editar ${Venue.court}" else "Editar ${space.type?.label?.lowercase() ?: "espacio"}",
+        title =
+            if (space.isCourt) {
+                "Editar ${venue.vocabulary.court}"
+            } else {
+                "Editar ${space.type
+                    ?.label(
+                        venue,
+                    )?.lowercase() ?: "espacio"}"
+            },
         colors = colors,
         busy = saving,
         onDismiss = onDismiss,
@@ -798,7 +820,9 @@ private fun EditSheet(
             ) {
                 SpaceType.entries.forEach { option ->
                     ChipButton(
-                        label = if (option == SpaceType.COURT && !Venue.isBowling) "Cancha o pista" else option.label,
+                        label =
+                            (if (option == SpaceType.COURT) venue.vocabulary.courtTypeChip else null)
+                                ?: option.label(venue),
                         enabled = !saving,
                         colors = colors,
                         selected =
@@ -861,7 +885,7 @@ private fun EditSheet(
                     onValueChange = { sport = it.take(40) },
                     label = "Deporte",
                     colors = colors,
-                    placeholder = if (Venue.isBowling) "Boliche" else "Pádel",
+                    placeholder = venue.vocabulary.courtExampleSport,
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -870,7 +894,7 @@ private fun EditSheet(
                     onValueChange = { surface = it.take(40) },
                     label = "Superficie",
                     colors = colors,
-                    placeholder = if (Venue.isBowling) "Madera sintética" else "Pasto sintético",
+                    placeholder = venue.vocabulary.courtExampleSurface,
                     enabled = !saving,
                     modifier = Modifier.weight(1f),
                 )
@@ -1123,10 +1147,11 @@ private fun ChargeSheet(
     onDismiss: () -> Unit,
     onCharge: (String) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     var received by remember { mutableStateOf(reservation.amount.removeSuffix(".00")) }
     AdminSheet(title = "Cobrar renta", colors = colors, busy = saving, onDismiss = onDismiss) {
         AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
-            AdminValueRow("Espacio", reservation.courtName ?: Venue.courtTitle, colors)
+            AdminValueRow("Espacio", reservation.courtName ?: venue.vocabulary.courtTitle, colors)
             reservation.customerName?.let { AdminValueRow("Cliente", it, colors) }
             reservation.players?.let { AdminValueRow("Jugadores", "$it", colors) }
             AdminValueRow("Horario", "Hoy · ${reservationTime(reservation)}", colors)
@@ -1184,13 +1209,14 @@ private fun RefundSheet(
     onDismiss: () -> Unit,
     onConfirm: (amount: String, reason: String) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     var amount by remember { mutableStateOf(reservation.amount.removeSuffix(".00")) }
     var reason by remember { mutableStateOf("") }
     val wire = MoneyInput.toWire(amount)
     val reasonOk = reason.trim().length in 3..240
     AdminSheet(title = "Cancelar renta pagada", colors = colors, busy = saving, onDismiss = onDismiss) {
         AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
-            AdminValueRow("Espacio", reservation.courtName ?: Venue.courtTitle, colors)
+            AdminValueRow("Espacio", reservation.courtName ?: venue.vocabulary.courtTitle, colors)
             reservation.customerName?.let { AdminValueRow("Cliente", it, colors) }
             reservation.players?.let { AdminValueRow("Jugadores", "$it", colors) }
             AdminValueRow("Horario", reservationTime(reservation), colors)
@@ -1215,7 +1241,8 @@ private fun RefundSheet(
             minLines = 2,
         )
         AdminHint(
-            "La ${Venue.court} queda libre. Se devuelve por donde pagó: saldo a su cartera, efectivo de la caja " +
+            "La ${venue.vocabulary.court} queda libre. " +
+                "Se devuelve por donde pagó: saldo a su cartera, efectivo de la caja " +
                 "y tarjeta queda pendiente para Caja. Pon 0 si no se devuelve nada.",
             colors,
         )
@@ -1363,6 +1390,7 @@ private fun durationChipLabel(minutes: Int): String =
         minutes % 60 == 0 -> "${minutes / 60} h"
         else -> "${minutes / 60} h ${minutes % 60}"
     }
+
 private val ReservationTimeFormat = DateTimeFormatter.ofPattern("HH:mm")
 
 private fun reservationTime(reservation: Reservation): String {

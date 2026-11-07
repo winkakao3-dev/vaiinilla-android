@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
@@ -65,6 +66,7 @@ fun CheckoutDestinationPicker(
     spaceType: String? = null,
     spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
 ) {
+    val venue = LocalVenueContext.current
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -80,8 +82,8 @@ fun CheckoutDestinationPicker(
         )
         if (showInSpace) {
             DestinationOption(
-                title = SpaceCopy.destinationTitle(spaceType),
-                subtitle = SpaceCopy.destinationSubtitle(spaceType, spaceDelivery),
+                title = SpaceCopy.destinationTitle(venue, spaceType),
+                subtitle = SpaceCopy.destinationSubtitle(venue, spaceType, spaceDelivery),
                 detail = selectedSpaceName.ifBlank { "Dentro del establecimiento" },
                 icon = Icons.Outlined.Restaurant,
                 selected = selected == OrderDestination.IN_SPACE,
@@ -138,10 +140,11 @@ fun CheckoutSpacePicker(
     modifier: Modifier = Modifier,
     spaceType: String? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            SpaceCopy.pickPrompt(spaceType),
+            SpaceCopy.pickPrompt(venue, spaceType),
             color = colors.ink,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,

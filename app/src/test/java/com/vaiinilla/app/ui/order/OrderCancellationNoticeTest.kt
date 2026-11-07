@@ -5,12 +5,15 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** H04: el cliente lee quién rechazó su pedido y por qué, en la lista y en la pantalla de recogida. */
 class OrderCancellationNoticeTest {
+    private val venue = VenueContext.STANDARD
+
     @Test
     fun `Cocina rechaza con motivo y el cliente lo lee`() {
         val notice = orderCancellationNotice(order(OrderState.CANCELED, role = "cocina", reason = "  Se acabó el pan "))
@@ -43,9 +46,12 @@ class OrderCancellationNoticeTest {
     fun `la pantalla de recogida dice el motivo del rechazo`() {
         assertEquals(
             "Cocina canceló tu pedido: Se acabó el pan",
-            pickupHint(order(OrderState.CANCELED, role = "cocina", reason = "Se acabó el pan")),
+            pickupHint(venue, order(OrderState.CANCELED, role = "cocina", reason = "Se acabó el pan")),
         )
-        assertEquals("Este pedido se canceló.", pickupHint(order(OrderState.CANCELED, role = "cocina", reason = null)))
+        assertEquals(
+            "Este pedido se canceló.",
+            pickupHint(venue, order(OrderState.CANCELED, role = "cocina", reason = null)),
+        )
     }
 
     private fun order(

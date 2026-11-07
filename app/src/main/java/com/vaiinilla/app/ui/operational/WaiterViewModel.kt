@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -17,7 +18,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceDelivery
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.offline.OfflineStaffScope
@@ -154,7 +155,10 @@ class WaiterViewModel
         private val createOrder: CreateRemoteOrderUseCase,
         private val offlineOrders: OfflineStaffOrderQueue,
         private val rescuer: OfflineStaffOrderRescuer,
+        private val venueContext: VenueContextStore,
     ) : ViewModel() {
+        private val venue: VenueContext get() = venueContext.current
+
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
 
@@ -872,7 +876,7 @@ class WaiterViewModel
                                 ?.takeIf { it != "0.00" }
                                 ?.let { " · cambio $$it" }
                                 .orEmpty()
-                        showToast("${Venue.courtTitle} rentada$change")
+                        showToast("${venue.vocabulary.courtTitle} rentada$change")
                     },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )

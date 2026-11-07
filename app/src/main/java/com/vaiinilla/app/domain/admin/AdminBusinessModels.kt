@@ -3,7 +3,7 @@ package com.vaiinilla.app.domain.admin
 import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
@@ -463,8 +463,8 @@ enum class SpaceType(
     SEAT("asiento", "Asiento"),
     ;
 
-    /** En un boliche la cancha se llama pista ([Venue]). */
-    val label: String get() = if (this == COURT) Venue.courtTitle else baseLabel
+    /** En un boliche la cancha se llama pista. */
+    fun label(venue: VenueContext): String = if (this == COURT) venue.vocabulary.courtTitle else baseLabel
 
     companion object {
         fun fromWire(value: String): SpaceType? = entries.firstOrNull { it.wire == value }

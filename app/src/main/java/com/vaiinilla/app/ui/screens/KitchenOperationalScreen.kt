@@ -79,6 +79,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -841,11 +842,12 @@ private fun KitchenOrderCard(
     /** El negocio solo prepara lo cobrado y este pedido sigue por cobrar: no hay «Empezar a preparar» (R14). */
     waitsForCashier: Boolean = false,
 ) {
+    val venue = LocalVenueContext.current
     val tab = kitchenTabOf(order)
     val summary = order.summary
     val place =
         buildList {
-            add(SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar))
+            add(SpaceCopy.staffDestination(venue, summary.destination, summary.space, summary.pickUpAtBar))
             staffCustomerName(order)?.let(::add)
             when {
                 summary.state == OrderState.PENDING_PAYMENT && !summary.payAtEnd -> add("falta pagar")

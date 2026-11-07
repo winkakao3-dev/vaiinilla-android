@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.guest.GuestIdentityRequiredException
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.domain.model.CourtDay
@@ -17,7 +18,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.ReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -66,16 +67,15 @@ data class ReservationsUiState(
         get() = day?.courts?.firstOrNull { it.id == selectedCourtId }
 
     /** R11: en un boliche la renta pide cuántos juegan (1 a la capacidad de la pista). */
-    val playersReady: Boolean
-        get() = !Venue.isBowling || players in 1..(selectedCourt?.maxPlayers ?: ReservationSlots.MAX_PLAYERS)
+    fun playersReady(venue: VenueContext): Boolean =
+        !venue.capabilities.asksPlayerCount || players in 1..(selectedCourt?.maxPlayers ?: ReservationSlots.MAX_PLAYERS)
 
-    val canReserve: Boolean
-        get() =
-            selectedCourt != null &&
-                selectedDuration != null &&
-                (rentNow || selectedStart != null) &&
-                playersReady &&
-                !working
+    fun canReserve(venue: VenueContext): Boolean =
+        selectedCourt != null &&
+            selectedDuration != null &&
+            (rentNow || selectedStart != null) &&
+            playersReady(venue) &&
+            !working
 }
 
 /**
@@ -88,7 +88,10 @@ class ReservationsViewModel
     constructor(
         private val repository: ReservationRepository,
         private val guestSession: GuestReservationSession,
+        private val venueContext: VenueContextStore,
     ) : ViewModel() {
+        private val venue: VenueContext get() = venueContext.current
+
         private val _uiState = mutableStateOf(ReservationsUiState())
         val uiState: State<ReservationsUiState> = _uiState
 
@@ -162,7 +165,14 @@ class ReservationsViewModel
                     guestEntry = needsEntry,
                     accountRequired = accountFirst,
                     loading = next != null && !needsEntry && !accountFirst,
-                    error = if (next == null) "Elige un lugar para ver sus ${Venue.courts}." else _uiState.value.error,
+                    error =
+                        if (next ==
+                            null
+                        ) {
+                            "Elige un lugar para ver sus ${venue.vocabulary.courts}."
+                        } else {
+                            _uiState.value.error
+                        },
                 )
             if (next != null && !needsEntry && !accountFirst) startPolling()
         }
@@ -292,7 +302,7 @@ class ReservationsViewModel
                     selectedStart = null,
                     selectedDuration = durations.firstOrNull(),
                 )
-            if (_uiState.value.playersReady) reserve()
+            if (_uiState.value.playersReady(venue)) reserve()
         }
 
         /** Hoja de «Rentar»: elige «Ahora» sin apartar todavía; se aparta con su botón, ya con tiempo y jugadores. */
@@ -345,13 +355,13 @@ class ReservationsViewModel
         /** Aparta la cancha 10 minutos y abre la elección del pago. */
         fun reserve() {
             val state = _uiState.value
-            if (!state.canReserve) return
+            if (!state.canReserve(venue)) return
             val access = reservationAccess ?: return
             val court = state.selectedCourt ?: return
             val minutes = state.selectedDuration ?: return
             _uiState.value = state.copy(working = true, error = null, notice = null)
             val start = if (state.rentNow) null else state.selectedStart
-            val players = state.players.takeIf { it > 0 && Venue.isBowling }
+            val players = state.players.takeIf { it > 0 && venue.capabilities.asksPlayerCount }
             val signature = arrayOf<Any?>("reserve", court.id, start, minutes, players)
             viewModelScope.launch {
                 val result =
@@ -471,7 +481,9 @@ class ReservationsViewModel
                                 working = false,
                                 pending = null,
                                 pendingStartsNow = false,
-                                error = "${error.userMessage()} La ${Venue.court} quedó libre: vuelve a elegirla.",
+                                error =
+                                    "${error.userMessage()} La ${venue.vocabulary.court} quedó libre: " +
+                                        "vuelve a elegirla.",
                             )
                     },
                 )
@@ -578,7 +590,7 @@ class ReservationsViewModel
             val day = dayResult.getOrNull()?.takeIf { dateStillSelected }
             val dayError =
                 dayResult.exceptionOrNull()?.takeIf { dateStillSelected }?.let {
-                    "No pudimos cargar las ${Venue.courts}. ${it.userMessage()}"
+                    "No pudimos cargar las ${venue.vocabulary.courts}. ${it.userMessage()}"
                 }
             // Un sondeo que sí cargó quita el aviso de carga de antes; el de una acción (apartar, pagar) se queda.
             val keptError = current.error?.takeUnless { day != null && it == loadError }
@@ -612,8 +624,9 @@ class ReservationsViewModel
 
         private fun paidNotice(method: ReservationPaymentMethod): String =
             when (method) {
-                ReservationPaymentMethod.BALANCE -> "¡Listo! Tu ${Venue.court} quedó pagada."
-                ReservationPaymentMethod.CARD -> "Completa el pago con tarjeta para confirmar tu ${Venue.court}."
+                ReservationPaymentMethod.BALANCE -> "¡Listo! Tu ${venue.vocabulary.court} quedó pagada."
+                ReservationPaymentMethod.CARD ->
+                    "Completa el pago con tarjeta para confirmar tu ${venue.vocabulary.court}."
                 ReservationPaymentMethod.CASH -> "Paga en caja antes de que venza el apartado."
             }
 

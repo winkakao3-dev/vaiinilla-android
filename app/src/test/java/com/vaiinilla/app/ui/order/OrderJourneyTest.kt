@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.components.moneyLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,6 +23,8 @@ import org.junit.Test
 import java.time.Instant
 
 class OrderJourneyTest {
+    private val venue = VenueContext.STANDARD
+
     @Test
     fun eachOrderFindsItsJourney() {
         assertEquals(OrderJourney.COUNTER, orderJourney(order(OrderState.PAID)))
@@ -58,7 +61,7 @@ class OrderJourneyTest {
     @Test
     fun stepsNameWhatHappensForEachType() {
         val bar = order(OrderState.PREPARING, space = "barra")
-        assertEquals(listOf("Pagado", "Preparando", "Listo", "Entregado"), journeySteps(bar, OrderJourney.BAR))
+        assertEquals(listOf("Pagado", "Preparando", "Listo", "Entregado"), journeySteps(venue, bar, OrderJourney.BAR))
         assertEquals(1, journeyStepIndex(bar, OrderJourney.BAR))
         // Listo cierra «Listo» y espera el último paso, como Doop P2 y P7; en asiento, listo ya es «En camino».
         // Listo en mesa o cancha se queda en «Listo»: «En tu mesa» se marca hasta que el mesero lo entrega.
@@ -69,14 +72,14 @@ class OrderJourneyTest {
         assertEquals(2, journeyStepIndex(order(OrderState.READY, space = "asiento"), OrderJourney.SEAT))
 
         val cash = order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)
-        assertEquals("Por pagar", journeySteps(cash, OrderJourney.COUNTER).first())
+        assertEquals("Por pagar", journeySteps(venue, cash, OrderJourney.COUNTER).first())
         assertEquals(0, journeyStepIndex(cash, OrderJourney.COUNTER))
 
         val home = order(OrderState.ON_THE_WAY, home = true)
         assertEquals(3, journeyStepIndex(home, OrderJourney.HOME_DELIVERY))
         assertEquals(5, journeyStepIndex(order(OrderState.DELIVERED, home = true), OrderJourney.HOME_DELIVERY))
 
-        assertTrue(journeySteps(order(OrderState.CANCELED), OrderJourney.COUNTER).isEmpty())
+        assertTrue(journeySteps(venue, order(OrderState.CANCELED), OrderJourney.COUNTER).isEmpty())
         assertEquals(-1, journeyStepIndex(order(OrderState.CANCELED), OrderJourney.COUNTER))
     }
 
@@ -130,14 +133,14 @@ class OrderJourneyTest {
         val bar = order(OrderState.PREPARING, space = "barra")
         assertEquals(
             JourneyCaption("Preparando · en la barra", CaptionTone.WAITING),
-            journeyCaption(bar, OrderJourney.BAR),
+            journeyCaption(venue, bar, OrderJourney.BAR),
         )
         assertEquals("Te lo entregan en la barra.", journeyHeadline(bar, OrderJourney.BAR))
         assertEquals("Pedido", journeyNoun(OrderJourney.BAR))
-        assertEquals("en la barra", journeyKindLabel(OrderJourney.BAR))
+        assertEquals("en la barra", journeyKindLabel(venue, OrderJourney.BAR))
 
         val ready = order(OrderState.READY)
-        assertEquals(CaptionTone.DONE, journeyCaption(ready, OrderJourney.COUNTER).tone)
+        assertEquals(CaptionTone.DONE, journeyCaption(venue, ready, OrderJourney.COUNTER).tone)
         assertEquals(
             "Di tu folio o muestra este código. No tienes que formarte.",
             journeyLead(ready, OrderJourney.COUNTER),
@@ -146,16 +149,16 @@ class OrderJourneyTest {
         assertEquals("Di tu folio 42 en la barra.", journeyLead(ready.copy(pickupToken = null), OrderJourney.COUNTER))
 
         val cash = order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)
-        assertEquals("Por pagar · en Caja", journeyCaption(cash, OrderJourney.COUNTER).text)
+        assertEquals("Por pagar · en Caja", journeyCaption(venue, cash, OrderJourney.COUNTER).text)
         assertEquals("Paga en Caja y empiezan tu pedido.", journeyHeadline(cash, OrderJourney.COUNTER))
 
         val court = order(OrderState.READY, space = "cancha")
         assertEquals("Está listo. Te lo llevan a tu Cancha 2.", journeyHeadline(court, OrderJourney.COURT_FOOD))
-        assertEquals("Listo · te lo llevan", journeyCaption(court, OrderJourney.COURT_FOOD).text)
+        assertEquals("Listo · te lo llevan", journeyCaption(venue, court, OrderJourney.COURT_FOOD).text)
 
         val canceled = order(OrderState.CANCELED)
         val byCashier = canceled.copy(summary = canceled.summary.copy(canceledByRole = "cajero"))
-        assertEquals(CaptionTone.PROBLEM, journeyCaption(byCashier, OrderJourney.COUNTER).tone)
+        assertEquals(CaptionTone.PROBLEM, journeyCaption(venue, byCashier, OrderJourney.COUNTER).tone)
         assertEquals("Cancelaron tu pedido. Te regresan todo.", journeyHeadline(byCashier, OrderJourney.COUNTER))
         assertEquals("${moneyLabel("10.00")} a tu saldo Vaiinilla", journeyMoneyBack(byCashier))
         assertNull(journeyLead(byCashier, OrderJourney.COUNTER))
@@ -224,10 +227,10 @@ class OrderJourneyTest {
         val today = java.time.LocalDate.parse("2026-11-05")
         val tomorrow = order(OrderState.READY, date = "2026-11-06")
         assertEquals(1, journeyStepIndex(tomorrow, OrderJourney.SCHOOL, today))
-        assertEquals("Apartado · para el vie 6 nov", journeyCaption(tomorrow, OrderJourney.SCHOOL, today).text)
+        assertEquals("Apartado · para el vie 6 nov", journeyCaption(venue, tomorrow, OrderJourney.SCHOOL, today).text)
         val onTheDay = order(OrderState.READY, date = "2026-11-05")
         assertEquals(3, journeyStepIndex(onTheDay, OrderJourney.SCHOOL, today))
-        assertEquals("Listo · en el comedor", journeyCaption(onTheDay, OrderJourney.SCHOOL, today).text)
+        assertEquals("Listo · en el comedor", journeyCaption(venue, onTheDay, OrderJourney.SCHOOL, today).text)
         assertEquals(2, journeyStepIndex(order(OrderState.PREPARING, date = "2026-11-05"), OrderJourney.SCHOOL, today))
     }
 
@@ -276,9 +279,9 @@ class OrderJourneyTest {
                 payBy = Instant.parse("2026-11-03T23:30:00Z"),
                 summary = canceled.summary.copy(cancelReasonCode = "sin_respuesta_del_negocio"),
             )
-        assertEquals("No pudieron aceptarlo", journeyCaption(noAnswer, OrderJourney.HOME_DELIVERY).text)
+        assertEquals("No pudieron aceptarlo", journeyCaption(venue, noAnswer, OrderJourney.HOME_DELIVERY).text)
         val unpaid = noAnswer.copy(summary = noAnswer.summary.copy(cancelReasonCode = "anticipo_sin_pagar"))
-        assertEquals("Venció el plazo de pago", journeyCaption(unpaid, OrderJourney.HOME_DELIVERY).text)
+        assertEquals("Venció el plazo de pago", journeyCaption(venue, unpaid, OrderJourney.HOME_DELIVERY).text)
         assertTrue(journeyHeadline(unpaid, OrderJourney.HOME_DELIVERY).startsWith("Se pasó el plazo para pagar tu "))
     }
 

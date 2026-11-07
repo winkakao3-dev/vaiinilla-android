@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.vaiinilla.app.GuestReservationTest.FakeApi
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.guest.GuestIdentityRequiredException
 import com.vaiinilla.app.data.guest.GuestOrderGateway
@@ -124,11 +125,12 @@ class GuestOrderGatewayTest {
     private fun gateway(api: FakeApi) =
         GuestOrderGateway(
             apiClient = api,
-            guestSession = GuestReservationSession(api, store),
+            guestSession = GuestReservationSession(api, store, VenueContextStore()),
             store = store,
             orderContractJson = OrderContractJson(),
             pickupTokenStore = NoPickupTokens,
             parser = ContractResponseParser(),
+            venueContext = VenueContextStore(),
         )
 
     private fun request() =

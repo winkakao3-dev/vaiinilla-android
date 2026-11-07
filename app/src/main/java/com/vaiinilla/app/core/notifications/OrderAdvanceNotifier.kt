@@ -16,6 +16,7 @@ import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 
 /**
@@ -259,6 +260,7 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notify(
         context: Context,
+        venue: VenueContext,
         orderId: String,
         folio: Int,
         newState: OrderState,
@@ -280,6 +282,7 @@ object OrderAdvanceNotifier {
                 rentalText != null -> rentalText
                 else ->
                     messageFor(
+                        venue,
                         newState,
                         inSpace,
                         spaceType,
@@ -390,6 +393,7 @@ object OrderAdvanceNotifier {
     internal const val PICK_UP_AT_BAR_TEXT = "Tu pedido está listo, pasa a la barra."
 
     internal fun messageFor(
+        venue: VenueContext,
         state: OrderState,
         inSpace: Boolean = false,
         spaceType: String? = null,
@@ -411,13 +415,14 @@ object OrderAdvanceNotifier {
                 when {
                     // «Pasa por él»: el cliente pidió en su lugar pero lo recoge en la barra.
                     pickUpAtBar -> PICK_UP_AT_BAR_TEXT
-                    inSpace -> SpaceCopy.readyInSpace(spaceType)
+                    inSpace -> SpaceCopy.readyInSpace(venue, spaceType)
                     homeDelivery -> "Tu pedido está listo para salir."
                     else -> "Tu pedido está listo. Recógelo en la barra."
                 }
             // En un lugar, «ya está en tu mesa» solo cuando el mesero marca que lo entregó, no al estar listo.
-            OrderState.DELIVERED -> SpaceCopy.deliveredInSpace(spaceType).takeIf { inSpace && !pickUpAtBar }
-                ?: "Pedido entregado. Buen provecho."
+            OrderState.DELIVERED ->
+                SpaceCopy.deliveredInSpace(venue, spaceType).takeIf { inSpace && !pickUpAtBar }
+                    ?: "Pedido entregado. Buen provecho."
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."
             OrderState.EXPIRED -> "Tu pedido expiró."
