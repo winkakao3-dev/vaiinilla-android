@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,7 +155,7 @@ private fun ColumnScope.HotelStayCodeForm(
 ) {
     val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
-    var code by remember { mutableStateOf(initialCode) }
+    var code by rememberSaveable { mutableStateOf(initialCode) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(autoFocus) { if (autoFocus) runCatching { focus.requestFocus() } }
     val complete = code.length == STAY_CODE_LENGTH

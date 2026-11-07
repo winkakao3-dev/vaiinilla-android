@@ -39,6 +39,7 @@
     "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminTakeOrderTab.kt": 3
   },
   "timer_largo_en_pantalla": {
+    "app/src/main/java/com/vaiinilla/app/ui/hotel/staff/HotelKitchenBoard.kt": 1,
     "app/src/main/java/com/vaiinilla/app/ui/screens/KitchenAge.kt": 2
   }
 }

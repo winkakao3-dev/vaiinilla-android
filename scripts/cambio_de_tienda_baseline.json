@@ -1,7 +1,13 @@
 {
  "actionNotice": "POR REVISAR",
+ "cashChangeNotice": "POR REVISAR",
+ "cashDrawer": "POR REVISAR",
  "cashOpenedAt": "POR REVISAR",
  "cashOpeningAmount": "POR REVISAR",
+ "cashSessionCheckFailed": "POR REVISAR",
+ "cashSessionOpen": "POR REVISAR",
+ "catalog": "POR REVISAR",
+ "catalogBusy": "POR REVISAR",
  "catalogFailed": "POR REVISAR",
  "closeCash": "POR REVISAR",
  "collectedToday": "POR REVISAR",
@@ -10,9 +16,14 @@
  "kitchenPreparesUnpaid": "POR REVISAR",
  "lastSyncedAt": "POR REVISAR",
  "loading": "bandera de carga, no es dato del negocio",
+ "pendingReady": "POR REVISAR",
+ "pendingWalletReload": "POR REVISAR",
  "storeImageBusy": "POR REVISAR",
  "storeImageNotice": "POR REVISAR",
  "storeImages": "POR REVISAR",
  "suggestedCashFloat": "POR REVISAR",
- "unsyncedOfflineCash": "POR REVISAR"
+ "unsyncedOfflineCash": "POR REVISAR",
+ "walletClients": "POR REVISAR",
+ "walletReloadReceipt": "POR REVISAR",
+ "walletSearchLoading": "POR REVISAR"
 }
