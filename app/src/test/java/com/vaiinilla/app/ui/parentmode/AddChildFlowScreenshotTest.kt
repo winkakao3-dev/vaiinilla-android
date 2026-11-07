@@ -90,6 +90,7 @@ class AddChildFlowScreenshotTest {
         show(SchoolGuardianship(), startsWithSchoolCode = true)
         composeTestRule.onNodeWithTag("parent-unlock-field").performTextInput("SAND")
         settle()
+        composeTestRule.onNodeWithTag("parent-unlock-field").assertExists()
         captureScreenRoboImage("lugar/l13_codigo_escuela.png")
     }
 
@@ -106,6 +107,8 @@ class AddChildFlowScreenshotTest {
         composeTestRule.onNodeWithText("Grupo").performTextInput("3°B")
         composeTestRule.onNodeWithTag("add-child-consent").performTouchInput { click(Offset(100f, centerY)) }
         settle()
+        composeTestRule.onNodeWithText("¿Quién es tu hijo?").assertExists()
+        composeTestRule.onNodeWithTag("add-child-submit").assertExists()
         captureScreenRoboImage("lugar/e06_quien_es_tu_hijo.png")
     }
 
@@ -121,6 +124,7 @@ class AddChildFlowScreenshotTest {
         fillAndSubmit(child.name)
         waitForTag("added-child-reload")
         settle()
+        composeTestRule.onNodeWithTag("added-child-reload").assertExists()
         captureScreenRoboImage("lugar/l15_primera_recarga.png")
     }
 
@@ -136,6 +140,7 @@ class AddChildFlowScreenshotTest {
         fillAndSubmit(child.name)
         waitForTag("added-child-done")
         settle()
+        composeTestRule.onNodeWithTag("added-child-done").assertExists()
         captureScreenRoboImage("lugar/l16_esperando_escuela.png")
     }
 

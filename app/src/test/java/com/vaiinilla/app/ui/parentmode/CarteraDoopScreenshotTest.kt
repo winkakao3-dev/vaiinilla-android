@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.parentmode
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -17,6 +18,7 @@ import com.vaiinilla.app.domain.repository.CatalogRepository
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,6 +41,24 @@ class CarteraDoopScreenshotTest {
 
     private fun dark(content: @Composable () -> Unit) =
         composeTestRule.setContent { ScreenshotTheme(mode = VaiinillaThemeMode.Dark, content = content) }
+
+    /** Cuenta los nodos con texto sin esperar a que la pantalla quede quieta: las animaciones infinitas nunca la dejan. */
+    private fun textNodeCount(): Int {
+        val auto = composeTestRule.mainClock.autoAdvance
+        composeTestRule.mainClock.autoAdvance = false
+        try {
+            return composeTestRule.onAllNodes(hasText("", substring = true)).fetchSemanticsNodes().size
+        } finally {
+            composeTestRule.mainClock.autoAdvance = auto
+        }
+    }
+
+    /** La captura solo compara con una imagen si Roborazzi corre en modo verify; esta comprobación falla siempre que la pantalla sale vacía. */
+    private fun capture(name: String) {
+        val withText = textNodeCount()
+        assertTrue("La pantalla $name salió sin texto", withText >= MIN_TEXT_NODES)
+        captureScreenRoboImage("lugar/$name.png")
+    }
 
     private fun settle(ms: Long = 1_500) {
         composeTestRule.mainClock.advanceTimeBy(ms)
@@ -80,7 +100,7 @@ class CarteraDoopScreenshotTest {
             )
         }
         settle()
-        captureScreenRoboImage("lugar/e05_primera_vez.png")
+        capture("e05_primera_vez")
     }
 
     @Test
@@ -93,7 +113,7 @@ class CarteraDoopScreenshotTest {
             )
         dark { ChildAccountContent(state = state, onChildChanged = {}, onUnlinked = {}, onBack = {}) }
         settle()
-        captureScreenRoboImage("lugar/e07_ficha.png")
+        capture("e07_ficha")
     }
 
     @Test
@@ -110,7 +130,7 @@ class CarteraDoopScreenshotTest {
             )
         }
         settle()
-        captureScreenRoboImage("lugar/e11_seguridad.png")
+        capture("e11_seguridad")
     }
 
     private val sofia =
@@ -150,7 +170,7 @@ class CarteraDoopScreenshotTest {
             )
         }
         settle()
-        captureScreenRoboImage("lugar/e08_controles.png")
+        capture("e08_controles")
     }
 
     @Test
@@ -169,7 +189,7 @@ class CarteraDoopScreenshotTest {
             )
         }
         settle()
-        captureScreenRoboImage("lugar/e09_recargar.png")
+        capture("e09_recargar")
     }
 
     @Test
@@ -220,6 +240,10 @@ class CarteraDoopScreenshotTest {
         settle()
         composeTestRule.onNodeWithTag("week-product-10").performClick()
         settle()
-        captureScreenRoboImage("lugar/e10_apartar.png")
+        capture("e10_apartar")
+    }
+
+    private companion object {
+        const val MIN_TEXT_NODES = 3
     }
 }

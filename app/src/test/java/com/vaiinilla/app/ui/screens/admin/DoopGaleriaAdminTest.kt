@@ -86,6 +86,7 @@ import com.vaiinilla.app.ui.screens.rememberOperationalColors
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -413,7 +414,28 @@ class DoopGaleriaAdminTest {
 
     private fun tapLast(text: String) = press(matching(text).onLast())
 
-    private fun shot(name: String) = captureScreenRoboImage("galeria/$name.png")
+    /** Cuenta los nodos con texto sin esperar a que la pantalla quede quieta: las animaciones infinitas nunca la dejan. */
+    private fun textNodeCount(): Int {
+        val auto = rule.mainClock.autoAdvance
+        rule.mainClock.autoAdvance = false
+        try {
+            return rule.onAllNodes(hasText("", substring = true)).fetchSemanticsNodes().size
+        } finally {
+            rule.mainClock.autoAdvance = auto
+        }
+    }
+
+    /** La captura solo compara con una imagen si Roborazzi corre en modo verify; esta comprobación falla siempre que la pantalla sale vacía. */
+    private fun shot(
+        name: String,
+        checkContent: Boolean = true,
+    ) {
+        if (checkContent) {
+            val withText = textNodeCount()
+            assertTrue("La pantalla $name salió sin texto", withText >= MIN_TEXT_NODES)
+        }
+        captureScreenRoboImage("galeria/$name.png")
+    }
 
     @Test fun a07_inicio() {
         screen(home())
@@ -961,7 +983,8 @@ class DoopGaleriaAdminTest {
         rule.mainClock.autoAdvance = false
         rule.onAllNodes(target).onLast().performClick()
         rule.mainClock.advanceTimeBy(1_500)
-        shot("a59_cerrar_dia")
+        // Con el cursor parpadeando Compose nunca queda quieto y leer nodos esperaría para siempre.
+        shot("a59_cerrar_dia", checkContent = false)
     }
 
     @Test fun a60_pegar_lista() {
@@ -1013,5 +1036,9 @@ class DoopGaleriaAdminTest {
         rule.waitForIdle()
         schoolScrollTo("Volver a abrir")
         shot("a63_dia_sin_servicio")
+    }
+
+    private companion object {
+        const val MIN_TEXT_NODES = 3
     }
 }
