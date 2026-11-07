@@ -58,6 +58,8 @@ data class VenueCapabilities(
     val cartBarViewsOrder: Boolean,
     /** El personal trabaja habitaciones: tablero de room service en Cocina, habitaciones en Mesero y recepción en Caja. */
     val staffWorksRooms: Boolean,
+    /** El administrador ve el resumen del hotel, sus habitaciones y su configuración. */
+    val hasHotelAdmin: Boolean,
 )
 
 /**
@@ -111,6 +113,7 @@ data class VenueContext(
             waiterIsReception = isHotel,
             cartBarViewsOrder = isHotel,
             staffWorksRooms = isHotel,
+            hasHotelAdmin = isHotel,
         )
 
     /** Aviso de los últimos minutos de una renta. */
