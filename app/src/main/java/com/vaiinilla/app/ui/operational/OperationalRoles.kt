@@ -10,19 +10,27 @@ import com.vaiinilla.app.domain.model.OperationalRole
 class OperationalRoles(
     private val client: OperationalViewModel,
     private val cashier: CashierViewModel,
+    private val kitchen: KitchenViewModel,
 ) {
     /** El rol activo, o null si nadie lo tiene (en Modos o sin entrar). Se lee en composición. */
     val activeRole: OperationalRole?
-        get() = client.uiState.value.role ?: cashier.uiState.value.role
+        get() = client.uiState.value.role ?: cashier.uiState.value.role ?: kitchen.uiState.value.role
 
     fun enter(role: OperationalRole) {
         when (role) {
             OperationalRole.CASHIER -> {
                 client.releaseRole()
+                kitchen.release()
                 cashier.start()
+            }
+            OperationalRole.KITCHEN -> {
+                client.releaseRole()
+                cashier.release()
+                kitchen.start()
             }
             else -> {
                 cashier.release()
+                kitchen.release()
                 client.setRole(role)
             }
         }
@@ -32,8 +40,14 @@ class OperationalRoles(
     fun clearAll() {
         client.clearRole()
         cashier.clearRole()
+        kitchen.clearRole()
     }
 
     /** A quién le avisa la pantalla de [role] que está a la vista. */
-    fun presence(role: OperationalRole): OperationalPresence = if (role == OperationalRole.CASHIER) cashier else client
+    fun presence(role: OperationalRole): OperationalPresence =
+        when (role) {
+            OperationalRole.CASHIER -> cashier
+            OperationalRole.KITCHEN -> kitchen
+            else -> client
+        }
 }

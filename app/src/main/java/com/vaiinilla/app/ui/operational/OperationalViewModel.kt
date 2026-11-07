@@ -313,22 +313,6 @@ class OperationalViewModel
             return guestOrders.list(slug)
         }
 
-        private var kitchenPolicyLoaded = false
-
-        private fun refreshKitchenPolicy(generation: Long) {
-            kitchenPolicyLoaded = true
-            viewModelScope.launch {
-                val status = withContext(Dispatchers.IO) { catalogRepository.getOperationalStatus() }.getOrNull()
-                if (generation != roleGeneration || _uiState.value.role != OperationalRole.KITCHEN) return@launch
-                if (status == null) {
-                    // Sin respuesta se vuelve a intentar en el siguiente sondeo; se queda lo último que se supo.
-                    kitchenPolicyLoaded = false
-                    return@launch
-                }
-                _uiState.value = _uiState.value.copy(kitchenPreparesUnpaid = status.kitchenPreparesUnpaid)
-            }
-        }
-
         fun refresh() {
             val role = _uiState.value.role ?: return
             val generation = roleGeneration
@@ -370,9 +354,6 @@ class OperationalViewModel
             // El personal pide cambios, pero el servidor no avisa de lo que dejó de ser suyo (cobrado por otro
             // cajero, cancelado, expirado): cada cierto tiempo se pide la lista completa y se concilia.
             val fullSync = role != OperationalRole.CLIENT && isFullSyncDue()
-            // Cocina relee si el negocio prepara lo que falta cobrar (R14): al entrar y con cada sincronización
-            // completa, no en cada sondeo.
-            if (role == OperationalRole.KITCHEN && (fullSync || !kitchenPolicyLoaded)) refreshKitchenPolicy(generation)
             viewModelScope.launch {
                 // Client orders always fetch the full list (like iOS): the delta can miss
                 // transitions that don't bump updatedAt. Staff keeps the delta.
@@ -487,7 +468,6 @@ class OperationalViewModel
             fullSyncRequested = false
             alertedKeys.clear()
             staffBaselineReady = false
-            kitchenPolicyLoaded = false
         }
 
         /**
@@ -587,100 +567,9 @@ class OperationalViewModel
                 ?.summary
                 ?.version ?: fallback
 
-        fun startKitchen(
-            orderId: String,
-            expectedVersion: Int,
-        ) {
-            if (staleForTransition(orderId, OrderState.PREPARING)) return
-            val version = freshVersion(orderId, expectedVersion)
-            performMutation(successNotice = ::kitchenActionNotice) {
-                transitionOrder(
-                    orderId = orderId,
-                    targetState = OrderState.PREPARING,
-                    expectedVersion = version,
-                    idempotencyKey =
-                        MutationIdempotency.orderTransition(
-                            orderId,
-                            OrderState.PREPARING.wireValue,
-                            version,
-                            pickupToken = null,
-                        ),
-                ).getOrThrow()
-            }
-        }
-
         /** Drive-thru: el cliente avisa que ya llegó; Cocina y Caja lo ven en el pedido. */
         fun announceArrival(orderId: String) {
             performMutation { announceArrivalUseCase(orderId).getOrThrow() }
-        }
-
-        /** Cocina rechaza un pedido que no puede preparar; el cliente verá el motivo. */
-        fun rejectOrder(
-            orderId: String,
-            expectedVersion: Int,
-            reason: String,
-        ) {
-            val motivo = reason.trim()
-            if (motivo.length < MIN_REJECTION_REASON) {
-                showMutationError("Escribe el motivo del rechazo (mínimo $MIN_REJECTION_REASON letras).")
-                return
-            }
-            val version = freshVersion(orderId, expectedVersion)
-            performMutation(successNotice = ::kitchenActionNotice) {
-                cancelOrder(
-                    orderId = orderId,
-                    expectedVersion = version,
-                    reason = motivo,
-                    idempotencyKey = MutationIdempotency.orderCancellation(orderId, version, motivo),
-                ).getOrThrow()
-            }
-        }
-
-        /** Cocina quita un solo artículo que no puede preparar; el cliente verá el motivo y el total baja. */
-        fun rejectItem(
-            orderId: String,
-            itemId: Int,
-            expectedVersion: Int,
-            reason: String,
-        ) {
-            val motivo = reason.trim()
-            if (motivo.length < MIN_REJECTION_REASON) {
-                showMutationError("Escribe el motivo (mínimo $MIN_REJECTION_REASON letras).")
-                return
-            }
-            val version = freshVersion(orderId, expectedVersion)
-            performMutation(successNotice = ::itemRejectedNotice) {
-                cancelOrder
-                    .rejectItem(
-                        orderId = orderId,
-                        itemId = itemId,
-                        expectedVersion = version,
-                        reason = motivo,
-                        idempotencyKey = MutationIdempotency.itemRejection(orderId, itemId, version, motivo),
-                    ).getOrThrow()
-            }
-        }
-
-        fun markReady(
-            orderId: String,
-            expectedVersion: Int,
-        ) {
-            if (staleForTransition(orderId, OrderState.READY)) return
-            val version = freshVersion(orderId, expectedVersion)
-            performMutation(successNotice = ::kitchenActionNotice) {
-                transitionOrder(
-                    orderId = orderId,
-                    targetState = OrderState.READY,
-                    expectedVersion = version,
-                    idempotencyKey =
-                        MutationIdempotency.orderTransition(
-                            orderId,
-                            OrderState.READY.wireValue,
-                            version,
-                            pickupToken = null,
-                        ),
-                ).getOrThrow()
-            }
         }
 
         fun deliver(
@@ -866,69 +755,6 @@ class OperationalViewModel
         fun onRuntimeModeChanged() {
             if (_uiState.value.role == null) return
             refresh()
-        }
-
-        fun refreshCatalog() {
-            if (_uiState.value.role == OperationalRole.KITCHEN) refreshKitchenCatalog()
-        }
-
-        /** N03: Cocina lee el menú para apagar lo que se acabó; un fallo se queda en la hoja y no toca la fila de comandas. */
-        private fun refreshKitchenCatalog() {
-            val generation = roleGeneration
-            _uiState.value = _uiState.value.copy(catalogFailed = false)
-            viewModelScope.launch {
-                val result = withContext(Dispatchers.IO) { catalogRepository.getCatalog() }
-                if (generation != roleGeneration || _uiState.value.role != OperationalRole.KITCHEN) return@launch
-                _uiState.value =
-                    _uiState.value.copy(
-                        catalog = result.getOrNull() ?: _uiState.value.catalog,
-                        catalogFailed = result.isFailure,
-                    )
-            }
-        }
-
-        fun setProductAvailable(
-            productId: Int,
-            available: Boolean,
-        ) {
-            if (_uiState.value.catalogBusy) return
-            mutationErrorVisible = false
-            _uiState.value = _uiState.value.copy(catalogBusy = true, errorMessage = null)
-            viewModelScope.launch {
-                val result =
-                    withContext(Dispatchers.IO) {
-                        catalogRepository.setProductAvailability(
-                            productId = productId,
-                            available = available,
-                            idempotencyKey = UUID.randomUUID().toString(),
-                        )
-                    }
-                result.fold(
-                    onSuccess = { updated ->
-                        val catalog = _uiState.value.catalog
-                        _uiState.value =
-                            _uiState.value.copy(
-                                catalogBusy = false,
-                                catalog =
-                                    catalog?.copy(
-                                        products =
-                                            catalog.products.map { product ->
-                                                if (product.id == updated.id) updated else product
-                                            },
-                                    ),
-                            )
-                    },
-                    onFailure = { error ->
-                        _uiState.value = _uiState.value.copy(catalogBusy = false)
-                        showMutationError(
-                            error.toUserFacingMessage(
-                                "No se pudo actualizar la disponibilidad (producto $productId).",
-                            ),
-                        )
-                        refreshCatalog()
-                    },
-                )
-            }
         }
 
         fun applyGalleryClientOrders(

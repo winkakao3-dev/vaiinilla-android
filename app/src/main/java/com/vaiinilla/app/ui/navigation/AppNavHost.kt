@@ -100,6 +100,7 @@ import com.vaiinilla.app.ui.notices.ReceivedNoticesScreen
 import com.vaiinilla.app.ui.notices.ReceivedNoticesViewModel
 import com.vaiinilla.app.ui.operational.CashierContext
 import com.vaiinilla.app.ui.operational.CashierViewModel
+import com.vaiinilla.app.ui.operational.KitchenViewModel
 import com.vaiinilla.app.ui.operational.CashierUnpaidViewModel
 import com.vaiinilla.app.ui.operational.CourtsViewModel
 import com.vaiinilla.app.ui.operational.OperationalPresenceLifecycle
@@ -254,7 +255,11 @@ private fun AppNavHostContent(
     val orderFlowViewModel: OrderFlowViewModel = viewModel()
     val operationalViewModel: OperationalViewModel = viewModel()
     val cashierViewModel: CashierViewModel = viewModel()
-    val roles = remember(operationalViewModel, cashierViewModel) { OperationalRoles(operationalViewModel, cashierViewModel) }
+    val kitchenViewModel: KitchenViewModel = viewModel()
+    val roles =
+        remember(operationalViewModel, cashierViewModel, kitchenViewModel) {
+            OperationalRoles(operationalViewModel, cashierViewModel, kitchenViewModel)
+        }
     val adminViewModel: AdminViewModel = viewModel()
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
     val adminInventoryViewModel: com.vaiinilla.app.ui.admin.AdminInventoryViewModel = viewModel()
@@ -295,6 +300,7 @@ private fun AppNavHostContent(
     LaunchedEffect(venueType) { venueStore.update(venueType) }
     val operationalState by operationalViewModel.uiState
     val cashierState by cashierViewModel.uiState
+    val kitchenState by kitchenViewModel.uiState
     val activeRole = roles.activeRole
     val waiterState by waiterViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
@@ -2975,19 +2981,19 @@ private fun AppNavHostContent(
                     }
                 }
                 if (authorizedKitchen) {
-                    OperationalPresenceLifecycle(OperationalRole.KITCHEN, operationalViewModel)
+                    OperationalPresenceLifecycle(OperationalRole.KITCHEN, kitchenViewModel)
                     val reservedState by reservedOrdersViewModel.uiState
                     var reservedSheetOpen by rememberSaveable { mutableStateOf(false) }
                     LaunchedEffect(authorizedAccessState.activeContext?.establishmentId) {
                         reservedOrdersViewModel.refreshPolicy()
                     }
                     KitchenOperationalScreen(
-                        state = operationalState,
+                        state = kitchenState,
                         onBack = returnToModes(navController, roles),
-                        onStart = operationalViewModel::startKitchen,
-                        onReady = operationalViewModel::markReady,
-                        onReject = operationalViewModel::rejectOrder,
-                        onRejectItem = operationalViewModel::rejectItem,
+                        onStart = kitchenViewModel::startKitchen,
+                        onReady = kitchenViewModel::markReady,
+                        onReject = kitchenViewModel::rejectOrder,
+                        onRejectItem = kitchenViewModel::rejectItem,
                         onChangeMode =
                             if (authorizedAccessState.hasMultipleModes) {
                                 returnToModes(navController, roles)
@@ -3008,12 +3014,12 @@ private fun AppNavHostContent(
                             } else {
                                 null
                             },
-                        onActionNoticed = operationalViewModel::consumeActionNotice,
-                        onDismissError = operationalViewModel::dismissMutationError,
-                        onRefresh = operationalViewModel::refresh,
+                        onActionNoticed = kitchenViewModel::consumeActionNotice,
+                        onDismissError = kitchenViewModel::dismissMutationError,
+                        onRefresh = kitchenViewModel::refresh,
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
-                        onToggleProductAvailable = operationalViewModel::setProductAvailable,
-                        onLoadCatalog = operationalViewModel::refreshCatalog,
+                        onToggleProductAvailable = kitchenViewModel::setProductAvailable,
+                        onLoadCatalog = kitchenViewModel::refreshCatalog,
                     )
                     if (reservedSheetOpen) {
                         ReservedOrdersSheet(
