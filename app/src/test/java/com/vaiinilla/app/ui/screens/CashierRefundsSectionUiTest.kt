@@ -42,11 +42,11 @@ class CashierRefundsSectionUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Devolver $20").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Ya se lo di · $20").assertDoesNotExist()
         composeTestRule.onNodeWithText("1 devolución pendiente").assertIsDisplayed()
         composeTestRule.onNodeWithText("Ver").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Devolver $20").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ya se lo di · $20").assertIsDisplayed()
     }
 
     @Test
@@ -75,9 +75,9 @@ class CashierRefundsSectionUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Devolver $20").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Se quitó un artículo ya pagado · se pagó con saldo").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Devuelto en efectivo").performClick()
+        composeTestRule.onNodeWithText("Ya se lo di · $20").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Se quitó un artículo ya pagado", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ya se lo di · $20").performClick()
         assertEquals(RefundMethod.CASH, confirmed)
     }
 
@@ -101,12 +101,14 @@ class CashierRefundsSectionUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Devuelto en efectivo").assertIsNotEnabled()
-        composeTestRule.onNodeWithText("Otro").assertIsEnabled().performClick()
+        // Con la caja cerrada «Otro» ya viene elegido y el efectivo no se puede confirmar.
+        composeTestRule.onNodeWithText("En efectivo").performClick()
+        composeTestRule.onNodeWithText("Ya se lo di · $15").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Otro").performClick()
         assertEquals(null, confirmed)
-        composeTestRule.onNodeWithText("Confirmar devolución").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Escribe el motivo para confirmar").assertIsNotEnabled()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("Transferencia")
-        composeTestRule.onNodeWithText("Confirmar devolución").assertIsEnabled().performClick()
+        composeTestRule.onNodeWithText("Ya se lo di · $15").assertIsEnabled().performClick()
         assertEquals(RefundMethod.OTHER, confirmed)
         assertEquals("Transferencia", note)
     }
@@ -126,8 +128,10 @@ class CashierRefundsSectionUiTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Devuelto en terminal").assertIsEnabled()
-        composeTestRule.onNodeWithText("En efectivo").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("En terminal").performClick()
+        composeTestRule.onNodeWithText("Ya se lo di · $35").assertIsEnabled()
+        composeTestRule.onNodeWithText("En efectivo").performClick()
+        composeTestRule.onNodeWithText("Ya se lo di · $35").assertIsNotEnabled()
         composeTestRule.onNodeWithText("Abre la caja para devolver en efectivo.").assertIsDisplayed()
     }
 

@@ -305,11 +305,11 @@ class CremeWalletCartUiTest {
 
         composeTestRule.onNodeWithText("Agregar más").assertIsDisplayed()
         composeTestRule.onNodeWithText("Nota para cocina").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Productos").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Total").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Lo que pediste").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Total · ", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Pagar").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("cart-clear").performClick()
+        composeTestRule.onNodeWithContentDescription("Vaciar el carrito").performClick()
         assertEquals(state.cartLines.map { it.key to -it.quantity }, removed)
     }
 
