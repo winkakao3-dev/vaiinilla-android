@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.operational
 
 import com.vaiinilla.app.core.network.ApiFailure
+import com.vaiinilla.app.core.network.isConnectionLoss
 import com.vaiinilla.app.data.cashcut.DayCut
 import com.vaiinilla.app.data.cashcut.PaymentLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -142,13 +143,7 @@ sealed interface QueueSync {
      * internet» al personal lo manda a revisar el wifi mientras el problema es otro.
      */
     val lostConnection: Boolean
-        get() =
-            this is Failed &&
-                (
-                    failure is ApiFailure.NoConnection ||
-                        failure is ApiFailure.Timeout ||
-                        failure is ApiFailure.ServerUnreachable
-                )
+        get() = this is Failed && failure.isConnectionLoss
 }
 
 /** Qué ocupa el lugar de la fila de pedidos de Cocina o Caja. */

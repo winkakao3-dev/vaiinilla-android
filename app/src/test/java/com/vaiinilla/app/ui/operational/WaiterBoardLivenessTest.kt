@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.operational
 
+import com.vaiinilla.app.core.network.ApiFailure
 import com.vaiinilla.app.domain.repository.WaiterBoard
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import org.junit.Assert.assertEquals
@@ -13,7 +14,7 @@ class WaiterBoardLivenessTest {
 
     @Test
     fun `one failed refresh keeps the board live`() {
-        val afterOne = loaded.withBoardFailure("La conexión tardó demasiado. Inténtalo de nuevo.")
+        val afterOne = loaded.withBoardFailure(ApiFailure.Timeout)
 
         assertEquals(WaiterBoardLink.Live, afterOne.boardLink)
         assertEquals(1, afterOne.consecutiveBoardFailures)
@@ -23,12 +24,12 @@ class WaiterBoardLivenessTest {
     fun `two failed refreshes in a row drop the live pill but keep the tables`() {
         val afterTwo =
             loaded
-                .withBoardFailure("La conexión tardó demasiado. Inténtalo de nuevo.")
-                .withBoardFailure("La conexión tardó demasiado. Inténtalo de nuevo.")
+                .withBoardFailure(ApiFailure.Timeout)
+                .withBoardFailure(ApiFailure.Timeout)
 
         assertEquals(WaiterBoardLink.Offline, afterTwo.boardLink)
         assertEquals(loaded.tables, afterTwo.tables)
-        assertEquals("La conexión tardó demasiado. Inténtalo de nuevo.", afterTwo.errorMessage)
+        assertEquals(ApiFailure.Timeout.text, afterTwo.errorMessage)
     }
 
     @Test
@@ -38,8 +39,8 @@ class WaiterBoardLivenessTest {
 
         val recovered =
             loaded
-                .withBoardFailure("Sin red")
-                .withBoardFailure("Sin red")
+                .withBoardFailure(ApiFailure.NoConnection)
+                .withBoardFailure(ApiFailure.NoConnection)
                 .withBoard(board, receivedAt)
 
         assertEquals(WaiterBoardLink.Live, recovered.boardLink)
@@ -58,7 +59,7 @@ class WaiterBoardLivenessTest {
 
     @Test
     fun `a failure before any good board is offline right away and shows no board`() {
-        val failed = WaiterUiState(loading = true).withBoardFailure("No pudimos contactar al servidor.")
+        val failed = WaiterUiState(loading = true).withBoardFailure(ApiFailure.ServerUnreachable)
 
         assertEquals(WaiterBoardLink.Offline, failed.boardLink)
         assertFalse(failed.boardLoaded)
@@ -71,9 +72,29 @@ class WaiterBoardLivenessTest {
         val stale =
             WaiterUiState()
                 .withBoard(WaiterBoard(tables = emptyList(), callsEnabled = true), receivedAt)
-                .withBoardFailure("Sin red")
+                .withBoardFailure(ApiFailure.NoConnection)
 
         assertTrue(stale.boardLoaded)
         assertEquals(WaiterBoardLink.Live, stale.boardLink)
+    }
+
+    @Test
+    fun `the board view never flips between error and loading while retrying`() {
+        val failed = WaiterUiState().withBoardFailure(ApiFailure.NoConnection)
+        assertEquals(WaiterBoardView.Error(ApiFailure.NoConnection), failed.boardView)
+        // Un sondeo marca «cargando» pero conserva el fallo: sigue siendo error hasta que llegue un tablero.
+        assertEquals(WaiterBoardView.Error(ApiFailure.NoConnection), failed.copy(loading = true).boardView)
+        assertEquals(WaiterBoardView.Loading, WaiterUiState(loading = true).boardView)
+    }
+
+    @Test
+    fun `an empty business that already loaded is ready, not loading, during a poll`() {
+        val receivedAt = Instant.parse("2026-10-15T18:00:00Z")
+        val empty =
+            WaiterUiState(loading = true)
+                .withBoard(WaiterBoard(tables = emptyList(), callsEnabled = true), receivedAt)
+                .copy(loading = true)
+
+        assertEquals(WaiterBoardView.Ready, empty.boardView)
     }
 }
