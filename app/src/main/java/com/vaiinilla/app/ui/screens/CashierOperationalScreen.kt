@@ -112,6 +112,8 @@ import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueContext
+import com.vaiinilla.app.ui.hotel.staff.HotelChip
+import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
@@ -239,6 +241,7 @@ fun CashierOperationalScreen(
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
+    val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
@@ -388,6 +391,7 @@ fun CashierOperationalScreen(
             .filter { it.summary.state == OrderState.DELIVERED }
             .forEach { order -> assistantController.onStateChanged("pedido-entregado:${order.summary.id}") }
     }
+    var receptionOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier =
@@ -486,6 +490,22 @@ fun CashierOperationalScreen(
                                         cashCutOpen = true
                                     }
                                 },
+                        )
+                    }
+                }
+            }
+
+            if (venue.capabilities.staffWorksRooms) {
+                // Recepción es una vista dentro de Caja: llegadas, check-in, cargos y el cierre de la cuenta (S04).
+                item(key = "cashier-reception") {
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+                        HotelChip(
+                            label = "Recepción · llegadas y salidas",
+                            selected = false,
+                            onClick = {
+                                haptics.selection()
+                                receptionOpen = true
+                            },
                         )
                     }
                 }
@@ -1159,6 +1179,14 @@ fun CashierOperationalScreen(
             modifier = Modifier.fillMaxSize(),
         )
     }
+    if (receptionOpen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { receptionOpen = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            HotelReceptionScreen(onBack = { receptionOpen = false })
+        }
+    }
 }
 
 /**
@@ -1185,7 +1213,7 @@ internal fun cashierPlaceLabel(
         order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
         else ->
             SpaceCopy.staffDestination(
-                venue,
+               venue,
                 order.summary.destination,
                 order.summary.space,
                 order.summary.pickUpAtBar,

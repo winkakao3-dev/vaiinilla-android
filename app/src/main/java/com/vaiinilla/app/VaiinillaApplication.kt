@@ -8,6 +8,8 @@ import com.vaiinilla.app.core.error.CrashDataScrubber
 import com.vaiinilla.app.core.error.CrashReportingMode
 import com.vaiinilla.app.core.error.CrashReportingPolicy
 import com.vaiinilla.app.core.error.GlobalCrashReporterInstaller
+import com.vaiinilla.app.core.notifications.VenueVocabularyStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.outbox.OutboxScheduler
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
@@ -18,8 +20,12 @@ class VaiinillaApplication : Application() {
     @Inject
     lateinit var outbox: OutboxScheduler
 
+    @Inject
+    lateinit var venueContext: VenueContextStore
+
     override fun onCreate() {
         super.onCreate()
+        VenueVocabularyStore.install(this, venueContext)
         installCrashReporting()
         installGlobalCrashReporter()
         installHttpResponseCache()

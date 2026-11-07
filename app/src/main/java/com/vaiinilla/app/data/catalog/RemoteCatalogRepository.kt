@@ -38,7 +38,7 @@ class RemoteCatalogRepository(
             .get("estado-operativo")
             .mapCatching { parser.parseOperationalStatus(it) }
             .mapApiErrors()
-            .onSuccess { venueContext.update(it.businessType) }
+            .onSuccess { venueContext.update(it.businessType, it.isSchool) }
 
     override fun createProduct(
         draft: CatalogProductDraft,

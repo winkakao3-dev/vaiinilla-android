@@ -73,6 +73,7 @@ import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.hotel.admin.HotelRoomsAdminSection
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
@@ -208,16 +209,21 @@ internal fun AdminSpacesSection(
                 }
             }
             null ->
-                SpacesList(
-                    state,
-                    colors,
-                    readOnly,
-                    enabled,
-                    viewModel,
-                    onBack,
-                    board,
-                    onOpen = { page = it },
-                ) { sheet = it }
+                if (venue.capabilities.hasHotelAdmin) {
+                    // En un hotel las mesas son habitaciones: su lista, el alta en lote y el QR de cada una (A01).
+                    HotelRoomsAdminSection(colors, readOnly, onBack, onOpenRoom = { page = SpacesPage.Space(it) })
+                } else {
+                    SpacesList(
+                        state,
+                        colors,
+                        readOnly,
+                        enabled,
+                        viewModel,
+                        onBack,
+                        board,
+                        onOpen = { page = it },
+                    ) { sheet = it }
+                }
         }
     }
 

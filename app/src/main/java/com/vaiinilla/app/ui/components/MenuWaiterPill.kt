@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.components
 
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -207,8 +208,9 @@ internal fun MenuWaiterLayer(
 }
 @Composable
 private fun WaiterPill(state: MenuWaiterCallState) {
+    val venue = LocalVenueContext.current
     val haptics = rememberVaiinillaHaptics()
-    val label = menuWaiterPillLabel(state.call, state.cooldown)
+    val label = menuWaiterPillLabel(venue, state.call, state.cooldown)
     val waiting = state.call == null && state.cooldown > 0
     SeaGlassButton(
         tone = if (state.call != null) SeaGlassTone.lima else SeaGlassTone.vainilla,
@@ -266,6 +268,7 @@ private fun CartWaiterBar(
     cart: MenuCartBar,
     onOpenAssistant: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
@@ -303,7 +306,7 @@ private fun CartWaiterBar(
                     haptics.click()
                     cart.onOpen()
                 }.semantics(mergeDescendants = false) {
-                    contentDescription = "Pedir ya: $products, ${cart.total}"
+                    contentDescription = "${if (venue.capabilities.cartBarViewsOrder) "Ver pedido" else "Pedir ya"}: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
                 .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -312,7 +315,13 @@ private fun CartWaiterBar(
             AssistantDot(onOpenAssistant)
             Spacer(Modifier.width(12.dp))
         }
-        Text("Pedir ya · ", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(
+            if (venue.capabilities.cartBarViewsOrder) "Ver pedido · " else "Pedir ya · ",
+            color = colors.accentInk,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
         NumberTicker(value = cart.count, label = "cart-bar-count") { value ->
             Text("$value", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
@@ -329,10 +338,11 @@ private fun CartWaiterBar(
 
 @Composable
 private fun WaiterSegment(state: MenuWaiterCallState) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
-    val label = menuWaiterPillLabel(state.call, state.cooldown)
+    val label = menuWaiterPillLabel(venue, state.call, state.cooldown)
     val waiting = state.call == null && state.cooldown > 0
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()

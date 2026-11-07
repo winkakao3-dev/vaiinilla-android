@@ -2,9 +2,56 @@ package com.vaiinilla.app.domain.model
 
 /**
  * Vocabulario según el tipo de espacio del pedido (`mesa`, `barra`, `cancha`, `drive_thru`, `asiento`).
- * Sin tipo o con `mesa` se conserva el texto de siempre.
+ * Sin tipo o con `mesa` se conserva el texto de siempre, salvo en un hotel ([VenueContext.isHotel]): ahí la mesa del
+ * servidor es una habitación y la app dice «habitación».
  */
 object SpaceCopy {
+    /** En un hotel las habitaciones son espacios `mesa` (o sin tipo): el servidor no tiene un tipo propio. */
+    fun isRoomType(type: String?): Boolean = type == null || type == "mesa"
+
+    fun isRoom(
+        venue: VenueContext,
+        type: String?,
+    ): Boolean = venue.capabilities.tablesAreRooms && isRoomType(type)
+
+    /**
+     * ¿Este espacio es una habitación? Con el dato del servidor (`es_habitacion`) manda: una mesa del restaurante del
+     * hotel no lo es. Sin el dato, en un hotel toda mesa lo es, como antes. Sin espacio, no.
+     */
+    fun isRoom(
+        venue: VenueContext,
+        space: PublicSpace?,
+    ): Boolean = space != null && isRoom(venue, space.type) && space.isRoom != false
+
+    /**
+     * ¿El pedido va a una habitación? Un pedido ligado a una estancia ([OrderDetail.stayId]) lo es. Los demás, con un
+     * servidor que no manda ese dato, cuentan como habitación en un hotel salvo que el servidor haya dicho que ese
+     * espacio es una mesa del restaurante ([com.vaiinilla.app.core.venue.VenueContextStore.markSpace]).
+     */
+    fun isRoomOrder(
+        venue: VenueContext,
+        order: OrderDetail,
+    ): Boolean {
+        if (order.stayId != null) return true
+        val space = order.summary.space ?: return false
+        return venue.capabilities.tablesAreRooms && isRoomType(space.type) && !venue.isHotelTable(space.id)
+    }
+
+    /**
+     * El espacio como lo dice el personal en una etiqueta corta: «Hab. 304» para una habitación (el servidor la
+     * guarda como «Habitación 304»), el nombre tal cual para los demás.
+     */
+    fun short(
+        venue: VenueContext,
+        type: String?,
+        name: String,
+    ): String =
+        if (isRoom(venue, type)) {
+            name.trim().replace(Regex("^Habitaci[óo]n\\s*", RegexOption.IGNORE_CASE), "Hab. ")
+        } else {
+            name
+        }
+
     /** Nombre corto del tipo para el personal: "Mesa", "Cancha"... */
     fun kindLabel(
         venue: VenueContext,
@@ -15,7 +62,7 @@ object SpaceCopy {
             "barra" -> "Barra"
             "drive_thru" -> "Carril"
             "asiento" -> "Asiento"
-            else -> "Mesa"
+            else -> if (isRoom(venue, type)) venue.vocabulary.roomTitle else "Mesa"
         }
 
     /** El nombre que le puso el negocio con su artículo: «la Mesa 4», «el Asiento 3». */
@@ -34,7 +81,7 @@ object SpaceCopy {
             "barra" -> "la barra"
             "drive_thru" -> "tu auto"
             "asiento" -> "tu asiento"
-            null, "mesa" -> "tu mesa"
+            null, "mesa" -> if (isRoom(venue, type)) "tu ${venue.vocabulary.room}" else "tu mesa"
             else -> "tu espacio"
         }
 
@@ -48,7 +95,7 @@ object SpaceCopy {
             "barra" -> "En la barra"
             "drive_thru" -> "En tu auto"
             "asiento" -> "En tu asiento"
-            else -> "Comer aquí"
+            else -> if (isRoom(venue, type)) "A tu ${venue.vocabulary.room}" else "Comer aquí"
         }
 
     /** Carrito en efectivo con destino a un espacio. En la barra se entrega ahí; no "se lleva". */
@@ -58,6 +105,8 @@ object SpaceCopy {
     ): String =
         if (type == "barra") {
             "Pagas en caja y te lo entregamos en la barra"
+        } else if (isRoom(venue, type)) {
+            "Se carga a tu ${venue.vocabulary.room} y te lo llevamos a tu puerta"
         } else {
             "Pagas en caja y te lo llevamos a ${yourPlace(venue, type)}"
         }
@@ -105,13 +154,13 @@ object SpaceCopy {
             "barra" -> "Selecciona tu lugar en la barra"
             "drive_thru" -> "Selecciona tu carril"
             "asiento" -> "Selecciona tu asiento"
-            else -> "Selecciona tu mesa"
+            else -> if (isRoom(venue, type)) "Selecciona tu ${venue.vocabulary.room}" else "Selecciona tu mesa"
         }
 
     /**
      * Para cocina y caja: adónde va el pedido, con el nombre del espacio ("Comer aquí · Mesa 1"). Un «Pasa por
      * él» (`recoge_en_barra`) se entrega en la barra aunque se pidió desde el lugar:
-     * «Pasa por él a la barra · Pista 1».
+     * «Pasa por él a la barra · Pista 1». En una habitación el personal lee «A la habitación · Hab. 304».
      */
     fun staffDestination(
         venue: VenueContext,
@@ -124,8 +173,13 @@ object SpaceCopy {
             OrderDestination.HOME_DELIVERY -> return "A domicilio"
             OrderDestination.IN_SPACE -> Unit
         }
-        val title = if (pickUpAtBar) "Pasa por él a la barra" else destinationTitle(venue, space?.type)
-        val name = space?.name?.takeIf { it.isNotBlank() } ?: return title
+        val title =
+            when {
+                pickUpAtBar -> "Pasa por él a la barra"
+                isRoom(venue, space?.type) -> "A la ${venue.vocabulary.room}"
+                else -> destinationTitle(venue, space?.type)
+            }
+        val name = space?.name?.takeIf { it.isNotBlank() }?.let { short(venue, space.type, it) } ?: return title
         return "$title · $name"
     }
 }

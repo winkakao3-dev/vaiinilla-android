@@ -375,8 +375,10 @@ data class DeliveryPolicyDto(
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,
     /** «Te lo llevamos», «Pasa por él» o ambas; un servidor anterior no lo envía. */
     @SerialName("entrega_en_espacio") val spaceDelivery: String? = null,
-    /** Tipo de negocio: en un boliche las canchas se llaman pistas ([com.vaiinilla.app.domain.model.Venue]). */
+    /** Tipo de negocio (`hotel`, `boliche`…): el vocabulario del personal depende de él ([com.vaiinilla.app.domain.model.Venue]). */
     @SerialName("tipo") val businessType: String? = null,
+    /** Una escuela es una cafetería con este ajuste; el aviso dice «alumno» solo ahí. */
+    @SerialName("modo_escuela") val isSchool: Boolean? = null,
 )
 
 @Serializable

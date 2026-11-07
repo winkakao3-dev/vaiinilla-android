@@ -53,3 +53,20 @@ No dejar watchers (`adb wait-for-device`, loops de logcat, servidores http) corr
 ## Dispositivo de pruebas
 
 Samsung SM-S926B con root (Magisk): `su -c` para `kill -9`, leer `/data/data/<pkg>/`, `tc netem` para latencia, `settings put` para font_scale/animators. Restaurar siempre: `tc qdisc del dev wlan0 root`, `font_scale 1.0`, `animator_duration_scale 1.0`.
+
+## Skills (obligatorio al empezar)
+
+Antes de empezar cualquier tarea, mira la lista de skills disponibles y carga con la herramienta Skill las que apliquen. No esperes a que te las pidan. Si ninguna aplica, di en una línea cuáles revisaste.
+
+En este repo:
+
+- Compilar, armar APK o correr tests: `vbuild` (nunca `./gradlew` directo).
+- Prueba en vivo, auditoría de recorridos o "qué va a fallar": `vaiinilla-pruebas`.
+- Probar como varios roles o en la JVM: `vaiinilla-roles`.
+- Tocar pantallas o animaciones: `vainiverso` y `antislop-ui`; para movimiento, `motion-design`.
+- Escribir comentarios o texto visible: `antislop-code` y `antislop-copywriting`.
+- Diseño de pantallas nuevas o rediseños: `hashi-mobile`.
+- Antes de decir "listo": `hashi-ship`. Revisar tu diff: `code-review` y `simplify`.
+- Producción o Railway: `use-railway`. Cambios en un sistema compartido: `sistema-real`.
+
+Si una skill no existe en tu entorno (por ejemplo en la nube), dilo y sigue con las reglas de este archivo.

@@ -82,13 +82,14 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notifyStaff(
         context: Context,
+        venue: VenueContext,
         orderId: String,
         folio: Int,
         alert: String,
         noticeId: String? = null,
         customerName: String? = null,
     ): Shown {
-        val (title, text) = staffAlertText(folio, alert, customerName)
+        val (title, text) = staffAlertText(venue, folio, alert, customerName)
         if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF, noticeId)
@@ -112,6 +113,7 @@ object OrderAdvanceNotifier {
      * con el nombre del cliente, si el push lo trae, sabe a quién llevárselo.
      */
     internal fun staffAlertText(
+        venue: VenueContext,
         folio: Int,
         alert: String,
         customerName: String? = null,
@@ -122,7 +124,11 @@ object OrderAdvanceNotifier {
             "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
             "listo_mesero" ->
                 "Pedido #$folio listo" to
-                    if (name != null) "Llévaselo a $name a su lugar." else "Llévaselo al cliente a su lugar."
+                    if (name != null) {
+                        "Llévaselo a $name a su ${venue.vocabulary.deliveryPlace}."
+                    } else {
+                        readyForWaiterText(venue)
+                    }
             // «Pasa por él»: el cliente viene a la barra y Caja se lo entrega.
             "listo_barra" -> "Pedido #$folio listo" to "El cliente pasa a recogerlo a la barra."
             // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
@@ -152,13 +158,14 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notifyTableCall(
         context: Context,
+        venue: VenueContext,
         callId: String,
         spaceName: String,
         reason: String?,
         noticeId: String? = null,
         establishmentId: String? = null,
     ): Shown {
-        val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
+        val title = tableCallTitle(venue, spaceName)
         val text = tableCallText(reason)
         if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
@@ -216,6 +223,15 @@ object OrderAdvanceNotifier {
             "Ya terminó. Cobra la cuenta y libera el espacio."
         }
 
+    /** Hacia quién se lleva lo que Cocina dejó listo: el alumno, el huésped o el cliente del negocio. */
+    internal fun readyForWaiterText(venue: VenueContext): String =
+        "Llévaselo al ${venue.customer.lower} a su ${venue.vocabulary.deliveryPlace}."
+
+    internal fun tableCallTitle(
+        venue: VenueContext,
+        spaceName: String,
+    ): String = if (spaceName.isNotBlank()) "$spaceName te llama" else "Una ${venue.vocabulary.callingSpace} te llama"
+
     /** El motivo como lo ve el mesero en su tablero; «cuenta» también (antes caía en «Necesita atención», K02). */
     internal fun tableCallText(reason: String?): String =
         CallReason.entries.firstOrNull { it.wireValue == reason }?.staffLabel ?: CallReason.ATENCION.staffLabel
@@ -224,11 +240,12 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notifyCallerOnTheWay(
         context: Context,
+        venue: VenueContext,
         callId: String,
         noticeId: String? = null,
     ): Shown {
         val title = "Tu mesero va en camino"
-        val text = "Va a tu mesa."
+        val text = "Va a ${SpaceCopy.yourPlace(venue, null)}."
         if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =
