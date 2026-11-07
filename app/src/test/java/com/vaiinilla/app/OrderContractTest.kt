@@ -125,4 +125,16 @@ class OrderContractTest {
                     ),
                 ),
         )
+
+    @Test
+    fun `cobro de cobrar ahora se lee de aplicado y si falta de estado`() {
+        val json = OrderContractJson()
+        val nuevo = json.parseCreationCollection("""{"data":{"cobro":{"estado":"pendiente","aplicado":false,"codigo":"C","mensaje":"Caja cerrada"}}}""")!!
+        assertFalse(nuevo.applied)
+        assertEquals("Caja cerrada", nuevo.message)
+        assertTrue(json.parseCreationCollection("""{"data":{"cobro":{"estado":"cobrado","aplicado":true}}}""")!!.applied)
+        assertTrue(json.parseCreationCollection("""{"data":{"cobro":{"estado":"cobrado"}}}""")!!.applied)
+        assertFalse(json.parseCreationCollection("""{"data":{"cobro":{"estado":"pendiente"}}}""")!!.applied)
+        assertEquals(null, json.parseCreationCollection("""{"data":{"id":"x"}}"""))
+    }
 }

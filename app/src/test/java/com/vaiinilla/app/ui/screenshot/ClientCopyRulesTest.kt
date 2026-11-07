@@ -91,6 +91,14 @@ class ClientCopyRulesTest {
             )
         assertEquals("Tu parte por pagar · \$137", tableSummaryLine(table))
         assertEquals("Tu parte ya está pagada", tableSummaryLine(table.copy(myShare = amounts("137", "0"))))
-        assertEquals("2 personas · sin pedidos aún", tableSummaryLine(table.copy(myShare = amounts("0", "0"))))
+        assertEquals(
+            "2 personas · sin pedidos aún",
+            tableSummaryLine(table.copy(totals = amounts("0", "0"), myShare = amounts("0", "0"))),
+        )
+        // En vivo, C05: con pedidos de otros la mesa ya no está «sin pedidos».
+        assertEquals(
+            "Tú no has pedido · la mesa lleva \$300",
+            tableSummaryLine(table.copy(myShare = amounts("0", "0"))),
+        )
     }
 }

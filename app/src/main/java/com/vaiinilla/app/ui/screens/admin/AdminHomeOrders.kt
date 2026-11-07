@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.DeliveryAddress
@@ -138,18 +139,19 @@ private fun AgendaRow(
     due: Boolean,
     onClick: () -> Unit,
 ) {
-    val who = order.user?.name ?: order.customerName ?: order.homeDelivery?.address?.address ?: ""
+    val who = order.user?.name ?: order.customerName ?: order.homeDelivery?.address?.address
     Row(
         modifier = Modifier.fillMaxWidth().physicalPress(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                "#${order.summary.folio} · $who",
+                listOfNotNull("#${order.summary.folio}", who?.takeIf { it.isNotBlank() }).joinToString(" · "),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 listOfNotNull(HomeOrderBoard.stateLabel(order), order.summary.deliverySlot).joinToString(" · "),

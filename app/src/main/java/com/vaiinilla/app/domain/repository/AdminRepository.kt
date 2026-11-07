@@ -54,4 +54,10 @@ interface AdminRepository {
         archived: Boolean,
         idempotencyKey: String,
     ): Result<Unit> = Result.failure(UnsupportedOperationException("Archivar no está disponible."))
+
+    /** Lo archivado que la app recuerda: `GET catalogo` no trae los archivados (T03). */
+    fun archivedProducts(): List<Product> = emptyList()
+
+    /** El producto volvió al menú por otro lado: deja de recordarlo como archivado. */
+    fun forgetArchived(id: Int) = Unit
 }

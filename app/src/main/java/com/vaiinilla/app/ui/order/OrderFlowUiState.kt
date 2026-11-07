@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.core.text.normalizeForSearch
+import com.vaiinilla.app.domain.admin.CashbackPreview
+import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.hotel.HotelConfig
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -25,6 +27,8 @@ import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.assistant.AssistantChatMessage
+import com.vaiinilla.app.ui.components.moneyLabel
+import java.time.ZonedDateTime
 
 data class OrderFlowUiState(
     val loading: Boolean = true,
@@ -50,6 +54,13 @@ data class OrderFlowUiState(
     val checkoutPayAtEnd: Boolean = false,
     /** «Pasa por él»: lo que eligió el cliente cuando el negocio ofrece las dos formas. */
     val checkoutPickUpAtBar: Boolean = false,
+    /**
+     * El servidor pidió confirmar «Para llevar» porque el cliente tiene lugar en una mesa o pista
+     * (409 PEDIDO_PARA_LLEVAR_CON_SILLA_ACTIVA): con texto se muestra la pregunta.
+     */
+    val takeAwayWithSeatPrompt: String? = null,
+    /** El cliente ya confirmó «Para llevar» con su silla activa: el pedido se reenvía con la confirmación. */
+    val takeAwayConfirmed: Boolean = false,
     val creatingOrder: Boolean = false,
     val createOrderError: String? = null,
     /** Líneas del carrito que el menú vigente ya no permite pedir (agotadas o con opciones que cambiaron). */
@@ -85,6 +96,8 @@ data class OrderFlowUiState(
     val stayCodeError: String? = null,
     /** El código de estancia se está ligando: la hoja no deja mandarlo dos veces. */
     val linkingStay: Boolean = false,
+    /** La regla de cashback activa del negocio; `null` si está apagado o no se pudo leer (24). */
+    val cashbackRule: CashbackRule? = null,
 )
 
 /** A one-shot visual confirmation for the order currently being created. */
@@ -147,8 +160,17 @@ val OrderFlowUiState.selectedProduct: Product?
 
 val OrderFlowUiState.filteredProducts: List<Product>
     get() {
-        // Lo agotado se queda en el menú, al final, con "Agotado" y sin Agregar (B10).
-        val products = catalog?.products.orEmpty().sortedBy { !it.available }
+        // Lo agotado se queda en el menú con "Agotado" y sin Agregar (B10), al final de su categoría y no de todo el
+        // menú: allá abajo parecía que había desaparecido (en vivo, #23). El orden va por categoría y por id, no por
+        // el del servidor, que cambia con cada edición (marcar agotado lo mandaba al final).
+        val categoryOrder =
+            catalog?.categories.orEmpty().sortedBy { it.order }.withIndex().associate { (index, category) ->
+                category.id to index
+            }
+        val products =
+            catalog?.products.orEmpty().sortedWith(
+                compareBy({ categoryOrder[it.categoryId] ?: Int.MAX_VALUE }, { !it.available }, { it.id }),
+            )
         val categoryFiltered =
             selectedCategoryId
                 ?.takeIf { id -> catalog?.categories.orEmpty().any { it.id == id } }
@@ -196,6 +218,14 @@ val OrderFlowUiState.checkoutTotal: String
         return Money.format(Money.parse(cart) + Money.parse(fee))
     }
 
+/** «Ganas $4.60 de cashback (1%)» para el carrito y la hoja de pago; `null` si este pedido no gana nada (24). */
+fun OrderFlowUiState.cashbackLine(now: ZonedDateTime = ZonedDateTime.now(BusinessTime.zone)): String? {
+    val percent = CashbackPreview.percentAt(cashbackRule, now) ?: return null
+    val earned = CashbackPreview.earned(cashbackRule, checkoutTotal, now) ?: return null
+    val shown = percent.stripTrailingZeros().toPlainString()
+    return "Ganas ${moneyLabel(earned)} de cashback ($shown%) cuando te lo entreguen."
+}
+
 val OrderFlowUiState.homeDeliveryOffer: HomeDeliveryOffer?
     get() = operationalStatus?.homeDelivery
 
@@ -230,9 +260,16 @@ val OrderFlowUiState.homePayments: List<HomePayment>
 val OrderFlowUiState.homeDeliveryFee: String?
     get() = homeDeliveryOffer?.takeIf { isHomeDelivery }?.let { HomeCheckoutRules.fee(homeCheckout, it) }
 
+/**
+ * La forma de pago a domicilio que vale: la elegida si el negocio la ofrece; si no (p. ej. sin tarjeta), la
+ * primera que ofrece. Null solo si no ofrece ninguna, y entonces no se puede pedir (auditoría R23).
+ */
+val OrderFlowUiState.effectiveHomePayment: HomePayment?
+    get() = homeCheckout.payment.takeIf { it in homePayments } ?: homePayments.firstOrNull()
+
 /** A domicilio la forma de pago se elige en el carrito, no en la hoja de pago. */
 val OrderFlowUiState.homePaymentMethod: PaymentMethod
-    get() = if (homeCheckout.payment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
+    get() = if (effectiveHomePayment == HomePayment.ON_ARRIVAL) PaymentMethod.CASH else PaymentMethod.STRIPE
 
 /** Lo que falta para poder pedir a domicilio o para otro día; null si nada. */
 val OrderFlowUiState.checkoutScheduleProblem: String?
@@ -279,9 +316,17 @@ val OrderFlowUiState.requiresOperationalReady: Boolean
 val OrderFlowUiState.canCreateOrder: Boolean
     get() = canSubmitCart && (!requiresOperationalReady || isOperationallyReady) && checkoutScheduleProblem == null
 
-/** Espacios a los que se puede mandar el pedido: el del QR y, si hay, la cancha rentada. */
+/** Espacios a los que se puede mandar el pedido: la cancha rentada (primero) y el del QR. */
 val OrderFlowUiState.checkoutSpaces: List<PublicSpace>
-    get() = listOfNotNull(guestVenue?.space, rentedCourt).distinctBy { it.id }
+    get() = listOfNotNull(rentedCourt, guestVenue?.space).distinctBy { it.id }
+
+/**
+ * Dónde está el cliente ahora. Con una cancha o pista rentada en curso, esa manda sobre la mesa del QR: quien
+ * entró por «La Mesa 1» y rentó la Pista 3 ya está en la pista, y ahí deben llegar sus pedidos y el mesero.
+ * La mesa del QR se queda en [GuestVenueContext.space] (mesa compartida, carrito guardado) por si la renta acaba.
+ */
+val OrderFlowUiState.currentSpace: PublicSpace?
+    get() = rentedCourt ?: guestVenue?.space
 
 /** El espacio elegido, si sigue entre los permitidos; si no, el primero (la cancha rentada va primero). */
 val OrderFlowUiState.checkoutSpace: PublicSpace?
@@ -373,6 +418,13 @@ val OrderFlowUiState.canPayWithCard: Boolean
 /** ¿Se ofrece pagar con saldo? No si el dueño lo apagó; sin estado operativo todavía, sí (el servidor valida). */
 val OrderFlowUiState.canPayWithBalance: Boolean
     get() = operationalStatus?.allowsBalance != false
+
+/**
+ * ¿Se ofrece «Pago en caja»? No si el dueño lo apagó (`permite_pago_en_caja`); sin el dato (servidor anterior o
+ * estado sin cargar), sí. Pagar al final, a domicilio, la renta y el personal no dependen de esto.
+ */
+val OrderFlowUiState.canPayAtRegister: Boolean
+    get() = operationalStatus?.allowsCashAtRegister != false
 
 enum class StripePaymentPhase {
     IDLE,

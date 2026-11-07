@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
     private var pendingInvitationToken by mutableStateOf<String?>(null)
     private var pendingOrderId by mutableStateOf<String?>(null)
     private var pendingOrderTarget by mutableStateOf<OrderNotificationTarget?>(null)
+    private var pendingNoticeEstablishmentId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,9 +110,11 @@ class MainActivity : ComponentActivity() {
                         onInvitationConsumed = { pendingInvitationToken = null },
                         pendingOrderId = pendingOrderId,
                         pendingOrderTarget = pendingOrderTarget,
+                        pendingNoticeEstablishmentId = pendingNoticeEstablishmentId,
                         onOrderConsumed = {
                             pendingOrderId = null
                             pendingOrderTarget = null
+                            pendingNoticeEstablishmentId = null
                         },
                     )
                 }
@@ -153,6 +156,7 @@ class MainActivity : ComponentActivity() {
         if (orderId != null || targetExtra != null) {
             pendingOrderId = orderId
             pendingOrderTarget = OrderNotificationTarget.fromWireValue(targetExtra)
+            pendingNoticeEstablishmentId = noticeEstablishmentIdFrom(source)
         }
         // Aviso de un hijo: lo atiende la navegación (ChildNoticeEffect) y después Cartera.
         ChildDeepLinkStore.capture(source)
@@ -160,6 +164,7 @@ class MainActivity : ComponentActivity() {
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTICE_ID)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
         source?.removeExtra(OrderAdvanceNotifier.EXTRA_NOTIFICATION_TARGET)
+        source?.removeExtra(OrderAdvanceNotifier.EXTRA_ESTABLISHMENT_ID)
         // Do not retain invitation tokens in the Activity intent after capture.
         source?.data = null
     }
@@ -168,6 +173,12 @@ class MainActivity : ComponentActivity() {
         fun orderIdFrom(intent: Intent?): String? =
             intent
                 ?.getStringExtra(OrderAdvanceNotifier.EXTRA_ORDER_ID)
+                ?.trim()
+                ?.takeIf { it.length in 1..100 && ORDER_ID.matches(it) }
+
+        fun noticeEstablishmentIdFrom(intent: Intent?): String? =
+            intent
+                ?.getStringExtra(OrderAdvanceNotifier.EXTRA_ESTABLISHMENT_ID)
                 ?.trim()
                 ?.takeIf { it.length in 1..100 && ORDER_ID.matches(it) }
 

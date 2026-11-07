@@ -16,6 +16,10 @@ data class PublicEstablishment(
     val allowsPayAtEnd: Boolean = false,
     /** «Te lo llevamos», «Pasa por él» o ambas; el invitado sin sesión lo lee de aquí. */
     val spaceDelivery: SpaceDelivery = SpaceDelivery.TABLE,
+    /** Tiene el asistente de pedidos para clientes («Pregúntame qué pedir»); el dueño o Vaiinilla lo apagan. */
+    val assistantForCustomers: Boolean = true,
+    /** `tipo` del negocio («boliche», «cafeteria»…); en un boliche las canchas se llaman pistas. */
+    val businessType: String? = null,
 )
 
 /** Ubicación aproximada del dispositivo para ordenar el descubrimiento por cercanía. */

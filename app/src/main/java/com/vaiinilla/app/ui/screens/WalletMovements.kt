@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -335,6 +336,7 @@ internal fun MovementsPageContent(
             modifier =
                 Modifier
                     .padding(start = 16.dp, top = 4.dp)
+                    .minimumInteractiveComponentSize()
                     .size(40.dp)
                     .physicalPress(scale = PhysicalPressScale.Small, onClick = onBack)
                     .clip(CircleShape)

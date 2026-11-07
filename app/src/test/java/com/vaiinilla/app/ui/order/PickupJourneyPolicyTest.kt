@@ -2,11 +2,14 @@ package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderItem
+import com.vaiinilla.app.domain.model.OrderItemRejection
 import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.ui.components.needsPickupQr
 import org.junit.Assert.assertEquals
@@ -70,12 +73,56 @@ class PickupJourneyPolicyTest {
         assertEquals("¡Listo!", pickupTitle(order(OrderState.READY)))
         assertEquals("Recógelo en la barra.", pickupHint(order(OrderState.READY)))
         assertEquals("Por pagar", pickupTitle(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)))
-        assertEquals("Ya va en camino a Mesa 4.", pickupHint(order(OrderState.READY, toSpace = true)))
+        assertEquals("Está listo. En un momento te lo llevan a Mesa 4.", pickupHint(order(OrderState.READY, toSpace = true)))
         assertEquals(
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este.",
             pickupCodeHint(order(OrderState.READY, toSpace = true)),
         )
     }
+
+    @Test
+    fun aRemovedProductChangesTheTitle() {
+        // P10: Cocina quitó un producto; el título ya no dice «Pedido recibido» y la pista dice qué pasó.
+        val item =
+            OrderItem(
+                id = 1,
+                productId = 1,
+                productName = "Papas",
+                preparationStation = PreparationStation.KITCHEN,
+                quantity = 1,
+                unitDigitalPrice = "25.00",
+                subtotal = "25.00",
+                options = emptyList(),
+            )
+        val removed = item.copy(rejection = OrderItemRejection(reason = "Se acabó.", amount = "25.00"))
+        val paid = order(OrderState.PAID).copy(items = listOf(removed, item.copy(id = 2, productName = "Refresco")))
+        assertEquals("Uno no se pudo", pickupTitle(paid))
+        assertEquals("Papas no se pudo: Se acabó. Lo demás sigue.", pickupRejectionHint(paid))
+        val two = paid.copy(items = listOf(removed, removed.copy(id = 3), item.copy(id = 2)))
+        assertEquals("2 no se pudieron", pickupTitle(two))
+        // Listo ya dice lo importante; sin productos quitados, el título de siempre.
+        assertEquals("¡Listo!", pickupTitle(paid.copy(summary = paid.summary.copy(state = OrderState.READY))))
+        assertNull(pickupRejectionHint(order(OrderState.PREPARING)))
+        assertEquals("Pedido recibido", pickupTitle(order(OrderState.PAID)))
+    }
+
+    @Test
+    fun pickUpAtBarIsCollectedAtTheBar() {
+        // «Pasa por él» (`recoge_en_barra`): se pidió desde la pista, pero se recoge en la barra (Z01).
+        val ready = atBar(order(OrderState.READY, toSpace = true))
+        assertEquals("Recógelo en la barra.", pickupHint(ready))
+        assertEquals("Tu comida se está preparando.", pickupHint(atBar(order(OrderState.PREPARING, toSpace = true))))
+        assertEquals("Pasa a la barra por él y muéstralo en Caja.", pickupCodeHint(ready))
+        assertTrue(shouldAutoRevealPickupCode(ready, hasCode = true))
+        assertTrue(ready.needsPickupQr(deliveryRequiresQr = false))
+        assertTrue(pickupCodeUseful(ready, deliveryRequiresQr = false))
+        assertEquals(PickupPlace.STOREFRONT, pickupPlace(ready))
+        // Capturado por el personal: el QR quedó en su teléfono y Caja no lo pide.
+        val byStaff = atBar(order(OrderState.READY, toSpace = true, withoutQr = true))
+        assertFalse(byStaff.needsPickupQr(deliveryRequiresQr = true))
+    }
+
+    private fun atBar(order: OrderDetail): OrderDetail = order.copy(summary = order.summary.copy(pickUpAtBar = true))
 
     @Test
     fun everyMosaicBlockSettlesBeforeTheEnd() {

@@ -23,9 +23,13 @@ import java.time.format.DateTimeFormatter
 
 private val ARRIVAL_HOUR = DateTimeFormatter.ofPattern("HH:mm")
 
-/** Un pedido para llevar sigue vivo: ya se puede avisar que llegaste (hasta que se entregue). */
+/**
+ * Un pedido para llevar sigue vivo: ya se puede avisar que llegaste (hasta que se entregue). Una renta no se recoge:
+ * no lleva «Ya llegué» (en vivo, D03).
+ */
 fun OrderDetail.canAnnounceArrival(driveThru: Boolean): Boolean =
     driveThru &&
+        reservation == null &&
         summary.destination == OrderDestination.TAKE_AWAY &&
         summary.state in
         setOf(OrderState.PENDING_PAYMENT, OrderState.PAID, OrderState.PREPARING, OrderState.READY)

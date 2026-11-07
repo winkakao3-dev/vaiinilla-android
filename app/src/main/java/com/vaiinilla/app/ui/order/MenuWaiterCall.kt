@@ -19,14 +19,17 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * La mesa desde la que se puede llamar al mesero en el menú: la del QR o el código con el que entró, o la mesa
- * compartida donde ya está sentado. Para llevar, en una escuela o sin cuenta no hay a quién llamar.
+ * La mesa desde la que se puede llamar al mesero en el menú: la del QR o el código con el que entró, la mesa
+ * compartida donde ya está sentado o la cancha que rentó en la app y está jugando (el servidor acepta a quien
+ * tiene la reserva en curso). La pista en curso va primero: quien entró por la Mesa 1 y rentó una pista ya está
+ * allá. Para llevar, en una escuela o sin cuenta no hay a quién llamar.
  */
 fun menuWaiterSpaceId(
     guestSpaceId: Int?,
     sharedTableSpaceId: Int?,
     signedIn: Boolean,
-): Int? = if (signedIn) guestSpaceId ?: sharedTableSpaceId else null
+    rentedCourtId: Int? = null,
+): Int? = if (signedIn) rentedCourtId ?: guestSpaceId ?: sharedTableSpaceId else null
 
 /** Con quién entra a la mesa quien llama sin haberse unido: su primer nombre, como en Pedidos. */
 fun waiterCallAlias(displayName: String): String {
@@ -85,7 +88,23 @@ class MenuWaiterCallState(
     private val onCall: suspend (Int, CallReason, String?) -> Result<TableCall>,
     private val onCancel: suspend (TableCall) -> Result<TableCall>,
     private val onJoinTable: (suspend () -> Result<Unit>)?,
+    /**
+     * Sin cuenta y sin nombre: en lugar de sentarlo como «Cliente», la hoja le pide su nombre (con el aviso de
+     * términos) y se une a la mesa con él. Dos invitados ya no chocan con el mismo nombre.
+     */
+    onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
+    /**
+     * Se actualiza desde la composición: al darse de alta el invitado ya tiene nombre y deja de hacer falta.
+     * Cambiarlo aquí no recrea el estado, así que la llamada que va en curso no se pierde.
+     */
+    var onJoinAs: (suspend (String) -> Result<Unit>)? = onJoinAs
+
+    /** La hoja pide el nombre antes de llamar; [pendingReason] es lo que eligió. */
+    var askingName by mutableStateOf(false)
+        private set
+    private var pendingReason: CallReason? = null
+
     var phase by mutableStateOf(MenuWaiterPhase.IDLE)
         private set
     var call by mutableStateOf<TableCall?>(null)
@@ -140,6 +159,8 @@ class MenuWaiterCallState(
         if (phase == MenuWaiterPhase.CHOOSING) phase = MenuWaiterPhase.IDLE
         showsCall = false
         error = null
+        askingName = false
+        pendingReason = null
     }
 
     fun tick() {
@@ -153,6 +174,38 @@ class MenuWaiterCallState(
         error = null
         val result = callJoiningIfNeeded(reason)
         busy = false
+        return finish(result)
+    }
+
+    /** Con el nombre escrito: se une a la mesa con él y hace la llamada que había elegido. */
+    suspend fun sendWithName(name: String): Boolean {
+        val reason = pendingReason ?: return false
+        val join = onJoinAs ?: return false
+        val clean = name.trim().replace(Regex("\\s+"), " ")
+        if (busy) return false
+        if (clean.isEmpty()) {
+            error = NAME_REQUIRED_MESSAGE
+            return false
+        }
+        busy = true
+        error = null
+        val joined = join(clean.take(SHARED_TABLE_ALIAS_MAX))
+        if (joined.isFailure) {
+            busy = false
+            val cause = joined.exceptionOrNull()
+            error = if (cause?.errorCode() == NAME_TAKEN) NAME_TAKEN_MESSAGE else cause?.toUserFacingMessage()
+            return false
+        }
+        // Ya está sentado: un reintento vuelve a los motivos y llama directo, sin unirse de nuevo.
+        askingName = false
+        pendingReason = null
+        val result = onCall(spaceId, reason, null)
+        busy = false
+        return finish(result)
+    }
+
+    private fun finish(result: Result<TableCall>): Boolean {
+        if (result.exceptionOrNull() === NameNeeded) return false
         return result.fold(
             onSuccess = { created ->
                 call = created
@@ -199,6 +252,11 @@ class MenuWaiterCallState(
         val first = onCall(spaceId, reason, null)
         val cause = first.exceptionOrNull() ?: return first
         if (cause.errorCode() != NOT_AT_TABLE) return first
+        if (onJoinAs != null) {
+            pendingReason = reason
+            askingName = true
+            return Result.failure(NameNeeded)
+        }
         val join = onJoinTable ?: return Result.failure(IllegalStateException(NOT_AT_TABLE_MESSAGE))
         join().onFailure { return Result.failure(it) }
         return onCall(spaceId, reason, null)
@@ -211,7 +269,13 @@ class MenuWaiterCallState(
         const val NOT_AT_TABLE = "NO_ACTIVE_ORDER_IN_SPACE"
         const val RATE_LIMITED = "RATE_LIMITED"
         const val NOT_AT_TABLE_MESSAGE = "Para llamar al mesero, únete a la mesa en Pedidos."
+        const val NAME_TAKEN = "PARTICIPANT_NAME_TAKEN"
+        const val NAME_TAKEN_MESSAGE = "Alguien en la mesa ya usa ese nombre. Escribe otro."
+        const val NAME_REQUIRED_MESSAGE = "Escribe tu nombre para avisarle al mesero."
     }
+
+    /** No es un error: la hoja pide el nombre antes de llamar. */
+    private object NameNeeded : IllegalStateException("Falta el nombre")
 }
 
 private fun Throwable.errorCode(): String? =

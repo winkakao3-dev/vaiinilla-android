@@ -351,7 +351,7 @@ fun VaiinillaAssistantOrb(
                             id = "scan",
                             question = "¿Cómo entrego un pedido con QR?",
                             answer =
-                                "Escanea el QR del alumno desde la comanda activa. " +
+                                "Escanea el QR del cliente desde la comanda activa. " +
                                     "Al validarlo, la entrega queda registrada con el pedido correcto.",
                             steps =
                                 listOf(
@@ -360,7 +360,7 @@ fun VaiinillaAssistantOrb(
                                         title = "Escanear QR",
                                         instruction =
                                             "Toca “Escanear QR” en la comanda activa y apunta la cámara " +
-                                                "al código del alumno.",
+                                                "al código del cliente.",
                                     ),
                                 ),
                         ),

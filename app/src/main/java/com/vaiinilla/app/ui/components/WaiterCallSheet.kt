@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Notifications
@@ -36,12 +38,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +61,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +74,7 @@ import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.canCancelMenuCall
+import com.vaiinilla.app.ui.sharedtable.SHARED_TABLE_ALIAS_MAX
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -145,6 +155,10 @@ internal fun WaiterCallContent(
     val call = state.call
     Column(modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         WaiterCallHeader(call = call, place = call?.let { SpaceCopy.named(it.space.type, it.space.name) } ?: place)
+        if (call == null && state.askingName) {
+            WaiterCallNameStep(state = state)
+            return@Column
+        }
         if (call == null) {
             Row(
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp),
@@ -211,7 +225,7 @@ internal fun WaiterCallContent(
         state.error?.let { message ->
             Text(
                 message,
-                color = colors.coral,
+                color = colors.coralText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp).testTag("menu-waiter-error"),
@@ -368,6 +382,63 @@ private fun ReasonChip(
         contentAlignment = Alignment.Center,
     ) {
         Text(reason.chipLabel, color = ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+/**
+ * Sin cuenta, antes de la primera llamada: su nombre, con el mismo aviso de términos que al pedir. Así el
+ * mesero sabe a quién va y otro invitado de la mesa no choca con «Cliente».
+ */
+@Composable
+private fun WaiterCallNameStep(state: MenuWaiterCallState) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    val scope = rememberCoroutineScope()
+    var name by rememberSaveable { mutableStateOf("") }
+    val submit: () -> Unit = { scope.launch { if (state.sendWithName(name)) haptics.impact() } }
+    Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp)) {
+        Text("¿A quién le avisamos?", color = colors.ink2, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it.take(SHARED_TABLE_ALIAS_MAX) },
+            label = { Text("Tu nombre") },
+            supportingText = {
+                Text("Al continuar aceptas los términos y el aviso de privacidad vigentes.")
+            },
+            singleLine = true,
+            enabled = !state.busy,
+            keyboardOptions =
+                KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { submit() }),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.ink,
+                    unfocusedTextColor = colors.ink,
+                    focusedBorderColor = colors.ink,
+                    unfocusedBorderColor = colors.line,
+                    focusedLabelColor = colors.muted,
+                    unfocusedLabelColor = colors.muted,
+                    cursorColor = colors.ink,
+                ),
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp).testTag("menu-waiter-name"),
+        )
+        state.error?.let { message ->
+            Text(
+                message,
+                color = colors.coralText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 8.dp).testTag("menu-waiter-error"),
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        ClientPillButton(
+            text = if (state.busy) "Avisando…" else "Llamar al mesero",
+            onClick = submit,
+            enabled = !state.busy && name.isNotBlank(),
+            height = 54.dp,
+            modifier = Modifier.fillMaxWidth().testTag("menu-waiter-name-send"),
+        )
     }
 }
 

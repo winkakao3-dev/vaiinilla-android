@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.domain.model.NameInitials
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.time.Instant
@@ -380,7 +381,7 @@ fun CremeVenueChip(
                 Icon(icon, contentDescription = null, tint = colors.onInk, modifier = Modifier.size(13.dp))
             } else {
                 Text(
-                    initialOf.trim().take(1).uppercase(),
+                    NameInitials.of(initialOf, max = 1),
                     color = colors.onInk,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,

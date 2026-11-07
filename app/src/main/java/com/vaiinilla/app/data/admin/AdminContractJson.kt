@@ -9,15 +9,20 @@ import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminSummary
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccounts
+import com.vaiinilla.app.domain.admin.AdminUnpaidOrder
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.OrderState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 
 /** Contratos de la administración: el resumen, las cuentas sin pagar y la escritura del menú. */
 class AdminContractJson {
@@ -66,17 +71,25 @@ class AdminContractJson {
         return AdminUnpaidAccounts(
             accounts =
                 data.cuentas.map {
+                    // El servidor manda la lista en pedidos_detalle; antes venía en pedidos (#204).
+                    val orderLines = unpaidOrders(it.pedidosDetalle ?: it.pedidos)
                     AdminUnpaidAccount(
                         spaceId = it.espacio.id,
                         spaceName = it.espacio.nombre,
-                        orders = it.pedidos,
+                        orders = it.numPedidos ?: (it.pedidos as? JsonPrimitive)?.intOrNull ?: orderLines.size,
                         total = it.total,
                         hours = it.horas,
                         abandoned = it.abandonada,
+                        // R33: lo abonado ya entró a la caja; «Por cobrar» es lo que falta (restante).
+                        paid = it.abonado ?: "0.00",
+                        remaining = it.restante ?: it.total,
+                        sessionId = it.sesionId,
+                        orderLines = orderLines,
                     )
                 },
             total = data.total,
             abandoned = data.abandonadas,
+            remaining = data.restante ?: data.total,
         )
     }
 
@@ -212,16 +225,40 @@ private data class UnpaidAccountsDto(
     val cuentas: List<UnpaidAccountDto> = emptyList(),
     val total: String = "0.00",
     val abandonadas: Int = 0,
+    /** R33: sin lo abonado; un servidor anterior no lo manda. */
+    val restante: String? = null,
 )
 
 @Serializable
 private data class UnpaidAccountDto(
     val espacio: UnpaidSpaceDto,
-    val pedidos: Int,
+    /** El conteo; con #204 vino un tiempo como lista (R1). Se aceptan las dos formas. */
+    val pedidos: JsonElement? = null,
+    @SerialName("num_pedidos") val numPedidos: Int? = null,
+    /** La lista de pedidos con su restante; `pedidos` vuelve a ser el conteo. */
+    @SerialName("pedidos_detalle") val pedidosDetalle: JsonElement? = null,
     val total: String,
     val horas: Int = 0,
     val abandonada: Boolean = false,
+    /** R33: abonos sin liquidar y lo que falta; un servidor anterior no los manda. */
+    val abonado: String? = null,
+    val restante: String? = null,
+    @SerialName("sesion_id") val sesionId: String? = null,
 )
+
+/** Los pedidos de una cuenta sin pagar; un conteo (servidor anterior) da lista vacía. */
+private fun unpaidOrders(raw: JsonElement?): List<AdminUnpaidOrder> =
+    (raw as? JsonArray).orEmpty().mapNotNull { element ->
+        val obj = element as? JsonObject ?: return@mapNotNull null
+        val id = (obj["id"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
+        val total = (obj["total"] as? JsonPrimitive)?.contentOrNull ?: "0.00"
+        AdminUnpaidOrder(
+            id = id,
+            folio = (obj["folio"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+            total = total,
+            remaining = (obj["restante"] as? JsonPrimitive)?.contentOrNull ?: total,
+        )
+    }
 
 @Serializable
 private data class UnpaidSpaceDto(

@@ -26,6 +26,11 @@ class SkipsKitchenTest {
     }
 
     @Test
+    fun `an order of ready-made items skips the kitchen`() {
+        assertTrue(order(OrderState.READY, PreparationStation.NONE).skipsKitchen)
+    }
+
+    @Test
     fun `an order with a kitchen item does not skip it`() {
         assertFalse(order(OrderState.READY, PreparationStation.CASHIER, PreparationStation.KITCHEN).skipsKitchen)
     }

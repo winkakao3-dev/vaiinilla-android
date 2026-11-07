@@ -89,6 +89,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.guardianship.restrictionFor
@@ -130,6 +131,7 @@ import com.vaiinilla.app.ui.hotel.guest.HotelMenuHeader
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
+import com.vaiinilla.app.ui.order.currentSpace
 import com.vaiinilla.app.ui.order.filteredProducts
 import com.vaiinilla.app.ui.order.isSelectedProductValid
 import com.vaiinilla.app.ui.order.menuNotice
@@ -389,7 +391,7 @@ private fun CatalogContent(
             state.filteredProducts
         }
 
-    val cartShortcutVisible = onOpenCart != null && state.cartItemCount > 0 && state.selectedProduct == null
+    val cartShortcutVisible = onOpenCart != null && menuCartPillVisible(state)
     // En el cuarto de un hotel el menú es el room service de Doop (H02): cabecera propia y barra «Ver pedido».
     val hotelRoom = SpaceCopy.isRoom(state.guestVenue?.space)
     val hotelCartBar = hotelRoom && cartShortcutVisible
@@ -759,13 +761,14 @@ private fun MenuHero(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 VenueLogo(establishment?.logoUrl, name, size = 28.dp)
-                venue?.space?.let { space ->
+                // Con una pista rentada en curso, el cliente ya está allá y no en la mesa del QR.
+                state.currentSpace?.let { space ->
                     Text(
                         text =
                             if (SpaceCopy.isRoom(space)) {
                                 "${space.name} · se lleva a tu puerta"
                             } else {
-                                "${space.name} · ${space.type}"
+                                "${space.name} · ${SpaceCopy.kindLabel(space.type).lowercase()}"
                             },
                         color = colors.ink,
                         fontWeight = FontWeight.SemiBold,
@@ -971,6 +974,10 @@ private fun ProductCard(
             placeholder = { m -> ProductIllustration(kind, m) },
             card = true,
         )
+        // Lo agotado se queda en su lugar, deslavado, para que se lea «Agotado» de un vistazo (en vivo, #23).
+        if (!product.available) {
+            Box(Modifier.matchParentSize().background(colors.paper.copy(alpha = 0.5f)))
+        }
         Column(
             modifier =
                 Modifier
@@ -1249,7 +1256,8 @@ private fun MenuModeIcons(
             modifier =
                 Modifier
                     .align(Alignment.BottomStart)
-                    .offset(x = indicatorX)
+                    // offset { } lee la posición al acomodar: el indicador no recompone ni vuelve a medir.
+                    .offset { IntOffset(indicatorX.roundToPx(), 0) }
                     .width(tabWidth)
                     .height(3.dp)
                     .clip(CircleShape)
@@ -1257,3 +1265,9 @@ private fun MenuModeIcons(
         )
     }
 }
+
+/** Con el aviso de que no se reciben pedidos, la píldora «Ver carrito» no invita a pagar (en vivo, #20). */
+internal fun menuCartPillVisible(state: OrderFlowUiState): Boolean =
+    state.cartItemCount > 0 &&
+        state.selectedProduct == null &&
+        state.operationalStatus?.acceptingOrders != false

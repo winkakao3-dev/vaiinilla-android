@@ -124,6 +124,7 @@ private data class WalletSnapshotDto(
     @SerialName("establecimiento_id") val establishmentId: String? = null,
     @SerialName("saldo") val visibleBalance: String,
     @SerialName("actualizado_en") val updatedAt: String? = null,
+    @SerialName("saldo_congelado") val frozen: Boolean = false,
 ) {
     fun toDomain() =
         WalletSnapshot(
@@ -132,6 +133,7 @@ private data class WalletSnapshotDto(
             establishmentId = establishmentId,
             visibleBalance = visibleBalance,
             updatedAt = updatedAt,
+            frozen = frozen,
         )
 }
 

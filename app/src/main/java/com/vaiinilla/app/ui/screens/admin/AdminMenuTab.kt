@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +51,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -95,6 +96,7 @@ import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
+import com.vaiinilla.app.ui.admin.AdminInventoryViewModel
 import com.vaiinilla.app.ui.admin.AdminUiState
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
@@ -136,6 +138,9 @@ internal fun AdminMenuTab(
     isSchool: Boolean = false,
     takesPreorders: Boolean = false,
     header: AdminHeader,
+    /** Negocio › Inventario: con él la hoja del producto lleva el botón «Receta»; null lo esconde. */
+    inventory: AdminInventoryViewModel? = null,
+    scope: String? = null,
 ) {
     var sheet by remember { mutableStateOf<MenuSheet?>(null) }
     val catalog = state.catalog
@@ -172,7 +177,28 @@ internal fun AdminMenuTab(
                 onDismiss = { sheet = null },
                 onSave = { input -> actions.onSaveCategory(current.category?.id, input) { sheet = null } },
             )
-        is MenuSheet.EditProduct ->
+        is MenuSheet.EditProduct -> {
+            val editing = current.product
+            val recipe =
+                if (editing != null && inventory != null && scope != null) {
+                    LaunchedEffect(scope, editing.id) { inventory.ensureLoaded(scope) }
+                    val inventoryState by inventory.uiState
+                    val known = inventoryState.products?.firstOrNull { it.id == editing.id }
+                    RecipeEntry(
+                        soldOutByInventory = known?.soldOutByInventory == true,
+                        notice = inventoryState.notice,
+                        noticeIsError = inventoryState.noticeIsError,
+                        detail =
+                            when {
+                                known != null -> recipeSummary(known)
+                                inventoryState.products == null && inventoryState.error == null -> "Cargando…"
+                                else -> "Los insumos que gasta cada vez que se vende"
+                            },
+                        onOpen = { inventory.openRecipeFor(editing.id, editing.name) },
+                    )
+                } else {
+                    null
+                }
             ProductSheet(
                 product = current.product,
                 categories = catalog?.categories.orEmpty().sortedBy { it.order },
@@ -193,10 +219,25 @@ internal fun AdminMenuTab(
                     actions.onRemoveImage(product)
                     sheet = null
                 },
+                recipe = recipe,
             )
+            // La receta se abre encima de la hoja del producto; al guardarla o cerrarla se vuelve a él.
+            if (inventory != null) InventoryRecipeSheetHost(inventory, catalog?.products, colors, readOnly)
+        }
         null -> Unit
     }
 }
+
+/** El renglón «Receta» de la hoja del producto: cómo va su receta y qué hacer al tocarlo. */
+private class RecipeEntry(
+    val detail: String,
+    val onOpen: () -> Unit,
+    /** La receta lo dejó agotado: guardar el producto no debe volver a ponerlo disponible. */
+    val soldOutByInventory: Boolean = false,
+    /** El aviso de Inventario («Receta guardada», «quedó agotado»), que aquí no tiene su página. */
+    val notice: String? = null,
+    val noticeIsError: Boolean = false,
+)
 
 @Composable
 private fun MenuList(
@@ -350,7 +391,8 @@ private fun MenuList(
                             AdminSecondaryButton(
                                 "Restaurar",
                                 colors,
-                                Modifier.width(102.dp),
+                                // L01: ancho mínimo, no fijo: con letra grande «Restaurar» ya no se corta.
+                                Modifier.widthIn(min = 102.dp),
                                 filled = true,
                                 enabled = !readOnly && !saving,
                             ) {
@@ -818,6 +860,7 @@ private fun ProductSheet(
     isSchool: Boolean = false,
     onArchive: (Product) -> Unit = {},
     takesPreorders: Boolean = false,
+    recipe: RecipeEntry? = null,
 ) {
     val context = LocalContext.current
     // Un servidor que no conoce los días de preparación no los manda: sale solo en repostería o si ya los trae.
@@ -839,6 +882,12 @@ private fun ProductSheet(
     var allergensTouched by remember { mutableStateOf(false) }
     var markUnreviewed by remember { mutableStateOf(false) }
     var available by remember { mutableStateOf(product?.available ?: true) }
+    // Solo lo que el admin tocó: si la receta recién guardada lo agotó, «Guardar cambios» no lo vuelve a vender.
+    var availableTouched by remember { mutableStateOf(false) }
+    val soldOutByRecipe = recipe?.soldOutByInventory == true
+    LaunchedEffect(soldOutByRecipe) {
+        if (soldOutByRecipe && !availableTouched) available = false
+    }
     var image by remember { mutableStateOf<AdminImage?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
     val groups =
@@ -905,7 +954,8 @@ private fun ProductSheet(
         }
     }
     val canSave = name.isNotBlank() && price.isNotBlank() && categoryId != null
-    val looksLikeRental = RentalWords.containsMatchIn(name)
+    // En un boliche «Renta de zapatos» o «Juego por persona» sí son productos: no se avisa.
+    val looksLikeRental = !Venue.isBowling && RentalWords.containsMatchIn(name)
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -1067,7 +1117,10 @@ private fun ProductSheet(
                                     Modifier.weight(1f),
                                     outlined = true,
                                     enabled = !saving,
-                                ) { available = !available }
+                                ) {
+                                    availableTouched = true
+                                    available = !available
+                                }
                                 AdminSecondaryButton(
                                     "Archivar",
                                     colors,
@@ -1263,6 +1316,8 @@ private fun ProductSheet(
                                         "Esto parece una renta de ${Venue.court}. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
                                     looksLikeRental ->
                                         "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
+                                    Venue.isBowling ->
+                                        "La pista por hora se renta desde Mesas y espacios. Juegos por persona y renta de zapatos sí van aquí como producto."
                                     else -> "Este negocio renta ${Venue.courts} desde Mesas y espacios. No crees la renta como producto."
                                 },
                                 fontSize = 12.sp,
@@ -1322,7 +1377,10 @@ private fun ProductSheet(
                             checked = available,
                             colors = colors,
                             enabled = !saving,
-                            onChange = { available = it },
+                            onChange = {
+                                availableTouched = true
+                                available = it
+                            },
                         )
                         AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
                             AdminRow(
@@ -1342,6 +1400,27 @@ private fun ProductSheet(
                                     tint = colors.textMuted,
                                 )
                             }
+                            recipe?.let { entry ->
+                                AdminRowDivider(colors)
+                                AdminRow(
+                                    title = "Receta",
+                                    colors = colors,
+                                    detail = entry.detail,
+                                    onClick = {
+                                        haptics.selection()
+                                        entry.onOpen()
+                                    },
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = colors.textMuted,
+                                    )
+                                }
+                            }
+                        }
+                        recipe?.notice?.let { notice ->
+                            if (recipe?.noticeIsError == true) SheetError(notice) else AdminHint(notice, colors)
                         }
                         error?.let { SheetError(it) }
                         AdminPrimaryButton(
@@ -1381,6 +1460,7 @@ private fun CategoryChips(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StationChips(
     station: PreparationStation,
@@ -1388,8 +1468,8 @@ private fun StationChips(
     colors: OperationalColors,
     onSelect: (PreparationStation) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(PreparationStation.KITCHEN, PreparationStation.CASHIER).forEach { option ->
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(PreparationStation.KITCHEN, PreparationStation.CASHIER, PreparationStation.NONE).forEach { option ->
             ChipButton(label = stationLabel(option), enabled = !saving, colors = colors, selected = option == station) {
                 onSelect(option)
             }
@@ -1654,6 +1734,7 @@ private fun stationLabel(station: PreparationStation): String =
     when (station) {
         PreparationStation.CASHIER -> "Barra"
         PreparationStation.KITCHEN -> "Cocina"
+        PreparationStation.NONE -> "Sin preparación"
     }
 
 /** Deja dígitos y un separador con hasta dos decimales; la coma del teclado cuenta como punto. */

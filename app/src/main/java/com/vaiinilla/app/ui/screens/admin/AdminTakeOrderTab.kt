@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -86,8 +87,9 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.screens.COUNTER_LINE_QUANTITY_MAX
 import com.vaiinilla.app.ui.screens.CUSTOMER_NAME_MAX
-import com.vaiinilla.app.ui.screens.OpcionesMostrador
 import com.vaiinilla.app.ui.screens.OperationalColors
+import com.vaiinilla.app.ui.screens.StaffLineExtras
+import com.vaiinilla.app.ui.screens.StaffOrderLines
 import com.vaiinilla.app.ui.screens.alternarOpcionMostrador
 import com.vaiinilla.app.ui.screens.counterOrderMatches
 import com.vaiinilla.app.ui.screens.opcionesIniciales
@@ -103,49 +105,40 @@ internal fun AdminTakeOrderTab(
     state: WaiterUiState,
     colors: OperationalColors,
     header: AdminHeader,
-    onPickCounter: () -> Unit,
-    onPickTable: (TableSpace) -> Unit,
-    onSubmit: (List<CartLine>, String) -> Unit,
+    /** Al entrar o tras mandar: abre el pedido hacia donde va el borrador. */
+    onOpen: () -> Unit,
+    /** Mostrador (null) o una mesa; no toca lo armado. */
+    onPickTarget: (TableSpace?) -> Unit,
+    onDraftChange: (Map<Int, CartLine>, String) -> Unit,
+    onSubmit: () -> Unit,
 ) {
-    var name by remember { mutableStateOf("") }
+    // R17: el pedido armado, el nombre y la mesa viven en el ViewModel; cambiar de pestaña ya no los borra.
+    val draft = state.adminOrderDraft
+    val lines = draft.lines
+    val name = draft.name
+
+    fun setLines(next: Map<Int, CartLine>) = onDraftChange(next, name)
     var query by remember { mutableStateOf("") }
-    var lines by remember { mutableStateOf<Map<Int, CartLine>>(emptyMap()) }
     var choosing by remember { mutableStateOf<CartLine?>(null) }
     var reviewing by remember { mutableStateOf(false) }
-    var wasSending by remember { mutableStateOf(false) }
     val catalog = state.counterCatalog
     val products = catalog?.products.orEmpty().filter { it.available }
     val visible = counterOrderMatches(products, query)
     val spaces = remember(state.tables) { state.tables.map { it.space }.distinctBy { it.id } }
-    val destination = state.counterOrderSpace
+    val destination = draft.space
     val toAccount = destination != null && state.allowsPayAtEnd
 
-    LaunchedEffect(Unit) { if (!state.counterOrderOpen) onPickCounter() }
-    // El envío salió bien cuando deja de enviar sin error: se limpia y queda listo para el siguiente, en mostrador.
-    LaunchedEffect(state.counterOrderSending, state.counterOrderError) {
-        if (wasSending && !state.counterOrderSending && state.counterOrderError == null) {
-            lines = emptyMap()
-            name = ""
-            reviewing = false
-            onPickCounter()
-        }
-        wasSending = state.counterOrderSending
-    }
-
-    fun step(
-        productId: Int,
-        delta: Int,
-    ) {
-        val current = lines[productId] ?: return
-        val quantity = (current.quantity + delta).coerceAtMost(COUNTER_LINE_QUANTITY_MAX)
-        lines = if (quantity <= 0) lines - productId else lines + (productId to current.copy(quantity = quantity))
-    }
+    // Al entrar, y cuando la hoja compartida se cierra (se mandó el pedido), se vuelve a abrir hacia el borrador.
+    LaunchedEffect(state.counterOrderOpen) { if (!state.counterOrderOpen) onOpen() }
+    // Mandado: el borrador quedó vacío, así que el resumen se cierra solo.
+    LaunchedEffect(lines.isEmpty()) { if (lines.isEmpty()) reviewing = false }
 
     fun add(product: Product) {
+        val hasPlainLine = lines.values.any { it.product.id == product.id && it.notes.isEmpty() }
         when {
-            lines.containsKey(product.id) -> step(product.id, 1)
-            product.optionGroups.isNotEmpty() -> choosing = CartLine(product, 1, opcionesIniciales(product))
-            else -> lines = lines + (product.id to CartLine(product, 1, opcionesIniciales(product)))
+            hasPlainLine || product.optionGroups.isEmpty() ->
+                setLines(StaffOrderLines.addUnit(lines, product, opcionesIniciales(product)))
+            else -> choosing = CartLine(product, 1, opcionesIniciales(product))
         }
     }
 
@@ -171,10 +164,10 @@ internal fun AdminTakeOrderTab(
                             destination == null,
                             colors,
                             showsIcon = true,
-                            onClick = onPickCounter,
+                            onClick = { onPickTarget(null) },
                         )
                         spaces.forEach { space ->
-                            DestinationChip(space.name, destination?.id == space.id, colors) { onPickTable(space) }
+                            DestinationChip(space.name, destination?.id == space.id, colors) { onPickTarget(space) }
                         }
                     }
                 }
@@ -213,11 +206,11 @@ internal fun AdminTakeOrderTab(
                                 pair.forEach { product ->
                                     TakeOrderCard(
                                         product = product,
-                                        quantity = lines[product.id]?.quantity ?: 0,
+                                        quantity = StaffOrderLines.quantityOf(lines, product.id),
                                         colors = colors,
                                         modifier = Modifier.weight(1f),
                                         onAdd = { add(product) },
-                                        onSubtract = { step(product.id, -1) },
+                                        onSubtract = { setLines(StaffOrderLines.removeUnit(lines, product.id)) },
                                     )
                                 }
                                 if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -264,33 +257,35 @@ internal fun AdminTakeOrderTab(
             onChange = { choosing = it },
             onDismiss = { choosing = null },
         ) {
-            lines = lines + (line.product.id to line)
+            setLines(StaffOrderLines.addLine(lines, line))
             choosing = null
         }
     }
     if (reviewing && lines.isNotEmpty()) {
         ReviewSheet(
-            lines = lines.values.toList(),
+            lines = lines.entries.map { it.key to it.value },
             name = name,
             destination = destination?.name ?: "Mostrador",
             toAccount = toAccount,
             sending = state.counterOrderSending,
             error = state.counterOrderError,
             colors = colors,
-            onName = { if (it.length <= CUSTOMER_NAME_MAX) name = it },
-            onStep = ::step,
-            onOption = { line, group, optionId ->
-                lines =
-                    lines +
-                    (
-                        line.product.id to
-                            line.copy(
-                                selectedOptionIds = alternarOpcionMostrador(line.selectedOptionIds, group, optionId),
-                            )
-                    )
+            onName = { if (it.length <= CUSTOMER_NAME_MAX) onDraftChange(lines, it) },
+            onStep = { lineId, delta -> setLines(StaffOrderLines.step(lines, lineId, delta)) },
+            onNote = { lineId, note -> setLines(StaffOrderLines.setNote(lines, lineId, note)) },
+            onSplit = { lineId -> setLines(StaffOrderLines.splitOne(lines, lineId)) },
+            onOption = { lineId, line, group, optionId ->
+                setLines(
+                    StaffOrderLines.setOptions(
+                        lines,
+                        lineId,
+                        alternarOpcionMostrador(line.selectedOptionIds, group, optionId),
+                    ),
+                )
             },
             onDismiss = { reviewing = false },
-        ) { onSubmit(lines.values.toList(), name) }
+            onSend = onSubmit,
+        )
     }
 }
 
@@ -860,7 +855,8 @@ private const val OPTION_TILES_PER_ROW = 3
 
 @Composable
 private fun ReviewSheet(
-    lines: List<CartLine>,
+    /** Id de línea y línea, en el orden en que se armó (R24). */
+    lines: List<Pair<Int, CartLine>>,
     name: String,
     destination: String,
     toAccount: Boolean,
@@ -869,12 +865,14 @@ private fun ReviewSheet(
     colors: OperationalColors,
     onName: (String) -> Unit,
     onStep: (Int, Int) -> Unit,
-    onOption: (CartLine, com.vaiinilla.app.domain.model.OptionGroup, Int) -> Unit,
+    onNote: (Int, String) -> Unit,
+    onSplit: (Int) -> Unit,
+    onOption: (Int, CartLine, com.vaiinilla.app.domain.model.OptionGroup, Int) -> Unit,
     onDismiss: () -> Unit,
     onSend: () -> Unit,
 ) {
-    val missing = lines.filter { !opcionesValidas(it) }
-    val total = moneyLabelCents(Money.counterPreview(lines))
+    val missing = lines.filter { (_, line) -> !opcionesValidas(line) }
+    val total = moneyLabelCents(Money.counterPreview(lines.map { it.second }))
     AdminSheet(
         title = if (toAccount) "Pedido de $destination" else "Pedido para $destination",
         colors = colors,
@@ -890,7 +888,7 @@ private fun ReviewSheet(
             colors,
         )
         Column {
-            lines.forEachIndexed { index, line ->
+            lines.forEachIndexed { index, (lineId, line) ->
                 if (index > 0) AdminRowDivider(colors)
                 val options =
                     line.product.optionGroups
@@ -911,30 +909,35 @@ private fun ReviewSheet(
                             Icons.Rounded.Remove,
                             "Quitar uno de ${line.product.name}",
                             colors.textPrimary,
-                        ) { onStep(line.product.id, -1) }
+                        ) { onStep(lineId, -1) }
                         RollingCount(line.quantity, colors.textPrimary)
                         Stepper(
                             Icons.Rounded.Add,
                             "Agregar otro ${line.product.name}",
                             colors.textPrimary,
-                        ) { onStep(line.product.id, 1) }
+                        ) { onStep(lineId, 1) }
                     }
+                }
+                // R24: nota por línea, «Separar una» y sus opciones (abiertas si falta una obligatoria).
+                key(lineId) {
+                    StaffLineExtras(
+                        line = line,
+                        colors = colors,
+                        onNote = { onNote(lineId, it) },
+                        onSplit = { onSplit(lineId) },
+                        onOpcion = { group, optionId -> onOption(lineId, line, group, optionId) },
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
                 }
             }
         }
-        missing.forEach { line ->
+        missing.forEach { (_, line) ->
             Text(
                 "Elige las opciones de ${line.product.name}",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.coralText,
             )
-            OpcionesMostrador(linea = line, colors = colors, onOpcion = {
-                group,
-                optionId,
-                ->
-                onOption(line, group, optionId)
-            })
         }
         if (!toAccount) {
             AdminTextField(

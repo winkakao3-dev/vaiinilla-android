@@ -4,12 +4,12 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -37,21 +37,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +73,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.model.Venue
@@ -108,12 +113,25 @@ fun MenuWaiterLayer(
     modifier: Modifier = Modifier,
     /** «la Mesa 4», para la hoja antes de llamar. */
     place: String? = null,
+    /** El asistente de pedidos, junto a «Mesero»; null si no está disponible. */
+    onOpenAssistant: (() -> Unit)? = null,
+    /** Sin cuenta y sin nombre: la hoja lo pide antes de sentarlo en la mesa. */
+    onJoinAs: (suspend (String) -> Result<Unit>)? = null,
 ) {
     val state =
         remember(spaceId) {
-            MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable)
+            MenuWaiterCallState(spaceId, onCurrent, onCall, onCancel, onJoinTable, onJoinAs)
         }
-    MenuWaiterLayer(state = state, visible = visible, cart = cart, place = place, modifier = modifier)
+    // Al dar su nombre el invitado deja de necesitarlo: se cambia sin recrear el estado ni cortar la llamada.
+    SideEffect { state.onJoinAs = onJoinAs }
+    MenuWaiterLayer(
+        state = state,
+        visible = visible,
+        cart = cart,
+        place = place,
+        modifier = modifier,
+        onOpenAssistant = onOpenAssistant,
+    )
 }
 
 @Composable
@@ -123,6 +141,7 @@ internal fun MenuWaiterLayer(
     cart: MenuCartBar?,
     modifier: Modifier = Modifier,
     place: String? = null,
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val reduced = reducedMotion()
     WaiterCallHost(state = state, visible = visible, place = place)
@@ -134,7 +153,7 @@ internal fun MenuWaiterLayer(
                     .navigationBarsPadding()
                     .padding(
                         start = VaiinillaBottomNavSideMargin,
-                        end = if (cart != null) VaiinillaBottomNavSideMargin else 0.dp,
+                        end = if (cart != null || onOpenAssistant != null) VaiinillaBottomNavSideMargin else 0.dp,
                         bottom = VaiinillaBottomNavTop + 10.dp,
                     ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -147,29 +166,42 @@ internal fun MenuWaiterLayer(
                 // Se queda con el último carrito mientras sale, para que no se vacíe a media animación.
                 val shown = remember { mutableStateOf(cart) }
                 if (cart != null) shown.value = cart
-                shown.value?.let { CartWaiterBar(state = state, cart = it) }
+                shown.value?.let { CartWaiterBar(state = state, cart = it, onOpenAssistant = onOpenAssistant) }
             }
-            AnimatedVisibility(
-                visible = visible && cart == null && state.phase != MenuWaiterPhase.UNAVAILABLE,
-                enter =
-                    if (reduced) {
-                        fadeIn()
-                    } else {
-                        fadeIn(tween(200)) +
-                            scaleIn(
-                                initialScale = 0.8f,
-                                transformOrigin = TransformOrigin(0f, 1f),
-                                animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
-                            )
-                    },
-                exit =
-                    if (reduced) {
-                        fadeOut()
-                    } else {
-                        fadeOut(tween(160)) + scaleOut(targetScale = 0.8f, transformOrigin = TransformOrigin(0f, 1f))
-                    },
-            ) {
-                WaiterPill(state = state)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                AnimatedVisibility(
+                    visible = visible && cart == null && state.phase != MenuWaiterPhase.UNAVAILABLE,
+                    enter =
+                        if (reduced) {
+                            fadeIn()
+                        } else {
+                            fadeIn(tween(200)) +
+                                scaleIn(
+                                    initialScale = 0.92f,
+                                    transformOrigin = TransformOrigin(0f, 1f),
+                                    animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f),
+                                )
+                        },
+                    exit =
+                        if (reduced) {
+                            fadeOut()
+                        } else {
+                            fadeOut(tween(160)) +
+                                scaleOut(targetScale = 0.92f, transformOrigin = TransformOrigin(0f, 1f))
+                        },
+                ) {
+                    WaiterPill(state = state)
+                }
+                if (onOpenAssistant != null) {
+                    AnimatedVisibility(
+                        visible = visible && cart == null,
+                        enter = if (reduced) fadeIn() else fadeIn(tween(200)) + scaleIn(initialScale = 0.92f),
+                        exit = if (reduced) fadeOut() else fadeOut(tween(160)) + scaleOut(targetScale = 0.92f),
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
+                        AssistantPill(onOpenAssistant)
+                    }
+                }
             }
         }
     }
@@ -225,13 +257,15 @@ private fun WaiterPill(state: MenuWaiterCallState) {
 }
 
 /**
- * Una sola barra de tinta: "Ver carrito · N" y el total abren el carrito; adentro, a la derecha, "Mesero" llama.
+ * Una sola barra lima: "Pedir ya · N" y el total abren el carrito para pagar; adentro, a la derecha, "Mesero" llama.
+ * Antes era de tinta y decía "Ver carrito": quien no conoce la app no la veía como el paso para pedir (Doop L02b).
  * Si el negocio no tiene llamadas, queda solo el carrito. Salta un poco con cada producto que entra.
  */
 @Composable
 private fun CartWaiterBar(
     state: MenuWaiterCallState,
     cart: MenuCartBar,
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
@@ -265,25 +299,29 @@ private fun CartWaiterBar(
                     scaleY = barScale * bump.value
                 }.shadow(18.dp, shape, clip = false)
                 .clip(shape)
-                .background(colors.ink)
+                .background(colors.accent)
                 .clickable(interactionSource = barPress, indication = null, role = Role.Button) {
                     haptics.click()
                     cart.onOpen()
                 }.semantics(mergeDescendants = false) {
-                    contentDescription = "${if (Venue.isHotel) "Ver pedido" else "Ver carrito"}: $products, ${cart.total}"
+                    contentDescription = "${if (Venue.isHotel) "Ver pedido" else "Pedir ya"}: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
-                .padding(start = 20.dp, end = 7.dp),
+                .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (Venue.isHotel) "Ver pedido · " else "Ver carrito · ", color = colors.onInk, fontSize = 15.5.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        if (onOpenAssistant != null) {
+            AssistantDot(onOpenAssistant)
+            Spacer(Modifier.width(12.dp))
+        }
+        Text(if (Venue.isHotel) "Ver pedido · " else "Pedir ya · ", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
         NumberTicker(value = cart.count, label = "cart-bar-count") { value ->
-            Text("$value", color = colors.onInk, fontSize = 15.5.sp, fontWeight = FontWeight.Black)
+            Text("$value", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.weight(1f))
         RollingText(
             text = cart.total,
             style = TextStyle(fontSize = 15.5.sp, fontWeight = FontWeight.Black),
-            color = colors.onInk,
+            color = colors.accentInk,
             modifier = Modifier.padding(end = if (state.phase == MenuWaiterPhase.UNAVAILABLE) 13.dp else 8.dp),
         )
         if (state.phase != MenuWaiterPhase.UNAVAILABLE) WaiterSegment(state = state)
@@ -314,7 +352,7 @@ private fun WaiterSegment(state: MenuWaiterCallState) {
                     scaleY = scale
                     alpha = if (waiting) 0.6f else 1f
                 }.clip(RoundedCornerShape(percent = 50))
-                .background(if (calling) colors.accent else colors.onInk)
+                .background(if (calling) colors.ink else colors.onInk)
                 .clickable(interactionSource = press, indication = null, enabled = !waiting, role = Role.Button) {
                     haptics.click()
                     state.tap()
@@ -334,7 +372,7 @@ private fun WaiterSegment(state: MenuWaiterCallState) {
                 }.padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val ink = if (calling) colors.accentInk else colors.ink
+        val ink = if (calling) colors.accent else colors.ink
         CompositionLocalProvider(LocalContentColor provides ink) { WaiterIcon(icon = label.icon) }
         AnimatedContent(
             targetState = label.shortTitle,
@@ -350,6 +388,64 @@ private fun WaiterSegment(state: MenuWaiterCallState) {
                 modifier = Modifier.padding(start = 7.dp),
             )
         }
+    }
+}
+
+/** «Pregúntame qué pedir»: abre el asistente de pedidos, junto a «Mesero» (Doop CA1). */
+@Composable
+private fun AssistantPill(onOpen: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Row(
+        modifier =
+            Modifier
+                .heightIn(min = 52.dp)
+                .shadow(18.dp, RoundedCornerShape(percent = 50), clip = false)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(colors.accent)
+                .clickable(role = Role.Button) {
+                    haptics.click()
+                    onOpen()
+                }.testTag(MENU_ASSISTANT_PILL_TAG)
+                .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
+        // L01: con letra grande partía «Pregún/tame»: va en un solo renglón que se encoge.
+        Text(
+            "Pregúntame qué pedir",
+            color = colors.accentInk,
+            fontWeight = FontWeight.Black,
+            lineHeight = 17.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 15.sp, stepSize = 0.5.sp),
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
+        )
+    }
+}
+
+/** El asistente dentro de la barra «Pedir ya»: un círculo de tinta con la chispa lima a la izquierda (Doop CA1b). */
+@Composable
+private fun AssistantDot(onOpen: () -> Unit) {
+    val colors = LocalVaiinillaColors.current
+    val haptics = rememberVaiinillaHaptics()
+    Box(
+        modifier =
+            Modifier
+                .minimumInteractiveComponentSize()
+                .size(42.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(colors.ink)
+                .clickable(role = Role.Button) {
+                    haptics.click()
+                    onOpen()
+                }.semantics { contentDescription = "Pregúntale al asistente qué pedir" }
+                .testTag(MENU_ASSISTANT_PILL_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -391,3 +487,4 @@ private fun WaiterIcon(icon: MenuWaiterIcon) {
 
 const val MENU_WAITER_PILL_TAG = "menu-waiter-pill"
 const val MENU_CART_BAR_TAG = "menu-cart-bar"
+const val MENU_ASSISTANT_PILL_TAG = "menu-assistant-pill"

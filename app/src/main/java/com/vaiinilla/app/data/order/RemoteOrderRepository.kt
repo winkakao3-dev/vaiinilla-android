@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.order
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.data.offline.OfflineOrderBody
 import com.vaiinilla.app.domain.model.AgendaDay
 import com.vaiinilla.app.domain.model.CashCollectionResult
 import com.vaiinilla.app.domain.model.CreateOrderRequest
@@ -13,8 +14,10 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.StripePaymentSession
+import com.vaiinilla.app.domain.offline.OfflineOrderAcceptedException
 import com.vaiinilla.app.domain.repository.OrderRepository
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
+import java.time.Instant
 
 class RemoteOrderRepository(
     private val apiClient: VaiinillaApiClient,
@@ -34,6 +37,35 @@ class RemoteOrderRepository(
             .mapCatching { created ->
                 created.copy(order = pickupTokenStore.attach(created.order))
             }.mapApiErrors()
+
+    override fun offlineOrderBody(
+        request: CreateOrderRequest,
+        orderId: String,
+        capturedAt: Instant,
+        localFolio: String,
+        collectNow: Boolean,
+    ): String =
+        OfflineOrderBody.withOfflineCapture(
+            body = contractJson.encodeCreateRequest(request),
+            orderId = orderId,
+            capturedAt = capturedAt,
+            localFolio = localFolio,
+            collectNow = collectNow,
+        )
+
+    override fun sendOfflineOrder(
+        body: String,
+        idempotencyKey: String,
+    ): Result<CreatedOrder> =
+        apiClient
+            .post(path = "pedidos", body = body, headers = mapOf("Idempotency-Key" to idempotencyKey))
+            .mapApiErrors()
+            .mapCatching { raw ->
+                // Ya respondió 2xx: si el cuerpo no se entiende, el pedido igual quedó registrado.
+                runCatching { contractJson.parseCreatedOrder(raw) }
+                    .map { created -> created.copy(order = pickupTokenStore.attach(created.order)) }
+                    .getOrElse { throw OfflineOrderAcceptedException(it) }
+            }
 
     override fun getOrder(orderId: String): Result<OrderDetail> =
         apiClient

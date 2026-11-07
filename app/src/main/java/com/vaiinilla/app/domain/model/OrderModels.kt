@@ -56,6 +56,8 @@ data class CreateOrderRequest(
     val withDeposit: Boolean = false,
     /** «Pasa por él»: en un espacio, el cliente lo recoge en la barra en lugar de que se lo lleven. */
     val pickUpAtBar: Boolean = false,
+    /** «Para llevar» confirmado aunque el cliente tenga una silla activa en una mesa o pista (R15). */
+    val confirmTakeAway: Boolean = false,
 )
 
 /** A dónde se lleva un pedido, como lo escribe el cliente. */
@@ -66,14 +68,22 @@ data class DeliveryAddress(
     val latitude: Double? = null,
     val longitude: Double? = null,
 ) {
+    /** La calle con número; vacío si el mapa solo dio el código postal, la colonia o el punto. */
+    val street: String
+        get() = AddressStreet.street(address)
+
     /** Lo mínimo para que el negocio llegue y avise: calle y número, y un teléfono de 10 dígitos. */
     val problem: String?
         get() =
             when {
-                address.trim().length < 8 -> "Escribe la calle, el número y la colonia."
-                phone.count(Char::isDigit) != 10 -> "Escribe un teléfono de 10 dígitos para que te avisen."
-                else -> null
+                address.isBlank() -> "Escribe la calle, el número y la colonia."
+                street.isEmpty() -> "Escribe la calle y el número de tu casa."
+                else -> phoneProblem
             }
+
+    /** El teléfono, aparte, para decirlo junto a su campo y no solo al fondo del carrito. */
+    val phoneProblem: String?
+        get() = "Escribe un teléfono de 10 dígitos para que te avisen.".takeIf { phone.count(Char::isDigit) != 10 }
 }
 
 /** Lo de un pedido a domicilio que el cliente y el negocio necesitan ver. */
@@ -83,6 +93,8 @@ data class OrderHomeDelivery(
     val deposit: String? = null,
     /** Lo que se cobra en la puerta; "0.00" si ya está pagado. */
     val dueOnArrival: String? = null,
+    /** Con qué se cobró en la puerta (`efectivo`, `terminal`, `transferencia`…); null si aún no. */
+    val collectedAtDoorMethod: String? = null,
     /** Los 4 dígitos que el cliente dicta al recibir: solo le llegan a él y desde `en_camino`. */
     val code: String? = null,
     /** Quien lo lleva. El servidor aún no lo manda: sin nombre se dice «quien te lo lleve». */
@@ -151,12 +163,29 @@ data class CreateOrderItem(
 data class CreatedOrder(
     val order: OrderDetail,
     val stripeSession: StripePaymentSession? = null,
+    /** Lo que dijo el servidor del cobro en efectivo pedido con `cobrar_ahora`; null si no lo mandó. */
+    val cashCollection: CreationCashCollection? = null,
 ) {
     val summary: OrderSummary
         get() = order.summary
     val pickupToken: String?
         get() = order.pickupToken
+
+    /**
+     * Caja pidió cobrarlo al crearlo (`cobrar_ahora`) y el cobro no entró a ninguna caja: el servidor lo dice con
+     * `cobro.aplicado = false` (o `estado: pendiente`); uno anterior sin `cobro` lo deja ver con el pedido por cobrar.
+     */
+    val cashCollectionNotApplied: Boolean
+        get() = cashCollection?.applied == false ||
+            (cashCollection == null && summary.state == OrderState.PENDING_PAYMENT)
 }
+
+/** `cobro` de `POST /pedidos` con `cobrar_ahora`: si el efectivo quedó registrado en la caja abierta. */
+data class CreationCashCollection(
+    val applied: Boolean,
+    val code: String? = null,
+    val message: String? = null,
+)
 
 data class OrderDetail(
     val summary: OrderSummary,
@@ -181,7 +210,25 @@ data class OrderDetail(
     val payBy: Instant? = null,
     /** Hotel: la estancia a cuya cuenta se carga el pedido (room service); null en los demás pedidos. */
     val stayId: String? = null,
+    /** Lo tomó el personal sin internet y llegó después (migración 161); `null` en un pedido normal. */
+    val offlineCapture: OfflineCapture? = null,
 )
+
+/** Cuándo y con qué folio provisional se tomó un pedido sin internet. */
+data class OfflineCapture(
+    val capturedAt: Instant?,
+    val localFolio: String?,
+)
+
+/**
+ * «Sin internet · M7-014 · 20:15»: Cocina y Caja lo reconocen como el que ya atendieron con el folio provisional y
+ * no lo preparan ni lo cobran otra vez.
+ */
+fun OrderDetail.offlineCaptureLabel(zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String? {
+    val capture = offlineCapture ?: return null
+    val time = capture.capturedAt?.atZone(zone)?.toLocalTime()?.let { "%02d:%02d".format(it.hour, it.minute) }
+    return listOfNotNull("Sin internet", capture.localFolio?.takeIf { it.isNotBlank() }, time).joinToString(" · ")
+}
 
 /** Cómo quedó el dinero de un pedido o artículo pagado que se canceló: lo que Caja debe hacer o ya no. */
 data class RefundOutcome(
@@ -264,6 +311,8 @@ data class OrderSummary(
     /** Motivo que indicó quien canceló o rechazó el pedido; solo si está cancelado. */
     val cancelReason: String? = null,
     val canceledByRole: String? = null,
+    /** Código del motivo de cancelación (`anticipo_sin_pagar`…); distingue quién dejó pasar el plazo (R29). */
+    val cancelReasonCode: String? = null,
     /** Sesión de mesa a la que pertenece el pedido; `null` si va para llevar o no tiene sesión. */
     val tableSessionId: String? = null,
     /** Se entrega sin escanear el QR de recogida (`entrega_sin_qr`, pedidos a una cuenta abierta). */
