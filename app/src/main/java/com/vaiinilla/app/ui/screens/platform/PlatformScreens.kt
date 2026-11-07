@@ -90,6 +90,7 @@ internal val STORE_TYPES =
         "comedor" to "Comedor",
         "evento" to "Evento",
         "reposteria" to "Repostería",
+        "hotel" to "Hotel",
     )
 
 internal val TIME_ZONES =

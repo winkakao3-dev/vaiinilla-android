@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.hotel
 
 import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.admin.AdminBusinessJson
+import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.data.discovery.SpaceResolveEnvelope
 import com.vaiinilla.app.data.discovery.toDomain
 import com.vaiinilla.app.domain.admin.BusinessType
@@ -115,6 +116,15 @@ class HotelContractTest {
         assertEquals(BusinessType.HOTEL, BusinessType.fromWire("hotel"))
         assertFalse(BusinessType.offered(null).contains(BusinessType.HOTEL))
         assertTrue(StoreTemplate.entries.none { it.type == BusinessType.HOTEL })
+    }
+
+    @Test
+    fun `the platform can pick hotel and saving a hotel flow never sends the locked type`() {
+        assertTrue(com.vaiinilla.app.ui.screens.platform.STORE_TYPES.any { it.first == "hotel" })
+        val hotel = AdminBusinessJson().encodeFlow(StoreFlow("hotel", false, false, true, 5, emptyList()))
+        assertFalse(Json.parseToJsonElement(hotel).jsonObject.containsKey("tipo"))
+        val bar = AdminBusinessJson().encodeFlow(StoreFlow("bar", false, true, true, 5, emptyList()))
+        assertEquals("bar", Json.parseToJsonElement(bar).jsonObject["tipo"]!!.jsonPrimitive.content)
     }
 
     @Test

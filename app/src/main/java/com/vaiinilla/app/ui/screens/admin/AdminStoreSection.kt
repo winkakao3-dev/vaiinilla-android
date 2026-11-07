@@ -216,7 +216,10 @@ private fun StoreCover(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    BusinessType.offered(config.availableTypes).forEach { type ->
+                    if (flow.typeWire == BusinessType.HOTEL.wire) {
+                        AdminFilterChip(label = BusinessType.HOTEL.label, selected = true, colors = colors, onClick = {}, height = 40.dp)
+                    }
+                    BusinessType.offered(config.availableTypes).filter { flow.typeWire != BusinessType.HOTEL.wire }.forEach { type ->
                         AdminFilterChip(
                             label = type.label,
                             selected = flow.typeWire == type.wire,
@@ -1325,9 +1328,11 @@ private fun FlowForm(
     val windows = flow.orderWindows
     val chips = Arrangement.spacedBy(8.dp)
     Column(Modifier.animateContentSize(spring(stiffness = 500f))) {
-        StoreQuestion("Plantilla", colors)
+        // Un hotel no cambia de plantilla: el servidor bloquea su tipo y solo la plataforma lo mueve.
+        val isHotel = saved.typeWire == BusinessType.HOTEL.wire
+        if (!isHotel) StoreQuestion("Plantilla", colors)
         FlowRow(horizontalArrangement = chips, verticalArrangement = chips) {
-            StoreTemplate.offered(availableTypes).forEach { option ->
+            StoreTemplate.offered(availableTypes).filter { !isHotel }.forEach { option ->
                 AdminFilterChip(
                     label = option.label,
                     selected =
