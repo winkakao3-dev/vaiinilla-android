@@ -6,7 +6,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.order.courtLights
 import com.vaiinilla.app.ui.order.courtMinutesLeft
 import java.time.Instant
@@ -32,8 +32,10 @@ internal data class CourtRental(
 private val LaneWords = Regex("boliche|bowling|bolos|carril", RegexOption.IGNORE_CASE)
 
 /** U03: en un boliche lo rentado es una pista de bolos; con la cancha de pádel el cliente no reconocía su renta. */
-internal fun isLaneRental(courtName: String?): Boolean =
-    Venue.isBowling || courtName?.let { LaneWords.containsMatchIn(it) } == true
+internal fun isLaneRental(
+    venue: VenueContext,
+    courtName: String?,
+): Boolean = venue.capabilities.drawsLanes || courtName?.let { LaneWords.containsMatchIn(it) } == true
 
 /** La pista de boliche, sobre la misma cuadrícula: la madera, la línea de falta, las flechas y los pinos. */
 internal object LaneLayout {

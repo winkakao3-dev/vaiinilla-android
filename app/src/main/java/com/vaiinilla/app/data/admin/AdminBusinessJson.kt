@@ -25,7 +25,6 @@ import com.vaiinilla.app.domain.admin.StripeSetup
 import com.vaiinilla.app.domain.model.AssistantMode
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.domain.model.SpaceDelivery
-import com.vaiinilla.app.domain.model.Venue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
@@ -89,8 +88,6 @@ class AdminBusinessJson {
 
     fun parseStoreConfig(raw: String): StoreConfig {
         val config = json.decodeFromString<BizEnvelope<StoreConfigDto>>(raw).data.toDomain()
-        // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de aquí.
-        Venue.update(config.typeWire)
         // Fondo, teléfono y pausa sin internet solo se editan (y se mandan) si el servidor trae la clave, aunque
         // venga en null: un servidor anterior rechazaría el flujo completo por una clave que no conoce.
         val data = (json.parseToJsonElement(raw) as? JsonObject)?.get("data") as? JsonObject ?: return config
@@ -341,9 +338,12 @@ class AdminBusinessJson {
             }
         }.toString()
 
+    /** El tipo de negocio que viene en la configuración de reservas, para quien la consulta. */
+    fun scheduleVenueType(raw: String): String? =
+        json.decodeFromString<BizEnvelope<ScheduleDto>>(raw).data.tipoEstablecimiento
+
     fun parseSchedule(raw: String): ReservationSchedule {
         val data = json.decodeFromString<BizEnvelope<ScheduleDto>>(raw).data
-        data.tipoEstablecimiento?.let(Venue::update)
         return ReservationSchedule(
             opening = data.apertura.take(5),
             closing = data.cierre.take(5),

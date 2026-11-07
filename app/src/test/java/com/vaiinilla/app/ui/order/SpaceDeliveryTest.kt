@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceDelivery
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.components.trackingStepTitle
 import org.junit.Assert.assertEquals
@@ -13,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SpaceDeliveryTest {
+    private val venue = VenueContext.STANDARD
+
     private fun state(
         delivery: SpaceDelivery,
         chosen: Boolean = false,
@@ -74,7 +77,7 @@ class SpaceDeliveryTest {
         )
         assertEquals(
             "Tu pedido está listo, pasa a la barra.",
-            trackingStepDescription(OrderState.READY, inSpace, PaymentMethod.CASH, null, pickUpAtBar = true),
+            trackingStepDescription(venue, OrderState.READY, inSpace, PaymentMethod.CASH, null, pickUpAtBar = true),
         )
     }
 }

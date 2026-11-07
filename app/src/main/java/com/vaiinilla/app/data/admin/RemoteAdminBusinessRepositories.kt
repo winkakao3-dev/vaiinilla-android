@@ -6,6 +6,7 @@ import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.core.network.mapApiFailure
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
@@ -128,13 +129,24 @@ class RemoteAdminStaffRepository(
 
 class RemoteAdminStoreRepository(
     private val apiClient: VaiinillaApiClient,
+    private val venueContext: VenueContextStore,
     private val json: AdminBusinessJson = AdminBusinessJson(),
 ) : AdminStoreRepository {
     private val plain = ApiJson.plain
     private val assistantJson = StoreAssistantJson()
 
+    // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de la configuración.
+    private fun syncVenueType(result: Result<StoreConfig>) {
+        result.onSuccess { venueContext.update(it.typeWire) }
+    }
+
     override fun config(): Result<StoreConfig> =
-        apiClient.get("establecimiento/configuracion").mapCatching(json::parseStoreConfig).mapApiErrors()
+        apiClient
+            .get(
+                "establecimiento/configuracion",
+            ).mapCatching(json::parseStoreConfig)
+            .mapApiErrors()
+            .also(::syncVenueType)
 
     // El PATCH de la configuración no pide llave de idempotencia: guarda lo que se manda tal cual.
     override fun saveFlow(flow: StoreFlow): Result<StoreConfig> = patchConfig(json.encodeFlow(flow))
@@ -344,7 +356,13 @@ class RemoteAdminStoreRepository(
     }
 
     private fun patchConfig(body: String): Result<StoreConfig> =
-        apiClient.patch("establecimiento/configuracion", body).mapCatching(json::parseStoreConfig).mapApiErrors()
+        apiClient
+            .patch(
+                "establecimiento/configuracion",
+                body,
+            ).mapCatching(json::parseStoreConfig)
+            .mapApiErrors()
+            .also(::syncVenueType)
 
     override fun stripe(): Result<StripeSetup?> =
         apiClient.get("stripe/configuracion").mapCatching(json::parseStripeSetup).mapApiErrors()
@@ -420,6 +438,7 @@ class RemoteAdminStoreRepository(
 
 class RemoteAdminSpacesRepository(
     private val apiClient: VaiinillaApiClient,
+    private val venueContext: VenueContextStore,
     private val json: AdminBusinessJson = AdminBusinessJson(),
 ) : AdminSpacesRepository {
     override fun spaces(): Result<List<ManagedSpace>> =
@@ -485,8 +504,20 @@ class RemoteAdminSpacesRepository(
             .mapCatching(json::parseSpace)
             .mapApiErrors()
 
+    private fun syncVenueType(raw: Result<String>) {
+        raw
+            .getOrNull()
+            ?.let { body ->
+                runCatching { json.scheduleVenueType(body) }.getOrNull()
+            }?.let(venueContext::update)
+    }
+
     override fun reservationSchedule(): Result<ReservationSchedule> =
-        apiClient.get("reservas/configuracion").mapCatching(json::parseSchedule).mapApiErrors()
+        apiClient
+            .get("reservas/configuracion")
+            .also(::syncVenueType)
+            .mapCatching(json::parseSchedule)
+            .mapApiErrors()
 
     override fun saveReservationSchedule(
         schedule: ReservationSchedule,
@@ -494,6 +525,7 @@ class RemoteAdminSpacesRepository(
     ): Result<ReservationSchedule> =
         apiClient
             .put("reservas/configuracion", json.encodeSchedule(schedule), key(idempotencyKey))
+            .also(::syncVenueType)
             .mapCatching(json::parseSchedule)
             .mapApiErrors()
 

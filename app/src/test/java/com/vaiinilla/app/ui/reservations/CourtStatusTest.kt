@@ -4,6 +4,7 @@ import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtDay
 import com.vaiinilla.app.domain.model.CourtSchedule
 import com.vaiinilla.app.domain.model.ReservationSlots
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,6 +12,8 @@ import java.time.Instant
 
 /** En vivo, #16: una pista ocupada decía «Fuera de horario» y un día cerrado lo decía en cada pista. */
 class CourtStatusTest {
+    private val venue = VenueContext.STANDARD
+
     // Hoy de 08:00 a 22:00 local (UTC-6).
     private val opens = Instant.parse("2026-11-05T14:00:00Z")
     private val closes = Instant.parse("2026-11-06T04:00:00Z")
@@ -81,7 +84,7 @@ class CourtStatusTest {
 
     @Test
     fun `a closed day is said once for the place`() {
-        assertTrue(closedDayMessage(isToday = true).startsWith("Hoy el lugar no abre"))
-        assertTrue(closedDayMessage(isToday = false).startsWith("Ese día el lugar no abre"))
+        assertTrue(closedDayMessage(venue, isToday = true).startsWith("Hoy el lugar no abre"))
+        assertTrue(closedDayMessage(venue, isToday = false).startsWith("Ese día el lugar no abre"))
     }
 }

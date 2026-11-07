@@ -96,6 +96,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
@@ -108,6 +109,7 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
@@ -1177,11 +1179,20 @@ private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm"
  * El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. Una renta no se lleva: es «Renta de
  * Pista 3» (en vivo, D03).
  */
-internal fun cashierPlaceLabel(order: OrderDetail): String =
+internal fun cashierPlaceLabel(
+    venue: VenueContext,
+    order: OrderDetail,
+): String =
     when {
         order.reservation != null -> rentalChargeLabel(order)
         order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
-        else -> SpaceCopy.staffDestination(order.summary.destination, order.summary.space, order.summary.pickUpAtBar)
+        else ->
+            SpaceCopy.staffDestination(
+                venue,
+                order.summary.destination,
+                order.summary.space,
+                order.summary.pickUpAtBar,
+            )
     }
 
 // Una venta de mostrador no tiene cliente: el servidor manda «Mostrador» como nombre y eso ya dice de dónde viene.
@@ -1190,15 +1201,20 @@ private fun isCounterSale(order: OrderDetail): Boolean =
     order.reservation == null && staffCustomerName(order).equals("Mostrador", ignoreCase = true)
 
 /** «Mostrador» o el lugar del pedido, para la hoja de cobro. */
-internal fun cashierOrderOrigin(order: OrderDetail): String =
-    if (isCounterSale(order)) "Mostrador" else cashierPlaceLabel(order)
+internal fun cashierOrderOrigin(
+    venue: VenueContext,
+    order: OrderDetail,
+): String = if (isCounterSale(order)) "Mostrador" else cashierPlaceLabel(venue, order)
 
 /** «Para llevar · Sofía» en la fila de Caja: el lugar y, si se sabe, el nombre del cliente. */
-private fun cashierRowTitle(order: OrderDetail): String =
+private fun cashierRowTitle(
+    venue: VenueContext,
+    order: OrderDetail,
+): String =
     if (isCounterSale(order)) {
         "Mostrador"
     } else {
-        listOfNotNull(cashierPlaceLabel(order), staffCustomerName(order)).joinToString(" · ")
+        listOfNotNull(cashierPlaceLabel(venue, order), staffCustomerName(order)).joinToString(" · ")
     } + arrivalSuffix(order) + (order.offlineCaptureLabel()?.let { " · $it" } ?: "")
 
 /** «2 Concha, Café de olla»: lo que lleva el pedido, con la cantidad solo cuando es más de uno. */
@@ -1518,6 +1534,7 @@ private fun QueueTicketRow(
     colors: OperationalColors,
     onClick: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val summary = order.summary
     Row(
         modifier =
@@ -1542,7 +1559,7 @@ private fun QueueTicketRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                cashierRowTitle(order),
+                cashierRowTitle(venue, order),
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 15.sp,
                 color = colors.textPrimary,

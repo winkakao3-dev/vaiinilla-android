@@ -35,12 +35,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.model.SharedTableOrder
 import com.vaiinilla.app.domain.model.SharedTableParticipant
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.initialOf
@@ -104,8 +106,11 @@ internal data class SharedSpaceWords(
     val thePlace: String,
 ) {
     companion object {
-        fun of(spaceType: String?): SharedSpaceWords {
-            val noun = SpaceCopy.kindLabel(spaceType)
+        fun of(
+            venue: VenueContext,
+            spaceType: String?,
+        ): SharedSpaceWords {
+            val noun = SpaceCopy.kindLabel(venue, spaceType)
             val masculine = spaceType == "asiento" || spaceType == "drive_thru"
             return SharedSpaceWords(
                 title = if (masculine) "$noun compartido" else "$noun compartida",
@@ -193,6 +198,7 @@ private fun TableSummaryRow(
     table: SharedTable,
     onOpen: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     Row(
         modifier =
             Modifier
@@ -205,7 +211,7 @@ private fun TableSummaryRow(
         TableFaces(table.participants)
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                SharedSpaceWords.of(table.spaceType).title,
+                SharedSpaceWords.of(venue, table.spaceType).title,
                 color = OrderTrackingCardText,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
@@ -272,7 +278,8 @@ private fun JoinTableRow(
     onJoin: () -> Unit,
     onOrderAlone: () -> Unit,
 ) {
-    val words = SharedSpaceWords.of(spaceType)
+    val venue = LocalVenueContext.current
+    val words = SharedSpaceWords.of(venue, spaceType)
     var inviting by rememberSaveable { mutableStateOf(false) }
     Row(
         modifier =

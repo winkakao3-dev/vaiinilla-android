@@ -50,6 +50,9 @@ import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.notifications.OrderNotificationTarget
 import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.core.notifications.ReceivedNoticeLog
+import com.vaiinilla.app.core.venue.LocalVenueContext
+import com.vaiinilla.app.core.venue.VenueContextStore
+import com.vaiinilla.app.core.venue.VenueContextViewModel
 import com.vaiinilla.app.data.auth.student.GoogleSignInHelper
 import com.vaiinilla.app.data.auth.student.GoogleSignInUnavailableException
 import com.vaiinilla.app.data.counter.AndroidConnectivityWatcher
@@ -61,7 +64,6 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.SpaceCopy
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.domain.repository.canCallWaiter
@@ -209,6 +211,41 @@ fun AppNavHost(
     onInvitationConsumed: () -> Unit = {},
     onOrderConsumed: () -> Unit = {},
 ) {
+    val venueStore = viewModel<VenueContextViewModel>().store
+    val venue by venueStore.context.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalVenueContext provides venue) {
+        AppNavHostContent(
+            navController = navController,
+            venueStore = venueStore,
+            pendingEstablishmentSlug = pendingEstablishmentSlug,
+            pendingSpaceToken = pendingSpaceToken,
+            pendingInvitationToken = pendingInvitationToken,
+            pendingOrderId = pendingOrderId,
+            pendingOrderTarget = pendingOrderTarget,
+            pendingNoticeEstablishmentId = pendingNoticeEstablishmentId,
+            onDeepLinkConsumed = onDeepLinkConsumed,
+            onSpaceLinkConsumed = onSpaceLinkConsumed,
+            onInvitationConsumed = onInvitationConsumed,
+            onOrderConsumed = onOrderConsumed,
+        )
+    }
+}
+
+@Composable
+private fun AppNavHostContent(
+    navController: NavHostController,
+    venueStore: VenueContextStore,
+    pendingEstablishmentSlug: String? = null,
+    pendingSpaceToken: String? = null,
+    pendingInvitationToken: String? = null,
+    pendingOrderId: String? = null,
+    pendingOrderTarget: OrderNotificationTarget? = null,
+    pendingNoticeEstablishmentId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+    onSpaceLinkConsumed: () -> Unit = {},
+    onInvitationConsumed: () -> Unit = {},
+    onOrderConsumed: () -> Unit = {},
+) {
     // Vive lo que vive esta composición: si la actividad se recrea (p. ej. al cambiar el tamaño de letra), lo que
     // espera aquí se cancela y no navega con un NavController que ya no está en pantalla (L01).
     val launchNavScope = rememberCoroutineScope()
@@ -248,6 +285,10 @@ fun AppNavHost(
     // Aquí y no dentro de su ruta: la entrada de navegación no tiene la fábrica de Hilt y no lo puede construir.
     val receivedNoticesViewModel: ReceivedNoticesViewModel = viewModel()
     val orderState by orderFlowViewModel.uiState
+    // El nombre de lo que se renta es del negocio que se mira: sin esto un boliche decía «Canchas» y la
+    // pastelería heredaba las «Pistas» del boliche (en vivo, #21). El estado operativo es de este negocio.
+    val venueType = orderState.guestVenue?.establishment?.businessType ?: orderState.operationalStatus?.businessType
+    LaunchedEffect(venueType) { venueStore.update(venueType) }
     val operationalState by operationalViewModel.uiState
     val waiterState by waiterViewModel.uiState
     val studentAuthState by studentAuthViewModel.state
@@ -410,6 +451,7 @@ fun AppNavHost(
             val shown =
                 OrderAdvanceNotifier.notify(
                     context = appContext,
+                    venue = venueStore.current,
                     orderId = event.orderId,
                     folio = event.folio,
                     newState = event.newState,
@@ -965,6 +1007,7 @@ fun AppNavHost(
         orderFlowViewModel.claimGuestOrders(onClaimed = operationalViewModel::refresh)
         studentAuthViewModel.refreshGuestVenue()
         authorizedAccessViewModel.refreshCurrentSession()
+
         fun continueToReturnRoute() {
             if (!navController.popBackStack(returnRoute, inclusive = false)) {
                 navController.navigate(returnRoute) { launchSingleTop = true }
@@ -980,7 +1023,11 @@ fun AppNavHost(
         authorizedAccessViewModel.refreshModes(force = true) { modesRefreshed.complete(it) }
         launchNavScope.launch {
             modesRefreshed.await()
-            val hasStaff = hasStaffLaunchModes(authorizedAccessViewModel.state.value.modes.map { it.role })
+            val hasStaff =
+                hasStaffLaunchModes(
+                    authorizedAccessViewModel.state.value.modes
+                        .map { it.role },
+                )
             if (hasStaff || platformViewModel.fetchIsAuthority()) {
                 navController.navigate(Routes.STAFF_MODES) {
                     popUpTo(returnRoute) { inclusive = false }
@@ -1022,7 +1069,8 @@ fun AppNavHost(
                         hasStaffLaunchModes(
                             authorizedAccessViewModel.state.value.modes
                                 .map { it.role },
-                        ) || platformViewModel.fetchIsAuthority(),
+                        ) ||
+                            platformViewModel.fetchIsAuthority(),
                     hasSavedVenue = studentAuthViewModel.state.value.guestVenue != null,
                     modesLoaded = modesLoaded,
                 )
@@ -1451,11 +1499,19 @@ fun AppNavHost(
                             if (loaded) reopenRememberedStaffMode()
                         }
                     },
-                    isPlatformAuthority = platformViewModel.state.value.authority?.isAuthority == true,
+                    isPlatformAuthority =
+                        platformViewModel.state.value.authority
+                            ?.isAuthority == true,
                     onOpenPlatform = { navController.navigate(Routes.PLATFORM) { launchSingleTop = true } },
                     onContinueAsClient = {
                         val target =
-                            if (studentAuthViewModel.state.value.guestVenue != null) Routes.CATALOG else Routes.DISCOVERY
+                            if (studentAuthViewModel.state.value.guestVenue !=
+                                null
+                            ) {
+                                Routes.CATALOG
+                            } else {
+                                Routes.DISCOVERY
+                            }
                         navController.navigate(target) {
                             popUpTo(Routes.STAFF_MODES) { inclusive = true }
                             launchSingleTop = true
@@ -1497,11 +1553,6 @@ fun AppNavHost(
                 // Con sesión el mapa sale del negocio; sin sesión, del mapa público del slug que se está mirando.
                 val hasStudentSession = !orderFlowViewModel.requiresStudentAuth()
                 val venueSlug = orderState.guestVenue?.establishment?.slug
-                // El nombre de lo que se renta es del negocio que se mira: sin esto un boliche decía «Canchas» y la
-                // pastelería heredaba las «Pistas» del boliche (en vivo, #21). El estado operativo es de este negocio.
-                val venueType =
-                    orderState.guestVenue?.establishment?.businessType ?: orderState.operationalStatus?.businessType
-                LaunchedEffect(venueType) { Venue.update(venueType) }
                 // Los sondeos de pantalla se pausan con la app en segundo plano (FLOW-15).
                 WhileStarted(
                     hasStudentSession,
@@ -2023,7 +2074,8 @@ fun AppNavHost(
                 }
                 val hasStaffModes =
                     authorizedAccessState.modes.any { it.role != OperationalRole.CLIENT } ||
-                        platformViewModel.state.value.authority?.isAuthority == true
+                        platformViewModel.state.value.authority
+                            ?.isAuthority == true
                 WalletAccountScreen(
                     onBack = { navController.popBackStack() },
                     displayName = studentAuthState.session?.displayName.orEmpty(),
@@ -2743,7 +2795,9 @@ fun AppNavHost(
                             }
                             com.vaiinilla.app.ui.screens.admin.AdminCashCutSection(
                                 viewModel = adminCashCutViewModel,
-                                colors = com.vaiinilla.app.ui.screens.rememberOperationalColors(),
+                                colors =
+                                    com.vaiinilla.app.ui.screens
+                                        .rememberOperationalColors(),
                                 onBack = onClose,
                                 showReport = false,
                             )

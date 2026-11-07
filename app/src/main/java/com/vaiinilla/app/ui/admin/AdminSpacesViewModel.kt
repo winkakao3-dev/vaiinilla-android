@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.RetryKeys
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.admin.ManagedSpace
 import com.vaiinilla.app.domain.admin.ReservationSchedule
 import com.vaiinilla.app.domain.admin.SpaceDraft
@@ -18,7 +19,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.AdminSpacesRepository
 import com.vaiinilla.app.domain.repository.CatalogRepositoryException
 import com.vaiinilla.app.domain.repository.ReservationException
@@ -54,7 +55,10 @@ class AdminSpacesViewModel
     constructor(
         private val repository: AdminSpacesRepository,
         private val reservations: ReservationRepository,
+        private val venueContext: VenueContextStore,
     ) : ViewModel() {
+        private val venue: VenueContext get() = venueContext.current
+
         private val _uiState = mutableStateOf(AdminSpacesUiState())
 
         /** Un reintento tras perder la respuesta reusa la llave: el servidor no lo hace dos veces. */
@@ -165,7 +169,7 @@ class AdminSpacesViewModel
             if (type.wire !=
                 space.typeWire
             ) {
-                patch(space, SpacePatch(typeWire = type.wire), "Ahora es ${type.label.lowercase()}")
+                patch(space, SpacePatch(typeWire = type.wire), "Ahora es ${type.label(venue).lowercase()}")
             }
         }
 
@@ -307,7 +311,7 @@ class AdminSpacesViewModel
         }
 
         fun cancelReservation(reservation: Reservation) =
-            mutate("${Venue.courtTitle} liberada") {
+            mutate("${venue.vocabulary.courtTitle} liberada") {
                 reservations.cancel(ReservationAccess.Account, reservation.id, UUID.randomUUID().toString()).map { }
             }
 

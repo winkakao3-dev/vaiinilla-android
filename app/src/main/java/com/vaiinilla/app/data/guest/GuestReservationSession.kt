@@ -4,7 +4,7 @@ import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.network.idempotencyHeaders
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.core.venue.VenueContextStore
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -14,8 +14,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Sin identidad guardada: hay que entrar como invitado antes de ver o apartar canchas. */
-class GuestIdentityRequiredException :
-    IllegalStateException("Entra como invitado para ver horarios y apartar una ${Venue.court}.")
+class GuestIdentityRequiredException(
+    court: String = "cancha",
+) : IllegalStateException("Entra como invitado para ver horarios y apartar una $court.")
 
 /**
  * Identidad de invitado para rentar sin cuenta (docs/compra-sin-cuenta.md del backend). La llave
@@ -28,6 +29,7 @@ class GuestReservationSession
     constructor(
         private val apiClient: VaiinillaApiClient,
         private val store: GuestSessionStore,
+        private val venueContext: VenueContextStore,
     ) {
         private var cached: CachedBearer? = null
 
@@ -81,7 +83,9 @@ class GuestReservationSession
             cached
                 ?.takeIf { it.slug == establishmentSlug && System.currentTimeMillis() - it.issuedAtMs < RENEW_AFTER_MS }
                 ?.let { return Result.success(it.token) }
-            val key = store.readGuestKey() ?: return Result.failure(GuestIdentityRequiredException())
+            val key =
+                store.readGuestKey()
+                    ?: return Result.failure(GuestIdentityRequiredException(venueContext.current.vocabulary.court))
             val body =
                 buildJsonObject {
                     put("establecimiento_slug", establishmentSlug)
@@ -97,7 +101,7 @@ class GuestReservationSession
                     // apartado sigue vivo y la llave sirve para volver a intentarlo.
                     if (error is ApiClientException && error.httpStatus in KEY_REJECTED_STATUSES) {
                         forgetIdentity()
-                        throw GuestIdentityRequiredException()
+                        throw GuestIdentityRequiredException(venueContext.current.vocabulary.court)
                     }
                     throw error
                 }

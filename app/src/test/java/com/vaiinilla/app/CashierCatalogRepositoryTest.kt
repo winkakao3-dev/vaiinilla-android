@@ -1,6 +1,7 @@
 package com.vaiinilla.app
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.catalog.RemoteCatalogRepository
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.domain.model.CatalogProductDraft
@@ -56,7 +57,7 @@ class CashierCatalogRepositoryTest {
     @Test
     fun `create product posts catalog path with idempotency key`() {
         val client = RecordingCatalogApiClient(productEnvelope)
-        val repository = RemoteCatalogRepository(client, parser)
+        val repository = RemoteCatalogRepository(client, parser, VenueContextStore())
         val product =
             repository
                 .createProduct(
@@ -81,7 +82,7 @@ class CashierCatalogRepositoryTest {
     @Test
     fun `availability posts boolean payload to product path`() {
         val client = RecordingCatalogApiClient(productEnvelope)
-        val repository = RemoteCatalogRepository(client, parser)
+        val repository = RemoteCatalogRepository(client, parser, VenueContextStore())
         repository.setProductAvailability(102, false, "idem-avail").getOrThrow()
 
         assertEquals("catalogo/productos/102/disponibilidad", client.path)
@@ -92,7 +93,7 @@ class CashierCatalogRepositoryTest {
     @Test
     fun `image upload uses multipart put with imagen field`() {
         val client = RecordingCatalogApiClient(productEnvelope)
-        val repository = RemoteCatalogRepository(client, parser)
+        val repository = RemoteCatalogRepository(client, parser, VenueContextStore())
         repository
             .uploadProductImage(
                 productId = 102,
@@ -115,7 +116,7 @@ class CashierCatalogRepositoryTest {
             {"data":{"imagen_url":"https://cdn.test/f.jpg","logo_url":"https://cdn.test/l.png"},"error":null}
             """.trimIndent()
         val client = RecordingCatalogApiClient(images)
-        val repository = RemoteCatalogRepository(client, parser)
+        val repository = RemoteCatalogRepository(client, parser, VenueContextStore())
 
         val read = repository.getStoreImages().getOrThrow()
         assertEquals("establecimiento/imagenes", client.path)

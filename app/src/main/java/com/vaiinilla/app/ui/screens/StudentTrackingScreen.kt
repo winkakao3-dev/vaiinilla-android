@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.TableCallPushes
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -98,7 +99,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.groupOrdersBySession
 import com.vaiinilla.app.domain.model.rejectedItemsHint
@@ -997,6 +998,7 @@ internal fun schoolStateLabel(
 
 /** «Pan francés y 2 Capuchino · te lo llevan a la mesa», lo que va en la tarjeta de AHORA (Doop L10). */
 private fun activeOrderLine(
+    venue: VenueContext,
     order: OrderDetail,
     journey: OrderJourney = OrderJourney.COUNTER,
 ): String {
@@ -1023,9 +1025,10 @@ private fun activeOrderLine(
         } else if (summary.space?.type == "mesa" && !summary.state.isTerminalWithoutDelivery) {
             "te lo llevan a la mesa"
         } else if (summary.space?.type == "cancha" && !summary.state.isTerminalWithoutDelivery) {
-            "te lo llevan a la ${Venue.court}"
+            "te lo llevan a la ${venue.vocabulary.court}"
         } else {
             trackingStepDescription(
+                venue,
                 summary.state,
                 summary.destination,
                 summary.paymentMethod,
@@ -1131,6 +1134,7 @@ private fun ActiveOrderCard(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     school: Boolean = false,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val summary = order.summary
     val reduceMotion = reducedMotion()
@@ -1198,7 +1202,7 @@ private fun ActiveOrderCard(
                 modifier = Modifier.padding(top = 6.dp),
             )
             Text(
-                activeOrderLine(order, journey),
+                activeOrderLine(venue, order, journey),
                 color = OrderTrackingCardText.copy(alpha = 0.62f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1228,8 +1232,8 @@ private fun ActiveOrderCard(
                 labels =
                     when {
                         rental != null -> RentalProgressSteps
-                        scheduled -> journeySteps(order, journey)
-                        else -> foodProgressSteps(order)
+                        scheduled -> journeySteps(venue, order, journey)
+                        else -> foodProgressSteps(venue, order)
                     },
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -1506,6 +1510,7 @@ private fun CallLiveRow(
     textColor: Color,
     onCancel: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val going = call.status == CallStatus.EN_CAMINO
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1534,6 +1539,7 @@ private fun CallLiveRow(
                 if (going) {
                     if (call.space.name.isBlank()) {
                         "Va a ${SpaceCopy.yourPlace(
+                            venue,
                             call.space.type,
                         )}"
                     } else {
@@ -1572,6 +1578,7 @@ private const val CALL_POLL_MS = 5_000L
 
 @Composable
 private fun InlinePickupQr(order: OrderDetail) {
+    val venue = LocalVenueContext.current
     val token = order.pickupToken?.takeIf { it.isNotBlank() } ?: return
     Column(
         modifier =
@@ -1589,7 +1596,7 @@ private fun InlinePickupQr(order: OrderDetail) {
             if (order.summary.pickUpAtBar) {
                 "Pasa a la barra por él y muéstralo en Caja."
             } else if (order.summary.destination == OrderDestination.IN_SPACE) {
-                "El personal lo llevará a ${SpaceCopy.yourPlace(order.summary.space?.type)}. Muéstrales este QR."
+                "El personal lo llevará a ${SpaceCopy.yourPlace(venue, order.summary.space?.type)}. Muéstrales este QR."
             } else {
                 "Muéstralo en Caja cuando recojas tu pedido."
             },
@@ -1610,23 +1617,29 @@ private fun InlinePickupQr(order: OrderDetail) {
 }
 
 /** «Pagado, Recibido, Preparando, En tu mesa» (Doop L10): el último paso dice dónde termina. */
-private fun foodProgressSteps(order: OrderDetail): List<String> {
+private fun foodProgressSteps(
+    venue: VenueContext,
+    order: OrderDetail,
+): List<String> {
     val summary = order.summary
     val first = if (summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd) "Por pagar" else "Pagado"
     // Mesa o cancha: «Listo» y «En tu mesa» son pasos distintos; el último se marca hasta que el mesero lo entrega.
-    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", foodLastStep(summary))
-    return listOf(first, "Recibido", "Preparando", foodLastStep(summary))
+    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", foodLastStep(venue, summary))
+    return listOf(first, "Recibido", "Preparando", foodLastStep(venue, summary))
 }
 
 /** Mesa o cancha sin «Pasa por él»: lo lleva el mesero. */
 private fun servedAtPlace(order: OrderDetail): Boolean =
     !order.summary.pickUpAtBar && order.summary.space?.type in setOf("mesa", "cancha")
 
-private fun foodLastStep(summary: OrderSummary): String =
+private fun foodLastStep(
+    venue: VenueContext,
+    summary: OrderSummary,
+): String =
     when {
         summary.pickUpAtBar -> "En la barra"
         summary.space?.type == "mesa" -> "En tu mesa"
-        summary.space?.type == "cancha" -> "En tu ${Venue.court}"
+        summary.space?.type == "cancha" -> "En tu ${venue.vocabulary.court}"
         else -> "Listo"
     }
 

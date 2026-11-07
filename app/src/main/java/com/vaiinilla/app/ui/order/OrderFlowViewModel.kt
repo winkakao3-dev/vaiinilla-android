@@ -8,6 +8,7 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.core.security.JwtContextScope
 import com.vaiinilla.app.core.security.SecureSessionStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.auth.ContextoExchanger
 import com.vaiinilla.app.data.guest.GuestCheckoutPolicy
 import com.vaiinilla.app.data.guest.GuestOrderGateway
@@ -39,7 +40,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationState
 import com.vaiinilla.app.domain.model.StripePaymentSession
 import com.vaiinilla.app.domain.model.StripePaymentStatus
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.awaitsAcceptanceBeforePaying
 import com.vaiinilla.app.domain.model.isStripePaymentConfirmedByBackend
 import com.vaiinilla.app.domain.repository.AdminStoreRepository
@@ -99,7 +100,10 @@ class OrderFlowViewModel
         private val sharedTables: SharedTableRepository,
         /** Solo para leer la regla de cashback (`GET wallets/reglas-cashback`, que el cliente también puede leer). */
         private val cashbackRules: AdminStoreRepository,
+        private val venueContext: VenueContextStore,
     ) : ViewModel() {
+        private val venue: VenueContext get() = venueContext.current
+
         private val _uiState =
             mutableStateOf(
                 OrderFlowUiState(
@@ -829,7 +833,11 @@ class OrderFlowViewModel
         ): List<String> {
             val state = _uiState.value
             if (state.creatingOrder) return lines.map { it.product.name }
-            val products = state.catalog?.products.orEmpty().associateBy { it.id }
+            val products =
+                state.catalog
+                    ?.products
+                    .orEmpty()
+                    .associateBy { it.id }
             var cart = state.cartLines
             for (old in replacing) {
                 val product = products[old.product.productId] ?: continue
@@ -846,7 +854,10 @@ class OrderFlowViewModel
             val skipped = mutableListOf<String>()
             for (line in lines) {
                 val product = products[line.product.productId]
-                if (product == null || !product.available || product.archived || product.blockReason != null ||
+                if (product == null ||
+                    !product.available ||
+                    product.archived ||
+                    product.blockReason != null ||
                     MenuFeed.needsChoice(product)
                 ) {
                     skipped += line.product.name
@@ -892,7 +903,11 @@ class OrderFlowViewModel
             product = product,
             quantity = line.quantity.coerceIn(1, MenuFeed.MAX_LINE_QUANTITY),
             selectedOptionIds = emptySet(),
-            notes = line.note?.trim().orEmpty().take(CART_LINE_NOTE_MAX),
+            notes =
+                line.note
+                    ?.trim()
+                    .orEmpty()
+                    .take(CART_LINE_NOTE_MAX),
         )
 
         /** El "−" del menú deslizable: uno menos del platillo. */
@@ -1459,7 +1474,13 @@ class OrderFlowViewModel
             scheduleRentedCourtCheck(reservations)
             return reservations
                 ?.firstOrNull { it.state == ReservationState.IN_PROGRESS }
-                ?.let { PublicSpace(id = it.courtId, name = it.courtName ?: Venue.courtTitle, type = "cancha") }
+                ?.let {
+                    PublicSpace(
+                        id = it.courtId,
+                        name = it.courtName ?: venue.vocabulary.courtTitle,
+                        type = "cancha",
+                    )
+                }
         }
 
         /**
@@ -1528,7 +1549,8 @@ class OrderFlowViewModel
         ): OrderDestination {
             if (current.guestVenue?.space != null) return current.checkoutDestination
             return when {
-                rentedCourt != null && (offerAsDefault || current.rentedCourt == null) &&
+                rentedCourt != null &&
+                    (offerAsDefault || current.rentedCourt == null) &&
                     current.checkoutDestination == OrderDestination.TAKE_AWAY -> OrderDestination.IN_SPACE
                 rentedCourt == null && current.checkoutDestination == OrderDestination.IN_SPACE ->
                     OrderDestination.TAKE_AWAY

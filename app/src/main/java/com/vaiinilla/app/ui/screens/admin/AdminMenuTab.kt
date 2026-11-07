@@ -81,6 +81,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
 import com.vaiinilla.app.domain.admin.AdminOptionInput
@@ -92,7 +93,6 @@ import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminInventoryViewModel
@@ -251,6 +251,7 @@ private fun MenuList(
     archived: List<Product> = emptyList(),
     onOpen: (MenuSheet) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val presentDialog = LocalAdminDialog.current
     val haptics = rememberVaiinillaHaptics()
     var chosenCategory by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -445,7 +446,10 @@ private fun MenuList(
         if (rentsSpaces) {
             item(key = "rentas") {
                 Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp)) {
-                    AdminHint("Las rentas de ${Venue.court} no son productos: se cobran desde Mesas y espacios.", colors)
+                    AdminHint(
+                        "Las rentas de ${venue.vocabulary.court} no son productos: se cobran desde Mesas y espacios.",
+                        colors,
+                    )
                 }
             }
         }
@@ -861,6 +865,7 @@ private fun ProductSheet(
     takesPreorders: Boolean = false,
     recipe: RecipeEntry? = null,
 ) {
+    val venue = LocalVenueContext.current
     val context = LocalContext.current
     // Un servidor que no conoce los días de preparación no los manda: sale solo en repostería o si ya los trae.
     val showsPreparation = takesPreorders || product?.preparationDays != null
@@ -954,7 +959,7 @@ private fun ProductSheet(
     }
     val canSave = name.isNotBlank() && price.isNotBlank() && categoryId != null
     // En un boliche «Renta de zapatos» o «Juego por persona» sí son productos: no se avisa.
-    val looksLikeRental = !Venue.isBowling && RentalWords.containsMatchIn(name)
+    val looksLikeRental = venue.capabilities.flagsRentalWordsInMenu && RentalWords.containsMatchIn(name)
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -1312,12 +1317,10 @@ private fun ProductSheet(
                             Text(
                                 when {
                                     looksLikeRental && rentsSpaces ->
-                                        "Esto parece una renta de ${Venue.court}. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
+                                        "Esto parece una renta de ${venue.vocabulary.court}. Las rentas se cobran desde Mesas y espacios, con su precio por hora."
                                     looksLikeRental ->
                                         "Esto parece una renta. Si cobras un espacio por hora, dalo de alta en Mesas y espacios."
-                                    Venue.isBowling ->
-                                        "La pista por hora se renta desde Mesas y espacios. Juegos por persona y renta de zapatos sí van aquí como producto."
-                                    else -> "Este negocio renta ${Venue.courts} desde Mesas y espacios. No crees la renta como producto."
+                                    else -> venue.vocabulary.menuRentalAdvice
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = if (looksLikeRental) FontWeight.Bold else FontWeight.Normal,

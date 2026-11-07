@@ -65,8 +65,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminSpacesViewModel
 import com.vaiinilla.app.ui.admin.AdminStaffViewModel
@@ -128,9 +129,9 @@ enum class AdminSection(
     ),
     ;
 
-    /** En un boliche dice «pistas» ([Venue]). */
-    val description: String
-        get() = if (this == SPACES) "QR y código de cada mesa, ${Venue.courts} y reservas" else baseDescription
+    /** En un boliche dice «pistas». */
+    fun description(venue: VenueContext): String =
+        if (this == SPACES) "QR y código de cada mesa, ${venue.vocabulary.courts} y reservas" else baseDescription
 }
 
 /** Lo que las secciones de "Negocio" necesitan: sus ViewModels y lo de Caja que vive en el resto de la app. */
@@ -219,11 +220,15 @@ fun AdminScreen(
         adminSetupSteps(state, sections.store.uiState.value, sections.staff.uiState.value)
             .withoutDeclined(declinedSteps.keys)
     // El dueño o Vaiinilla pueden apagar el asistente de la tienda (asistente_modo «ninguno»).
-    val assistantForStaff = sections.store.uiState.value.config?.assistantMode?.forStaff != false
+    val assistantForStaff =
+        sections.store.uiState.value.config
+            ?.assistantMode
+            ?.forStaff != false
 
     AdminDialogHost(colors) {
         if (assistantOpen) {
-            com.vaiinilla.app.ui.components.ResizeForKeyboard()
+            com.vaiinilla.app.ui.components
+                .ResizeForKeyboard()
             StoreAssistantScreen(sections.store, colors, readOnly) {
                 assistantOpen = false
                 // Lo que guardó (menú, mesas, fotos, equipo) sale en Inicio sin reiniciar la app (en vivo, Y01).
@@ -644,9 +649,10 @@ private fun AdminBusinessTab(
     readOnly: Boolean,
     onOpen: (AdminSection) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val store by host.store.uiState
     val spaces by host.spaces.uiState
-    val detail: (AdminSection) -> String = { businessDetail(it, state, store, spaces, readOnly) }
+    val detail: (AdminSection) -> String = { businessDetail(venue, it, state, store, spaces, readOnly) }
     val tiles = BusinessTiles.filter { it in sections }
     val wide =
         listOf(AdminSection.INVENTORY, AdminSection.CUTS, AdminSection.STORE, AdminSection.SCHOOL)
@@ -745,6 +751,7 @@ private fun ReadOnlyBusiness(
 private val BusinessTiles = listOf(AdminSection.CASH, AdminSection.SPACES, AdminSection.STAFF, AdminSection.CASHBACK)
 
 private fun businessDetail(
+    venue: VenueContext,
     section: AdminSection,
     state: AdminUiState,
     store: com.vaiinilla.app.ui.admin.AdminStoreUiState,
@@ -767,7 +774,7 @@ private fun businessDetail(
             if (count ==
                 0
             ) {
-                "QR, ${Venue.courts} y reservas"
+                "QR, ${venue.vocabulary.courts} y reservas"
             } else {
                 (if (count == 1) "1 espacio" else "$count espacios") +
                     " · QR y reservas"

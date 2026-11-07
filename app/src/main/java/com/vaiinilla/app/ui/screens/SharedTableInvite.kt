@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.ui.components.ClientPillButton
 import com.vaiinilla.app.ui.components.ClientSheetHandle
@@ -86,7 +87,6 @@ fun SharedTableInviteSheet(
     }
 }
 
-
 @Composable
 internal fun SharedTableInvite(
     state: SharedTableUiState,
@@ -97,8 +97,9 @@ internal fun SharedTableInvite(
     onOrderAlone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
-    val words = SharedSpaceWords.of(spaceType)
+    val words = SharedSpaceWords.of(venue, spaceType)
     val place = spaceName?.takeIf { it.isNotBlank() }?.let { SpaceCopy.named(spaceType, it) } ?: words.thePlace
     Column(modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
@@ -251,7 +252,12 @@ private fun AliasField(
                 Text(label, color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Box(Modifier.padding(top = 3.dp)) {
                     if (value.isEmpty()) {
-                        Text("Ana", color = colors.muted.copy(alpha = 0.55f), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(
+                            "Ana",
+                            color = colors.muted.copy(alpha = 0.55f),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
                     }
                     field()
                 }
@@ -259,4 +265,3 @@ private fun AliasField(
         },
     )
 }
-

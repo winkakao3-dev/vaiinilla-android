@@ -6,6 +6,7 @@ import com.vaiinilla.app.core.auth.VaiinillaJwtRefreshCoordinator
 import com.vaiinilla.app.core.config.AppEnvironment
 import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.account.RemoteAccountDeletionRepository
 import com.vaiinilla.app.data.admin.PreferencesArchivedProductsStore
 import com.vaiinilla.app.data.admin.RemoteAdminRepository
@@ -95,7 +96,8 @@ object VaiinillaModule {
     fun provideCatalogRepository(
         apiClient: VaiinillaApiClient,
         parser: ContractResponseParser,
-    ): CatalogRepository = RemoteCatalogRepository(apiClient, parser)
+        venueContext: VenueContextStore,
+    ): CatalogRepository = RemoteCatalogRepository(apiClient, parser, venueContext)
 
     @Provides
     @Singleton
@@ -113,8 +115,10 @@ object VaiinillaModule {
 
     @Provides
     @Singleton
-    fun provideAdminStoreRepository(apiClient: VaiinillaApiClient): AdminStoreRepository =
-        RemoteAdminStoreRepository(apiClient)
+    fun provideAdminStoreRepository(
+        apiClient: VaiinillaApiClient,
+        venueContext: VenueContextStore,
+    ): AdminStoreRepository = RemoteAdminStoreRepository(apiClient, venueContext)
 
     @Provides
     @Singleton
@@ -131,12 +135,15 @@ object VaiinillaModule {
     @Provides
     @Singleton
     fun provideCashCutRepository(apiClient: VaiinillaApiClient): com.vaiinilla.app.data.cashcut.CashCutRepository =
-        com.vaiinilla.app.data.cashcut.RemoteCashCutRepository(apiClient)
+        com.vaiinilla.app.data.cashcut
+            .RemoteCashCutRepository(apiClient)
 
     @Provides
     @Singleton
-    fun provideAdminSpacesRepository(apiClient: VaiinillaApiClient): AdminSpacesRepository =
-        RemoteAdminSpacesRepository(apiClient)
+    fun provideAdminSpacesRepository(
+        apiClient: VaiinillaApiClient,
+        venueContext: VenueContextStore,
+    ): AdminSpacesRepository = RemoteAdminSpacesRepository(apiClient, venueContext)
 
     @Provides
     @Singleton
@@ -180,8 +187,10 @@ object VaiinillaModule {
         apiClient: VaiinillaApiClient,
         waiterContractJson: WaiterContractJson,
         orderContractJson: OrderContractJson,
+        venueContext: VenueContextStore,
         guestClientAccess: GuestClientAccess,
-    ): WaiterRepository = RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson, guestClientAccess)
+    ): WaiterRepository =
+        RemoteWaiterRepository(apiClient, waiterContractJson, orderContractJson, venueContext, guestClientAccess)
 
     @Provides
     @Singleton
