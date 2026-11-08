@@ -1,6 +1,8 @@
 package com.vaiinilla.app.data.mode
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.core.runCatchingCancellable
 import com.vaiinilla.app.data.auth.SesionesContextoDataDto
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
@@ -17,7 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import java.nio.charset.StandardCharsets
@@ -66,7 +67,7 @@ class RemoteAuthorizedAccessApi
                     bearer = firebaseIdToken,
                     path = "invitaciones/aceptar",
                     body = json.encodeToString(InvitationAcceptanceRequest(token)),
-                    headers = mapOf("Idempotency-Key" to idempotencyKey),
+                    headers = idempotencyHeaders(idempotencyKey),
                 )
             }
 
@@ -80,17 +81,13 @@ class RemoteAuthorizedAccessApi
                     bearer = firebaseIdToken,
                     path = "sesiones/contexto",
                     body = json.encodeToString(ContextRequest(membershipId)),
-                    headers = mapOf("Idempotency-Key" to idempotencyKey),
+                    headers = idempotencyHeaders(idempotencyKey),
                 )
             }
 
         private companion object {
             val json =
-                Json {
-                    ignoreUnknownKeys = true
-                    encodeDefaults = false
-                    explicitNulls = false
-                }
+                ApiJson.omitNulls
         }
     }
 
@@ -103,11 +100,7 @@ class RemoteAuthorizedAccessRepository
         private val enrollmentRepository: StudentEnrollmentRepository,
     ) : AuthorizedAccessRepository {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = false
-                explicitNulls = false
-            }
+            ApiJson.omitNulls
 
         /**
          * The backend deliberately has no token-preview endpoint. Showing a fake role or

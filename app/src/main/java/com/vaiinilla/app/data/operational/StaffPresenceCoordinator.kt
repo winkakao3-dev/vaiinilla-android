@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.operational
 
 import com.vaiinilla.app.BuildConfig
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
 import com.vaiinilla.app.data.auth.FirebaseSeedAuthRepository
 import com.vaiinilla.app.domain.auth.SeedAccounts
@@ -9,7 +10,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,10 +21,7 @@ class StaffPresenceCoordinator
         private val seedAuthRepository: FirebaseSeedAuthRepository,
     ) {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            }
+            ApiJson.withDefaults
 
         fun primeStaffPresence(): Result<Unit> {
             // This is a debug-only single-device convenience. In normal builds the

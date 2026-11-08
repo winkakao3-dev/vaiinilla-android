@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.PhysicalPressScale
@@ -63,14 +63,15 @@ internal fun CashierQuickActions(
     pendingSpaces: Int? = null,
     onSpaces: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val configuration = LocalConfiguration.current
     val fontScale = LocalDensity.current.fontScale
     val count = listOfNotNull(onNewOrder, onReload, onSpaces).size
     val spacesLabel =
         if (pendingSpaces != null && pendingSpaces > 0) {
-            "Mesas y ${Venue.courts} · $pendingSpaces"
+            "Mesas y ${venue.vocabulary.courts} · $pendingSpaces"
         } else {
-            "Mesas y ${Venue.courts}"
+            "Mesas y ${venue.vocabulary.courts}"
         }
     // L01: con letra grande tres mosaicos no caben a lo ancho y «Recargar» se partía a media palabra: van en renglones.
     if (cashierQuickActionsStack(configuration.screenWidthDp, fontScale, count)) {
@@ -115,7 +116,15 @@ internal fun CashierQuickActions(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (onNewOrder != null) {
-            QuickAction("Nuevo pedido", Icons.Outlined.Add, colors, enabled, Modifier.weight(1f), primary = true, onClick = onNewOrder)
+            QuickAction(
+                "Nuevo pedido",
+                Icons.Outlined.Add,
+                colors,
+                enabled,
+                Modifier.weight(1f),
+                primary = true,
+                onClick = onNewOrder,
+            )
         }
         QuickAction(
             "Recargar saldo",
@@ -229,14 +238,27 @@ internal fun CashierQueueHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("EN FILA · ", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp, color = colors.textSecondary)
+            Text(
+                "EN FILA · ",
+                fontWeight = FontWeight.Black,
+                fontSize = 11.sp,
+                letterSpacing = 1.2.sp,
+                color = colors.textSecondary,
+            )
             NumberTicker(value = count, label = "cashier-queue-count") { value ->
                 Text("$value", fontWeight = FontWeight.Black, fontSize = 11.sp, color = colors.textSecondary)
             }
         }
-        Text("MÁS VIEJO PRIMERO", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp, color = colors.textMuted)
+        Text(
+            "MÁS VIEJO PRIMERO",
+            fontWeight = FontWeight.Black,
+            fontSize = 11.sp,
+            letterSpacing = 1.2.sp,
+            color = colors.textMuted,
+        )
     }
 }
+
 /** Una línea en lugar de un bloque vacío: la fila de trabajo está al día. */
 @Composable
 internal fun CashierQueueEmpty(

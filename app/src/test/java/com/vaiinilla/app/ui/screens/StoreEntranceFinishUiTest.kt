@@ -24,12 +24,15 @@ class StoreEntranceFinishUiTest {
     fun `si outcome cambia durante el desvanecido onFinished se llama igual`() {
         val outcome = mutableStateOf(StoreEntranceOutcome.READY)
         var finished = false
+        // Una sola entrada: si se creara dentro del contenido, cada cambio de outcome traería un id nuevo y
+        // reiniciaría la capa.
+        val entrance = StoreEntrance(code = null)
         composeTestRule.mainClock.autoAdvance = false
         composeTestRule.setContent {
             val current by outcome
             ScreenshotTheme {
                 StoreEntranceOverlay(
-                    entrance = StoreEntrance(code = null),
+                    entrance = entrance,
                     outcome = current,
                     onFinished = { finished = true },
                 )

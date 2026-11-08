@@ -61,6 +61,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -96,6 +98,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
@@ -108,6 +111,7 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.cashAmountDue
 import com.vaiinilla.app.domain.model.needsCashCollection
@@ -125,6 +129,7 @@ import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.SlidingSegments
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
@@ -138,13 +143,16 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
+import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.rentalChargeLabel
-import com.vaiinilla.app.ui.notices.NoticePanel
+import com.vaiinilla.app.ui.hotel.staff.HotelChip
+import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.CollectedToday
 import com.vaiinilla.app.ui.operational.OperationalUiState
 import com.vaiinilla.app.ui.operational.QueuePresentation
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.operational.queuePresentation
 import com.vaiinilla.app.ui.screens.admin.AdminPrimaryButton
 import com.vaiinilla.app.ui.screens.admin.AdminSecondaryButton
@@ -219,6 +227,8 @@ fun CashierOperationalScreen(
     studentsEntry: (@Composable () -> Unit)? = null,
     /** Pedidos de mostrador guardados sin internet (por mandar y con problema); null si no hay. */
     offlineOrdersEntry: (@Composable () -> Unit)? = null,
+    /** Avisos de comandas que no llegaron o llevan rato sin avanzar; null los oculta. */
+    alertsEntry: (@Composable () -> Unit)? = null,
     /** Devoluciones pendientes (G08, H03); null las oculta. */
     refundsEntry: (@Composable () -> Unit)? = null,
     /** El negocio de esta caja, para que el cajero vea en cuál cobra. */
@@ -232,16 +242,17 @@ fun CashierOperationalScreen(
     onDismissError: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
+    val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
-    var addProductSheetOpen by remember { mutableStateOf(false) }
-    var cashDrawerOpen by remember { mutableStateOf(false) }
-    var cashCutOpen by remember { mutableStateOf(false) }
+    var addProductSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var cashDrawerOpen by rememberSaveable { mutableStateOf(false) }
+    var cashCutOpen by rememberSaveable { mutableStateOf(false) }
     var toastMessage by remember { mutableStateOf<String?>(null) }
     var imageEditProductId by remember { mutableStateOf<Int?>(null) }
-    var tick by remember { mutableIntStateOf(0) }
+    val tick = rememberTick(CASHIER_AGE_REFRESH_MS)
     val context = LocalContext.current
     // La foto de un producto existente se reemplaza aquí: el alta lleva su propia
     // selección de imagen dentro del sheet.
@@ -264,12 +275,6 @@ fun CashierOperationalScreen(
                 )
             }
         }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1_000)
-            tick += 1
-        }
-    }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, OperationalRole.CASHIER)
     val assistantFocusRequester = remember { FocusRequester() }
@@ -288,20 +293,20 @@ fun CashierOperationalScreen(
         }
     }
     var assistantPulse by remember { mutableIntStateOf(0) }
-    var walletSheetOpen by remember { mutableStateOf(false) }
-    var searchOpen by remember { mutableStateOf(false) }
+    var walletSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(openSearchRequest) { if (openSearchRequest > 0) searchOpen = true }
-    var choosingOrderPlace by remember { mutableStateOf(false) }
+    var choosingOrderPlace by rememberSaveable { mutableStateOf(false) }
 
     // Caja solo actúa sobre pedidos por cobrar o listos para entregar; el resto es de cocina.
-    var selectedCashierOrderId by remember { mutableStateOf<String?>(null) }
+    var selectedCashierOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     // Lo que el cajero lleva escrito (efectivo y propina) por pedido. Vive fuera de la lista: el sondeo
     // trae una copia nueva del pedido cada pocos segundos y la tarjeta se rehace, pero el cobro sigue.
     val cashDrafts = remember { mutableStateMapOf<String, CashierCashDraft>() }
     // El diálogo de rechazo apunta al pedido que se tocó, no al que esté arriba cuando se confirme.
     var rejectingOrderId by remember { mutableStateOf<String?>(null) }
     var rejectingItem by remember { mutableStateOf<Pair<String, OrderItem>?>(null) }
-    var openCashSheet by remember { mutableStateOf(false) }
+    var openCashSheet by rememberSaveable { mutableStateOf(false) }
     var browsingClosed by rememberSaveable { mutableStateOf(false) }
     // El conteo del cierre vive en la ruta y no en la hoja: ir a «Ver cuentas por cobrar» cierra la hoja, y al
     // volver el cajero no tiene que contar el cajón otra vez. Se borra cuando la caja ya quedó cerrada.
@@ -339,7 +344,7 @@ fun CashierOperationalScreen(
         if (selectedCashierOrderId !in actionableIds) selectedCashierOrderId = null
     }
     val ordersToCollect = actionableCashierOrders.count { it.summary.needsCashCollection }
-    val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.lastRefreshOk)
+    val cashierQueue = queuePresentation(actionableCashierOrders.isNotEmpty(), state.queue)
     val expiringOnClose =
         actionableCashierOrders.filter {
             it.summary.state == OrderState.PENDING_PAYMENT &&
@@ -387,6 +392,7 @@ fun CashierOperationalScreen(
             .filter { it.summary.state == OrderState.DELIVERED }
             .forEach { order -> assistantController.onStateChanged("pedido-entregado:${order.summary.id}") }
     }
+    var receptionOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier =
@@ -490,9 +496,31 @@ fun CashierOperationalScreen(
                 }
             }
 
-            if (state.lastRefreshOk == false && state.orders.isNotEmpty()) {
+            if (venue.capabilities.staffWorksRooms) {
+                // Recepción es una vista dentro de Caja: llegadas, check-in, cargos y el cierre de la cuenta (S04).
+                item(key = "cashier-reception") {
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+                        HotelChip(
+                            label = "Recepción · llegadas y salidas",
+                            selected = false,
+                            onClick = {
+                                haptics.selection()
+                                receptionOpen = true
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (state.queue.lostConnection && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
+                }
+            }
+
+            if (alertsEntry != null) {
+                item(key = "cashier-alerts") {
+                    Box(modifier = Modifier.animateItem()) { alertsEntry() }
                 }
             }
 
@@ -567,7 +595,14 @@ fun CashierOperationalScreen(
             }
             // La hoja de alta y la fila sin cargar muestran su propio error; aquí no se repite.
             val cashierError =
-                state.errorMessage.takeUnless {
+                (
+                    state.errorMessage
+                        // Un fallo de lectura que no es de red (servidor) se dice con su texto si hay pedidos a la vista.
+                        ?: (state.queue as? QueueSync.Failed)
+                            ?.takeIf { !state.queue.lostConnection && state.orders.isNotEmpty() }
+                            ?.failure
+                            ?.message()
+                ).takeUnless {
                     addProductSheetOpen ||
                         walletSheetOpen ||
                         openCashSheet ||
@@ -728,7 +763,7 @@ fun CashierOperationalScreen(
                         QueuePresentation.Error ->
                             OperationalErrorCard(
                                 title = "No se pudieron cargar los pedidos",
-                                message = state.errorMessage ?: "Revisa la conexión e inténtalo otra vez.",
+                                message = state.queue.failureText("Revisa la conexión e inténtalo otra vez."),
                                 colors = colors,
                                 onRetry = onRefresh,
                             )
@@ -1152,6 +1187,16 @@ fun CashierOperationalScreen(
             modifier = Modifier.fillMaxSize(),
         )
     }
+    if (receptionOpen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { receptionOpen = false },
+            properties =
+                androidx.compose.ui.window
+                    .DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            HotelReceptionScreen(onBack = { receptionOpen = false })
+        }
+    }
 }
 
 /**
@@ -1169,11 +1214,20 @@ private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm"
  * El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. Una renta no se lleva: es «Renta de
  * Pista 3» (en vivo, D03).
  */
-internal fun cashierPlaceLabel(order: OrderDetail): String =
+internal fun cashierPlaceLabel(
+    venue: VenueContext,
+    order: OrderDetail,
+): String =
     when {
         order.reservation != null -> rentalChargeLabel(order)
         order.summary.destination.name == "TAKE_AWAY" -> "Para llevar"
-        else -> SpaceCopy.staffDestination(order.summary.destination, order.summary.space, order.summary.pickUpAtBar)
+        else ->
+            SpaceCopy.staffDestination(
+                venue,
+                order.summary.destination,
+                order.summary.space,
+                order.summary.pickUpAtBar,
+            )
     }
 
 // Una venta de mostrador no tiene cliente: el servidor manda «Mostrador» como nombre y eso ya dice de dónde viene.
@@ -1182,15 +1236,20 @@ private fun isCounterSale(order: OrderDetail): Boolean =
     order.reservation == null && staffCustomerName(order).equals("Mostrador", ignoreCase = true)
 
 /** «Mostrador» o el lugar del pedido, para la hoja de cobro. */
-internal fun cashierOrderOrigin(order: OrderDetail): String =
-    if (isCounterSale(order)) "Mostrador" else cashierPlaceLabel(order)
+internal fun cashierOrderOrigin(
+    venue: VenueContext,
+    order: OrderDetail,
+): String = if (isCounterSale(order)) "Mostrador" else cashierPlaceLabel(venue, order)
 
 /** «Para llevar · Sofía» en la fila de Caja: el lugar y, si se sabe, el nombre del cliente. */
-private fun cashierRowTitle(order: OrderDetail): String =
+private fun cashierRowTitle(
+    venue: VenueContext,
+    order: OrderDetail,
+): String =
     if (isCounterSale(order)) {
         "Mostrador"
     } else {
-        listOfNotNull(cashierPlaceLabel(order), staffCustomerName(order)).joinToString(" · ")
+        listOfNotNull(cashierPlaceLabel(venue, order), staffCustomerName(order)).joinToString(" · ")
     } + arrivalSuffix(order) + (order.offlineCaptureLabel()?.let { " · $it" } ?: "")
 
 /** «2 Concha, Café de olla»: lo que lleva el pedido, con la cantidad solo cuando es más de uno. */
@@ -1223,28 +1282,10 @@ internal fun cashierScanTarget(
 internal fun staffCustomerName(order: OrderDetail): String? =
     order.customerName?.takeIf { it.isNotBlank() } ?: order.user?.name?.takeIf { it.isNotBlank() }
 
-internal fun elapsedSinceMs(iso: String): Long? =
-    runCatching {
-        java.time.Duration
-            .between(java.time.Instant.parse(iso), java.time.Instant.now())
-            .toMillis()
-    }.getOrNull()
+private fun elapsedShort(iso: String): String = RelativeAge.elapsedMs(iso)?.let { RelativeAge.ago(it) } ?: "recién"
 
-private fun elapsedShort(
-    iso: String,
-    tick: Int,
-): String {
-    tick.hashCode()
-    val ms = elapsedSinceMs(iso) ?: return "recién"
-    return when {
-        ms < 60_000 -> "ahora"
-        ms < 3_600_000 -> "hace ${ms / 60_000} min"
-        ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
-        // Después de una semana, la fecha: «hace 340 d» no dice nada.
-        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
-    }
-}
+/** El «hace X min» de la fila cambia por minutos: no hace falta un reloj de segundos. */
+private const val CASHIER_AGE_REFRESH_MS = 15_000L
 
 @Composable
 private fun ProductGridCard(
@@ -1475,7 +1516,7 @@ internal fun OperationalErrorCard(
 @Composable
 private fun CashierQueueCard(
     orders: List<OrderDetail>,
-    tick: Int,
+    tick: State<Int>,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     onOpen: (OrderDetail) -> Unit,
@@ -1506,11 +1547,13 @@ private fun CashierQueueCard(
 @Composable
 private fun QueueTicketRow(
     order: OrderDetail,
-    tick: Int,
+    tick: State<Int>,
     colors: OperationalColors,
     onClick: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val summary = order.summary
+    val age by remember(summary.createdAt) { derivedStateOf { tick.value.let { elapsedShort(summary.createdAt) } } }
     Row(
         modifier =
             Modifier
@@ -1534,7 +1577,7 @@ private fun QueueTicketRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                cashierRowTitle(order),
+                cashierRowTitle(venue, order),
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 15.sp,
                 color = colors.textPrimary,
@@ -1551,7 +1594,7 @@ private fun QueueTicketRow(
                 modifier = Modifier.padding(top = 2.dp),
             )
             Text(
-                elapsedShort(summary.createdAt, tick),
+                age,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textSecondary,
@@ -1938,15 +1981,15 @@ private fun AddProductSheet(
     val colors = rememberOperationalColors()
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
-    var name by remember { mutableStateOf("") }
-    var priceStr by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var priceStr by rememberSaveable { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<String?>(null) }
     var selectedImageBytes by remember { mutableStateOf<ByteArray?>(null) }
     var selectedImageFilename by remember { mutableStateOf<String?>(null) }
     var selectedImageMime by remember { mutableStateOf<String?>(null) }
     var imageError by remember { mutableStateOf<String?>(null) }
-    var submitted by remember { mutableStateOf(false) }
-    var selectedStation by remember { mutableStateOf(PreparationStation.CASHIER) }
+    var submitted by rememberSaveable { mutableStateOf(false) }
+    var selectedStation by rememberSaveable { mutableStateOf(PreparationStation.CASHIER) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val photoPicker =
@@ -2366,15 +2409,6 @@ internal fun KitchenRejectContent(
 }
 
 private const val REJECT_OTHER = "Otro"
-
-/** Etiqueta de una comanda en la fila de cocina, igual al sello de la comanda abierta. */
-internal fun kitchenQueueLabel(order: OrderDetail): String =
-    when (order.summary.state) {
-        OrderState.PENDING_PAYMENT -> if (order.summary.payAtEnd) "En espera" else "Falta pagar"
-        OrderState.PREPARING -> "Preparando"
-        OrderState.READY -> "Lista"
-        else -> "En espera"
-    }
 
 internal val CashShortInk = Color(0xFFB3261E)
 

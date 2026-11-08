@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.guardianship.restrictionFor
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -105,11 +106,11 @@ import com.vaiinilla.app.domain.repository.SpaceAvailability
 import com.vaiinilla.app.ui.components.ActiveOrderBanner
 import com.vaiinilla.app.ui.components.ChoiceChip
 import com.vaiinilla.app.ui.components.CourtsCarousel
-import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.EditorialAccentButton
 import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.HeroGlassPill
+import com.vaiinilla.app.ui.components.MenuCartBar
 import com.vaiinilla.app.ui.components.MenuCartShortcut
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
@@ -125,6 +126,8 @@ import com.vaiinilla.app.ui.components.cremeHeroBrush
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.guest.HotelCartBar
+import com.vaiinilla.app.ui.hotel.guest.HotelMenuHeader
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.cartItemCount
 import com.vaiinilla.app.ui.order.cartPreviewTotal
@@ -377,6 +380,7 @@ private fun CatalogContent(
     onOpenFeed: (() -> Unit)? = null,
     waiterLayer: (@Composable (MenuCartBar?, Boolean) -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val catalog = requireNotNull(state.catalog)
     val colors = LocalVaiinillaColors.current
     val themeMode = LocalVaiinillaThemeMode.current
@@ -389,6 +393,9 @@ private fun CatalogContent(
         }
 
     val cartShortcutVisible = onOpenCart != null && menuCartPillVisible(state)
+    // En el cuarto de un hotel el menú es el room service de Doop (H02): cabecera propia y barra «Ver pedido».
+    val hotelRoom = SpaceCopy.isRoom(venue, state.guestVenue?.space)
+    val hotelCartBar = hotelRoom && cartShortcutVisible
 
     val scene = scenePaletteForTheme()
     val shelfColors =
@@ -473,16 +480,20 @@ private fun CatalogContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        CatalogHeader(
-                            state = state,
-                            onSearchChange = onSearchChange,
-                            onChangeVenue = onChangeVenue,
-                            onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
-                            profileInitials = profileInitials,
-                            onOpenAccount = onOpenAccount,
-                            pageColor = colors.paper,
-                            onOpenFeed = onOpenFeed,
-                        )
+                        if (hotelRoom) {
+                            HotelMenuHeader(roomName = state.guestVenue?.space?.name ?: venue.vocabulary.roomTitle)
+                        } else {
+                            CatalogHeader(
+                                state = state,
+                                onSearchChange = onSearchChange,
+                                onChangeVenue = onChangeVenue,
+                                onCycleTheme = { themeChanger?.invoke(themeMode.next()) },
+                                profileInitials = profileInitials,
+                                onOpenAccount = onOpenAccount,
+                                pageColor = colors.paper,
+                                onOpenFeed = onOpenFeed,
+                            )
+                        }
                     }
                     state.menuNotice?.let { notice ->
                         item(key = "closed-notice", span = { GridItemSpan(maxLineSpan) }) {
@@ -578,7 +589,7 @@ private fun CatalogContent(
         MenuCartShortcut(
             count = state.cartItemCount,
             total = moneyLabel(state.cartPreviewTotal),
-            visible = cartShortcutVisible && waiterLayer == null,
+            visible = cartShortcutVisible && waiterLayer == null && !hotelCartBar,
             onClick = { onOpenCart?.invoke() },
             modifier =
                 Modifier
@@ -587,15 +598,26 @@ private fun CatalogContent(
                     .padding(end = VaiinillaBottomNavSideMargin, bottom = VaiinillaBottomNavTop + 10.dp),
         )
 
+        if (hotelCartBar) {
+            HotelCartBar(
+                count = state.cartItemCount,
+                total = moneyLabel(state.cartPreviewTotal),
+                onClick = { onOpenCart?.invoke() },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+
         // Se esconde con la ficha de un platillo abierta, como "Pedir ya"; en Pedidos queda el botón de la tarjeta.
-        waiterLayer?.invoke(
-            if (cartShortcutVisible) {
-                MenuCartBar(state.cartItemCount, moneyLabel(state.cartPreviewTotal)) { onOpenCart?.invoke() }
-            } else {
-                null
-            },
-            state.selectedProduct == null,
-        )
+        if (!hotelCartBar) {
+            waiterLayer?.invoke(
+                if (cartShortcutVisible) {
+                    MenuCartBar(state.cartItemCount, moneyLabel(state.cartPreviewTotal)) { onOpenCart?.invoke() }
+                } else {
+                    null
+                },
+                state.selectedProduct == null,
+            )
+        }
 
         state.selectedProduct?.let { product ->
             val category = catalog.categories.firstOrNull { it.id == product.categoryId }
@@ -671,6 +693,7 @@ private fun MenuHero(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalVaiinillaColors.current
+    val venueContext = LocalVenueContext.current
     val venue = state.guestVenue
     val establishment = venue?.establishment
     val name = establishment?.name ?: "Menú"
@@ -743,7 +766,12 @@ private fun MenuHero(
                 // Con una pista rentada en curso, el cliente ya está allá y no en la mesa del QR.
                 state.currentSpace?.let { space ->
                     Text(
-                        text = "${space.name} · ${SpaceCopy.kindLabel(space.type).lowercase()}",
+                        text =
+                            if (SpaceCopy.isRoom(venueContext, space)) {
+                                "${space.name} · se lleva a tu puerta"
+                            } else {
+                                "${space.name} · ${SpaceCopy.kindLabel(venueContext, space.type).lowercase()}"
+                            },
                         color = colors.ink,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
@@ -754,7 +782,8 @@ private fun MenuHero(
                 }
             }
             WholeWordTitle(
-                text = name.uppercase(),
+                // En el cuarto de un hotel el menú es el room service, no el nombre del hotel (Doop H02).
+                text = if (SpaceCopy.isRoom(venueContext, venue?.space)) "ROOM SERVICE" else name.uppercase(),
                 color = colors.ink,
                 fontSize = 46.sp,
                 lineHeight = 44.sp,

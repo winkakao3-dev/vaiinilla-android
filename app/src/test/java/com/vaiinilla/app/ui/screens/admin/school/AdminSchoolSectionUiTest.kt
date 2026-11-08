@@ -1,7 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin.school
 
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onFirst
@@ -76,6 +76,10 @@ class AdminSchoolSectionUiTest {
             group = "3B",
         )
 
+    private fun scrollTo(text: String) {
+        composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(text))
+    }
+
     private fun state(
         requests: List<GuardianRequest> = emptyList(),
         studentRequests: List<SchoolStudentRequest> = emptyList(),
@@ -101,14 +105,16 @@ class AdminSchoolSectionUiTest {
                 onBack = {},
             )
         }
-        composeTestRule.onNodeWithText("Tilin Ramírez").assertExists()
-        composeTestRule.onNodeWithText("A100 · 3B").assertExists()
+        scrollTo("Tilin Ramírez · A100 · 3B")
+        composeTestRule.onNodeWithText("Tilin Ramírez · A100 · 3B").assertExists()
         composeTestRule.onNodeWithText("Lo pide Rosa Ramírez · rosa@x.mx").assertExists()
         composeTestRule.onNodeWithText("No está en el padrón · Sin otro tutor · Sin cuenta propia").assertExists()
 
+        scrollTo("Aprobar")
         composeTestRule.onNodeWithText("Aprobar").performClick()
         assertEquals(listOf("t1" to true), reviewed)
 
+        scrollTo("Rechazar")
         composeTestRule.onNodeWithText("Rechazar").performClick()
         composeTestRule.onNodeWithText("¿Rechazar a Rosa Ramírez?").assertExists()
         composeTestRule
@@ -116,7 +122,7 @@ class AdminSchoolSectionUiTest {
                 "No verá ni cuidará a Tilin Ramírez. " +
                     "Si nadie más lo cuida, su matrícula queda libre para su verdadero tutor.",
             ).assertExists()
-        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Rechazar"))
+        scrollTo("Rechazar")
         composeTestRule.onAllNodes(hasText("Rechazar")).onFirst().performClick()
         assertEquals(listOf("t1" to true, "t1" to false), reviewed)
     }
@@ -134,15 +140,12 @@ class AdminSchoolSectionUiTest {
                 onBack = {},
             )
         }
-        composeTestRule
-            .onAllNodes(
-                hasScrollAction(),
-            ).onFirst()
-            .performScrollToNode(hasText("Devolver $120 en efectivo"))
-        composeTestRule.onNodeWithText("Devolver $120 en efectivo").assertExists()
+        scrollTo("Devolver $120.00 en efectivo")
+        composeTestRule.onNodeWithText("Devolver $120.00 en efectivo").assertExists()
         composeTestRule.onNodeWithText("Al pedirla tenía $150; se entrega lo de hoy.").assertExists()
         composeTestRule.onNodeWithText("“Se cambia de escuela”").assertExists()
 
+        scrollTo("Ya se lo entregué")
         composeTestRule.onNodeWithText("Ya se lo entregué").performClick()
         composeTestRule.onNodeWithText("¿Ya le entregaste $120 a Rosa Ramírez?").assertExists()
         composeTestRule
@@ -150,7 +153,7 @@ class AdminSchoolSectionUiTest {
                 "Sale de la caja abierta y queda en su corte. " +
                     "Su saldo queda en cero; lo que gaste después ya no entra en esta solicitud.",
             ).assertExists()
-        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Sí, ya se lo entregué"))
+        scrollTo("Sí, ya se lo entregué")
         composeTestRule.onNodeWithText("Sí, ya se lo entregué").performClick()
         assertEquals(listOf("s1"), resolved)
     }
@@ -168,13 +171,11 @@ class AdminSchoolSectionUiTest {
                 onBack = {},
             )
         }
-        composeTestRule
-            .onAllNodes(
-                hasScrollAction(),
-            ).onFirst()
-            .performScrollToNode(hasText("Ya no le queda saldo: recházala."))
+        scrollTo("Ya no le queda saldo: recházala.")
         composeTestRule.onNodeWithText("Ya se lo entregué").assertIsNotEnabled()
+        scrollTo("Rechazar")
         composeTestRule.onNodeWithText("Rechazar").performClick()
+        scrollTo("¿Por qué no procede?")
         composeTestRule.onNodeWithText("¿Por qué no procede?").assertExists()
         composeTestRule.onNodeWithText("Rosa Ramírez lo verá en la ficha de Tilin Ramírez.").assertExists()
     }

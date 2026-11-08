@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
@@ -106,7 +107,12 @@ internal fun CashierSearchButton(
                 .physicalPress(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Outlined.Search, contentDescription = "Buscar un pedido", tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+        Icon(
+            Icons.Outlined.Search,
+            contentDescription = "Buscar un pedido",
+            tint = colors.textPrimary,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -164,8 +170,12 @@ internal fun CashierOrderSearchSheet(
                 CashierSearchFilter.entries.forEach { option ->
                     val selected = option == filter
                     val background =
-                        animateSelectionColor(if (selected) colors.textPrimary else colors.cardBackground, "search-chip")
-                    val ink = animateSelectionColor(if (selected) colors.background else colors.textPrimary, "search-ink")
+                        animateSelectionColor(
+                            if (selected) colors.textPrimary else colors.cardBackground,
+                            "search-chip",
+                        )
+                    val ink =
+                        animateSelectionColor(if (selected) colors.background else colors.textPrimary, "search-ink")
                     Box(
                         modifier =
                             Modifier
@@ -199,7 +209,14 @@ internal fun CashierOrderSearchSheet(
                             .border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp)),
                 ) {
                     results.forEachIndexed { index, order ->
-                        if (index > 0) HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                        if (index >
+                            0
+                        ) {
+                            HorizontalDivider(
+                                color = colors.cardBorder,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        }
                         CashierSearchRow(order, colors, enabled = canOpen(order)) { onOpen(order) }
                     }
                 }
@@ -220,10 +237,11 @@ private fun CashierSearchRow(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val summary = order.summary
     val who =
         listOfNotNull(
-            SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar),
+            SpaceCopy.staffDestination(venue, summary.destination, summary.space, summary.pickUpAtBar),
             staffCustomerName(order),
         ).joinToString(" · ")
     Row(
@@ -242,7 +260,14 @@ private fun CashierSearchRow(
             Text("#${summary.folio}", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 14.sp)
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(who, color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                who,
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Black,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(
                 order.activeItems.joinToString(", ") { it.productName },
                 color = colors.textSecondary,

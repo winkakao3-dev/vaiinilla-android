@@ -1,0 +1,54 @@
+package com.vaiinilla.app.data.operational
+
+import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
+import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.repository.DeviceHeartbeatRepository
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+
+class RemoteDeviceHeartbeatRepository(
+    private val apiClient: VaiinillaApiClient,
+) : DeviceHeartbeatRepository {
+    private val json =
+        ApiJson.withDefaults
+
+    override fun sendHeartbeat(
+        deviceId: String,
+        role: OperationalRole,
+    ): Result<Unit> {
+        if (role == OperationalRole.CLIENT) {
+            return Result.success(Unit)
+        }
+        return apiClient
+            .post(
+                path = "latidos",
+                body =
+                    json.encodeToString(
+                        HeartbeatRequestDto(
+                            device = deviceId,
+                            role = role.wireValue,
+                        ),
+                    ),
+            ).fold(
+                onSuccess = { Result.success(Unit) },
+                onFailure = { error ->
+                    Result.failure(
+                        if (error is ApiClientException) {
+                            IllegalStateException("${error.code}: ${error.message}")
+                        } else {
+                            error
+                        },
+                    )
+                },
+            )
+    }
+}
+
+@Serializable
+private data class HeartbeatRequestDto(
+    @SerialName("dispositivo") val device: String,
+    @SerialName("rol") val role: String,
+)

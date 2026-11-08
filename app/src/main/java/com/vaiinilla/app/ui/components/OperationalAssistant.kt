@@ -197,12 +197,6 @@ data class OperationalAssistantGuide(
     val unavailableReason: String? = null,
 )
 
-data class OperationalAssistantOnboardingItem(
-    val id: String,
-    val label: String,
-    val guideId: String? = null,
-)
-
 internal data class AssistantAnchorEntry(
     val bounds: Rect,
     val bringIntoViewRequester: BringIntoViewRequester,
@@ -1354,103 +1348,6 @@ private fun AssistantTaskRow(
                 tint = palette.muted.copy(alpha = 0.7f),
                 modifier = Modifier.size(14.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun FirstStepsContent(
-    items: List<OperationalAssistantOnboardingItem>,
-    completed: Set<String>,
-    guides: List<OperationalAssistantGuide>,
-    controller: OperationalAssistantController,
-    palette: OperationalAssistantPalette,
-) {
-    val done = items.count { it.id in completed }
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(5.dp)
-                    .clip(CircleShape)
-                    .background(palette.surface2),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(if (items.isEmpty()) 1f else done.toFloat() / items.size.toFloat())
-                        .background(palette.lime),
-                )
-            }
-            Text(
-                "$done de ${items.size}",
-                color = palette.muted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        items.forEach { item ->
-            val isDone = item.id in completed
-            val guide = item.guideId?.let { id -> guides.firstOrNull { it.id == id } }
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(22.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .then(
-                                if (isDone) {
-                                    Modifier.background(palette.lime)
-                                } else {
-                                    Modifier.border(1.dp, palette.line, RoundedCornerShape(7.dp))
-                                },
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isDone) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = palette.limeInk,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    }
-                }
-                Text(
-                    item.label,
-                    color = if (isDone) palette.muted else palette.ink,
-                    fontSize = 14.sp,
-                    modifier = Modifier.weight(1f),
-                )
-                if (!isDone && guide != null) {
-                    Text(
-                        "Mostrar",
-                        color = palette.lime,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier =
-                            Modifier
-                                .clickable {
-                                    controller.startGuide(
-                                        guide,
-                                    )
-                                }.padding(horizontal = 4.dp, vertical = 8.dp),
-                    )
-                }
-            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.components
 
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -256,11 +257,15 @@ private fun WaiterCallHeader(
     call: TableCall?,
     place: String?,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val going = call?.status == CallStatus.EN_CAMINO
     // El cliente nunca ve el nombre del mesero, aunque el servidor lo mande: cuida al personal (Kao, 3 nov).
     val title =
         when {
+            venue.capabilities.waiterIsReception && call == null -> "Llamar a recepción"
+            venue.capabilities.waiterIsReception && going -> "Ya vienen a tu habitación"
+            venue.capabilities.waiterIsReception -> "Ya le avisamos a recepción"
             call == null -> "Llamar a tu mesero"
             going -> "Tu mesero va en camino"
             else -> "Ya le avisamos a tu mesero"

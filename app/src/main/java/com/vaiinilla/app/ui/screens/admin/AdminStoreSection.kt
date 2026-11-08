@@ -82,6 +82,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.vaiinilla.app.core.location.HomeAddressLocator
 import com.vaiinilla.app.core.location.MapsLink
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
@@ -98,6 +99,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.admin.HotelSettingsAdminSection
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
@@ -106,7 +108,7 @@ import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.launch
 
 /** Las páginas que abre la portada de Flujo de mi tienda (marcos 02a, 42, 43 y 44). */
-private enum class StorePage { PAYMENTS, FLOW, PRESENCE, DELIVERY }
+private enum class StorePage { PAYMENTS, FLOW, PRESENCE, DELIVERY, HOTEL }
 
 /**
  * Flujo de mi tienda como el lienzo de Doop: arriba la foto y el logo, después cómo funciona la tienda y los pagos
@@ -152,6 +154,7 @@ internal fun AdminStoreSection(
             StorePage.FLOW -> StoreFlowPage(viewModel, colors, readOnly) { page = null }
             StorePage.PRESENCE -> StorePresencePage(viewModel, colors, readOnly) { page = null }
             StorePage.DELIVERY -> StoreDeliveryPage(viewModel, colors, readOnly) { page = null }
+            StorePage.HOTEL -> HotelSettingsAdminSection(colors, readOnly, onBack = { page = null })
         }
     }
     LaunchedEffect(state.config == null) { if (state.config == null && state.configError == null) viewModel.refresh() }
@@ -167,6 +170,7 @@ private fun StoreCover(
     onOpenAssistant: (() -> Unit)?,
     onOpen: (StorePage) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val state by viewModel.uiState
     val enabled = !readOnly && !state.saving
     AdminSectionPage(
@@ -295,6 +299,20 @@ private fun StoreCover(
             AdminPanel(colors, Modifier.adminRise(3)) {
                 PanelTitle("Pagos con tarjeta", colors) { onOpen(StorePage.PAYMENTS) }
                 StripeQuick(viewModel, colors, enabled)
+            }
+        }
+        if (venue.capabilities.hasHotelAdmin || config.type == BusinessType.HOTEL) {
+            item(key = "hotel") {
+                AdminPanel(colors, Modifier.adminRise(3)) {
+                    PanelTitle("Hotel", colors) { onOpen(StorePage.HOTEL) }
+                    Text(
+                        "Room service, salida y lo que piden los huéspedes",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
         if (showsDelivery(config)) {

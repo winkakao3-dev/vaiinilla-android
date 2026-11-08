@@ -5,7 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiErrorMapper
+import com.vaiinilla.app.core.network.ApiFailure
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -17,7 +20,7 @@ import com.vaiinilla.app.domain.model.ReservationAccess
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceDelivery
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.offline.OfflineStaffOrderRules
 import com.vaiinilla.app.domain.offline.OfflineStaffScope
@@ -85,7 +88,8 @@ data class WaiterUiState(
     val rentalDurationsFailed: Boolean = false,
     /** R25: cuántos caben en el espacio abierto (`capacidad` de la disponibilidad); sin dato, el tope del servidor. */
     val rentalMaxPlayers: Int = ReservationSlots.MAX_PLAYERS,
-    val errorMessage: String? = null,
+    /** Por qué falló la última carga del tablero; null si salió bien. Se queda hasta que una carga salga bien. */
+    val boardFailure: ApiFailure? = null,
     val toastMessage: String? = null,
     val filterAttending: Boolean = false,
     /** Si es false, el mesero entrega en el espacio sin escanear el QR del cliente. */
@@ -110,6 +114,8 @@ data class WaiterUiState(
     val pendingRental: Reservation? = null,
     /** Lo elegido para rentar el espacio abierto; sobrevive a cerrar el cobro. */
     val rentalDraft: RentalDraft? = null,
+    /** Jugadores tocados en la hoja de cobro que aún no se vuelven a apartar (R16); vive aquí para sobrevivir a girar. */
+    val pendingRentalPlayers: PendingRentalPlayers? = null,
     /** Pedido de mostrador: hoja abierta, catálogo cargado y envío en curso. */
     val counterOrderOpen: Boolean = false,
     val counterCatalog: Catalog? = null,
@@ -131,7 +137,36 @@ data class WaiterUiState(
 
     val boardLink: WaiterBoardLink
         get() = waiterBoardLink(boardLoaded, consecutiveBoardFailures)
+
+    /** El texto del fallo del tablero, ya listo para mostrar. */
+    val errorMessage: String? get() = boardFailure?.message()
+
+    /** Lo que ocupa el lugar del tablero, en un solo valor: cargando, con error o con el tablero a la vista. */
+    val boardView: WaiterBoardView
+        get() =
+            when {
+                boardLoaded -> WaiterBoardView.Ready
+                boardFailure != null -> WaiterBoardView.Error(boardFailure)
+                else -> WaiterBoardView.Loading
+            }
 }
+
+/** Qué se pinta donde va el tablero del Mesero. Un sondeo no cambia entre Error y Loading: solo una carga buena. */
+sealed interface WaiterBoardView {
+    data object Loading : WaiterBoardView
+
+    data class Error(
+        val failure: ApiFailure,
+    ) : WaiterBoardView
+
+    data object Ready : WaiterBoardView
+}
+
+/** Los jugadores de la hoja de cobro de la renta [rentalId]; con otra renta (un nuevo apartado) ya no valen. */
+data class PendingRentalPlayers(
+    val rentalId: String,
+    val players: Int,
+)
 
 /**
  * Pedido a medio armar del admin en «Pedir»: las líneas (por id de línea, ver [StaffOrderLines]), el nombre y a dónde
@@ -154,7 +189,10 @@ class WaiterViewModel
         private val createOrder: CreateRemoteOrderUseCase,
         private val offlineOrders: OfflineStaffOrderQueue,
         private val rescuer: OfflineStaffOrderRescuer,
+        private val venueContext: VenueContextStore,
     ) : ViewModel() {
+        private val venue: VenueContext get() = venueContext.current
+
         private val _uiState = mutableStateOf(WaiterUiState())
         val uiState: State<WaiterUiState> = _uiState
 
@@ -234,7 +272,8 @@ class WaiterViewModel
 
         /** Una carga del tablero a la vez: otra en vuelo se cancela para que la vieja no pise a la nueva (STAFF-19). */
         fun refresh() {
-            _uiState.value = _uiState.value.copy(loading = true, errorMessage = null)
+            // El fallo anterior se queda a la vista mientras se reintenta: borrarlo hacía parpadear el error con el esqueleto.
+            _uiState.value = _uiState.value.copy(loading = true)
             boardJob?.cancel()
             boardJob = viewModelScope.launch { loadBoard() }
         }
@@ -248,7 +287,7 @@ class WaiterViewModel
                     detectNewRejections(board.tables)
                 },
                 onFailure = { error ->
-                    _uiState.value = _uiState.value.withBoardFailure(error.toUserFacingMessage())
+                    _uiState.value = _uiState.value.withBoardFailure(ApiErrorMapper.map(error))
                 },
             )
         }
@@ -446,7 +485,23 @@ class WaiterViewModel
 
         fun closeSpace() {
             openSpaceId = null
-            _uiState.value = _uiState.value.copy(spaceDetail = null, spaceDetailLoading = false, rentalDraft = null)
+            _uiState.value =
+                _uiState.value.copy(
+                    spaceDetail = null,
+                    spaceDetailLoading = false,
+                    rentalDraft = null,
+                    pendingRentalPlayers = null,
+                )
+        }
+
+        /** R16: guarda los jugadores tocados en la hoja de cobro; no se pierden al girar ni al cerrar la hoja. */
+        fun setPendingRentalPlayers(players: Int) {
+            val rental = _uiState.value.pendingRental ?: return
+            _uiState.value =
+                _uiState.value.copy(
+                    pendingRentalPlayers =
+                        PendingRentalPlayers(rental.id, players.coerceIn(0, _uiState.value.rentalMaxPlayers)),
+                )
         }
 
         /** U04: guarda lo elegido en el picker de la renta del espacio. */
@@ -821,6 +876,7 @@ class WaiterViewModel
                         _uiState.value =
                             _uiState.value.copy(
                                 pendingRental = reservation,
+                                pendingRentalPlayers = null,
                                 rentalDraft =
                                     (draft ?: RentalDraft(current.courtId))
                                         .copy(minutes = minutes, players = wantedPlayers ?: 0),
@@ -833,12 +889,15 @@ class WaiterViewModel
                             _uiState.value =
                                 _uiState.value.copy(
                                     pendingRental = null,
+                                    pendingRentalPlayers = null,
                                     rentalDraft =
                                         (draft ?: RentalDraft(current.courtId))
                                             .copy(minutes = minutes, players = wantedPlayers ?: 0),
                                 )
                             showToast("No se pudo volver a apartar: ${error.toUserFacingMessage()}", isError = true)
                         } else {
+                            // El apartado sigue igual: el stepper regresa a lo que tiene la reserva.
+                            _uiState.value = _uiState.value.copy(pendingRentalPlayers = null)
                             showToast("No se pudo cambiar la renta: ${error.toUserFacingMessage()}", isError = true)
                         }
                     },
@@ -866,13 +925,14 @@ class WaiterViewModel
                 result.fold(
                     onSuccess = { payment ->
                         // Cobrada: lo elegido ya no hace falta.
-                        _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = null)
+                        _uiState.value =
+                            _uiState.value.copy(pendingRental = null, rentalDraft = null, pendingRentalPlayers = null)
                         val change =
                             payment.cashChange
                                 ?.takeIf { it != "0.00" }
                                 ?.let { " · cambio $$it" }
                                 .orEmpty()
-                        showToast("${Venue.courtTitle} rentada$change")
+                        showToast("${venue.vocabulary.courtTitle} rentada$change")
                     },
                     onFailure = { error -> showToast(error.toUserFacingMessage(), isError = true) },
                 )
@@ -889,13 +949,19 @@ class WaiterViewModel
         fun cancelPendingRental(players: Int? = null) {
             val reservation = _uiState.value.pendingRental ?: return
             val kept = _uiState.value.rentalDraft?.takeIf { it.spaceId == reservation.courtId }
+            val typedPlayers =
+                _uiState.value.pendingRentalPlayers
+                    ?.takeIf { it.rentalId == reservation.id }
+                    ?.players
+            val maxPlayers = _uiState.value.rentalMaxPlayers
             val draft =
                 (kept ?: RentalDraft(reservation.courtId))
                     .copy(
                         minutes = reservation.durationMinutes,
-                        players = (players ?: reservation.players ?: 0).coerceIn(0, _uiState.value.rentalMaxPlayers),
+                        players = (players ?: typedPlayers ?: reservation.players ?: 0).coerceIn(0, maxPlayers),
                     )
-            _uiState.value = _uiState.value.copy(pendingRental = null, rentalDraft = draft)
+            _uiState.value =
+                _uiState.value.copy(pendingRental = null, rentalDraft = draft, pendingRentalPlayers = null)
             viewModelScope.launch {
                 val result =
                     withContext(Dispatchers.IO) {
@@ -1152,16 +1218,16 @@ internal fun WaiterUiState.withBoard(
         allowsPayAtEnd = board.allowsPayAtEnd,
         spaceDelivery = board.spaceDelivery,
         loading = false,
-        errorMessage = null,
+        boardFailure = null,
         lastBoardRefreshAt = receivedAt,
         consecutiveBoardFailures = 0,
     )
 
 /** Un fallo no borra las mesas: el mesero sigue viendo el último tablero bueno. */
-internal fun WaiterUiState.withBoardFailure(message: String): WaiterUiState =
+internal fun WaiterUiState.withBoardFailure(failure: ApiFailure): WaiterUiState =
     copy(
         loading = false,
-        errorMessage = message,
+        boardFailure = failure,
         consecutiveBoardFailures = consecutiveBoardFailures + 1,
     )
 

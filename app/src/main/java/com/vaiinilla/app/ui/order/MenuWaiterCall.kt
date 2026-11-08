@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
@@ -51,17 +52,39 @@ data class MenuWaiterPillLabel(
 )
 
 fun menuWaiterPillLabel(
+    venue: VenueContext,
     call: TableCall?,
     cooldown: Int,
 ): MenuWaiterPillLabel {
     if (call != null) {
         if (call.status == CallStatus.EN_CAMINO) {
             // El cliente nunca ve el nombre del mesero: cuida al personal (decisión de Kao, 3 nov).
+            if (venue.capabilities.waiterIsReception) {
+                return MenuWaiterPillLabel(
+                    MenuWaiterIcon.WALKING,
+                    "Ya vienen a tu habitación",
+                    "Ya vienen",
+                )
+            }
             return MenuWaiterPillLabel(MenuWaiterIcon.WALKING, "Tu mesero va en camino", "Mesero va")
+        }
+        if (venue.capabilities.waiterIsReception) {
+            return MenuWaiterPillLabel(
+                MenuWaiterIcon.RINGING,
+                "Llamando a recepción…",
+                "Llamando…",
+            )
         }
         return MenuWaiterPillLabel(MenuWaiterIcon.RINGING, "Llamando al mesero…", "Llamando…")
     }
     if (cooldown > 0) return MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Otra vez en $cooldown s", "$cooldown s")
+    if (venue.capabilities.waiterIsReception) {
+        return MenuWaiterPillLabel(
+            MenuWaiterIcon.BELL,
+            "Llamar a recepción",
+            "Recepción",
+        )
+    }
     return MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Llamar al mesero", "Mesero")
 }
 

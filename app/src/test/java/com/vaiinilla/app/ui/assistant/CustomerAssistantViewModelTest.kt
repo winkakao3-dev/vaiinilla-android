@@ -6,9 +6,9 @@ import com.vaiinilla.app.domain.assistant.AssistantProductCard
 import com.vaiinilla.app.domain.assistant.CustomerAssistantReply
 import com.vaiinilla.app.domain.assistant.CustomerAssistantRepository
 import com.vaiinilla.app.domain.assistant.CustomerAssistantTurn
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -27,7 +27,7 @@ class CustomerAssistantViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        StaffHarness.restoreMain()
     }
 
     @Test
@@ -62,7 +62,10 @@ class CustomerAssistantViewModelTest {
         waitUntil { repository.replies == 1 }
         Thread.sleep(50)
 
-        assertTrue(vm.state.value.turns.isEmpty())
+        assertTrue(
+            vm.state.value.turns
+                .isEmpty(),
+        )
         assertFalse(vm.state.value.thinking)
     }
 
@@ -115,7 +118,10 @@ class CustomerAssistantViewModelTest {
 
         vm.forgetCartOrder()
 
-        assertTrue(vm.state.value.cartOrder.isEmpty())
+        assertTrue(
+            vm.state.value.cartOrder
+                .isEmpty(),
+        )
         assertTrue(0 in vm.state.value.done)
     }
 

@@ -1,0 +1,506 @@
+{
+ "app/src/main/java/com/vaiinilla/app/MainActivity.kt": {
+  "standard:chain-method-continuation": 3
+ },
+ "app/src/main/java/com/vaiinilla/app/core/network/HttpVaiinillaApiClient.kt": {
+  "standard:spacing-between-declarations-with-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/data/offline/OfflineOrderBody.kt": {
+  "standard:argument-list-wrapping": 4,
+  "standard:binary-expression-wrapping": 1,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/domain/model/OrderModels.kt": {
+  "standard:chain-method-continuation": 3,
+  "standard:multiline-expression-wrapping": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/domain/offline/OfflineStaffOrders.kt": {
+  "standard:chain-method-continuation": 4
+ },
+ "app/src/main/java/com/vaiinilla/app/domain/repository/CashSessionRepository.kt": {
+  "standard:function-signature": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/admin/AdminStoreViewModel.kt": {
+  "standard:chain-method-continuation": 7
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/assistant/CustomerAssistantScreen.kt": {
+  "standard:argument-list-wrapping": 107,
+  "standard:binary-expression-wrapping": 2,
+  "standard:blank-line-before-declaration": 4,
+  "standard:chain-method-continuation": 22,
+  "standard:function-literal": 1,
+  "standard:max-line-length": 16,
+  "standard:no-multi-spaces": 1,
+  "standard:spacing-between-declarations-with-annotations": 4,
+  "standard:spacing-between-declarations-with-comments": 2,
+  "standard:statement-wrapping": 1,
+  "standard:wrapping": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/assistant/CustomerAssistantViewModel.kt": {
+  "standard:chain-method-continuation": 2,
+  "standard:indent": 6,
+  "standard:multiline-expression-wrapping": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/components/ClientPage.kt": {
+  "standard:argument-list-wrapping": 13,
+  "standard:chain-method-continuation": 5,
+  "standard:final-newline": 1,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 2
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/components/WaiterCallSheet.kt": {
+  "standard:argument-list-wrapping": 6,
+  "standard:final-newline": 1,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/mode/AuthorizedAccessViewModel.kt": {
+  "standard:chain-method-continuation": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/navigation/StoreAccessMemory.kt": {
+  "standard:argument-list-wrapping": 7,
+  "standard:binary-expression-wrapping": 1,
+  "standard:chain-method-continuation": 2,
+  "standard:max-line-length": 2
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/order/OrderJourney.kt": {
+  "standard:max-line-length": 2
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/AddChildFlow.kt": {
+  "standard:argument-list-wrapping": 34,
+  "standard:chain-method-continuation": 8,
+  "standard:final-newline": 1,
+  "standard:max-line-length": 6
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/AddedChildStep.kt": {
+  "standard:argument-list-wrapping": 63,
+  "standard:binary-expression-wrapping": 4,
+  "standard:chain-method-continuation": 12,
+  "standard:final-newline": 1,
+  "standard:function-literal": 6,
+  "standard:max-line-length": 10,
+  "standard:multiline-expression-wrapping": 1,
+  "standard:no-unused-imports": 1,
+  "standard:wrapping": 2
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/ChildAccountPage.kt": {
+  "standard:argument-list-wrapping": 91,
+  "standard:binary-expression-wrapping": 2,
+  "standard:chain-method-continuation": 23,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 13
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/ChildReloadSheet.kt": {
+  "standard:argument-list-wrapping": 31,
+  "standard:binary-expression-wrapping": 3,
+  "standard:chain-method-continuation": 2,
+  "standard:function-literal": 2,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 5
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/ChildSections.kt": {
+  "standard:no-unused-imports": 19
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/ChildSecurityPage.kt": {
+  "standard:argument-list-wrapping": 26,
+  "standard:binary-expression-wrapping": 1,
+  "standard:chain-method-continuation": 4,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 4,
+  "standard:no-unused-imports": 2
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/ParentFirstTime.kt": {
+  "standard:argument-list-wrapping": 20,
+  "standard:chain-method-continuation": 5,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 3
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/SchoolCodeStep.kt": {
+  "standard:argument-list-wrapping": 32,
+  "standard:binary-expression-wrapping": 2,
+  "standard:chain-method-continuation": 10,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 4
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/parentmode/WalletFamilySection.kt": {
+  "standard:argument-list-wrapping": 29,
+  "standard:blank-line-before-declaration": 2,
+  "standard:chain-method-continuation": 7,
+  "standard:function-literal": 2,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 4,
+  "standard:no-consecutive-blank-lines": 1,
+  "standard:spacing-between-declarations-with-annotations": 2,
+  "standard:spacing-between-declarations-with-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/platform/PlatformViewModel.kt": {
+  "standard:argument-list-wrapping": 4,
+  "standard:binary-expression-wrapping": 2,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/profile/DisplayInitials.kt": {
+  "standard:chain-method-continuation": 4
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/AssistantChatScreen.kt": {
+  "standard:chain-method-continuation": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/AuthorizedAccessScreens.kt": {
+  "standard:argument-list-wrapping": 5,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/CashBillCounter.kt": {
+  "standard:no-unused-imports": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/CashDrawerMovements.kt": {
+  "standard:argument-list-wrapping": 5,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/CashierChargeSheet.kt": {
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/CounterOrderSheet.kt": {
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/HomeDeliveryMap.kt": {
+  "standard:argument-list-wrapping": 97,
+  "standard:binary-expression-wrapping": 4,
+  "standard:chain-method-continuation": 9,
+  "standard:final-newline": 1,
+  "standard:function-literal": 8,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 11
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/KitchenOperationalScreen.kt": {
+  "standard:no-consecutive-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/KitchenSoldOut.kt": {
+  "standard:argument-list-wrapping": 35,
+  "standard:binary-expression-wrapping": 2,
+  "standard:chain-method-continuation": 12,
+  "standard:function-literal": 6,
+  "standard:max-line-length": 7,
+  "standard:multiline-expression-wrapping": 1,
+  "standard:wrapping": 3
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/RentalCourtPage.kt": {
+  "standard:no-consecutive-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StaffAvatarMenu.kt": {
+  "standard:argument-list-wrapping": 28,
+  "standard:chain-method-continuation": 3,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 5
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StaffOfflineBanner.kt": {
+  "standard:argument-list-wrapping": 4,
+  "standard:binary-expression-wrapping": 1,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StaffShift.kt": {
+  "standard:argument-list-wrapping": 45,
+  "standard:binary-expression-wrapping": 1,
+  "standard:chain-method-continuation": 7,
+  "standard:max-line-length": 7
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StudentLoginScreen.kt": {
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StudentRegisterScreen.kt": {
+  "standard:argument-list-wrapping": 43,
+  "standard:binary-expression-wrapping": 1,
+  "standard:chain-method-continuation": 12,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 6,
+  "standard:wrapping": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StudentVerifyEmailScreen.kt": {
+  "standard:argument-list-wrapping": 2,
+  "standard:binary-expression-wrapping": 1,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/StudentWallet.kt": {
+  "standard:argument-list-wrapping": 25,
+  "standard:binary-expression-wrapping": 1,
+  "standard:chain-method-continuation": 2,
+  "standard:final-newline": 1,
+  "standard:max-line-length": 3
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/WalletAccountScreen.kt": {
+  "standard:argument-list-wrapping": 69,
+  "standard:binary-expression-wrapping": 2,
+  "standard:blank-line-before-declaration": 1,
+  "standard:chain-method-continuation": 17,
+  "standard:function-literal": 2,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 11,
+  "standard:spacing-between-declarations-with-annotations": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/WalletBottomSheet.kt": {
+  "standard:final-newline": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/WalletMovements.kt": {
+  "standard:argument-list-wrapping": 43,
+  "standard:chain-method-continuation": 8,
+  "standard:final-newline": 1,
+  "standard:function-signature": 1,
+  "standard:max-line-length": 7,
+  "standard:parameter-list-wrapping": 2
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/WalletReloadCodeSheet.kt": {
+  "standard:argument-list-wrapping": 23,
+  "standard:chain-method-continuation": 8,
+  "standard:final-newline": 1,
+  "standard:max-line-length": 3
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/WalletReloadSheet.kt": {
+  "standard:argument-list-wrapping": 5,
+  "standard:blank-line-before-declaration": 1,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 1,
+  "standard:property-naming": 3,
+  "standard:spacing-between-declarations-with-annotations": 1,
+  "standard:spacing-between-declarations-with-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/WalletScreen.kt": {
+  "standard:argument-list-wrapping": 10,
+  "standard:chain-method-continuation": 1,
+  "standard:final-newline": 1,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminCashCutSection.kt": {
+  "standard:import-ordering": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminCashSection.kt": {
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminHomeBusiness.kt": {
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminHomeOrderPage.kt": {
+  "standard:max-line-length": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminMenuTab.kt": {
+  "standard:max-line-length": 3
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminStoreSection.kt": {
+  "standard:no-consecutive-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/AdminTakeOrderTab.kt": {
+  "standard:no-consecutive-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/admin/StoreAssistantScreens.kt": {
+  "standard:argument-list-wrapping": 18,
+  "standard:binary-expression-wrapping": 2,
+  "standard:blank-line-before-declaration": 2,
+  "standard:chain-method-continuation": 2,
+  "standard:max-line-length": 3,
+  "standard:spacing-between-declarations-with-annotations": 2,
+  "standard:spacing-between-declarations-with-comments": 1
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/screens/platform/PlatformScreens.kt": {
+  "standard:argument-list-wrapping": 243,
+  "standard:binary-expression-wrapping": 6,
+  "standard:chain-method-continuation": 74,
+  "standard:final-newline": 1,
+  "standard:function-literal": 26,
+  "standard:if-else-wrapping": 5,
+  "standard:max-line-length": 36,
+  "standard:multiline-if-else": 2,
+  "standard:wrapping": 11
+ },
+ "app/src/main/java/com/vaiinilla/app/ui/support/SupportScreen.kt": {
+  "standard:argument-list-wrapping": 20,
+  "standard:binary-expression-wrapping": 2,
+  "standard:blank-line-before-declaration": 1,
+  "standard:chain-method-continuation": 4,
+  "standard:max-line-length": 3,
+  "standard:spacing-between-declarations-with-annotations": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/OrderContractTest.kt": {
+  "standard:argument-list-wrapping": 6,
+  "standard:chain-method-continuation": 1,
+  "standard:max-line-length": 2
+ },
+ "app/src/test/java/com/vaiinilla/app/StudentAuthTest.kt": {
+  "standard:chain-method-continuation": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/data/assistant/CustomerAssistantJsonTest.kt": {
+  "standard:chain-method-continuation": 6
+ },
+ "app/src/test/java/com/vaiinilla/app/data/cashcut/CashCutJsonTest.kt": {
+  "standard:chain-method-continuation": 2
+ },
+ "app/src/test/java/com/vaiinilla/app/data/platform/PlatformJsonTest.kt": {
+  "standard:argument-list-wrapping": 8,
+  "standard:binary-expression-wrapping": 2,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/data/sharedtable/SharedTableContractJsonTest.kt": {
+  "standard:argument-list-wrapping": 11,
+  "standard:chain-method-continuation": 2,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/offline/OfflineStaffOrderQueueTest.kt": {
+  "standard:chain-method-continuation": 35
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/admin/AdminStaffViewModelTest.kt": {
+  "standard:chain-method-continuation": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/assistant/CustomerAssistantViewModelTest.kt": {
+  "standard:chain-method-continuation": 2
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/components/MenuWaiterPillUiTest.kt": {
+  "standard:no-multi-spaces": 1,
+  "standard:statement-wrapping": 1,
+  "standard:wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/components/WaiterCallSheetUiTest.kt": {
+  "standard:argument-list-wrapping": 11,
+  "standard:chain-method-continuation": 1,
+  "standard:max-line-length": 2
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/parentmode/AddedChildStepUiTest.kt": {
+  "standard:final-newline": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/parentmode/ChildCardsScreenshotTest.kt": {
+  "standard:final-newline": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/parentmode/ParentModeUiTest.kt": {
+  "standard:argument-list-wrapping": 7,
+  "standard:chain-method-continuation": 2,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/parentmode/SchoolCodeStepUiTest.kt": {
+  "standard:argument-list-wrapping": 3,
+  "standard:chain-method-continuation": 3,
+  "standard:final-newline": 1,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CashierHeroDraftUiTest.kt": {
+  "standard:chain-method-continuation": 4
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CashierOrderSearchTest.kt": {
+  "standard:argument-list-wrapping": 28,
+  "standard:function-literal": 6,
+  "standard:max-line-length": 3
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CashierRefundsSectionUiTest.kt": {
+  "standard:blank-line-before-declaration": 1,
+  "standard:spacing-between-declarations-with-annotations": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CashierSessionCaptionTest.kt": {
+  "standard:argument-list-wrapping": 5,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CashierStatusTest.kt": {
+  "standard:final-newline": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CourtMenuDeliveryLineTest.kt": {
+  "standard:argument-list-wrapping": 6,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/CremeWalletCartUiTest.kt": {
+  "standard:no-multi-spaces": 1,
+  "standard:statement-wrapping": 1,
+  "standard:wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/KitchenSoldOutTest.kt": {
+  "standard:argument-list-wrapping": 34,
+  "standard:chain-method-continuation": 3,
+  "standard:function-literal": 2,
+  "standard:max-line-length": 4,
+  "standard:parameter-list-wrapping": 2,
+  "standard:property-wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/RentalCourtPageUiTest.kt": {
+  "standard:final-newline": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/SharedTableInviteUiTest.kt": {
+  "standard:argument-list-wrapping": 5,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/SharedTablePageUiTest.kt": {
+  "standard:argument-list-wrapping": 10,
+  "standard:max-line-length": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screens/WaiterTileStatusTest.kt": {
+  "standard:argument-list-wrapping": 61,
+  "standard:max-line-length": 4,
+  "standard:property-wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/AccountDeletionScreenshotTest.kt": {
+  "standard:final-newline": 1,
+  "standard:indent": 10,
+  "standard:no-multi-spaces": 1,
+  "standard:statement-wrapping": 1,
+  "standard:wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/ClientCopyRulesTest.kt": {
+  "standard:argument-list-wrapping": 13,
+  "standard:blank-line-before-declaration": 1,
+  "standard:chain-method-continuation": 1,
+  "standard:final-newline": 1,
+  "standard:import-ordering": 1,
+  "standard:max-line-length": 2,
+  "standard:spacing-between-declarations-with-annotations": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/DoopGaleriaPersonalClienteTest.kt": {
+  "standard:blank-line-before-declaration": 1,
+  "standard:chain-method-continuation": 1,
+  "standard:spacing-between-declarations-with-annotations": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/PersonalDoopScreenshotTest.kt": {
+  "standard:argument-list-wrapping": 5,
+  "standard:chain-method-continuation": 1,
+  "standard:import-ordering": 1,
+  "standard:indent": 6,
+  "standard:max-line-length": 1,
+  "standard:no-multi-spaces": 1,
+  "standard:statement-wrapping": 1,
+  "standard:wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/RentalScreenshotTest.kt": {
+  "standard:argument-list-wrapping": 7,
+  "standard:chain-method-continuation": 1,
+  "standard:max-line-length": 1,
+  "standard:no-unused-imports": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/ReservationsScreenshotTest.kt": {
+  "standard:argument-list-wrapping": 15,
+  "standard:chain-method-continuation": 3,
+  "standard:function-signature": 1,
+  "standard:function-start-of-body-spacing": 1,
+  "standard:indent": 17,
+  "standard:max-line-length": 2,
+  "standard:multiline-expression-wrapping": 1,
+  "standard:no-multi-spaces": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/SharedTableScreenshotTest.kt": {
+  "standard:indent": 5,
+  "standard:multiline-expression-wrapping": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/StaffInvitationScreenshotTest.kt": {
+  "standard:final-newline": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/screenshot/WalletFiltersScreenshotTest.kt": {
+  "standard:final-newline": 1,
+  "standard:function-signature": 6,
+  "standard:import-ordering": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/sharedtable/SharedTableVenueTest.kt": {
+  "standard:chain-method-continuation": 1
+ },
+ "app/src/test/java/com/vaiinilla/app/ui/support/SupportScreenUiTest.kt": {
+  "standard:argument-list-wrapping": 3,
+  "standard:final-newline": 1,
+  "standard:max-line-length": 1
+ }
+}

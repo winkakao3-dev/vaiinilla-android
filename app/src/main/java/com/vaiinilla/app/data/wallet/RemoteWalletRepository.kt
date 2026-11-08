@@ -1,7 +1,9 @@
 package com.vaiinilla.app.data.wallet
 
-import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.domain.model.WalletClient
 import com.vaiinilla.app.domain.model.WalletData
 import com.vaiinilla.app.domain.model.WalletMovement
@@ -12,18 +14,13 @@ import com.vaiinilla.app.domain.repository.WalletRepositoryException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
 class RemoteWalletRepository(
     private val apiClient: VaiinillaApiClient,
 ) : WalletRepository {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = true
-            isLenient = false
-        }
+        ApiJson.plain
 
     override fun getMyWallet(): Result<WalletData> =
         apiClient.get("wallets/me").mapCatching(::parseMyWallet).mapApiErrors()
@@ -76,7 +73,7 @@ class RemoteWalletRepository(
             .post(
                 "wallets/$userId/recargas-efectivo",
                 json.encodeToString(ReloadRequestDto(amount)),
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
             ).mapCatching { raw ->
                 val envelope = json.decodeFromString<ReloadEnvelopeDto>(raw)
                 require(envelope.error == null) { "La recarga contiene error." }
@@ -84,24 +81,14 @@ class RemoteWalletRepository(
             }.mapApiErrors()
 
     private fun <T> Result<T>.mapApiErrors(): Result<T> =
-        fold(
-            onSuccess = { Result.success(it) },
-            onFailure = { error ->
-                Result.failure(
-                    when (error) {
-                        is ApiClientException ->
-                            WalletRepositoryException(
-                                error.code,
-                                error.message ?: error.code,
-                                error.httpStatus,
-                                error,
-                            )
-                        is WalletRepositoryException -> error
-                        else -> error
-                    },
-                )
-            },
-        )
+        mapApiFailure {
+            WalletRepositoryException(
+                it.code,
+                it.message ?: it.code,
+                it.httpStatus,
+                it,
+            )
+        }
 }
 
 @Serializable

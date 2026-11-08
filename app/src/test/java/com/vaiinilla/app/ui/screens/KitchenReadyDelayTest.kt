@@ -1,14 +1,14 @@
 package com.vaiinilla.app.ui.screens
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.PendingReady
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
@@ -19,7 +19,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** B04: tocar «Marcar lista» y salir antes de que acabe la espera no puede perder la marca. */
+/**
+ * B04/N02: la pantalla solo avisa que se tocó «Marcar lista» y pinta la espera que le da el ViewModel; ya no tiene
+ * temporizador propio, así que girar o cambiar de pestaña no pierde la marca.
+ */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(
@@ -28,53 +31,60 @@ import org.robolectric.annotation.GraphicsMode
 )
 class KitchenReadyDelayTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-    private val ready = mutableListOf<String>()
-    private var onScreen by mutableStateOf(true)
+    private val order = ScreenshotFixtures.sampleOrder(state = OrderState.PREPARING)
 
-    private fun markReady() {
-        val order = ScreenshotFixtures.sampleOrder(state = OrderState.PREPARING)
+    @Test
+    fun `tocar Marcar lista avisa una vez con la version del pedido`() {
+        val marked = mutableListOf<Pair<String, Int>>()
         composeTestRule.setContent {
             ScreenshotTheme {
-                if (onScreen) {
-                    KitchenOperationalScreen(
-                        state = OperationalUiState(orders = listOf(order), lastRefreshOk = true),
-                        onBack = {},
-                        onStart = { _, _ -> },
-                        onReady = { id, _ -> ready += id },
-                    )
-                }
+                KitchenOperationalScreen(
+                    state = OperationalUiState(orders = listOf(order), queue = QueueSync.Live),
+                    onBack = {},
+                    onStart = { _, _ -> },
+                    onMarkReady = { id, version -> marked += id to version },
+                )
             }
         }
         composeTestRule.mainClock.advanceTimeBy(1_000)
         composeTestRule.onNodeWithText("Marcar lista").performScrollTo().performClick()
-        composeTestRule.mainClock.advanceTimeBy(100)
+        composeTestRule.mainClock.advanceTimeBy(KITCHEN_UNDO_MS * 2)
+
+        assertEquals(listOf(order.summary.id to order.summary.version), marked)
     }
 
     @Test
-    fun `se manda una vez al acabar la espera`() {
-        markReady()
-        composeTestRule.mainClock.advanceTimeBy(KITCHEN_UNDO_MS - 2_000)
-        assertEquals(0, ready.size)
-
-        composeTestRule.mainClock.advanceTimeBy(3_000)
-        assertEquals(1, ready.size)
-
-        composeTestRule.mainClock.advanceTimeBy(KITCHEN_UNDO_MS)
-        assertEquals(1, ready.size)
-    }
-
-    @Test
-    fun `salir antes de que acabe la espera la manda una sola vez`() {
-        markReady()
+    fun `con una marca en espera la pantalla ofrece Deshacer y lo avisa`() {
+        val undone = mutableListOf<String>()
+        composeTestRule.setContent {
+            ScreenshotTheme {
+                KitchenOperationalScreen(
+                    state =
+                        OperationalUiState(
+                            orders = listOf(order),
+                            queue = QueueSync.Live,
+                            pendingReady =
+                                mapOf(
+                                    order.summary.id to
+                                        PendingReady(
+                                            orderId = order.summary.id,
+                                            version = order.summary.version,
+                                            deadlineMs = System.currentTimeMillis() + KITCHEN_UNDO_MS,
+                                        ),
+                                ),
+                        ),
+                    onBack = {},
+                    onStart = { _, _ -> },
+                    onMarkReady = { _, _ -> },
+                    onUndoReady = { undone += it },
+                )
+            }
+        }
         composeTestRule.mainClock.advanceTimeBy(1_000)
+        composeTestRule.onNodeWithText("Deshacer").performScrollTo().performClick()
 
-        onScreen = false
-        composeTestRule.waitForIdle()
-        assertEquals(1, ready.size)
-
-        composeTestRule.mainClock.advanceTimeBy(KITCHEN_UNDO_MS)
-        assertEquals(1, ready.size)
+        assertEquals(listOf(order.summary.id), undone)
     }
 }

@@ -123,4 +123,11 @@ class CashCutJsonTest {
         assertTrue(signedMoney("-5.00").startsWith("−"))
         assertTrue(signedMoney("10.00").startsWith("+"))
     }
+
+    @Test
+    fun `hora en que empieza el dia`() {
+        assertEquals("05:00", CashCutJson.dayStart("""{"data": {"hora_inicio_dia": "05:00"}}"""))
+        assertNull(CashCutJson.dayStart("""{"data": {"tipo": "bar"}}"""))
+        assertEquals("""{"hora_inicio_dia":"04:00"}""", CashCutJson.dayStartBody("04:00"))
+    }
 }

@@ -45,7 +45,6 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,8 +70,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -83,13 +80,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.notifications.TableCallPushes
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.OrderDestination
@@ -102,7 +99,7 @@ import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.StripePaymentStatus
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.groupOrdersBySession
 import com.vaiinilla.app.domain.model.rejectedItemsHint
@@ -120,7 +117,6 @@ import com.vaiinilla.app.ui.components.OrderDetailSummary
 import com.vaiinilla.app.ui.components.OrderTrackingCard
 import com.vaiinilla.app.ui.components.OrderTrackingTimeline
 import com.vaiinilla.app.ui.components.PhysicalPressScale
-import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.RentalStep
 import com.vaiinilla.app.ui.components.SkeletonBlock
 import com.vaiinilla.app.ui.components.StudentTab
@@ -145,6 +141,7 @@ import com.vaiinilla.app.ui.components.rentalStateLabel
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.trackingStepDescription
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.order.JourneyVenue
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
 import com.vaiinilla.app.ui.order.OrderFlowUiState
@@ -375,7 +372,7 @@ fun StudentTrackingScreen(
 
                         when {
                             // Antes que el esqueleto: si la carga sigue fallando, el sondeo no lo hace parpadear.
-                            state.orders.isEmpty() && state.lastRefreshOk == false -> {
+                            state.orders.isEmpty() && state.queue.failed -> {
                                 item(key = "orders-error") {
                                     EmptyState(
                                         icon = Icons.Outlined.ReceiptLong,
@@ -724,9 +721,15 @@ private fun ClosedOrderCard(order: OrderDetail) {
 
 /** Aviso sobre la lista de pedidos: último cambio que falló o datos que no se pudieron actualizar. */
 internal fun trackingNoticeFor(state: OperationalUiState): String? =
-    state.errorMessage?.takeIf { state.orders.isNotEmpty() }
-        ?: "Sin conexión. Mostramos lo último que vimos; desliza hacia abajo para actualizar."
-            .takeIf { state.orders.isNotEmpty() && state.lastRefreshOk == false }
+    when {
+        state.orders.isEmpty() -> null
+        // Lo último que falló al actuar va antes que el estado de la lectura.
+        state.errorMessage != null -> state.errorMessage
+        // Solo un corte de red es «sin conexión»: un fallo del servidor se dice con su propio texto.
+        state.queue.lostConnection ->
+            "Sin conexión. Mostramos lo último que vimos; desliza hacia abajo para actualizar."
+        else -> (state.queue as? QueueSync.Failed)?.failure?.message()
+    }
 
 @Composable
 private fun TrackingNotice(message: String) {
@@ -1002,6 +1005,7 @@ internal fun schoolStateLabel(
 
 /** «Pan francés y 2 Capuchino · te lo llevan a la mesa», lo que va en la tarjeta de AHORA (Doop L10). */
 private fun activeOrderLine(
+    venue: VenueContext,
     order: OrderDetail,
     journey: OrderJourney = OrderJourney.COUNTER,
 ): String {
@@ -1028,9 +1032,10 @@ private fun activeOrderLine(
         } else if (summary.space?.type == "mesa" && !summary.state.isTerminalWithoutDelivery) {
             "te lo llevan a la mesa"
         } else if (summary.space?.type == "cancha" && !summary.state.isTerminalWithoutDelivery) {
-            "te lo llevan a la ${Venue.court}"
+            "te lo llevan a la ${venue.vocabulary.court}"
         } else {
             trackingStepDescription(
+                venue,
                 summary.state,
                 summary.destination,
                 summary.paymentMethod,
@@ -1136,6 +1141,7 @@ private fun ActiveOrderCard(
     onCancelWaiter: (suspend (TableCall) -> Result<TableCall>)? = null,
     school: Boolean = false,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val summary = order.summary
     val reduceMotion = reducedMotion()
@@ -1203,7 +1209,7 @@ private fun ActiveOrderCard(
                 modifier = Modifier.padding(top = 6.dp),
             )
             Text(
-                activeOrderLine(order, journey),
+                activeOrderLine(venue, order, journey),
                 color = OrderTrackingCardText.copy(alpha = 0.62f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1233,8 +1239,8 @@ private fun ActiveOrderCard(
                 labels =
                     when {
                         rental != null -> RentalProgressSteps
-                        scheduled -> journeySteps(order, journey)
-                        else -> foodProgressSteps(order)
+                        scheduled -> journeySteps(venue, order, journey)
+                        else -> foodProgressSteps(venue, order)
                     },
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -1314,6 +1320,7 @@ internal fun CallWaiterButton(
     onCancel: suspend (TableCall) -> Result<TableCall>,
     textColor: Color = OrderTrackingCardText,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val scope = rememberCoroutineScope()
@@ -1413,7 +1420,11 @@ internal fun CallWaiterButton(
             when (current) {
                 CallWaiterView.UNAVAILABLE -> {
                     Text(
-                        "Llamar al mesero todavía no está disponible en esta cafetería.",
+                        if (venue.capabilities.waiterIsReception) {
+                            "Llamar a recepción todavía no está disponible en este hotel."
+                        } else {
+                            "Llamar al mesero todavía no está disponible en esta cafetería."
+                        },
                         color = textColor.copy(alpha = 0.55f),
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
@@ -1484,7 +1495,13 @@ internal fun CallWaiterButton(
                         Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
                         Text(
-                            if (waiting) "Puedes volver a llamar en $cooldown s" else "Llamar al mesero",
+                            if (waiting) {
+                                "Puedes volver a llamar en $cooldown s"
+                            } else if (venue.capabilities.waiterIsReception) {
+                                "Llamar a recepción"
+                            } else {
+                                "Llamar al mesero"
+                            },
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                         )
@@ -1511,6 +1528,7 @@ private fun CallLiveRow(
     textColor: Color,
     onCancel: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val going = call.status == CallStatus.EN_CAMINO
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1530,7 +1548,12 @@ private fun CallLiveRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (going) "Tu mesero va en camino" else "Llamando a tu mesero…",
+                when {
+                    venue.capabilities.waiterIsReception && going -> "Ya vienen a tu habitación"
+                    venue.capabilities.waiterIsReception -> "Llamando a recepción…"
+                    going -> "Tu mesero va en camino"
+                    else -> "Llamando a tu mesero…"
+                },
                 color = textColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Black,
@@ -1539,6 +1562,7 @@ private fun CallLiveRow(
                 if (going) {
                     if (call.space.name.isBlank()) {
                         "Va a ${SpaceCopy.yourPlace(
+                            venue,
                             call.space.type,
                         )}"
                     } else {
@@ -1577,6 +1601,7 @@ private const val CALL_POLL_MS = 5_000L
 
 @Composable
 private fun InlinePickupQr(order: OrderDetail) {
+    val venue = LocalVenueContext.current
     val token = order.pickupToken?.takeIf { it.isNotBlank() } ?: return
     Column(
         modifier =
@@ -1594,7 +1619,7 @@ private fun InlinePickupQr(order: OrderDetail) {
             if (order.summary.pickUpAtBar) {
                 "Pasa a la barra por él y muéstralo en Caja."
             } else if (order.summary.destination == OrderDestination.IN_SPACE) {
-                "El personal lo llevará a ${SpaceCopy.yourPlace(order.summary.space?.type)}. Muéstrales este QR."
+                "El personal lo llevará a ${SpaceCopy.yourPlace(venue, order.summary.space?.type)}. Muéstrales este QR."
             } else {
                 "Muéstralo en Caja cuando recojas tu pedido."
             },
@@ -1615,23 +1640,38 @@ private fun InlinePickupQr(order: OrderDetail) {
 }
 
 /** «Pagado, Recibido, Preparando, En tu mesa» (Doop L10): el último paso dice dónde termina. */
-private fun foodProgressSteps(order: OrderDetail): List<String> {
+private fun foodProgressSteps(
+    venue: VenueContext,
+    order: OrderDetail,
+): List<String> {
     val summary = order.summary
-    val first = if (summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd) "Por pagar" else "Pagado"
+    val toRoom = SpaceCopy.isRoomOrder(venue, order)
+    val first =
+        when {
+            toRoom && summary.payAtEnd -> "Cargado"
+            summary.state == OrderState.PENDING_PAYMENT || summary.payAtEnd -> "Por pagar"
+            else -> "Pagado"
+        }
+    val last = foodLastStep(venue, summary, toRoom)
     // Mesa o cancha: «Listo» y «En tu mesa» son pasos distintos; el último se marca hasta que el mesero lo entrega.
-    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", foodLastStep(summary))
-    return listOf(first, "Recibido", "Preparando", foodLastStep(summary))
+    if (servedAtPlace(order)) return listOf(first, "Preparando", "Listo", last)
+    return listOf(first, "Recibido", "Preparando", last)
 }
 
 /** Mesa o cancha sin «Pasa por él»: lo lleva el mesero. */
 private fun servedAtPlace(order: OrderDetail): Boolean =
     !order.summary.pickUpAtBar && order.summary.space?.type in setOf("mesa", "cancha")
 
-private fun foodLastStep(summary: OrderSummary): String =
+private fun foodLastStep(
+    venue: VenueContext,
+    summary: OrderSummary,
+    toRoom: Boolean = false,
+): String =
     when {
         summary.pickUpAtBar -> "En la barra"
+        toRoom -> "En tu ${venue.vocabulary.room}"
         summary.space?.type == "mesa" -> "En tu mesa"
-        summary.space?.type == "cancha" -> "En tu ${Venue.court}"
+        summary.space?.type == "cancha" -> "En tu ${venue.vocabulary.court}"
         else -> "Listo"
     }
 
@@ -1871,75 +1911,6 @@ internal fun itemImageUrls(
 }
 
 @Composable
-private fun OrderItemThumb(
-    imageUrl: String?,
-    size: Dp,
-    corner: Dp,
-    placeholder: ImageVector = Icons.Outlined.Restaurant,
-    tint: Color = OrderTrackingCardText.copy(alpha = 0.55f),
-) {
-    Box(
-        modifier =
-            Modifier
-                .size(size)
-                .clip(RoundedCornerShape(corner))
-                .background(Color.White.copy(alpha = 0.08f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (imageUrl != null) {
-            ProductImage(
-                imageUrl = imageUrl,
-                contentDescription = "",
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Icon(
-                placeholder,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(size * 0.45f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun OrderThumbRow(
-    imageUrls: List<String?>,
-    onAccent: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalVaiinillaColors.current
-    val shown = imageUrls.take(3)
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        shown.forEach { url ->
-            OrderItemThumb(imageUrl = url, size = 34.dp, corner = 10.dp)
-        }
-        if (imageUrls.size > shown.size) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White.copy(alpha = if (onAccent) 0.3f else 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "+${imageUrls.size - shown.size}",
-                    color = if (onAccent) colors.accentInk else OrderTrackingCardText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun ShowMorePastOrdersButton(
     hiddenCount: Int,
     expanded: Boolean,
@@ -1993,26 +1964,5 @@ private fun ShowMorePastOrdersButton(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun OrderStatusPill(
-    state: OrderState,
-    onAccent: Boolean = false,
-    label: String = state.label,
-) {
-    Surface(
-        color = Color.White.copy(alpha = if (onAccent) 0.55f else 0.16f),
-        shape = RoundedCornerShape(10.dp),
-    ) {
-        Text(
-            label.uppercase(),
-            color = if (onAccent) LocalVaiinillaColors.current.accentInk else OrderTrackingCardText,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 0.8.sp,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-        )
     }
 }

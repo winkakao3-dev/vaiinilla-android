@@ -37,6 +37,15 @@ object Routes {
     const val SUPPORT = "support"
     const val SHARED_TABLE = "student/table"
 
+    /** Modo Hotel. El QR de una habitación entra por HOTEL_ENTRY, que decide entre HOTEL_HOME y HOTEL_CODE. */
+    const val HOTEL_ENTRY = "hotel/entry"
+    const val HOTEL_HOME = "hotel/home"
+    const val HOTEL_REQUESTS = "hotel/requests"
+    const val HOTEL_ACCOUNT = "hotel/account"
+    const val HOTEL_CODE = "hotel/code"
+    const val HOTEL_HOUSEKEEPING = "hotel/housekeeping"
+    const val HOTEL_RECEPTION = "hotel/reception"
+
     fun authLandingRoute(returnRoute: String = CART): String = "auth/landing?returnRoute=${Uri.encode(returnRoute)}"
 
     fun authRegisterRoute(returnRoute: String = CART): String = "auth/register?returnRoute=${Uri.encode(returnRoute)}"

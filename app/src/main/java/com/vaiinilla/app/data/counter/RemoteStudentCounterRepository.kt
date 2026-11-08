@@ -1,6 +1,7 @@
 package com.vaiinilla.app.data.counter
 
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.counter.ReservedDay
 import com.vaiinilla.app.domain.counter.SchoolPolicy
@@ -38,7 +39,21 @@ class RemoteStudentCounterRepository(
             .post(
                 "$STUDENTS/$studentId/compras",
                 json.encodePurchase(items, pin),
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
+            ).mapCatching(orderJson::parseOrderDetail)
+
+    override fun purchaseAs(
+        bearer: String,
+        studentId: String,
+        items: List<StudentPurchaseItem>,
+        idempotencyKey: String,
+    ): Result<OrderDetail> =
+        apiClient
+            .postWithBearer(
+                bearer,
+                "$STUDENTS/$studentId/compras",
+                json.encodePurchase(items, null),
+                idempotencyHeaders(idempotencyKey),
             ).mapCatching(orderJson::parseOrderDetail)
 
     override fun assignCredential(
@@ -51,7 +66,7 @@ class RemoteStudentCounterRepository(
             .post(
                 "$STUDENTS/$studentId/credenciales",
                 json.encodeCredential(kind, nfcUid),
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
             ).mapCatching(json::parseCredential)
 
     override fun deliver(
@@ -64,7 +79,7 @@ class RemoteStudentCounterRepository(
             .post(
                 "pedidos/$orderId/transiciones",
                 json.encodeDelivery(expectedVersion, credential),
-                mapOf("Idempotency-Key" to idempotencyKey),
+                idempotencyHeaders(idempotencyKey),
             ).mapCatching(orderJson::parseOrderDetail)
 
     override fun reservedDay(date: String): Result<ReservedDay> =

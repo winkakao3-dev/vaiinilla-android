@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.admin
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminCount
 import com.vaiinilla.app.domain.admin.AdminDailySales
@@ -15,7 +16,6 @@ import com.vaiinilla.app.domain.model.OrderState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -27,14 +27,11 @@ import kotlinx.serialization.json.intOrNull
 /** Contratos de la administración: el resumen, las cuentas sin pagar y la escritura del menú. */
 class AdminContractJson {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
+        ApiJson.omitNulls
 
     // El backend exige los textos opcionales del producto aunque vayan en null; los `id` nulos (grupos y opciones
     // nuevos) llevan default y no se escriben, porque un `id: null` lo rechaza.
-    private val writer = Json { explicitNulls = true }
+    private val writer = ApiJson.plain
 
     fun parseSummary(
         raw: String,

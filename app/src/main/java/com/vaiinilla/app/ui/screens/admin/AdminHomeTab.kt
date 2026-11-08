@@ -64,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.AdminCount
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminPeriod
@@ -80,6 +81,9 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.admin.HotelAdminSummaryViewModel
+import com.vaiinilla.app.ui.hotel.admin.hotelSummaryItems
+import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.theme.Yolk
 import kotlinx.coroutines.delay
@@ -143,7 +147,10 @@ internal fun AdminHomeTab(
     /** «No quiero» en un paso opcional; null lo esconde (solo lectura). */
     onDeclineStep: ((AdminSetupStep) -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     var choosingPeriod by remember { mutableStateOf(false) }
+    val hotel = if (venue.capabilities.hasHotelAdmin) hotelViewModel<HotelAdminSummaryViewModel>() else null
+    LaunchedEffect(hotel) { hotel?.refresh() }
     val presentDialog = LocalAdminDialog.current
     val status = state.operationalStatus
     val receiving = status?.let { it.acceptingOrders && it.withinOrderWindow }
@@ -187,6 +194,7 @@ internal fun AdminHomeTab(
                 )
             }
         }
+        hotel?.let { hotelSummaryItems(it.uiState.value, colors, it::refresh) }
         item(key = "ventas-titulo") {
             SalesHeader(periodLabel(state), colors, Modifier.adminRise(3)) { choosingPeriod = true }
         }
@@ -378,7 +386,13 @@ private fun DeclineStepButton(
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("No quiero", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary, maxLines = 1)
+            Text(
+                "No quiero",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textSecondary,
+                maxLines = 1,
+            )
         }
     }
 }

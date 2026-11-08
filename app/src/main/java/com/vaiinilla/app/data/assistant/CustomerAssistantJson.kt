@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.assistant
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.assistant.AssistantCourtCard
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
 import com.vaiinilla.app.domain.assistant.AssistantOrderProposal
@@ -23,7 +24,7 @@ import kotlinx.serialization.json.putJsonArray
 
 /** `POST /asistente-cliente`: la plática de ida y la respuesta de vuelta. */
 class CustomerAssistantJson(
-    private val json: Json = Json { ignoreUnknownKeys = true },
+    private val json: Json = ApiJson.plain,
 ) {
     fun encodeTurns(
         turns: List<CustomerAssistantTurn>,

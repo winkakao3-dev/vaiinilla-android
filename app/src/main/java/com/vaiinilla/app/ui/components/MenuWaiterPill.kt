@@ -76,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
 import com.vaiinilla.app.ui.order.MenuWaiterCallState
@@ -159,7 +160,13 @@ internal fun MenuWaiterLayer(
         ) {
             AnimatedVisibility(
                 visible = visible && cart != null,
-                enter = if (reduced) fadeIn() else fadeIn(tween(200)) + slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it },
+                enter =
+                    if (reduced) {
+                        fadeIn()
+                    } else {
+                        fadeIn(tween(200)) +
+                            slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it }
+                    },
                 exit = if (reduced) fadeOut() else fadeOut(tween(160)) + slideOutVertically { it / 2 },
             ) {
                 // Se queda con el último carrito mientras sale, para que no se vacíe a media animación.
@@ -205,10 +212,12 @@ internal fun MenuWaiterLayer(
         }
     }
 }
+
 @Composable
 private fun WaiterPill(state: MenuWaiterCallState) {
+    val venue = LocalVenueContext.current
     val haptics = rememberVaiinillaHaptics()
-    val label = menuWaiterPillLabel(state.call, state.cooldown)
+    val label = menuWaiterPillLabel(venue, state.call, state.cooldown)
     val waiting = state.call == null && state.cooldown > 0
     SeaGlassButton(
         tone = if (state.call != null) SeaGlassTone.lima else SeaGlassTone.vainilla,
@@ -266,6 +275,7 @@ private fun CartWaiterBar(
     cart: MenuCartBar,
     onOpenAssistant: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
@@ -303,7 +313,8 @@ private fun CartWaiterBar(
                     haptics.click()
                     cart.onOpen()
                 }.semantics(mergeDescendants = false) {
-                    contentDescription = "Pedir ya: $products, ${cart.total}"
+                    contentDescription =
+                        "${if (venue.capabilities.cartBarViewsOrder) "Ver pedido" else "Pedir ya"}: $products, ${cart.total}"
                 }.testTag(MENU_CART_BAR_TAG)
                 .padding(start = if (onOpenAssistant != null) 7.dp else 20.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -312,7 +323,13 @@ private fun CartWaiterBar(
             AssistantDot(onOpenAssistant)
             Spacer(Modifier.width(12.dp))
         }
-        Text("Pedir ya · ", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(
+            if (venue.capabilities.cartBarViewsOrder) "Ver pedido · " else "Pedir ya · ",
+            color = colors.accentInk,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
         NumberTicker(value = cart.count, label = "cart-bar-count") { value ->
             Text("$value", color = colors.accentInk, fontSize = 16.sp, fontWeight = FontWeight.Black)
         }
@@ -329,10 +346,11 @@ private fun CartWaiterBar(
 
 @Composable
 private fun WaiterSegment(state: MenuWaiterCallState) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val reduced = reducedMotion()
-    val label = menuWaiterPillLabel(state.call, state.cooldown)
+    val label = menuWaiterPillLabel(venue, state.call, state.cooldown)
     val waiting = state.call == null && state.cooldown > 0
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
@@ -409,7 +427,12 @@ private fun AssistantPill(onOpen: () -> Unit) {
                 .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accentInk, modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = colors.accentInk,
+            modifier = Modifier.size(18.dp),
+        )
         // L01: con letra grande partía «Pregún/tame»: va en un solo renglón que se encoge.
         Text(
             "Pregúntame qué pedir",
@@ -444,7 +467,12 @@ private fun AssistantDot(onOpen: () -> Unit) {
                 .testTag(MENU_ASSISTANT_PILL_TAG),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+        Icon(
+            Icons.Rounded.AutoAwesome,
+            contentDescription = null,
+            tint = colors.accent,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

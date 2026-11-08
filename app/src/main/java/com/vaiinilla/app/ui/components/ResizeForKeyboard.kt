@@ -4,7 +4,7 @@ import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 
 /**
  * Sin esto el sistema también desplaza la ventana al abrir el teclado y, sumado a imePadding,
@@ -15,7 +15,7 @@ import androidx.compose.ui.platform.LocalContext
  */
 @Composable
 fun ResizeForKeyboard() {
-    val window = (LocalContext.current as? Activity)?.window
+    val window = (LocalView.current.context as? Activity)?.window
     DisposableEffect(window) {
         if (window == null) return@DisposableEffect onDispose {}
         val token =

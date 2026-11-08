@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -45,7 +44,6 @@ import com.vaiinilla.app.ui.admin.school.AdminSchoolViewModel
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
-import com.vaiinilla.app.ui.profile.displayInitials
 import com.vaiinilla.app.ui.screens.OperationalColors
 import com.vaiinilla.app.ui.screens.OperationalField
 import com.vaiinilla.app.ui.screens.admin.AdminCard
@@ -484,36 +482,6 @@ private fun SchoolConfirmButton(
             color = if (!enabled) colors.textMuted else colors.background,
         )
     }
-}
-
-/** Avatar con iniciales y el bloque de texto de un alumno o tutor. */
-@Composable
-internal fun PersonRow(
-    name: String,
-    colors: OperationalColors,
-    content: @Composable () -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-        Box(
-            modifier = Modifier.size(44.dp).clip(CircleShape).background(colors.cardInner),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(displayInitials(name), fontSize = 15.sp, fontWeight = FontWeight.Black, color = colors.textPrimary)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { content() }
-    }
-}
-
-/** Los botones de una fila. */
-@Composable
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-internal fun RowActions(content: @Composable RowScope.() -> Unit) {
-    // Con la letra grande los botones bajan de renglón en vez de partir la palabra («Rechaza r», L01).
-    androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        content = content,
-    )
 }
 
 @Composable

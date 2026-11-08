@@ -31,12 +31,12 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.ui.auth.student.StudentAuthViewModel
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
@@ -114,6 +114,9 @@ class StudentAuthViewModelTest {
     private var enrollmentCalls = 0
     private var enrollmentFailure: Throwable? = null
     private var blockContextExchange = false
+
+    /** Bloquea el hilo (sin suspender, como una respuesta que ya llegó) hasta que la prueba lo suelta. */
+    private var lateExchangeGate: java.util.concurrent.CountDownLatch? = null
     private var blockEmailVerification = false
 
     @Before
@@ -169,6 +172,10 @@ class StudentAuthViewModelTest {
             }
         val contextoExchange =
             ContextoExchanger { _, _, _, _ ->
+                lateExchangeGate?.let { gate ->
+                    contextExchangeStarted.complete(Unit)
+                    gate.await()
+                }
                 if (blockContextExchange) {
                     contextExchangeStarted.complete(Unit)
                     allowContextExchange.await()
@@ -218,7 +225,7 @@ class StudentAuthViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        StaffHarness.restoreMain()
     }
 
     @Test
@@ -561,6 +568,30 @@ class StudentAuthViewModelTest {
         }
 
     @Test
+    fun `an exchange answer that lands after session termination is not saved`() =
+        runTest {
+            val gate = java.util.concurrent.CountDownLatch(1)
+            lateExchangeGate = gate
+            authRepository.signUp("ana@test.com", "secret1", "Ana")
+            authRepository.markCurrentEmailVerified()
+            viewModel.refreshGuestVenue()
+            var enrolled = false
+
+            viewModel.completeEnrollment(onSuccess = { enrolled = true })
+            contextExchangeStarted.await()
+            viewModel.markSessionCleared()
+            // La respuesta llega ya cancelado el trabajo: el hilo no suspende, así que nadie le avisa.
+            gate.countDown()
+            // La vinculación corre en Dispatchers.IO: se le da tiempo real para que intente guardar.
+            withContext(Dispatchers.Default.limitedParallelism(1)) { kotlinx.coroutines.delay(500) }
+            advanceUntilIdle()
+
+            assertFalse(enrolled)
+            assertFalse(viewModel.state.value.enrollmentComplete)
+            assertTrue(sessionStore.readAccessToken().isNullOrBlank())
+        }
+
+    @Test
     fun `login without contextual id signs in and then asks for it when establishment demands it`() =
         runTest {
             val context = RuntimeEnvironment.getApplication()
@@ -639,7 +670,10 @@ class StudentAuthViewModelTest {
                 }
             }
             assertFalse(enrolled)
-            assertTrue(vm.state.value.session?.emailVerified == true)
+            assertTrue(
+                vm.state.value.session
+                    ?.emailVerified == true,
+            )
             assertTrue(
                 vm.state.value.errorMessage
                     ?.contains("matrícula", ignoreCase = true) == true,

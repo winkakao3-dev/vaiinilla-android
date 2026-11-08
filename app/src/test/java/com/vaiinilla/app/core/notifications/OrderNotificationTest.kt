@@ -1,6 +1,7 @@
 package com.vaiinilla.app.core.notifications
 
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.VenueContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -8,6 +9,8 @@ import org.junit.Test
 import java.util.Base64
 
 class OrderNotificationTest {
+    private val venue = VenueContext.STANDARD
+
     private fun jwt(payloadJson: String): String {
         val encoder = Base64.getUrlEncoder().withoutPadding()
         val header = encoder.encodeToString("{}".toByteArray(Charsets.UTF_8))
@@ -112,34 +115,55 @@ class OrderNotificationTest {
     fun `ready push names the place, the bar or home delivery`() {
         assertEquals(
             "Tu pedido está listo. En un momento te lo llevan a tu cancha.",
-            OrderAdvanceNotifier.messageFor(OrderState.READY, inSpace = true, spaceType = "cancha"),
+            OrderAdvanceNotifier.messageFor(venue, OrderState.READY, inSpace = true, spaceType = "cancha"),
         )
         // «Ya está en tu mesa» solo cuando el mesero lo entrega.
         assertEquals(
             "Ya está en tu mesa. Buen provecho.",
-            OrderAdvanceNotifier.messageFor(OrderState.DELIVERED, inSpace = true, spaceType = "mesa"),
+            OrderAdvanceNotifier.messageFor(venue, OrderState.DELIVERED, inSpace = true, spaceType = "mesa"),
         )
         assertEquals(
             "Pedido entregado. Buen provecho.",
-            OrderAdvanceNotifier.messageFor(OrderState.DELIVERED, inSpace = true, spaceType = "mesa", pickUpAtBar = true),
+            OrderAdvanceNotifier.messageFor(
+                venue,
+                OrderState.DELIVERED,
+                inSpace = true,
+                spaceType = "mesa",
+                pickUpAtBar = true,
+            ),
         )
-        assertEquals("Pedido entregado. Buen provecho.", OrderAdvanceNotifier.messageFor(OrderState.DELIVERED))
+        assertEquals("Pedido entregado. Buen provecho.", OrderAdvanceNotifier.messageFor(venue, OrderState.DELIVERED))
         assertEquals(
             OrderAdvanceNotifier.PICK_UP_AT_BAR_TEXT,
-            OrderAdvanceNotifier.messageFor(OrderState.READY, inSpace = true, spaceType = "cancha", pickUpAtBar = true),
+            OrderAdvanceNotifier.messageFor(
+                venue,
+                OrderState.READY,
+                inSpace = true,
+                spaceType = "cancha",
+                pickUpAtBar = true,
+            ),
         )
         assertEquals(
             "Tu pedido está listo para salir.",
-            OrderAdvanceNotifier.messageFor(OrderState.READY, homeDelivery = true),
+            OrderAdvanceNotifier.messageFor(venue, OrderState.READY, homeDelivery = true),
         )
-        assertEquals("Tu pedido está listo. Recógelo en la barra.", OrderAdvanceNotifier.messageFor(OrderState.READY))
+        assertEquals(
+            "Tu pedido está listo. Recógelo en la barra.",
+            OrderAdvanceNotifier.messageFor(venue, OrderState.READY),
+        )
     }
 
     @Test
     fun `an order at a table is not announced as paid`() {
         // K01: un pedido a la cuenta llega cobrado sin pagarse; en un lugar no se dice «Pago confirmado».
-        assertEquals("Cocina recibió tu comanda.", OrderAdvanceNotifier.messageFor(OrderState.PAID, inSpace = true))
-        assertEquals("Pago confirmado. Cocina recibió tu comanda.", OrderAdvanceNotifier.messageFor(OrderState.PAID))
+        assertEquals(
+            "Cocina recibió tu comanda.",
+            OrderAdvanceNotifier.messageFor(venue, OrderState.PAID, inSpace = true),
+        )
+        assertEquals(
+            "Pago confirmado. Cocina recibió tu comanda.",
+            OrderAdvanceNotifier.messageFor(venue, OrderState.PAID),
+        )
     }
 
     @Test
@@ -158,16 +182,22 @@ class OrderNotificationTest {
 
     @Test
     fun `waiter ready notice speaks of the customer, never of a student`() {
-        val (title, body) = OrderAdvanceNotifier.staffAlertText(folio = 12, alert = "listo_mesero")
+        val (title, body) = OrderAdvanceNotifier.staffAlertText(venue, folio = 12, alert = "listo_mesero")
         assertEquals("Pedido #12 listo", title)
         assertEquals("Llévaselo al cliente a su lugar.", body)
         assertEquals(
             "Llévaselo a Ana a su lugar.",
-            OrderAdvanceNotifier.staffAlertText(folio = 12, alert = "listo_mesero", customerName = " Ana ").second,
+            OrderAdvanceNotifier
+                .staffAlertText(
+                    venue,
+                    folio = 12,
+                    alert = "listo_mesero",
+                    customerName = " Ana ",
+                ).second,
         )
         assertEquals(
             "Llévaselo al cliente a su lugar.",
-            OrderAdvanceNotifier.staffAlertText(folio = 12, alert = "listo_mesero", customerName = "  ").second,
+            OrderAdvanceNotifier.staffAlertText(venue, folio = 12, alert = "listo_mesero", customerName = "  ").second,
         )
     }
 }

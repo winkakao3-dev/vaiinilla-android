@@ -279,7 +279,7 @@ class VideoScreenshotTest {
                 state = OperationalUiState(role = OperationalRole.KITCHEN, orders = listOf(paid, preparing)),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 onChangeMode = {},
             )
         }
@@ -307,7 +307,7 @@ class VideoScreenshotTest {
                 placeName = "Venecia",
             )
         }
-        composeTestRule.onAllNodesWithText("4").onFirst().performClick()
+        composeTestRule.onAllNodesWithText("Mesa 4").onFirst().performClick()
         shot("mesero-mesa4")
     }
 }

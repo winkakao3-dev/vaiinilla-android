@@ -1,0 +1,4 @@
+cocina-peor a 130 %: «COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML» se parte a media palabra: «NO_ESCOLAR_G/»
+cocina-peor a 130 %: «Comer aquí · Terraza de la cancha de básquetbol (junto a la tienda escolar) · María Guadalupe Hernández Villaseñor de la Fuente · falta pagar» sale con elipsis
+cocina-peor a 200 %: «COMBO_DESAYUNO_ESCOLAR_GRANDE_JUGO_NARANJA_500ML» se parte a media palabra: «_DESAYUNO_ES/»
+cocina-peor a 200 %: «Comer aquí · Terraza de la cancha de básquetbol (junto a la tienda escolar) · María Guadalupe Hernández Villaseñor de la Fuente · falta pagar» sale con elipsis

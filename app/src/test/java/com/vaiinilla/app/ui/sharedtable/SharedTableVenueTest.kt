@@ -4,12 +4,12 @@ import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.domain.model.SharedTable
 import com.vaiinilla.app.domain.model.SharedTableAmounts
 import com.vaiinilla.app.domain.repository.SharedTableRepository
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -38,9 +38,12 @@ class SharedTableVenueTest {
         // Un sondeo o una relectura que sigue en Dispatchers.IO regresa a Main: si regresa mientras se quita
         // Main, resetMain truena con «Dispatchers.Main is used concurrently». Se terminan antes.
         runBlocking {
-            created.forEach { vm -> vm.viewModelScope.coroutineContext.job.children.forEach { it.cancelAndJoin() } }
+            created.forEach { vm ->
+                vm.viewModelScope.coroutineContext.job.children
+                    .forEach { it.cancelAndJoin() }
+            }
         }
-        Dispatchers.resetMain()
+        StaffHarness.restoreMain()
     }
 
     @Test

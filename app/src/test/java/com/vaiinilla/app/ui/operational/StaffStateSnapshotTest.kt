@@ -3,7 +3,6 @@ package com.vaiinilla.app.ui.operational
 import com.vaiinilla.app.domain.model.OperationalRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,7 +14,7 @@ class StaffStateSnapshotTest {
             cashSessionOpen = true,
             cashOpeningAmount = "500.00",
             expectedCash = "820.00",
-            lastRefreshOk = true,
+            queue = QueueSync.Live,
         )
 
     private fun snapshot(takenAt: Long = 1_000L) = StaffStateSnapshot(OperationalRole.CASHIER, "usagi", takenAt, known)
@@ -40,7 +39,7 @@ class StaffStateSnapshotTest {
         assertEquals(true, kept.cashSessionOpen)
         assertEquals("500.00", kept.cashOpeningAmount)
         assertEquals("820.00", kept.expectedCash)
-        assertEquals(true, kept.lastRefreshOk)
+        assertEquals(QueueSync.Live, kept.queue)
     }
 
     @Test
@@ -48,7 +47,7 @@ class StaffStateSnapshotTest {
         val reset = OperationalUiState(role = OperationalRole.CASHIER)
         val kept = reset.keepKnownStaffState(known, restoreOrders = false)
         assertEquals(true, kept.cashSessionOpen)
-        assertNull(kept.lastRefreshOk)
+        assertEquals(QueueSync.Pending, kept.queue)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.vaiinilla.app.ui.order
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.CallsUnavailableException
@@ -18,6 +19,8 @@ import org.junit.Test
 
 /** "Llamar al mesero" del menú: cuándo sale la píldora, qué dice y cómo reacciona a lo que responde el servidor. */
 class MenuWaiterCallTest {
+    private val venue = VenueContext.STANDARD
+
     @Test
     fun `sale con la mesa del QR o la mesa compartida y nunca sin cuenta`() {
         assertEquals(1, menuWaiterSpaceId(guestSpaceId = 1, sharedTableSpaceId = null, signedIn = true))
@@ -41,16 +44,16 @@ class MenuWaiterCallTest {
     fun `la pildora dice el estado y se encoge junto a Pedir ya`() {
         assertEquals(
             MenuWaiterPillLabel(MenuWaiterIcon.BELL, "Llamar al mesero", "Mesero"),
-            menuWaiterPillLabel(call = null, cooldown = 0),
+            menuWaiterPillLabel(venue, call = null, cooldown = 0),
         )
-        assertEquals("Otra vez en 42 s", menuWaiterPillLabel(call = null, cooldown = 42).title)
+        assertEquals("Otra vez en 42 s", menuWaiterPillLabel(venue, call = null, cooldown = 42).title)
         assertEquals(
             MenuWaiterPillLabel(MenuWaiterIcon.RINGING, "Llamando al mesero…", "Llamando…"),
-            menuWaiterPillLabel(call(CallStatus.PENDIENTE), cooldown = 0),
+            menuWaiterPillLabel(venue, call(CallStatus.PENDIENTE), cooldown = 0),
         )
         assertEquals(
             MenuWaiterPillLabel(MenuWaiterIcon.WALKING, "Tu mesero va en camino", "Mesero va"),
-            menuWaiterPillLabel(call(CallStatus.EN_CAMINO, taker = "Luis Pérez"), cooldown = 0),
+            menuWaiterPillLabel(venue, call(CallStatus.EN_CAMINO, taker = "Luis Pérez"), cooldown = 0),
         )
     }
 
@@ -197,7 +200,7 @@ class MenuWaiterCallTest {
             assertEquals(CallStatus.PENDIENTE, state.call?.status)
             current = call(CallStatus.EN_CAMINO, taker = "Luis")
             state.refresh()
-            assertEquals("Tu mesero va en camino", menuWaiterPillLabel(state.call, state.cooldown).title)
+            assertEquals("Tu mesero va en camino", menuWaiterPillLabel(venue, state.call, state.cooldown).title)
             current = null
             state.refresh()
             assertEquals(MenuWaiterPhase.IDLE, state.phase)

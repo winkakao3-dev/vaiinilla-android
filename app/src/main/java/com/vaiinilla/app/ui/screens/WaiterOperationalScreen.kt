@@ -77,6 +77,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -112,6 +114,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.network.isConnectionLoss
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -120,6 +124,7 @@ import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.offline.OfflineStaffOrder
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -143,6 +148,7 @@ import com.vaiinilla.app.ui.components.NumberTicker
 import com.vaiinilla.app.ui.components.OperationalAssistantGuide
 import com.vaiinilla.app.ui.components.OperationalAssistantHost
 import com.vaiinilla.app.ui.components.OperationalAssistantPalette
+import com.vaiinilla.app.ui.components.RelativeAge
 import com.vaiinilla.app.ui.components.ToastPill
 import com.vaiinilla.app.ui.components.TurnProgressBar
 import com.vaiinilla.app.ui.components.VaiinillaAssistantButton
@@ -154,19 +160,23 @@ import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberAssistantAnchorRegistry
 import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
+import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.waiterAssistantGuides
 import com.vaiinilla.app.ui.discovery.QrScannerDialog
-import com.vaiinilla.app.ui.notices.NoticePanel
+import com.vaiinilla.app.ui.hotel.staff.HotelChip
+import com.vaiinilla.app.ui.hotel.staff.HotelDeliverSheet
+import com.vaiinilla.app.ui.hotel.staff.HotelRoomsScreen
 import com.vaiinilla.app.ui.operational.RentalDraft
 import com.vaiinilla.app.ui.operational.WaiterBoardLink
+import com.vaiinilla.app.ui.operational.WaiterBoardView
 import com.vaiinilla.app.ui.operational.WaiterUiState
 import com.vaiinilla.app.ui.operational.playAlertFeedback
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeMode
 import com.vaiinilla.app.ui.theme.LocalVaiinillaThemeModeChanger
-import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,6 +217,7 @@ fun WaiterOperationalScreen(
     onConfirmRental: (String) -> Unit = {},
     /** R16: con los jugadores tocados en el cobro que aún no se mandaban. */
     onCancelRental: (Int?) -> Unit = {},
+    onPendingRentalPlayers: (Int) -> Unit = {},
     onFilterAttending: (Boolean) -> Unit = {},
     /** Pedido de mostrador a nombre de un cliente que no usa la app; se cobra en efectivo en Caja. */
     onOpenCounterOrder: () -> Unit = {},
@@ -235,20 +246,23 @@ fun WaiterOperationalScreen(
     /** En vivo, I09: las cuentas de mesas y canchas sin cobrar, también de turnos cerrados. */
     onOpenUnpaidAccounts: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
     val themeMode = LocalVaiinillaThemeMode.current
     val themeChanger = LocalVaiinillaThemeModeChanger.current
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
     // R18: una pantalla recién compuesta (Admin › Pedidos › tocar una mesa) abre la hoja que el ViewModel ya tiene abierta.
-    var openTableId by remember { mutableStateOf(state.openSpaceId) }
+    var openTableId by rememberSaveable { mutableStateOf(state.openSpaceId) }
     LaunchedEffect(state.openSpaceId) { state.openSpaceId?.let { openTableId = it } }
     var delivering by remember { mutableStateOf<BoardOrder?>(null) }
-    var scannerOpen by remember { mutableStateOf(false) }
+    var deliveringCharge by rememberSaveable { mutableStateOf<String?>(null) }
+    var housekeepingOpen by rememberSaveable { mutableStateOf(false) }
+    var scannerOpen by rememberSaveable { mutableStateOf(false) }
     var assistantPulse by remember { mutableIntStateOf(0) }
-    var tick by remember { mutableIntStateOf(0) }
-    var kindFilter by remember { mutableStateOf<String?>(null) }
-    var choosingScan by remember { mutableStateOf(false) }
+    val tick = rememberTick(1_000)
+    var kindFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var choosingScan by rememberSaveable { mutableStateOf(false) }
     val assistantRegistry = rememberAssistantAnchorRegistry()
     val assistantController = rememberOperationalAssistantController(assistantUserKey, assistantRole)
     val assistantFocusRequester = remember { FocusRequester() }
@@ -266,13 +280,6 @@ fun WaiterOperationalScreen(
             isDark = colors.isDark,
         )
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1_000)
-            tick += 1
-        }
-    }
-
     LaunchedEffect(newCallTable) {
         if (newCallTable != null) {
             playAlertFeedback(context)
@@ -289,10 +296,13 @@ fun WaiterOperationalScreen(
                 list
             }
         }
-    val nextUp =
-        remember(state.tables, kindFilter, tick) {
+    // El reloj solo invalida el resultado: la lista se vuelve a leer aquí únicamente si cambió.
+    val nextUp by remember(state.tables, kindFilter) {
+        derivedStateOf {
+            tick.value
             waiterNextUp(state.tables.filter { kindFilter == null || it.space.type == kindFilter })
         }
+    }
     val calling = state.tables.count { it.tableState() == TableState.CALL }
     val readyCount = state.tables.sumOf { table -> table.orders.count { it.state == OrderState.READY } }
     // Lo listo que pide el QR del cliente: es lo que el botón Escanear QR puede entregar.
@@ -409,7 +419,7 @@ fun WaiterOperationalScreen(
 
                 item(span = fullWidth) {
                     Text(
-                        "Mesas",
+                        if (venue.capabilities.staffWorksRooms) venue.vocabulary.roomsTitle else "Mesas",
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Black,
                         fontSize = 44.sp,
@@ -418,11 +428,36 @@ fun WaiterOperationalScreen(
                         modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
                     )
                 }
+                if (venue.capabilities.staffWorksRooms) {
+                    // El ama de llaves entra como mesero: el tablero de habitaciones (S03) se abre desde aquí.
+                    item(span = fullWidth) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            HotelChip(
+                                label = "Estado de habitaciones",
+                                selected = false,
+                                onClick = {
+                                    haptics.selection()
+                                    housekeepingOpen = true
+                                },
+                            )
+                        }
+                    }
+                }
             }
 
-            if (state.boardLink == WaiterBoardLink.Offline && state.tables.isNotEmpty()) {
+            // «Sin internet» solo si de verdad se cortó la red; un fallo del servidor no manda a revisar el wifi.
+            if (state.boardLink == WaiterBoardLink.Offline &&
+                state.tables.isNotEmpty() &&
+                state.boardFailure?.isConnectionLoss != false
+            ) {
                 item(key = "waiter-offline", span = fullWidth) {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
+                }
+            }
+
+            if (state.offlineOrders.pending.isNotEmpty()) {
+                item(key = "waiter-undelivered-alert", span = fullWidth) {
+                    UndeliveredOrdersAlert(pending = state.offlineOrders.pending, modifier = Modifier.animateItem())
                 }
             }
 
@@ -525,7 +560,7 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            if (state.errorMessage != null && state.tables.isEmpty()) {
+            if (state.boardFailure != null && state.tables.isEmpty()) {
                 item(key = "board-error", span = fullWidth) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
@@ -538,7 +573,7 @@ fun WaiterOperationalScreen(
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                state.errorMessage,
+                                state.errorMessage.orEmpty(),
                                 color = colors.textPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -553,7 +588,7 @@ fun WaiterOperationalScreen(
                 }
             }
 
-            if (state.loading && state.tables.isEmpty()) {
+            if (state.boardView is WaiterBoardView.Loading && state.tables.isEmpty()) {
                 items(6) {
                     Box(
                         modifier =
@@ -707,7 +742,15 @@ fun WaiterOperationalScreen(
             onGoing = { onGoing(it) },
             onAttended = { onAttended(it) },
             onDeliver = {
-                if (it.needsQrToDeliver(state.deliveryRequiresQr)) {
+                val toRoom = SpaceCopy.isRoom(venue, open.space.type)
+                if (toRoom || it.needsQrToDeliver(state.deliveryRequiresQr)) {
+                    // S02: la entrega a una habitación pide su propia pantalla; el cargo se lee antes de cerrar la hoja.
+                    deliveringCharge =
+                        state.spaceDetail
+                            ?.account
+                            ?.orders
+                            ?.firstOrNull { o -> o.id == it.id }
+                            ?.total
                     openTableId = null
                     onCloseSpace()
                     delivering = it
@@ -764,6 +807,8 @@ fun WaiterOperationalScreen(
             durations = state.rentalDurations,
             onChange = onChangeRental,
             maxPlayers = state.rentalMaxPlayers,
+            playersDraft = state.pendingRentalPlayers?.takeIf { it.rentalId == rental.id }?.players,
+            onPlayersDraft = onPendingRentalPlayers,
         )
     }
 
@@ -802,6 +847,28 @@ fun WaiterOperationalScreen(
     }
     delivering?.let { held ->
         val order = liveDelivering ?: held
+        val roomSpace =
+            state.tables
+                .firstOrNull { table -> table.orders.any { it.id == held.id } }
+                ?.space
+                ?.takeIf { SpaceCopy.isRoom(venue, it.type) }
+        if (roomSpace != null) {
+            HotelDeliverSheet(
+                room = SpaceCopy.short(venue, roomSpace.type, roomSpace.name),
+                itemsSummary = order.itemsSummary,
+                acting = state.acting,
+                charge = deliveringCharge,
+                onDismiss = {
+                    delivering = null
+                    deliveringCharge = null
+                },
+                onConfirm = {
+                    deliverSent = true
+                    onDeliver(order, null)
+                },
+            )
+            return@let
+        }
         WaiterDeliverSheet(
             order = order,
             acting = state.acting,
@@ -826,6 +893,17 @@ fun WaiterOperationalScreen(
                 onDeliver(scannerOrder, raw)
             },
         )
+    }
+
+    if (housekeepingOpen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { housekeepingOpen = false },
+            properties =
+                androidx.compose.ui.window
+                    .DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            HotelRoomsScreen(onBack = { housekeepingOpen = false })
+        }
     }
 
     if (choosingScan) {
@@ -1014,6 +1092,7 @@ private fun WaiterFilterRow(
     onAttending: () -> Unit,
     onKind: (String) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1023,14 +1102,17 @@ private fun WaiterFilterRow(
         // Con un solo tipo de espacio el filtro repetiría "Todas".
         if (kinds.size > 1) {
             kinds.forEach { type ->
-                WaiterFilterChip(kindPlural(type), !attending && kind == type, colors) { onKind(type) }
+                WaiterFilterChip(kindPlural(venue, type), !attending && kind == type, colors) { onKind(type) }
             }
         }
     }
 }
 
-private fun kindPlural(type: String): String {
-    val label = SpaceCopy.kindLabel(type)
+private fun kindPlural(
+    venue: VenueContext,
+    type: String,
+): String {
+    val label = SpaceCopy.kindLabel(venue, type)
     return if (label.endsWith("l")) "${label}es" else "${label}s"
 }
 
@@ -1210,7 +1292,7 @@ internal fun waiterTileStatus(
                     if (call.status == CallStatus.EN_CAMINO) {
                         "VA ${(call.takenBy?.name ?: "alguien").uppercase()}"
                     } else {
-                        "LLAMANDO · ${minutesSince(call.createdAt, now)}"
+                        "LLAMANDO · ${RelativeAge.short(call.createdAt, now)}"
                     },
                 detail = call.reason.staffLabel,
                 tone = TileTone.Call,
@@ -1276,18 +1358,6 @@ private fun ordersCaption(table: BoardTable): String? =
         .takeIf { it > 0 }
         ?.let { "$it ${if (it == 1) "pedido" else "pedidos"}" }
 
-private fun minutesSince(
-    iso: String,
-    now: Instant,
-): String {
-    val ms = runCatching { Duration.between(Instant.parse(iso), now).toMillis() }.getOrNull() ?: return "ahora"
-    return when {
-        ms < 60_000 -> "ahora"
-        ms < 3_600_000 -> "${ms / 60_000} min"
-        else -> "${ms / 3_600_000} h"
-    }
-}
-
 /** El color del estado; en claro va más oscuro para que se lea sobre el papel. */
 private fun tileToneColor(
     tone: TileTone,
@@ -1339,7 +1409,7 @@ internal fun waiterNextUp(
             val id = table.space.id
             buildList {
                 table.call?.let { call ->
-                    val since = minutesSince(call.createdAt, now).let { if (it == "ahora") "ahora" else "hace $it" }
+                    val since = RelativeAge.shortAgo(call.createdAt, now)
                     // N10: el motivo va en grande para saber qué llevar antes de ir a la mesa.
                     if (call.status == CallStatus.EN_CAMINO) {
                         val detail = listOfNotNull(call.reason.staffLabel, since, call.clientName).joinToString(" · ")
@@ -1558,13 +1628,18 @@ private fun WaiterNextUpRow(
 @Composable
 private fun WaiterTile(
     table: BoardTable,
-    tick: Int,
+    tick: State<Int>,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    // tick entra en la clave para que "Quedan 32 min" y "Llamando · 1 min" avancen solos.
-    val status = remember(table, tick) { waiterTileStatus(table) }
+    // El reloj entra solo al derivedStateOf: "Quedan 32 min" y "Llamando · 1 min" avanzan sin redibujar el tablero.
+    val status by remember(table) {
+        derivedStateOf {
+            tick.value
+            waiterTileStatus(table)
+        }
+    }
     val urgent = status.tone == TileTone.Call || status.tone == TileTone.Ready
     val ringing = status.tone == TileTone.Call && table.call?.status != CallStatus.EN_CAMINO
     val shape = RoundedCornerShape(22.dp)
@@ -1643,10 +1718,18 @@ private fun WaiterTile(
                 )
             }
             // Avance del turno: se ve de un vistazo cuánto le queda a cada cancha.
-            val progress = spaceTileProgress(table.availability, tick)?.takeIf { status.tone == TileTone.Turn }
-            if (progress != null) {
+            val progress by remember(table) {
+                derivedStateOf {
+                    spaceTileProgress(
+                        table.availability,
+                        tick.value,
+                    )?.let { (it * 200).roundToInt() / 200f }
+                }
+            }
+            val turnProgress = progress?.takeIf { status.tone == TileTone.Turn }
+            if (turnProgress != null) {
                 TurnProgressBar(
-                    fraction = progress,
+                    fraction = turnProgress,
                     track = colors.pillBackground,
                     fill = tone,
                     modifier = Modifier.padding(top = 8.dp),
@@ -1657,28 +1740,13 @@ private fun WaiterTile(
     }
 }
 
-private fun waiterSince(iso: String): String {
-    val ms = elapsedSinceMs(iso) ?: return "ahora"
-    return when {
-        // Las llamadas vencen a los 10 min; el reloj mm:ss solo tiene sentido dentro de la hora.
-        ms < 3_600_000 -> {
-            val totalSeconds = (ms / 1_000).toInt().coerceAtLeast(0)
-            "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
-        }
-        ms < 86_400_000 -> "hace ${ms / 3_600_000} h"
-        ms < 7 * 86_400_000L -> "hace ${ms / 86_400_000} d"
-        // Después de una semana, la fecha: «hace 340 d» no dice nada.
-        else -> NoticePanel.shortDate(System.currentTimeMillis() - ms)
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WaiterTableSheet(
     table: BoardTable,
     /** N08: la estación de cada producto por nombre; vacío si el catálogo no llegó. */
     stations: Map<String, PreparationStation> = emptyMap(),
-    tick: Int,
+    tick: State<Int>,
     acting: Boolean,
     readOnly: Boolean,
     colors: OperationalColors,
@@ -1713,9 +1781,10 @@ private fun WaiterTableSheet(
     toastMessage: String? = null,
     toastIsError: Boolean = false,
 ) {
+    val venue = LocalVenueContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     // Cobrar reemplaza el contenido de esta misma hoja en lugar de abrir otra encima.
-    var collecting by remember(table.space.id) { mutableStateOf(false) }
+    var collecting by rememberSaveable(table.space.id) { mutableStateOf(false) }
     LaunchedEffect(lastCollection) { if (lastCollection != null) collecting = false }
     val account = spaceDetail?.account
     val reduced = reducedMotion()
@@ -1824,7 +1893,7 @@ private fun WaiterTableSheet(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     listOfNotNull(
-                                        SpaceCopy.kindLabel(table.space.type).uppercase(),
+                                        SpaceCopy.kindLabel(venue, table.space.type).uppercase(),
                                         openedAt?.let { "CUENTA ABIERTA $it" },
                                     ).joinToString(" · "),
                                     color = colors.textSecondary,
@@ -2054,7 +2123,9 @@ internal fun splitByStation(
         }
     // R8: «ninguna» (sin preparación) también se recoge en Caja; solo lo desconocido o de Cocina espera a Cocina.
     val (counter, kitchen) =
-        lines.partition { line -> stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN } }
+        lines.partition { line ->
+            stations[line.name.lowercase()].let { it != null && it != PreparationStation.KITCHEN }
+        }
     return StationSplit(counter = counter, kitchen = kitchen)
 }
 
@@ -2197,7 +2268,7 @@ internal fun WaiterSheetOrderRow(
     stations: Map<String, PreparationStation> = emptyMap(),
 ) {
     // La pregunta se queda hasta que el mesero confirme o cancele: si se iba sola, parecía que el botón no hacía nada.
-    var confirming by remember(order.id) { mutableStateOf(false) }
+    var confirming by rememberSaveable(order.id) { mutableStateOf(false) }
     val split =
         remember(order.itemsSummary, stations) {
             splitByStation(order.itemsSummary, stations).takeIf { it.counter.isNotEmpty() && it.kitchen.isNotEmpty() }
@@ -2318,7 +2389,7 @@ private fun WaiterDeliverSheet(
     onScan: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var code by remember(order.id) { mutableStateOf("") }
+    var code by rememberSaveable(order.id) { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2486,19 +2557,28 @@ internal fun waiterSheetOrders(
 private fun WaiterCallCard(
     call: TableCall,
     table: BoardTable,
-    tick: Int,
+    tick: State<Int>,
     enabled: Boolean,
     colors: OperationalColors,
     onGoing: () -> Unit,
     onAttended: () -> Unit,
 ) {
     val going = call.status == CallStatus.EN_CAMINO
-    val since = remember(call, tick) { minutesSince(call.createdAt, Instant.now()) }
+    val since by remember(
+        call,
+    ) { derivedStateOf { tick.value.let { RelativeAge.short(call.createdAt, Instant.now()) } } }
     val last = table.orders.maxByOrNull { it.updatedAt }
-    val lastCaption =
-        remember(last, tick) {
-            last?.let { "#${it.folio} · ${it.state.label.lowercase()}, ${minutesSince(it.updatedAt, Instant.now())}" }
+    val lastCaption by remember(last) {
+        derivedStateOf {
+            tick.value
+            last?.let {
+                "#${it.folio} · ${it.state.label.lowercase()}, ${RelativeAge.short(
+                    it.updatedAt,
+                    Instant.now(),
+                )}"
+            }
         }
+    }
     Column(
         modifier =
             Modifier

@@ -80,6 +80,7 @@ class CollectSheetLargeFontUiTest {
             }
         }
 
+        composeTestRule.onNodeWithText("Otro").performClick()
         composeTestRule.onNodeWithContentDescription("Otro monto").performTextReplacement("500")
         composeTestRule
             .onNodeWithText("Cobrar $300.00")
@@ -114,6 +115,7 @@ class CollectSheetLargeFontUiTest {
             }
         }
 
+        composeTestRule.onNodeWithText("Otro").performClick()
         composeTestRule.onNodeWithContentDescription("Otro monto").performTextReplacement("300,5")
         composeTestRule.onNodeWithText("Cobrar $250.00").assertIsDisplayed().performClick()
 

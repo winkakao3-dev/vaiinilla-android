@@ -16,6 +16,7 @@ import com.vaiinilla.app.MainActivity
 import com.vaiinilla.app.R
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 
 /**
@@ -81,13 +82,14 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notifyStaff(
         context: Context,
+        venue: VenueContext,
         orderId: String,
         folio: Int,
         alert: String,
         noticeId: String? = null,
         customerName: String? = null,
     ): Shown {
-        val (title, text) = staffAlertText(folio, alert, customerName)
+        val (title, text) = staffAlertText(venue, folio, alert, customerName)
         if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
         val launchIntent = orderLaunchIntent(context, orderId, OrderNotificationTarget.STAFF, noticeId)
@@ -111,6 +113,7 @@ object OrderAdvanceNotifier {
      * con el nombre del cliente, si el push lo trae, sabe a quién llevárselo.
      */
     internal fun staffAlertText(
+        venue: VenueContext,
         folio: Int,
         alert: String,
         customerName: String? = null,
@@ -121,7 +124,11 @@ object OrderAdvanceNotifier {
             "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
             "listo_mesero" ->
                 "Pedido #$folio listo" to
-                    if (name != null) "Llévaselo a $name a su lugar." else "Llévaselo al cliente a su lugar."
+                    if (name != null) {
+                        "Llévaselo a $name a su ${venue.vocabulary.deliveryPlace}."
+                    } else {
+                        readyForWaiterText(venue)
+                    }
             // «Pasa por él»: el cliente viene a la barra y Caja se lo entrega.
             "listo_barra" -> "Pedido #$folio listo" to "El cliente pasa a recogerlo a la barra."
             // Repostería (CASA-09): llegan a Administración, que acepta y lleva los pedidos.
@@ -151,13 +158,14 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notifyTableCall(
         context: Context,
+        venue: VenueContext,
         callId: String,
         spaceName: String,
         reason: String?,
         noticeId: String? = null,
         establishmentId: String? = null,
     ): Shown {
-        val title = if (spaceName.isBlank()) "Una mesa te llama" else "$spaceName te llama"
+        val title = tableCallTitle(venue, spaceName)
         val text = tableCallText(reason)
         if (!canPost(context, NotificationMute.Scope.STAFF)) return Shown(title, text, posted = false)
         ensureStaffChannel(context)
@@ -215,6 +223,15 @@ object OrderAdvanceNotifier {
             "Ya terminó. Cobra la cuenta y libera el espacio."
         }
 
+    /** Hacia quién se lleva lo que Cocina dejó listo: el alumno, el huésped o el cliente del negocio. */
+    internal fun readyForWaiterText(venue: VenueContext): String =
+        "Llévaselo al ${venue.customer.lower} a su ${venue.vocabulary.deliveryPlace}."
+
+    internal fun tableCallTitle(
+        venue: VenueContext,
+        spaceName: String,
+    ): String = if (spaceName.isNotBlank()) "$spaceName te llama" else "Una ${venue.vocabulary.callingSpace} te llama"
+
     /** El motivo como lo ve el mesero en su tablero; «cuenta» también (antes caía en «Necesita atención», K02). */
     internal fun tableCallText(reason: String?): String =
         CallReason.entries.firstOrNull { it.wireValue == reason }?.staffLabel ?: CallReason.ATENCION.staffLabel
@@ -223,11 +240,12 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notifyCallerOnTheWay(
         context: Context,
+        venue: VenueContext,
         callId: String,
         noticeId: String? = null,
     ): Shown {
         val title = "Tu mesero va en camino"
-        val text = "Va a tu mesa."
+        val text = "Va a ${SpaceCopy.yourPlace(venue, null)}."
         if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =
@@ -259,6 +277,7 @@ object OrderAdvanceNotifier {
     @SuppressLint("MissingPermission")
     fun notify(
         context: Context,
+        venue: VenueContext,
         orderId: String,
         folio: Int,
         newState: OrderState,
@@ -280,6 +299,7 @@ object OrderAdvanceNotifier {
                 rentalText != null -> rentalText
                 else ->
                     messageFor(
+                        venue,
                         newState,
                         inSpace,
                         spaceType,
@@ -390,6 +410,7 @@ object OrderAdvanceNotifier {
     internal const val PICK_UP_AT_BAR_TEXT = "Tu pedido está listo, pasa a la barra."
 
     internal fun messageFor(
+        venue: VenueContext,
         state: OrderState,
         inSpace: Boolean = false,
         spaceType: String? = null,
@@ -411,13 +432,14 @@ object OrderAdvanceNotifier {
                 when {
                     // «Pasa por él»: el cliente pidió en su lugar pero lo recoge en la barra.
                     pickUpAtBar -> PICK_UP_AT_BAR_TEXT
-                    inSpace -> SpaceCopy.readyInSpace(spaceType)
+                    inSpace -> SpaceCopy.readyInSpace(venue, spaceType)
                     homeDelivery -> "Tu pedido está listo para salir."
                     else -> "Tu pedido está listo. Recógelo en la barra."
                 }
             // En un lugar, «ya está en tu mesa» solo cuando el mesero marca que lo entregó, no al estar listo.
-            OrderState.DELIVERED -> SpaceCopy.deliveredInSpace(spaceType).takeIf { inSpace && !pickUpAtBar }
-                ?: "Pedido entregado. Buen provecho."
+            OrderState.DELIVERED ->
+                SpaceCopy.deliveredInSpace(venue, spaceType).takeIf { inSpace && !pickUpAtBar }
+                    ?: "Pedido entregado. Buen provecho."
             OrderState.CANCELED -> "Tu pedido fue cancelado."
             OrderState.NOT_PICKED_UP -> "Tu pedido no fue recogido."
             OrderState.EXPIRED -> "Tu pedido expiró."

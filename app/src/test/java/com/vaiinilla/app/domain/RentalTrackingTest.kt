@@ -1,10 +1,12 @@
 package com.vaiinilla.app.domain
 
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.data.reservations.ReservationContractJson
 import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtSchedule
 import com.vaiinilla.app.domain.model.OrderDetail
+import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
@@ -20,7 +22,6 @@ import com.vaiinilla.app.ui.components.rentalStateLabel
 import com.vaiinilla.app.ui.components.rentalStep
 import com.vaiinilla.app.ui.components.rentalStepDescription
 import com.vaiinilla.app.ui.components.rentalTimeLeft
-import com.vaiinilla.app.domain.model.OrderReservation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -186,7 +187,7 @@ class CourtBusyTest {
     @Test
     fun `la disponibilidad trae la ficha de la cancha`() {
         val day =
-            ReservationContractJson(OrderContractJson()).parseDay(
+            ReservationContractJson(OrderContractJson(), VenueContextStore()).parseDay(
                 """
                 {"data":{"fecha":"2026-10-01","hoy":"2026-09-30","zona_horaria":"America/Chihuahua",
                 "apertura":"08:00","cierre":"22:00","abre":"2026-10-01T14:00:00.000Z","cierra":"2026-10-02T04:00:00.000Z",

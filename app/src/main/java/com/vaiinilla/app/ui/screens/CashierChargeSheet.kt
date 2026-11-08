@@ -71,6 +71,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OrderDetail
@@ -117,6 +118,7 @@ internal fun CashierChargeSheet(
     onReject: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val haptics = rememberVaiinillaHaptics()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val summary = order.summary
@@ -168,7 +170,7 @@ internal fun CashierChargeSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "PEDIDO #${summary.folio} · ${cashierOrderOrigin(order).uppercase()}${arrivalSuffix(order)}",
+                    "PEDIDO #${summary.folio} · ${cashierOrderOrigin(venue, order).uppercase()}${arrivalSuffix(order)}",
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -283,7 +285,13 @@ internal fun CashierChargeSheet(
                 }
                 if (!cashRegisterOpen) {
                     Text(
-                        if (cashSessionOpen == false) "Abre la caja para cobrar." else "Revisando si la caja está abierta…",
+                        if (cashSessionOpen ==
+                            false
+                        ) {
+                            "Abre la caja para cobrar."
+                        } else {
+                            "Revisando si la caja está abierta…"
+                        },
                         color = colors.textSecondary,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 10.dp),
@@ -338,7 +346,14 @@ internal fun CashierChargeSheet(
                 Button(
                     onClick = {
                         haptics.impact()
-                        if (withoutQr) onDeliver(summary.id, summary.version) else onScanDeliver(summary.id, summary.version)
+                        if (withoutQr) {
+                            onDeliver(
+                                summary.id,
+                                summary.version,
+                            )
+                        } else {
+                            onScanDeliver(summary.id, summary.version)
+                        }
                     },
                     enabled = summary.state == OrderState.READY && enabled,
                     colors =
@@ -658,6 +673,7 @@ private fun ChargeTipChip(
         }
     }
 }
+
 /** «Su cambio» en lima con los billetes que hay que dar; si no alcanza, lo dice en rojo. */
 @Composable
 private fun CashChangeCard(
@@ -712,7 +728,13 @@ private fun CashChangeCard(
             transitionSpec = { fadeIn(spring()) togetherWith fadeOut(spring()) },
             label = "cash-change",
         ) { value ->
-            Text(value, color = colors.accentInk, fontSize = 34.sp, fontWeight = FontWeight.Black, letterSpacing = (-1.2).sp)
+            Text(
+                value,
+                color = colors.accentInk,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1.2).sp,
+            )
         }
     }
 }

@@ -7,6 +7,7 @@ import com.vaiinilla.app.core.notifications.NoticeExplanation
 import com.vaiinilla.app.core.notifications.NoticeOrderLookup
 import com.vaiinilla.app.core.notifications.ReceivedNotice
 import com.vaiinilla.app.core.notifications.ReceivedNoticeLog
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,6 +26,7 @@ class ReceivedNoticesViewModel
     constructor(
         @ApplicationContext private val appContext: Context,
         private val lookup: NoticeOrderLookup,
+        private val venueContext: VenueContextStore,
     ) : ViewModel() {
         val notices: StateFlow<List<ReceivedNotice>> = ReceivedNoticeLog.notices(appContext)
 
@@ -41,7 +43,7 @@ class ReceivedNoticesViewModel
             notice: ReceivedNotice,
             modes: List<AuthorizedMode>,
         ) {
-            val explanation = NoticeExplanation.explain(notice.payload, notice.isRemote)
+            val explanation = NoticeExplanation.explain(venueContext.current, notice.payload, notice.isRemote)
             val orderId = explanation.orderId ?: return
             if (notice.id in _searching.value) return
             _searching.update { it + notice.id }

@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.notices
 import com.vaiinilla.app.core.notifications.NoticeExplanation
 import com.vaiinilla.app.core.notifications.NoticeLookup
 import com.vaiinilla.app.core.notifications.ReceivedNotice
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import java.time.Instant
 import java.time.LocalDate
@@ -20,10 +21,13 @@ internal object NoticePanel {
     private val WEEKDAY_DAY = DateTimeFormatter.ofPattern("EEE d", SPANISH)
     private val DAY_MONTH = DateTimeFormatter.ofPattern("d MMM", SPANISH)
 
-    fun explanation(notice: ReceivedNotice): NoticeExplanation =
-        NoticeExplanation.explain(notice.payload, notice.isRemote)
+    fun explanation(
+        venue: VenueContext,
+        notice: ReceivedNotice,
+    ): NoticeExplanation = NoticeExplanation.explain(venue, notice.payload, notice.isRemote)
 
-    fun isPending(notice: ReceivedNotice): Boolean = explanation(notice).isPending(notice.lookup)
+    /** Si sigue pendiente solo depende del aviso y del pedido leído, no del vocabulario del negocio. */
+    fun isPending(notice: ReceivedNotice): Boolean = explanation(VenueContext.STANDARD, notice).isPending(notice.lookup)
 
     /**
      * El negocio del aviso: el del pedido leído, el que mande el push (`establecimientoNombre`, pedido a Saúl) o el
@@ -32,7 +36,7 @@ internal object NoticePanel {
     fun business(notice: ReceivedNotice): String? {
         (notice.lookup as? NoticeLookup.Found)?.let { return it.order.establishmentName }
         notice.payload["establecimientoNombre"]?.takeIf { it.isNotBlank() }?.let { return it }
-        val id = explanation(notice).establishmentId ?: return null
+        val id = explanation(VenueContext.STANDARD, notice).establishmentId ?: return null
         return notice.phone
             ?.memberships
             ?.firstOrNull { it.establishmentId == id }

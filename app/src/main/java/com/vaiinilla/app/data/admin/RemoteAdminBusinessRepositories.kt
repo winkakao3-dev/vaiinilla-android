@@ -1,8 +1,12 @@
 package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.core.network.ApiClientException
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.network.MutationIdempotency
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
@@ -39,26 +43,17 @@ import kotlinx.serialization.json.jsonObject
 
 private const val EMPTY_BODY = "{}"
 
-private fun key(idempotencyKey: String) = mapOf("Idempotency-Key" to idempotencyKey)
+private fun key(idempotencyKey: String) = idempotencyHeaders(idempotencyKey)
 
 /** Los errores del backend llegan con su código para que la pantalla diga qué pasó. */
 private fun <T> Result<T>.mapApiErrors(): Result<T> =
-    fold(
-        onSuccess = { Result.success(it) },
-        onFailure = { error ->
-            Result.failure(
-                if (error is ApiClientException) {
-                    CatalogRepositoryException(
-                        error.code,
-                        error.message ?: error.code,
-                        error,
-                    )
-                } else {
-                    error
-                },
-            )
-        },
-    )
+    mapApiFailure {
+        CatalogRepositoryException(
+            it.code,
+            it.message ?: it.code,
+            it,
+        )
+    }
 
 class RemoteAdminStaffRepository(
     private val apiClient: VaiinillaApiClient,
@@ -134,13 +129,24 @@ class RemoteAdminStaffRepository(
 
 class RemoteAdminStoreRepository(
     private val apiClient: VaiinillaApiClient,
+    private val venueContext: VenueContextStore,
     private val json: AdminBusinessJson = AdminBusinessJson(),
 ) : AdminStoreRepository {
-    private val plain = Json { ignoreUnknownKeys = true }
+    private val plain = ApiJson.plain
     private val assistantJson = StoreAssistantJson()
 
+    // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de la configuración.
+    private fun syncVenueType(result: Result<StoreConfig>) {
+        result.onSuccess { venueContext.update(it.typeWire) }
+    }
+
     override fun config(): Result<StoreConfig> =
-        apiClient.get("establecimiento/configuracion").mapCatching(json::parseStoreConfig).mapApiErrors()
+        apiClient
+            .get(
+                "establecimiento/configuracion",
+            ).mapCatching(json::parseStoreConfig)
+            .mapApiErrors()
+            .also(::syncVenueType)
 
     // El PATCH de la configuración no pide llave de idempotencia: guarda lo que se manda tal cual.
     override fun saveFlow(flow: StoreFlow): Result<StoreConfig> = patchConfig(json.encodeFlow(flow))
@@ -350,7 +356,13 @@ class RemoteAdminStoreRepository(
     }
 
     private fun patchConfig(body: String): Result<StoreConfig> =
-        apiClient.patch("establecimiento/configuracion", body).mapCatching(json::parseStoreConfig).mapApiErrors()
+        apiClient
+            .patch(
+                "establecimiento/configuracion",
+                body,
+            ).mapCatching(json::parseStoreConfig)
+            .mapApiErrors()
+            .also(::syncVenueType)
 
     override fun stripe(): Result<StripeSetup?> =
         apiClient.get("stripe/configuracion").mapCatching(json::parseStripeSetup).mapApiErrors()
@@ -426,6 +438,7 @@ class RemoteAdminStoreRepository(
 
 class RemoteAdminSpacesRepository(
     private val apiClient: VaiinillaApiClient,
+    private val venueContext: VenueContextStore,
     private val json: AdminBusinessJson = AdminBusinessJson(),
 ) : AdminSpacesRepository {
     override fun spaces(): Result<List<ManagedSpace>> =
@@ -436,9 +449,11 @@ class RemoteAdminSpacesRepository(
         type: SpaceType,
         idempotencyKey: String,
         capacity: Int?,
+        floor: Int?,
+        category: String?,
     ): Result<ManagedSpace> =
         apiClient
-            .post("espacios", json.encodeNewSpace(name, type.wire, capacity), key(idempotencyKey))
+            .post("espacios", json.encodeNewSpace(name, type.wire, capacity, floor, category), key(idempotencyKey))
             .mapCatching(json::parseSpace)
             .mapApiErrors()
 
@@ -449,10 +464,15 @@ class RemoteAdminSpacesRepository(
         to: Int,
         idempotencyKey: String,
         capacity: Int?,
+        floor: Int?,
+        category: String?,
     ): Result<SpaceBatchResult> =
         apiClient
-            .post("espacios/lote", json.encodeBatch(type.wire, prefix, from, to, capacity), key(idempotencyKey))
-            .mapCatching(json::parseBatch)
+            .post(
+                "espacios/lote",
+                json.encodeBatch(type.wire, prefix, from, to, capacity, floor, category),
+                key(idempotencyKey),
+            ).mapCatching(json::parseBatch)
             .mapApiErrors()
 
     override fun update(
@@ -491,8 +511,20 @@ class RemoteAdminSpacesRepository(
             .mapCatching(json::parseSpace)
             .mapApiErrors()
 
+    private fun syncVenueType(raw: Result<String>) {
+        raw
+            .getOrNull()
+            ?.let { body ->
+                runCatching { json.scheduleVenueType(body) }.getOrNull()
+            }?.let(venueContext::update)
+    }
+
     override fun reservationSchedule(): Result<ReservationSchedule> =
-        apiClient.get("reservas/configuracion").mapCatching(json::parseSchedule).mapApiErrors()
+        apiClient
+            .get("reservas/configuracion")
+            .also(::syncVenueType)
+            .mapCatching(json::parseSchedule)
+            .mapApiErrors()
 
     override fun saveReservationSchedule(
         schedule: ReservationSchedule,
@@ -500,6 +532,7 @@ class RemoteAdminSpacesRepository(
     ): Result<ReservationSchedule> =
         apiClient
             .put("reservas/configuracion", json.encodeSchedule(schedule), key(idempotencyKey))
+            .also(::syncVenueType)
             .mapCatching(json::parseSchedule)
             .mapApiErrors()
 

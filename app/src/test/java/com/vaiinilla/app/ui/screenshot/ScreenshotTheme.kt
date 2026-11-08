@@ -13,6 +13,6 @@ fun ScreenshotTheme(
 ) {
     // Las pruebas de contrato que leen pedidos desconocidos dejan cuentas en este registro global; sin limpiarlo,
     // la franja «Actualiza la app» aparecería en capturas que no tienen nada que ver.
-    remember { UnreadableOrders.clear() }
+    remember { UnreadableOrders.clear().let { true } }
     VaiinillaTheme(themeMode = mode, content = content)
 }

@@ -1,12 +1,5 @@
 package com.vaiinilla.app.ui.screens
 
-import com.vaiinilla.app.ui.components.physicalPress
-import com.vaiinilla.app.ui.components.minTouchTarget
-import com.vaiinilla.app.ui.components.PhysicalPressScale
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,14 +21,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.activeItems
 import com.vaiinilla.app.domain.model.needsCashCollection
+import com.vaiinilla.app.ui.components.PhysicalPressScale
+import com.vaiinilla.app.ui.components.minTouchTarget
+import com.vaiinilla.app.ui.components.physicalPress
 
 /**
  * La tarjeta de C08 bajo el visor: a quién se entrega y qué lleva, para que el cajero lo compare con la bolsa
@@ -48,6 +49,7 @@ internal fun PickupDeliveryFooter(
     /** La cámara no lee el QR: cierra el visor y abre la búsqueda de Caja (Doop C08). */
     onCantScan: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
     val summary = order.summary
     val paid = !summary.needsCashCollection
@@ -71,7 +73,12 @@ internal fun PickupDeliveryFooter(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "PEDIDO #${summary.folio} · ${
-                        SpaceCopy.staffDestination(summary.destination, summary.space, summary.pickUpAtBar).uppercase()
+                        SpaceCopy.staffDestination(
+                            venue,
+                            summary.destination,
+                            summary.space,
+                            summary.pickUpAtBar,
+                        ).uppercase()
                     }",
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Black,

@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -79,7 +81,7 @@ class SpaceAccountRemainingUiTest {
                             detail = detail,
                             loading = false,
                             lastCollection = null,
-                            tick = 0,
+                            tick = remember { mutableIntStateOf(0) },
                             acting = false,
                             readOnly = false,
                             colors = colors,

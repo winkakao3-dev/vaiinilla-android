@@ -1,0 +1,3 @@
+# Pruebas que ya estaban rojas en main (5243c56b, 6 nov 2026). El CI de verify las excluye;
+# el job "quarantine" las corre aparte sin bloquear. Una por línea: clase.completa.nombre de la prueba.
+# Al arreglar una, bórrala de aquí. No agregues pruebas nuevas rotas: arréglalas.

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.school
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.guardianship.RefundMethod
 import com.vaiinilla.app.domain.guardianship.StudentRequestKind
 import com.vaiinilla.app.domain.school.DayClosure
@@ -15,7 +16,6 @@ import com.vaiinilla.app.domain.school.SchoolSettingsRules
 import com.vaiinilla.app.domain.school.SchoolStudentRequest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -25,10 +25,7 @@ import kotlinx.serialization.json.put
 /** Contratos de Negocio › Escuela (migraciones 92, 95, 98, 99, 100, 102 y 103). */
 class SchoolAdminJson {
     private val json =
-        Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
+        ApiJson.omitNulls
 
     fun parseSettings(raw: String): SchoolSettings = json.decodeFromString<Envelope<SettingsDto>>(raw).data.toDomain()
 

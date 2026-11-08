@@ -123,7 +123,7 @@ class KitchenTicketUiTest {
                         ),
                     onBack = {},
                     onStart = { _, _ -> },
-                    onReady = { _, _ -> },
+                    onMarkReady = { _, _ -> },
                 )
             }
         }

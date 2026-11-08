@@ -96,9 +96,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.qr.QrCodeEncoder
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.amountDueOnAcceptance
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.TableCall
@@ -114,6 +116,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.reducedMotion
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.guest.HotelTrackingContent
 import com.vaiinilla.app.ui.order.CaptionTone
 import com.vaiinilla.app.ui.order.FactTone
 import com.vaiinilla.app.ui.order.JourneyFact
@@ -188,6 +191,7 @@ internal fun OrderJourneyPage(
     /** El tutor mirando el pedido de su hijo: sin botones para cancelar, pagar, llamar ni pedir ayuda (P08). */
     readOnly: Boolean = false,
 ) {
+    val venueContext = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val uri = LocalUriHandler.current
@@ -219,6 +223,16 @@ internal fun OrderJourneyPage(
         } else {
             null
         }
+    // Un pedido a una habitación de hotel se sigue como el marco H04 de Doop.
+    if (SpaceCopy.isRoomOrder(venueContext, order)) {
+        HotelTrackingContent(
+            order = order,
+            onCallReception = waiter?.let { call -> { call.tap() } },
+            modifier = modifier,
+        )
+        waiter?.let { WaiterCallHost(state = it, place = order.summary.space?.name) }
+        return
+    }
     val arrival = onAnnounceArrival.takeIf { order.canAnnounceArrival(venue.driveThru) }
     val context = LocalContext.current
     var helpOpen by rememberSaveable(key) { mutableStateOf(false) }
@@ -300,7 +314,7 @@ internal fun OrderJourneyPage(
                 .padding(bottom = 24.dp),
     ) {
         JourneyTopRow(
-            title = "${journeyNoun(journey)} #${order.summary.folio} · ${journeyKindLabel(journey)}",
+            title = "${journeyNoun(journey)} #${order.summary.folio} · ${journeyKindLabel(venueContext, journey)}",
             venueName = venue.name,
             onBack = {
                 haptics.click()
@@ -346,7 +360,7 @@ internal fun OrderJourneyPage(
             if (journey == OrderJourney.SEAT && state != OrderState.DELIVERED) {
                 journeySeat(order)?.let { SeatTiles(it, colors, Modifier.padding(top = 14.dp).arrive(3, key)) }
             }
-            val steps = journeySteps(order, journey)
+            val steps = journeySteps(venueContext, order, journey)
             if (steps.isNotEmpty()) {
                 JourneySteps(
                     steps,
@@ -364,7 +378,13 @@ internal fun OrderJourneyPage(
                 MoneyBackCard(title, journeyMoneyBackNote(order), colors, Modifier.arrive(4, key))
             }
             journeyDeliveryCode(order)?.let {
-                DeliveryCodeCard(it, order.homeDelivery?.hasAmountDue == true, order.homeDelivery?.courierName, colors, Modifier.arrive(4, key))
+                DeliveryCodeCard(
+                    it,
+                    order.homeDelivery?.hasAmountDue == true,
+                    order.homeDelivery?.courierName,
+                    colors,
+                    Modifier.arrive(4, key),
+                )
                 order.homeDelivery?.courierName?.let { courier ->
                     CourierRow(courier, venue.name, colors, Modifier.arrive(4, key))
                 }
@@ -536,8 +556,9 @@ private fun JourneyHeader(
     journey: OrderJourney,
     colors: VaiinillaColors,
 ) {
+    val venue = LocalVenueContext.current
     val key = order.summary.id
-    val caption = journeyCaption(order, journey)
+    val caption = journeyCaption(venue, order, journey)
     val captionColor by animateColorAsState(
         colors.tone(caption.tone),
         spring(stiffness = 200f),
@@ -1192,6 +1213,7 @@ private fun CourierRow(
         }
     }
 }
+
 /** «Ya llegué» del drive-thru (P3): lima, con un pulso que invita a tocarlo. */
 @Composable
 private fun ArrivedButton(
@@ -1783,4 +1805,3 @@ private val HelpStates =
 internal const val HELP_WITHOUT_WHATSAPP =
     "Este negocio no dejó su WhatsApp en Vaiinilla: llámalo o escríbele por donde lo conoces. " +
         "Mientras tanto tu pedido y tu dinero siguen igual."
-

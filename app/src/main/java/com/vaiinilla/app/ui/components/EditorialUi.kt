@@ -7,12 +7,10 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,8 +44,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -147,54 +142,6 @@ fun EditorialSearchField(
             ) {
                 Icon(Icons.Rounded.Close, contentDescription = null, tint = ink, modifier = Modifier.size(14.dp))
             }
-        }
-    }
-}
-
-@Composable
-fun EditorialTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String,
-    modifier: Modifier = Modifier,
-    singleLine: Boolean = true,
-    isPassword: Boolean = false,
-) {
-    val colors = LocalVaiinillaColors.current
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(label, color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-        Spacer(Modifier.height(7.dp))
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = if (singleLine) 48.dp else 86.dp)
-                    .clip(RoundedCornerShape(17.dp))
-                    .border(1.dp, colors.line, RoundedCornerShape(17.dp))
-                    .padding(horizontal = 14.dp, vertical = 13.dp),
-        ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = label },
-                singleLine = singleLine,
-                visualTransformation =
-                    if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-                textStyle = TextStyle(color = colors.ink, fontSize = 14.sp, lineHeight = 20.sp),
-                cursorBrush = SolidColor(colors.ink),
-                decorationBox = { input ->
-                    Box {
-                        if (value.isBlank()) {
-                            Text(placeholder, color = colors.muted, fontSize = 14.sp)
-                        }
-                        input()
-                    }
-                },
-            )
         }
     }
 }
@@ -315,96 +262,6 @@ private fun SeaGlassCapsuleButton(
         enabled = enabled,
     ) {
         Text(text, fontWeight = FontWeight.Black, fontSize = 17.sp, modifier = Modifier.padding(horizontal = 18.dp))
-    }
-}
-
-@Composable
-fun EditorialSectionHead(
-    title: String,
-    modifier: Modifier = Modifier,
-    trailing: String? = null,
-    onTrailingClick: (() -> Unit)? = null,
-) {
-    val colors = LocalVaiinillaColors.current
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        // Con peso: un título largo se corta con «…» en vez de sacar la acción de la derecha.
-        Text(
-            title,
-            color = colors.ink,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.Black,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        when {
-            onTrailingClick != null ->
-                TextButton(onClick = onTrailingClick) {
-                    Text(trailing.orEmpty(), color = colors.muted, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
-                }
-            trailing != null ->
-                Text(trailing, color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-        }
-    }
-}
-
-@Composable
-fun EditorialHero(
-    eyebrow: String,
-    title: String,
-    body: String,
-    modifier: Modifier = Modifier,
-    watermark: String? = null,
-    actions: @Composable () -> Unit = {},
-) {
-    val colors = LocalVaiinillaColors.current
-    Surface(
-        modifier = modifier.fillMaxWidth().defaultMinSize(minHeight = 208.dp),
-        color = colors.accent,
-        shape = RoundedCornerShape(34.dp),
-    ) {
-        Box(modifier = Modifier.padding(24.dp)) {
-            if (watermark != null) {
-                Text(
-                    watermark,
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    color = colors.accentInk.copy(alpha = 0.12f),
-                    fontSize = 96.sp,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-            Column {
-                Text(
-                    eyebrow.uppercase(),
-                    color = colors.accentInk.copy(alpha = 0.82f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.2.sp,
-                )
-                Text(
-                    title,
-                    color = colors.accentInk,
-                    fontSize = 34.sp,
-                    lineHeight = 33.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-1.5).sp,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Text(
-                    body,
-                    color = colors.accentInk.copy(alpha = 0.82f),
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(top = 10.dp),
-                )
-                Spacer(Modifier.height(20.dp))
-                actions()
-            }
-        }
     }
 }
 

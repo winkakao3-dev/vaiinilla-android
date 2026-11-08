@@ -75,13 +75,6 @@ internal fun suggestedRefundMethod(originalMethod: String): RefundMethod {
 /** `entrega_efectivo` o `entrega_transferencia`: se cobró en la puerta de un pedido a domicilio. */
 internal fun collectedAtDoor(originalMethod: String): Boolean = originalMethod.startsWith("entrega_")
 
-internal fun originalMethodLabel(originalMethod: String): String =
-    when (originalMethod) {
-        "entrega_efectivo" -> "se cobró en la puerta en efectivo"
-        "entrega_transferencia" -> "se cobró en la puerta por transferencia"
-        else -> "se pagó con ${originalMethod.replace("+", " y ")}"
-    }
-
 /**
  * El aviso de C01: «1 devolución pendiente», con su monto y «Ver». El detalle se abre en su página para que las
  * devoluciones no empujen la fila hacia abajo. Sin pendientes solo queda el aviso de la última confirmación.

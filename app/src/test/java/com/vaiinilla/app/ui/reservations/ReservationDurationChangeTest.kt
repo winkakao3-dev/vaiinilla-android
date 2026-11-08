@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.vaiinilla.app.GuestReservationTest
 import com.vaiinilla.app.InMemoryGuestKeyVault
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.guest.GuestReservationSession
 import com.vaiinilla.app.data.guest.GuestSessionStore
 import com.vaiinilla.app.domain.model.CourtDay
@@ -15,11 +16,10 @@ import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationRefund
 import com.vaiinilla.app.domain.model.ReservationState
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.ReservationRepository
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -41,6 +41,7 @@ class ReservationDurationChangeTest {
     private val now = Instant.parse("2026-11-03T22:10:00Z")
     private val calls = mutableListOf<String>()
     private var failNextCreate = false
+    private val venueStore = VenueContextStore()
 
     @Before
     fun setUp() {
@@ -49,8 +50,7 @@ class ReservationDurationChangeTest {
 
     @After
     fun tearDown() {
-        Venue.update(null)
-        Dispatchers.resetMain()
+        StaffHarness.restoreMain()
     }
 
     @Test
@@ -63,7 +63,11 @@ class ReservationDurationChangeTest {
         assertTrue(viewModel.uiState.value.pendingStartsNow)
 
         viewModel.changePendingDuration(90)
-        val second = waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        val second =
+            waitFor {
+                viewModel.uiState.value.pending
+                    ?.takeIf { it.durationMinutes == 90 }
+            }
         viewModel.onHidden()
 
         assertEquals(listOf("create ahora 60", "cancel r-1", "create ahora 90"), calls)
@@ -94,9 +98,17 @@ class ReservationDurationChangeTest {
         waitFor { viewModel.uiState.value.pending }
 
         viewModel.changePendingPlayers(4)
-        val second = waitFor { viewModel.uiState.value.pending?.takeIf { it.players == 4 } }
+        val second =
+            waitFor {
+                viewModel.uiState.value.pending
+                    ?.takeIf { it.players == 4 }
+            }
         viewModel.changePendingDuration(90)
-        val third = waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        val third =
+            waitFor {
+                viewModel.uiState.value.pending
+                    ?.takeIf { it.durationMinutes == 90 }
+            }
         viewModel.onHidden()
 
         assertEquals(60, second.durationMinutes)
@@ -129,7 +141,10 @@ class ReservationDurationChangeTest {
         assertTrue(viewModel.uiState.value.pendingStartsNow)
 
         viewModel.changePendingDuration(90)
-        waitFor { viewModel.uiState.value.pending?.takeIf { it.durationMinutes == 90 } }
+        waitFor {
+            viewModel.uiState.value.pending
+                ?.takeIf { it.durationMinutes == 90 }
+        }
         viewModel.onHidden()
 
         assertEquals(listOf("cancel r-9", "create ahora 90"), calls)
@@ -137,13 +152,13 @@ class ReservationDurationChangeTest {
 
     @Test
     fun `bowling asks for players before renting now and caps them at the lane capacity (R11, R25)`() {
-        Venue.update(Venue.BOWLING)
+        venueStore.update("boliche")
         val viewModel = loadedViewModel()
 
         viewModel.rentNow()
         // Sin jugadores no se aparta: el resumen los pide primero.
         assertTrue(viewModel.uiState.value.rentNow)
-        assertFalse(viewModel.uiState.value.canReserve)
+        assertFalse(viewModel.uiState.value.canReserve(venueStore.current))
         assertTrue(calls.isEmpty())
 
         viewModel.selectPlayers(10)
@@ -159,8 +174,8 @@ class ReservationDurationChangeTest {
     fun `invitado sin qr va directo a entrar con su cuenta y con qr escribe su nombre`() {
         val context: Context = ApplicationProvider.getApplicationContext()
         val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
-        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()))
-        val viewModel = ReservationsViewModel(FakeRepository(), session)
+        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()), venueStore)
+        val viewModel = ReservationsViewModel(FakeRepository(), session, venueStore)
 
         viewModel.onVisible(guestSlug = "club", hasAccount = false)
         assertTrue(viewModel.uiState.value.accountRequired)
@@ -175,8 +190,8 @@ class ReservationDurationChangeTest {
     private fun loadedViewModel(): ReservationsViewModel {
         val context: Context = ApplicationProvider.getApplicationContext()
         val api = GuestReservationTest.FakeApi { _, _, _, _ -> Result.failure(IllegalStateException("sin red")) }
-        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()))
-        val viewModel = ReservationsViewModel(FakeRepository(), session)
+        val session = GuestReservationSession(api, GuestSessionStore(context, InMemoryGuestKeyVault()), venueStore)
+        val viewModel = ReservationsViewModel(FakeRepository(), session, venueStore)
         viewModel.onVisible(guestSlug = null, hasAccount = true)
         waitFor { viewModel.uiState.value.day }
         viewModel.selectCourt(7)

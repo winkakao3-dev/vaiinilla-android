@@ -1,5 +1,7 @@
 package com.vaiinilla.app.data.reservations
 
+import com.vaiinilla.app.core.network.ApiJson
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.BusyInterval
 import com.vaiinilla.app.domain.model.CourtDay
@@ -9,10 +11,9 @@ import com.vaiinilla.app.domain.model.CustomerPrice
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPayment
 import com.vaiinilla.app.domain.model.ReservationState
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -134,18 +135,16 @@ class ReservationContractJson
     @Inject
     constructor(
         private val orderContractJson: OrderContractJson,
+        private val venueContext: VenueContextStore,
     ) {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-                encodeDefaults = true
-            }
+            ApiJson.omitNullsWithDefaults
 
         fun parseDay(raw: String): CourtDay {
             val envelope = json.decodeFromString<CourtDayEnvelopeDto>(raw)
             require(envelope.error == null || envelope.error is JsonNull) { "La API devolvió un error." }
-            return envelope.data.toDomain()
+            envelope.data.tipoEstablecimiento?.let(venueContext::update)
+            return envelope.data.toDomain(venueContext.current)
         }
 
         fun parseReservation(raw: String): Reservation {
@@ -238,9 +237,8 @@ class ReservationContractJson
 
 private fun CustomerPriceDto.toDomain() = CustomerPrice(card = tarjeta, cashOrBalance = efectivoSaldo)
 
-private fun CourtDayDto.toDomain(): CourtDay {
-    tipoEstablecimiento?.let(Venue::update)
-    return CourtDay(
+private fun CourtDayDto.toDomain(venue: VenueContext): CourtDay =
+    CourtDay(
         date = fecha,
         today = hoy,
         timeZone = zonaHoraria,
@@ -257,7 +255,7 @@ private fun CourtDayDto.toDomain(): CourtDay {
             canchas.map { court ->
                 CourtSchedule(
                     id = court.espacio.id,
-                    name = court.espacio.nombre ?: "${Venue.courtTitle} ${court.espacio.id}",
+                    name = court.espacio.nombre ?: "${venue.vocabulary.courtTitle} ${court.espacio.id}",
                     pricePerHour = court.precioHora,
                     customerPricePerHour = court.precioHoraCliente?.toDomain(),
                     rentable = court.rentable,
@@ -282,7 +280,6 @@ private fun CourtDayDto.toDomain(): CourtDay {
                 )
             },
     )
-}
 
 fun ReservationDto.toDomain() =
     Reservation(

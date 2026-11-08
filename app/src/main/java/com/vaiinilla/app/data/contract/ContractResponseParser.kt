@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.contract
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Category
@@ -14,7 +15,6 @@ import com.vaiinilla.app.domain.model.ProductOption
 import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.repository.StoreImages
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,11 +23,7 @@ class ContractResponseParser
     @Inject
     constructor() {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = true
-                isLenient = false
-            }
+            ApiJson.plain
 
         fun parseCatalog(raw: String): Catalog {
             val envelope = json.decodeFromString<CatalogEnvelopeDto>(raw)

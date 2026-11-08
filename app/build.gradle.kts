@@ -16,8 +16,23 @@ plugins {
 
 ktlint {
     android.set(true)
-    ignoreFailures.set(false)
+    // ktlint arrastra miles de avisos viejos. Con -PktlintRatchet la tarea no falla y deja un reporte
+    // checkstyle que scripts/ktlint_ratchet.py compara contra config/ktlint/ratchet.json (solo bloquea lo nuevo).
+    ignoreFailures.set(providers.gradleProperty("ktlintRatchet").isPresent)
+    reporters {
+        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
+        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
+    }
 }
+
+// Pruebas rojas ya conocidas (app/quarantine-tests.txt). El CI normal las excluye; `-PquarantineOnly` corre solo ellas.
+val quarantinePatterns: Provider<List<String>> =
+    providers
+        .fileContents(layout.projectDirectory.file("quarantine-tests.txt"))
+        .asText
+        .orElse("")
+        .map { text -> text.lines().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") } }
+val quarantineOnly = providers.gradleProperty("quarantineOnly").isPresent
 
 val localProperties =
     Properties().apply {
@@ -171,6 +186,13 @@ android {
         versionCode = selectedVersionCode.toIntOrNull() ?: error("VAIINILLA_VERSION_CODE must be an integer")
         versionName = selectedVersionName
         testInstrumentationRunner = "com.vaiinilla.app.HiltTestRunner"
+
+        // Interruptor de Crashlytics: auto (solo producción en release), on u off. Ver docs/RED_DE_SEGURIDAD.md.
+        buildConfigField(
+            "String",
+            "CRASH_REPORTING",
+            "\"${readConfig("vaiinilla.crashReporting", "VAIINILLA_CRASH_REPORTING", "auto")}\"",
+        )
 
         // Defaults: release-safe. Debug buildType overrides below.
         buildConfigField("boolean", "SEED_AUTH_ENABLED", "false")
@@ -333,6 +355,12 @@ android {
             isIncludeAndroidResources = true
             all {
                 it.useJUnit()
+                if (quarantineOnly) {
+                    it.filter.isFailOnNoMatchingTests = false
+                    quarantinePatterns.get().forEach { pattern -> it.filter.includeTestsMatching(pattern) }
+                } else {
+                    quarantinePatterns.get().forEach { pattern -> it.filter.excludeTestsMatching(pattern) }
+                }
                 it.systemProperty(
                     "vaiinilla.fixtureDir",
                     file("src/test/fixtures").absolutePath,
@@ -405,6 +433,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.messaging)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)

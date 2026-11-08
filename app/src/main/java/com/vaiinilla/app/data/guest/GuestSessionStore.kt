@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.guest
 
 import android.content.Context
 import androidx.core.content.edit
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.core.security.GuestKeyVault
 import com.vaiinilla.app.core.security.KeystoreGuestKeyVault
 import com.vaiinilla.app.domain.model.CartLine
@@ -13,7 +14,6 @@ import com.vaiinilla.app.domain.model.SpaceDelivery
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,10 +33,7 @@ class GuestSessionStore
 
         private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-            }
+            ApiJson.withDefaults
 
         fun readVenue(): GuestVenueContext? {
             val establishmentId = prefs.getString(KEY_ESTABLISHMENT_ID, null) ?: return null
@@ -52,6 +49,8 @@ class GuestSessionStore
                         name = prefs.getString(KEY_SPACE_NAME, "") ?: "",
                         type = prefs.getString(KEY_SPACE_TYPE, "mesa") ?: "mesa",
                         qrToken = prefs.getString(KEY_SPACE_QR_TOKEN, null),
+                        isRoom =
+                            if (prefs.contains(KEY_SPACE_IS_ROOM)) prefs.getBoolean(KEY_SPACE_IS_ROOM, false) else null,
                     )
                 }
             return GuestVenueContext(
@@ -100,8 +99,10 @@ class GuestSessionStore
                     remove(KEY_SPACE_NAME)
                     remove(KEY_SPACE_TYPE)
                     remove(KEY_SPACE_QR_TOKEN)
+                    remove(KEY_SPACE_IS_ROOM)
                 } else {
                     putInt(KEY_SPACE_ID, space.id)
+                    space.isRoom?.let { putBoolean(KEY_SPACE_IS_ROOM, it) } ?: remove(KEY_SPACE_IS_ROOM)
                     putString(KEY_SPACE_NAME, space.name)
                     putString(KEY_SPACE_TYPE, space.type)
                     if (space.qrToken ==
@@ -131,6 +132,7 @@ class GuestSessionStore
                 remove(KEY_SPACE_NAME)
                 remove(KEY_SPACE_TYPE)
                 remove(KEY_SPACE_QR_TOKEN)
+                remove(KEY_SPACE_IS_ROOM)
             }
         }
 
@@ -292,6 +294,7 @@ class GuestSessionStore
             const val KEY_SPACE_NAME = "space_name"
             const val KEY_SPACE_TYPE = "space_type"
             const val KEY_SPACE_QR_TOKEN = "space_qr_token"
+            const val KEY_SPACE_IS_ROOM = "space_is_room"
             const val KEY_CREATE_IDEMPOTENCY_FINGERPRINT = "create_idempotency_fingerprint"
             const val KEY_CREATE_IDEMPOTENCY_KEY = "create_idempotency_key"
             const val KEY_CREATE_IDEMPOTENCY_SAVED_AT = "create_idempotency_saved_at"

@@ -45,10 +45,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.AccountSplit
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
@@ -79,7 +82,7 @@ import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.model.amountFor
 import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.AbonoMode
@@ -127,7 +130,6 @@ private val BillDenominations = listOf(20, 50, 100, 200, 500, 1_000)
 
 private val StateCoral = Color(0xFFE5645A)
 private val StateAmber = Color(0xFFE9A23B)
-private val StateAmberInk = Color(0xFF3B2A05)
 
 /** "42 min", "1 h 05 min" o "0:45": lo que queda de un turno, dicho corto. */
 internal fun remainingText(ms: Long): String {
@@ -308,7 +310,7 @@ internal fun WaiterSpaceSection(
     detail: SpaceSessionDetail?,
     loading: Boolean,
     lastCollection: AccountCollection?,
-    tick: Int,
+    tick: State<Int>,
     acting: Boolean,
     readOnly: Boolean,
     colors: OperationalColors,
@@ -347,6 +349,7 @@ internal fun WaiterSpaceSection(
     /** Lo que dice el tablero del espacio: trae la siguiente reserva (el detalle de la sesión no). */
     nextReservation: SpaceAvailability? = null,
 ) {
+    val venue = LocalVenueContext.current
     // Solo el botón que se tocó muestra su progreso; los demás quedan quietos.
     var busyKey by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(acting) { if (!acting) busyKey = null }
@@ -408,7 +411,7 @@ internal fun WaiterSpaceSection(
             enter = fadeIn(spring(stiffness = 300f)) + expandVertically(spring(stiffness = Spring.StiffnessMediumLow)),
             exit = fadeOut(spring(stiffness = 500f)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium)),
         ) {
-            tick.hashCode()
+            tick.value
             val remaining = millisUntil(clockTarget) ?: 0L
             val inGrace = availability.state == SpaceAvailabilityState.EN_GRACIA
             Column(modifier = Modifier.padding(top = 14.dp)) {
@@ -450,7 +453,7 @@ internal fun WaiterSpaceSection(
         val rent = detail.rent
         if (rent != null) {
             Text(
-                rentPaidLine(rent),
+                rentPaidLine(venue, rent),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
@@ -732,7 +735,7 @@ internal fun WaiterSpaceSection(
                         )
                     }
                     // La pregunta se queda hasta que confirme o cancele; si se iba sola, parecía que no pasaba nada.
-                    var confirmingRelease by remember { mutableStateOf(false) }
+                    var confirmingRelease by rememberSaveable { mutableStateOf(false) }
                     if (ordersInCourse > 0) {
                         Text(
                             "Hay pedidos sin entregar: no se puede liberar todavía.",
@@ -1147,12 +1150,12 @@ internal fun CollectAccountContent(
     blockedReason: String? = null,
 ) {
     val payableIds = payable.map { it.id }.toSet()
-    var chosen by remember(selectionKey) { mutableStateOf(payableIds) }
+    var chosen by rememberSaveable(selectionKey, stateSaver = StringSetSaver) { mutableStateOf(payableIds) }
     val selected = chosen intersect payableIds
     val paidInAmount = paidIn.moneyOrZero()
     val remainingAmount = remaining?.moneyOrZero() ?: total.moneyOrZero()
     val splitLocked = paidInAmount.signum() > 0
-    var split by remember(initialSplit) {
+    var split by rememberSaveable(initialSplit) {
         mutableStateOf(
             if (splitLocked &&
                 initialSplit in SplitMode.WHOLE_ORDERS
@@ -1164,8 +1167,8 @@ internal fun CollectAccountContent(
         )
     }
     if (splitLocked && split in SplitMode.WHOLE_ORDERS) split = SplitMode.AMOUNT
-    var abonoText by remember { mutableStateOf("") }
-    var people by remember(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
+    var abonoText by rememberSaveable { mutableStateOf("") }
+    var people by rememberSaveable(initialPeople) { mutableIntStateOf(initialPeople ?: 2) }
     val byOrders = onAbono == null || split in SplitMode.WHOLE_ORDERS
     val splitting = (onAbono == null || split == SplitMode.ORDERS) && payable.size >= 2
     val allSelected = selected.size == payable.size
@@ -1185,16 +1188,16 @@ internal fun CollectAccountContent(
         }
     val abonoValid = byOrders || AccountSplit.isValidAmount(totalAmount, remainingAmount)
     val totalLabel = Money.format(totalAmount)
-    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
+    var tipChoice by rememberSaveable(stateSaver = TipChoiceSaver) { mutableStateOf<TipChoice>(TipChoice.None) }
     val tipAmount = if (allowTip) tipChoice.amountFor(totalAmount) else BigDecimal.ZERO
     // Lo que paga la mesa: la cuenta más la propina. El total esperado sigue siendo la cuenta.
     val chargeAmount = totalAmount + tipAmount
     val chargeLabel = Money.format(chargeAmount)
     // Lo que el cajero escribió; sin tocar nada el efectivo sigue al total (cobro justo).
-    var typed by remember { mutableStateOf<String?>(null) }
-    var method by remember { mutableStateOf(AccountPaymentMethod.CASH) }
-    var tipOpen by remember { mutableStateOf(false) }
-    var otherCash by remember { mutableStateOf(false) }
+    var typed by rememberSaveable { mutableStateOf<String?>(null) }
+    var method by rememberSaveable { mutableStateOf(AccountPaymentMethod.CASH) }
+    var tipOpen by rememberSaveable { mutableStateOf(false) }
+    var otherCash by rememberSaveable { mutableStateOf(false) }
     val withTerminal = allowTerminal && method == AccountPaymentMethod.TERMINAL
     val text = typed ?: chargeLabel
     val received = MoneyInput.parse(text)
@@ -1747,9 +1750,12 @@ private fun rentalLabel(minutes: Int): String =
     }
 
 /** «Renta de pista · pagada $300 (2 h)»: lo ya pagado del turno, que no se vuelve a cobrar. */
-internal fun rentPaidLine(rent: SpaceRent): String =
+internal fun rentPaidLine(
+    venue: VenueContext,
+    rent: SpaceRent,
+): String =
     buildString {
-        append("Renta de ${Venue.court} · pagada ${moneyLabel(rent.paid)}")
+        append("Renta de ${venue.vocabulary.court} · pagada ${moneyLabel(rent.paid)}")
         if (rent.minutes > 0) append(" (${rentalLabel(rent.minutes)})")
     }
 
@@ -1806,6 +1812,7 @@ internal fun RentalDurationPicker(
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     onConfirm: (minutes: Int, players: Int?, name: String?) -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     var localMinutes by remember(durations) { mutableStateOf<Int?>(null) }
     var localPlayers by remember { mutableIntStateOf(0) }
     var localName by remember { mutableStateOf("") }
@@ -1847,7 +1854,7 @@ internal fun RentalDurationPicker(
     }
     // En un boliche se anota cuántos juegan, para preparar la pista y los zapatos. R11: es obligatorio (el
     // servidor responde PLAYERS_REQUIRED sin ellos); la renovación conserva los del turno.
-    val askPlayers = Venue.isBowling && !renewal
+    val askPlayers = venue.capabilities.asksPlayerCount && !renewal
     val playersMissing = askPlayers && players == 0
     val showName = askName && !renewal
     Column(modifier = modifier.fillMaxWidth()) {
@@ -1968,13 +1975,15 @@ internal fun RentalCollectSheet(
     onChange: ((minutes: Int, players: Int?) -> Unit)? = null,
     /** R25: cuántos caben en la pista. */
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
+    /** R16: los jugadores tocados que aún no se mandan; los guarda el ViewModel (null = los de la reserva). */
+    playersDraft: Int? = null,
+    onPlayersDraft: (Int) -> Unit = {},
 ) {
+    val venue = LocalVenueContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    // R16: el borrador de jugadores vive aquí, no en los controles, para que «Cobrar» y cerrar lo vean.
-    var players by remember(rental.id) { mutableIntStateOf(rental.players ?: 0) }
-    // Si volver a apartar falla y el apartado sigue, el stepper regresa a lo que tiene la reserva.
-    LaunchedEffect(confirming) { if (!confirming) players = rental.players ?: 0 }
-    val askPlayers = onChange != null && Venue.isBowling
+    // R16: el borrador de jugadores lo guarda el ViewModel, para que «Cobrar», cerrar y girar lo vean.
+    val players = playersDraft ?: (rental.players ?: 0)
+    val askPlayers = onChange != null && venue.capabilities.asksPlayerCount
     val playersDirty = askPlayers && players != (rental.players ?: 0)
     // R11: una renovación (empieza al terminar el turno) hereda los jugadores; la renta de ahora los pide.
     val renewal = remember(rental.id) { rental.start.isAfter(Instant.now()) }
@@ -1990,7 +1999,7 @@ internal fun RentalCollectSheet(
             payable = emptyList(),
             confirming = confirming,
             colors = colors,
-            title = "Rentar ${rental.courtName ?: Venue.court} · ${rentalLabel(rental.durationMinutes)}",
+            title = "Rentar ${rental.courtName ?: venue.vocabulary.court} · ${rentalLabel(rental.durationMinutes)}",
             // #16: el servidor solo cobra la renta de mostrador en efectivo; la hoja lo dice en lugar de esconderlo.
             allowTerminal = false,
             allowTip = false,
@@ -2010,7 +2019,7 @@ internal fun RentalCollectSheet(
                     colors = colors,
                     onChange = onChange,
                     players = players,
-                    onPlayers = { players = it },
+                    onPlayers = onPlayersDraft,
                     maxPlayers = maxPlayers,
                     minPlayers = if (renewal) 0 else 1,
                 )
@@ -2036,8 +2045,9 @@ internal fun RentalCollectControls(
     maxPlayers: Int = ReservationSlots.MAX_PLAYERS,
     minPlayers: Int = 0,
 ) {
+    val venue = LocalVenueContext.current
     // Cada cambio vuelve a apartar: los toques del stepper se juntan y se manda solo el último.
-    if (onChange != null && Venue.isBowling) {
+    if (onChange != null && venue.capabilities.asksPlayerCount) {
         LaunchedEffect(rental.id, players) {
             if (players == (rental.players ?: 0)) return@LaunchedEffect
             delay(PLAYERS_SETTLE_MS)
@@ -2057,7 +2067,7 @@ internal fun RentalCollectControls(
                     ChipButton(
                         label = rentalLabel(minutes),
                         // R11: sin jugadores, volver a apartar con otro tiempo lo rechazaría el servidor.
-                        enabled = enabled && !(Venue.isBowling && minPlayers > 0 && players == 0),
+                        enabled = enabled && !(venue.capabilities.asksPlayerCount && minPlayers > 0 && players == 0),
                         colors = colors,
                         modifier = Modifier.weight(1f),
                         selected = minutes == rental.durationMinutes,
@@ -2067,7 +2077,7 @@ internal fun RentalCollectControls(
                 }
             }
         }
-        if (onChange != null && Venue.isBowling) {
+        if (onChange != null && venue.capabilities.asksPlayerCount) {
             PlayersStepper(
                 players = players,
                 enabled = enabled,
@@ -2094,7 +2104,8 @@ private fun CourtTurnHero(
     endsAt: String?,
     modifier: Modifier = Modifier,
 ) {
-    val bowling = Venue.isBowling
+    val venue = LocalVenueContext.current
+    val bowling = venue.capabilities.drawsLanes
     val field =
         animateSelectionColor(
             when {
@@ -2161,7 +2172,11 @@ private fun CourtTurnHero(
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBowlingLane(line: Color) {
     val gutter = size.height * 0.14f
     drawRect(Color.Black.copy(alpha = 0.25f), size = Size(size.width, gutter))
-    drawRect(Color.Black.copy(alpha = 0.25f), topLeft = Offset(0f, size.height - gutter), size = Size(size.width, gutter))
+    drawRect(
+        Color.Black.copy(alpha = 0.25f),
+        topLeft = Offset(0f, size.height - gutter),
+        size = Size(size.width, gutter),
+    )
     // Tablones de la madera.
     val boards = 8
     val laneHeight = size.height - 2 * gutter

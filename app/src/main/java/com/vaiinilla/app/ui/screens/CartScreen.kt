@@ -111,6 +111,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
@@ -145,6 +146,7 @@ import com.vaiinilla.app.ui.components.cremeMoment
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.hotel.guest.HotelCheckoutRoute
 import com.vaiinilla.app.ui.order.OrderFlowUiState
 import com.vaiinilla.app.ui.order.asksForDeliveryDate
 import com.vaiinilla.app.ui.order.asksSpaceDelivery
@@ -167,6 +169,7 @@ import com.vaiinilla.app.ui.order.hasUnresolvedStripePayment
 import com.vaiinilla.app.ui.order.homeDeliveryFee
 import com.vaiinilla.app.ui.order.isBalancePaymentAffordable
 import com.vaiinilla.app.ui.order.isHomeDelivery
+import com.vaiinilla.app.ui.order.isHotelRoomOrder
 import com.vaiinilla.app.ui.order.operationalBlockerMessage
 import com.vaiinilla.app.ui.order.pickUpAtBarForOrder
 import com.vaiinilla.app.ui.order.requiresOperationalReady
@@ -223,9 +226,24 @@ fun CartScreen(
     onConfirmTakeAwayWithSeat: () -> Unit = {},
     onDismissTakeAwayWithSeat: () -> Unit = {},
 ) {
+    val venue = LocalVenueContext.current
     // El teclado: la ventana se encoge en vez de desplazarse; si no, el sistema sube toda la pantalla y además
     // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
-    com.vaiinilla.app.ui.components.ResizeForKeyboard()
+    com.vaiinilla.app.ui.components
+        .ResizeForKeyboard()
+    // El pedido a una habitación de hotel se arma como el marco H03 de Doop.
+    if (state.isHotelRoomOrder && state.cartLines.isNotEmpty()) {
+        HotelCheckoutRoute(
+            state = state,
+            onNotesChange = onNotesChange,
+            onPayAtEnd = onPayAtEnd,
+            onPaymentChange = onPaymentChange,
+            onConfirm = onConfirm,
+            onCheckoutOpened = onCheckoutOpened,
+            onResolvePendingStripePayment = onResolvePendingStripePayment,
+        )
+        return
+    }
     val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val density = LocalDensity.current
@@ -260,7 +278,7 @@ fun CartScreen(
     val destinationLabel =
         when (state.checkoutDestination) {
             OrderDestination.TAKE_AWAY -> "Para llevar"
-            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(state.checkoutSpace?.type)
+            OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(venue, state.checkoutSpace?.type)
             OrderDestination.HOME_DELIVERY -> "A domicilio"
         }
     val productCountLabel =
@@ -662,6 +680,7 @@ fun CartScreen(
                     // «Pasa por él» (elegido o porque el negocio solo entrega en barra): no se lleva al lugar.
                     toTable = state.checkoutDestination == OrderDestination.IN_SPACE && !state.pickUpAtBarForOrder,
                     spaceType = state.checkoutSpace?.type,
+                    hotelRoom = state.checkoutSpace?.name?.takeIf { state.isHotelRoomOrder },
                     cashbackLine = state.cashbackLine().takeUnless { guestCheckout },
                     onDismiss = { paymentDialogOpen = false },
                     onSelectPayAtEnd = {
@@ -720,10 +739,14 @@ private fun PaymentMethodOverlay(
     /** Comer en la mesa: nadie recoge en barra, se lo llevan. */
     toTable: Boolean = false,
     spaceType: String? = null,
+    /** Nombre de la habitación cuando el pedido va a un cuarto de hotel: «pagar al final» pasa a ser el cargo a ella. */
+    hotelRoom: String? = null,
     /** «Ganas $4.60 de cashback (1%)…»; `null` con el cashback apagado (24). */
     cashbackLine: String? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
+    val preferPayAtEnd = initialPayAtEnd || hotelRoom != null
     // Arranca con el último método que usó, si hoy sigue disponible: pagar vuelve a ser un toque.
     val initialAllowed =
         when (initialMethod) {
@@ -731,7 +754,7 @@ private fun PaymentMethodOverlay(
             PaymentMethod.BALANCE -> showBalance && balanceAffordable
             PaymentMethod.STRIPE -> cardAvailable
         }
-    var payAtEndSelected by remember { mutableStateOf(initialPayAtEnd && payAtEndAvailable) }
+    var payAtEndSelected by remember { mutableStateOf(preferPayAtEnd && payAtEndAvailable) }
     var selectedMethod by remember {
         mutableStateOf(if (!payAtEndSelected && initialAllowed) initialMethod else null)
     }
@@ -741,7 +764,7 @@ private fun PaymentMethodOverlay(
     // persona no haya elegido nada (COMPRA-17).
     LaunchedEffect(payAtEndAvailable, initialAllowed) {
         if (selectionTouched) return@LaunchedEffect
-        payAtEndSelected = initialPayAtEnd && payAtEndAvailable
+        payAtEndSelected = preferPayAtEnd && payAtEndAvailable
         selectedMethod = if (!payAtEndSelected && initialAllowed) initialMethod else null
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -825,8 +848,22 @@ private fun PaymentMethodOverlay(
                 if (payAtEndAvailable) {
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.Receipt,
-                        title = "Pagar al final",
-                        subtitle = "Pide lo que quieras y paga toda la cuenta al irte",
+                        title =
+                            if (hotelRoom !=
+                                null
+                            ) {
+                                "Cargar a la ${hotelRoom.replaceFirstChar { it.lowercase() }}"
+                            } else {
+                                "Pagar al final"
+                            },
+                        subtitle =
+                            if (hotelRoom !=
+                                null
+                            ) {
+                                "Se paga al salir"
+                            } else {
+                                "Pide lo que quieras y paga toda la cuenta al irte"
+                            },
                         selected = payAtEndSelected,
                         enabled = !selectionLocked,
                         onClick = {
@@ -836,12 +873,20 @@ private fun PaymentMethodOverlay(
                         },
                     )
                 }
-                if (cashAvailable) {
+                // En un hotel no hay caja a la que ir: solo se ofrece si el hotel apagó el cargo y la tarjeta.
+                if (cashAvailable && (hotelRoom == null || (!payAtEndAvailable && !cardAvailable))) {
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.Payments,
                         title = "Pago en caja",
                         subtitle =
-                            if (toTable) SpaceCopy.payAtCashierHint(spaceType) else "Pagas en caja antes de recogerlo",
+                            if (toTable) {
+                                SpaceCopy.payAtCashierHint(
+                                    venue,
+                                    spaceType,
+                                )
+                            } else {
+                                "Pagas en caja antes de recogerlo"
+                            },
                         selected = selectedMethod == PaymentMethod.CASH,
                         enabled = !selectionLocked,
                         onClick = {
@@ -874,8 +919,8 @@ private fun PaymentMethodOverlay(
                 if (cardAvailable) {
                     PaymentMethodCardOption(
                         icon = Icons.Outlined.CreditCard,
-                        title = "Pago con Stripe",
-                        subtitle = "Débito o crédito, aquí mismo",
+                        title = if (hotelRoom != null) "Tarjeta ahora" else "Pago con Stripe",
+                        subtitle = if (hotelRoom != null) "Pago seguro con Stripe" else "Débito o crédito, aquí mismo",
                         selected = selectedMethod == PaymentMethod.STRIPE,
                         enabled = !selectionLocked,
                         onClick = {
@@ -916,6 +961,7 @@ private fun PaymentMethodOverlay(
                                 totalFor(
                                     selectedMethod ?: initialMethod,
                                 ),
+                                toRoom = hotelRoom != null,
                             ),
                         color = if (hasSelection) colors.accentInk else colors.muted,
                         fontSize = 16.sp,
@@ -1008,8 +1054,10 @@ internal fun paymentActionLabel(
     method: PaymentMethod?,
     payAtEnd: Boolean,
     total: String,
+    toRoom: Boolean = false,
 ): String =
     when {
+        payAtEnd && toRoom -> "Pedir · $total a mi habitación"
         payAtEnd -> "Pedir · pagas al final"
         method == PaymentMethod.CASH -> "Pedir · pagas $total en caja"
         method == PaymentMethod.BALANCE -> "Pagar $total con saldo"
@@ -1171,12 +1219,13 @@ private fun DeliverySummaryRow(
     readyInMinutes: Int?,
     onChange: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val title =
         when {
             state.isHomeDelivery -> "A domicilio"
             state.checkoutDestination == OrderDestination.IN_SPACE ->
-                "${SpaceCopy.destinationTitle(state.checkoutSpace?.type)} · ${state.selectedSpaceName}"
+                "${SpaceCopy.destinationTitle(venue, state.checkoutSpace?.type)} · ${state.selectedSpaceName}"
             else -> "Para llevar"
         }
     val how =

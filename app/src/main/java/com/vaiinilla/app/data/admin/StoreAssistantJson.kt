@@ -1,5 +1,6 @@
 package com.vaiinilla.app.data.admin
 
+import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.admin.AssistantCategory
 import com.vaiinilla.app.domain.admin.AssistantChange
 import com.vaiinilla.app.domain.admin.AssistantInvite
@@ -29,7 +30,7 @@ import kotlinx.serialization.json.putJsonArray
 
 /** `POST /establecimiento/asistente`: la plática de ida y la respuesta de vuelta. */
 class StoreAssistantJson(
-    private val json: Json = Json { ignoreUnknownKeys = true },
+    private val json: Json = ApiJson.plain,
 ) {
     fun encodeMessages(
         messages: List<AssistantMessage>,

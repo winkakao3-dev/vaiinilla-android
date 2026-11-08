@@ -14,22 +14,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -42,16 +36,13 @@ import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.RoomService
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
-import com.vaiinilla.app.ui.components.ClientCap
-import com.vaiinilla.app.ui.components.ClientCard
-import com.vaiinilla.app.ui.components.ClientCardDivider
-import com.vaiinilla.app.ui.components.ClientPageHeader
-import com.vaiinilla.app.ui.screens.walletTile
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -63,22 +54,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vaiinilla.app.core.notifications.NoticeExplanation
 import com.vaiinilla.app.core.notifications.NoticeLookup
 import com.vaiinilla.app.core.notifications.ReceivedNotice
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.mode.AuthorizedMode
 import com.vaiinilla.app.ui.components.ChoiceChip
+import com.vaiinilla.app.ui.components.ClientCap
+import com.vaiinilla.app.ui.components.ClientCard
+import com.vaiinilla.app.ui.components.ClientCardDivider
+import com.vaiinilla.app.ui.components.ClientPageHeader
 import com.vaiinilla.app.ui.components.EditorialSecondaryButton
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.WalletScreenShell
 import com.vaiinilla.app.ui.components.arrive
 import com.vaiinilla.app.ui.components.physicalPress
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
+import com.vaiinilla.app.ui.screens.walletTile
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
 
@@ -188,7 +189,10 @@ internal fun ReceivedNoticesContent(
             }
             if (notices.isNotEmpty()) {
                 item(key = "clear") {
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         TextButton(onClick = { confirmClear = !confirmClear }) {
                             Text(
                                 if (confirmClear) "Toca otra vez para borrar el historial" else "Borrar el historial",
@@ -296,11 +300,12 @@ private fun NoticeRow(
     colors: VaiinillaColors,
     onClick: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val business = NoticePanel.business(notice)
     val subtitle =
         listOfNotNull(business, notice.body.takeIf { it.isNotBlank() })
             .joinToString(" · ")
-            .ifEmpty { if (searching) "Buscando el pedido…" else NoticePanel.explanation(notice).kind }
+            .ifEmpty { if (searching) "Buscando el pedido…" else NoticePanel.explanation(venue, notice).kind }
     Row(
         modifier =
             Modifier
@@ -351,7 +356,12 @@ private fun NoticeRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(NoticePanel.shortDate(notice.receivedAtMillis), color = colors.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                NoticePanel.shortDate(notice.receivedAtMillis),
+                color = colors.muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (pending) {
                 Box(
                     modifier =
@@ -365,6 +375,7 @@ private fun NoticeRow(
         }
     }
 }
+
 @Composable
 private fun NoticeDetail(
     notice: ReceivedNotice,
@@ -372,7 +383,8 @@ private fun NoticeDetail(
     colors: VaiinillaColors,
     onLookUp: () -> Unit,
 ) {
-    val explanation = remember(notice.id) { NoticeExplanation.explain(notice.payload, notice.isRemote) }
+    val venue = LocalVenueContext.current
+    val explanation = remember(notice.id) { NoticeExplanation.explain(venue, notice.payload, notice.isRemote) }
     Column(
         modifier =
             Modifier
@@ -412,7 +424,7 @@ private fun NoticeDetail(
         Section(
             "Por qué llegó a este teléfono",
             buildString {
-                append(explanation.reason(phone?.memberships.orEmpty(), phone?.openMode))
+                append(explanation.reason(venue, phone?.memberships.orEmpty(), phone?.openMode))
                 phone?.account?.let { append("\nCuenta: $it.") }
                 if (notice.phoneSeenLater) append("\nLa cuenta se anotó al abrir la app, no cuando llegó el aviso.")
                 if (phone == null) append("\nLlegó sin sesión abierta en este teléfono.")

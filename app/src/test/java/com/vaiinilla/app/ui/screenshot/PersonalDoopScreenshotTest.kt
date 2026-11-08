@@ -10,11 +10,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.vaiinilla.app.core.network.ApiFailure
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.repository.BoardOrder
 import com.vaiinilla.app.ui.screens.CashDrawerContent
 import com.vaiinilla.app.ui.operational.OperationalUiState
+import com.vaiinilla.app.ui.operational.QueueSync
 import com.vaiinilla.app.ui.screens.KitchenOperationalScreen
 import com.vaiinilla.app.ui.screens.KitchenSoldOutContent
 import com.vaiinilla.app.ui.screens.StaffShiftContent
@@ -116,10 +118,10 @@ class PersonalDoopScreenshotTest {
         val base = ScreenshotFixtures.sampleOrder(state = OrderState.PAID)
         capture("personal_n12_sin_internet.png") {
             KitchenOperationalScreen(
-                state = OperationalUiState(orders = listOf(base), lastRefreshOk = false),
+                state = OperationalUiState(orders = listOf(base), queue = QueueSync.Failed(ApiFailure.NoConnection)),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 placeName = "Cafetería Central",
             )
         }
@@ -129,10 +131,10 @@ class PersonalDoopScreenshotTest {
     fun `k04_todo_al_dia`() {
         capture("personal_k04_todo_al_dia.png") {
             KitchenOperationalScreen(
-                state = OperationalUiState(orders = emptyList(), lastRefreshOk = true),
+                state = OperationalUiState(orders = emptyList(), queue = QueueSync.Live),
                 onBack = {},
                 onStart = { _, _ -> },
-                onReady = { _, _ -> },
+                onMarkReady = { _, _ -> },
                 placeName = "Cafetería Central",
             )
         }

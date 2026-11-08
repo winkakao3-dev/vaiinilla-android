@@ -15,10 +15,10 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.SpaceResolveResult
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
+import com.vaiinilla.app.ui.operational.StaffHarness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -46,7 +46,7 @@ class GuestDiscoveryLaunchTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        StaffHarness.restoreMain()
     }
 
     @Test

@@ -80,13 +80,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.model.CourtDay
 import com.vaiinilla.app.domain.model.CourtSchedule
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationPaymentMethod
 import com.vaiinilla.app.domain.model.ReservationSlots
 import com.vaiinilla.app.domain.model.ReservationState
-import com.vaiinilla.app.domain.model.Venue
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.ClientCap
 import com.vaiinilla.app.ui.components.ClientPageHeader
@@ -105,13 +106,13 @@ import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.screens.walletTile
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlinx.coroutines.delay
 
 private val MX = Locale.forLanguageTag("es-MX")
 private val HOUR = DateTimeFormatter.ofPattern("HH:mm", MX)
@@ -159,6 +160,7 @@ fun ReservationsScreen(
     /** Cuando el lugar pide cuenta: llevar al registro. */
     onCreateAccount: (() -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val day = state.day
     val zone = remember(day?.timeZone) { BusinessTime.zoneOr(day?.timeZone) }
@@ -178,7 +180,7 @@ fun ReservationsScreen(
         ) {
             item(key = "head") {
                 ClientPageHeader(
-                    title = "Renta tu ${Venue.court}",
+                    title = "Renta tu ${venue.vocabulary.court}",
                     subtitle = listOfNotNull(venueName, day?.let(::dayHeadline)).joinToString(" · "),
                     onBack = onBack,
                     modifier = Modifier.arrive(0),
@@ -210,7 +212,11 @@ fun ReservationsScreen(
             } else if (day == null) {
                 item(key = "loading") {
                     Text(
-                        if (state.loading) "Cargando ${Venue.courts}…" else "Este lugar todavía no renta ${Venue.courts}.",
+                        if (state.loading) {
+                            "Cargando ${venue.vocabulary.courts}…"
+                        } else {
+                            "Este lugar todavía no renta ${venue.vocabulary.courts}."
+                        },
                         color = colors.muted,
                         fontSize = 15.sp,
                         modifier = Modifier.padding(top = 24.dp).arrive(1),
@@ -219,7 +225,7 @@ fun ReservationsScreen(
             } else if (day.courts.none { it.rentable }) {
                 item(key = "none") {
                     Text(
-                        "Por ahora las ${Venue.courts} de este lugar no se rentan desde la app. Pregunta en caja.",
+                        "Por ahora las ${venue.vocabulary.courts} de este lugar no se rentan desde la app. Pregunta en caja.",
                         color = colors.muted,
                         fontSize = 15.sp,
                         lineHeight = 21.sp,
@@ -239,7 +245,7 @@ fun ReservationsScreen(
                 if (day.closed) {
                     item(key = "closed-day") {
                         Text(
-                            closedDayMessage(isToday = day.date == day.today),
+                            closedDayMessage(venue, isToday = day.date == day.today),
                             color = colors.muted,
                             fontSize = 15.sp,
                             lineHeight = 21.sp,
@@ -294,7 +300,7 @@ fun ReservationsScreen(
                         if (reservation.state == ReservationState.PENDING_PAYMENT) {
                             "Se libera el horario y no se te cobra nada."
                         } else {
-                            "Se libera la ${Venue.court}, pero lo que pagaste no se devuelve."
+                            "Se libera la ${venue.vocabulary.court}, pero lo que pagaste no se devuelve."
                         },
                     confirmLabel = "Sí, cancelar",
                     dismissLabel = "No, mantenerla",
@@ -335,6 +341,7 @@ fun ReservationsScreen(
         }
     }
 }
+
 /** «hoy, martes 3», «mañana, miércoles 4» o «jueves 5»: el día que se está viendo. */
 private fun dayHeadline(day: CourtDay): String {
     val date = LocalDate.parse(day.date)
@@ -411,6 +418,7 @@ private fun CourtCard(
     onSelectPlayers: (Int) -> Unit = {},
     balanceAvailable: Boolean = true,
 ) {
+    val venue = LocalVenueContext.current
     val selected = court.id == state.selectedCourtId
     val isToday = day.date == day.today
     val busyUntil = if (isToday) ReservationSlots.busyUntil(court, day.now) else null
@@ -429,7 +437,7 @@ private fun CourtCard(
             !selected -> null
             // "Rentar ahora" aparta de una vez: el tiempo se elige en la hoja de pago. En un boliche el resumen se
             // abre desde ahora para preguntar cuántos juegan antes de apartar (R11).
-            state.rentNow -> day.now.takeIf { Venue.isBowling && state.pending == null }
+            state.rentNow -> day.now.takeIf { venue.capabilities.rentsByTheMoment && state.pending == null }
             else -> state.selectedStart
         }
     var zoomed by remember(court.id) { mutableStateOf(false) }
@@ -613,9 +621,12 @@ internal fun courtStatus(
     }
 }
 
-internal fun closedDayMessage(isToday: Boolean): String =
+internal fun closedDayMessage(
+    venue: VenueContext,
+    isToday: Boolean,
+): String =
     if (isToday) {
-        "Hoy el lugar no abre: no se rentan ${Venue.courts}. Elige otro día para apartar."
+        "Hoy el lugar no abre: no se rentan ${venue.vocabulary.courts}. Elige otro día para apartar."
     } else {
         "Ese día el lugar no abre. Elige otro día para apartar."
     }
@@ -675,7 +686,11 @@ private fun RentNowPill(
     modifier: Modifier = Modifier,
 ) {
     val container by animateColorAsState(if (selected) colors.accent else colors.ink, SPRING_COLOR, label = "now-bg")
-    val content by animateColorAsState(if (selected) colors.accentInk else colors.onInk, SPRING_COLOR, label = "now-ink")
+    val content by animateColorAsState(
+        if (selected) colors.accentInk else colors.onInk,
+        SPRING_COLOR,
+        label = "now-ink",
+    )
     Row(
         modifier =
             modifier
@@ -807,12 +822,14 @@ private fun DurationRow(
         }
     }
 }
+
 @Composable
 private fun AccountRequiredCard(
     onCreateAccount: (() -> Unit)?,
     onSignIn: (() -> Unit)?,
     colors: VaiinillaColors,
 ) {
+    val venue = LocalVenueContext.current
     Column(
         modifier =
             Modifier
@@ -830,7 +847,7 @@ private fun AccountRequiredCard(
             letterSpacing = (-0.6).sp,
         )
         Text(
-            "Aquí las ${Venue.courts} se rentan con cuenta. Crea una o inicia sesión para apartar.",
+            "Aquí las ${venue.vocabulary.courts} se rentan con cuenta. Crea una o inicia sesión para apartar.",
             color = colors.muted,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -857,6 +874,7 @@ private fun GuestEntryCard(
     onSignIn: (() -> Unit)?,
     colors: VaiinillaColors,
 ) {
+    val venue = LocalVenueContext.current
     Column(
         modifier =
             Modifier
@@ -874,7 +892,7 @@ private fun GuestEntryCard(
             letterSpacing = (-0.6).sp,
         )
         Text(
-            "Para ver horarios y apartar una ${Venue.court} solo necesitamos tu nombre. " +
+            "Para ver horarios y apartar una ${venue.vocabulary.court} solo necesitamos tu nombre. " +
                 "Al entrar aceptas los términos y el aviso de privacidad vigentes.",
             color = colors.muted,
             fontSize = 14.sp,
@@ -927,6 +945,7 @@ private fun Summary(
     /** #8: sin saldo, el precio dice solo «en efectivo». */
     balanceAvailable: Boolean = true,
 ) {
+    val venue = LocalVenueContext.current
     val minutes = state.selectedDuration
     val end = minutes?.let { start.plusSeconds(it * 60L) }
     val price =
@@ -988,7 +1007,7 @@ private fun Summary(
             lineHeight = 17.sp,
             modifier = Modifier.padding(top = 10.dp),
         )
-        if (Venue.isBowling) {
+        if (venue.capabilities.asksPlayerCount) {
             PlayersRow(
                 players = state.players,
                 enabled = !state.working,
@@ -1003,11 +1022,11 @@ private fun Summary(
                 when {
                     state.working -> "Apartando…"
                     // R11: en un boliche no se aparta sin saber cuántos juegan.
-                    Venue.isBowling && state.players == 0 -> "Anota cuántos juegan"
-                    else -> "Apartar ${Venue.court}"
+                    venue.capabilities.asksPlayerCount && state.players == 0 -> "Anota cuántos juegan"
+                    else -> "Apartar ${venue.vocabulary.court}"
                 },
             onClick = onReserve,
-            enabled = state.canReserve,
+            enabled = state.canReserve(venue),
         )
     }
 }
@@ -1085,9 +1104,10 @@ internal fun ReservationPaymentContent(
     /** U03: boliche, cuántos juegan; null no muestra el stepper. */
     onChangePlayers: ((Int) -> Unit)? = null,
 ) {
+    val venue = LocalVenueContext.current
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // Cambiar jugadores vuelve a apartar: los toques se juntan y se manda solo el último.
-    val askPlayers = Venue.isBowling && onChangePlayers != null
+    val askPlayers = venue.capabilities.asksPlayerCount && onChangePlayers != null
     var players by remember(reservation.id) { mutableIntStateOf(reservation.players ?: 0) }
     val playersDirty = askPlayers && players != (reservation.players ?: 0)
     // R11: un apartado sin jugadores (de antes de pedirlos) no se paga ni se cambia hasta anotarlos.
@@ -1128,8 +1148,16 @@ internal fun ReservationPaymentContent(
         }
     val available =
         if (day != null && court != null) {
-            val withoutThisHold = court.copy(busy = court.busy.filterNot { it.start == reservation.start && it.end == reservation.end })
-            ReservationSlots.availableDurations(day, withoutThisHold, if (startsNow) day.now else reservation.start) + held
+            val withoutThisHold =
+                court.copy(
+                    busy =
+                        court.busy.filterNot {
+                            it.start == reservation.start &&
+                                it.end == reservation.end
+                        },
+                )
+            ReservationSlots.availableDurations(day, withoutThisHold, if (startsNow) day.now else reservation.start) +
+                held
         } else {
             listOf(held)
         }
@@ -1153,7 +1181,10 @@ internal fun ReservationPaymentContent(
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
-                    listOfNotNull(reservation.courtName ?: Venue.courtTitle, court?.profile?.sport).joinToString(" · "),
+                    listOfNotNull(
+                        reservation.courtName ?: venue.vocabulary.courtTitle,
+                        court?.profile?.sport,
+                    ).joinToString(" · "),
                     color = colors.ink,
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Black,
@@ -1239,7 +1270,7 @@ internal fun ReservationPaymentContent(
             if (expired) {
                 "Venció el apartado: vuelve a elegir el horario."
             } else {
-                "Lo que pidas del menú te llega a la ${Venue.court}. Si cancelas, lo pagado no se devuelve."
+                "Lo que pidas del menú te llega a la ${venue.vocabulary.court}. Si cancelas, lo pagado no se devuelve."
             },
             color = if (expired) coralInk(colors) else colors.muted,
             fontSize = 13.sp,
@@ -1275,8 +1306,9 @@ private fun HoldTag(
             Modifier
                 .height(30.dp)
                 .clip(RoundedCornerShape(percent = 50))
-                .background((if (urgent) colors.coral else colors.yolk).copy(alpha = if (colors.isDark) 0.14f else 0.3f))
-                .padding(horizontal = 10.dp),
+                .background(
+                    (if (urgent) colors.coral else colors.yolk).copy(alpha = if (colors.isDark) 0.14f else 0.3f),
+                ).padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -1460,6 +1492,7 @@ private fun PayMethodOption(
         )
     }
 }
+
 @Composable
 private fun MyReservationCard(
     reservation: Reservation,
@@ -1468,6 +1501,7 @@ private fun MyReservationCard(
     onCancel: () -> Unit,
     colors: VaiinillaColors,
 ) {
+    val venue = LocalVenueContext.current
     val started = !reservation.start.isAfter(Instant.now())
     val pending = reservation.state == ReservationState.PENDING_PAYMENT
     val tone =
@@ -1513,7 +1547,9 @@ private fun MyReservationCard(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "${reservation.courtName ?: Venue.courtTitle} · ${startAt.format(HOUR)}–${reservation.end.atZone(zone).format(HOUR)}",
+                    "${reservation.courtName ?: venue.vocabulary.courtTitle} · ${startAt.format(
+                        HOUR,
+                    )}–${reservation.end.atZone(zone).format(HOUR)}",
                     color = colors.ink,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -1660,6 +1696,7 @@ internal fun CourtRentSheet(
     cardAvailable: Boolean,
     balanceAvailable: Boolean,
 ) {
+    val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
     val day = state.day
     val zone = remember(day?.timeZone) { BusinessTime.zoneOr(day?.timeZone) }
@@ -1704,8 +1741,8 @@ internal fun CourtRentSheet(
                 Text(
                     when {
                         day == null && state.loading -> "Cargando…"
-                        day == null -> state.error ?: "Este lugar todavía no renta ${Venue.courts}."
-                        else -> "Esta ${Venue.court} no se renta desde la app. Pregunta en caja."
+                        day == null -> state.error ?: "Este lugar todavía no renta ${venue.vocabulary.courts}."
+                        else -> "Esta ${venue.vocabulary.court} no se renta desde la app. Pregunta en caja."
                     },
                     color = colors.muted,
                     fontSize = 15.sp,
@@ -1747,6 +1784,7 @@ private fun CourtRentChoice(
     onReserve: () -> Unit,
     onOtherDays: () -> Unit,
 ) {
+    val venue = LocalVenueContext.current
     val canNow = day.date == day.today && ReservationSlots.canRentNow(day, court)
     // Libre ahora: «Ahora» ya viene elegido; apartar sigue siendo decisión del botón.
     LaunchedEffect(court.id, canNow) {
@@ -1875,7 +1913,7 @@ private fun CourtRentChoice(
             )
         }
         Column(Modifier.padding(horizontal = 16.dp)) {
-            if (Venue.isBowling) {
+            if (venue.capabilities.asksPlayerCount) {
                 PlayersRow(
                     players = state.players,
                     enabled = !state.working,
@@ -1908,13 +1946,13 @@ private fun CourtRentChoice(
                         state.working -> "Apartando…"
                         start == null -> "Elige la hora"
                         minutes == null -> "Elige cuánto tiempo"
-                        Venue.isBowling && state.players == 0 -> "Anota cuántos juegan"
-                        price == null -> "Apartar ${Venue.court}"
+                        venue.capabilities.asksPlayerCount && state.players == 0 -> "Anota cuántos juegan"
+                        price == null -> "Apartar ${venue.vocabulary.court}"
                         state.rentNow -> "Apartar desde ahora · ${moneyLabel(price)}"
                         else -> "Apartar $startLabel a $endLabel · ${moneyLabel(price)}"
                     },
                 onClick = onReserve,
-                enabled = state.canReserve,
+                enabled = state.canReserve(venue),
             )
             Box(
                 Modifier

@@ -18,12 +18,15 @@ fun interface CrashReporter {
 class GlobalCrashReporterInstaller(
     private val reporter: CrashReporter,
     private val logger: (Thread, Throwable) -> Unit = { _, _ -> },
+    /** Se aplica a lo que sale de la app (reporte y handler previo); el log local sigue viendo el original. */
+    private val outgoing: (Throwable) -> Throwable = { it },
 ) {
     fun install(previousHandler: Thread.UncaughtExceptionHandler? = Thread.getDefaultUncaughtExceptionHandler()) {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             logger(thread, throwable)
-            runCatching { reporter.recordException(throwable) }
-            previousHandler?.uncaughtException(thread, throwable)
+            val outbound = runCatching { outgoing(throwable) }.getOrDefault(throwable)
+            runCatching { reporter.recordException(outbound) }
+            previousHandler?.uncaughtException(thread, outbound)
         }
     }
 }

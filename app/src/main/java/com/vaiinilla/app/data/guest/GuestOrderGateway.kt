@@ -1,8 +1,10 @@
 package com.vaiinilla.app.data.guest
 
-import com.vaiinilla.app.core.network.ApiClientException
 import com.vaiinilla.app.core.network.VaiinillaApiClient
+import com.vaiinilla.app.core.network.idempotencyHeaders
+import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.core.security.PickupTokenStore
+import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.contract.ContractResponseParser
 import com.vaiinilla.app.data.order.OrderContractJson
 import com.vaiinilla.app.domain.model.ContractRules
@@ -11,7 +13,6 @@ import com.vaiinilla.app.domain.model.CreatedOrder
 import com.vaiinilla.app.domain.model.OperationalStatus
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.StripePaymentSession
-import com.vaiinilla.app.domain.model.Venue
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -34,13 +35,14 @@ class GuestOrderGateway
         private val orderContractJson: OrderContractJson,
         private val pickupTokenStore: PickupTokenStore,
         private val parser: ContractResponseParser,
+        private val venueContext: VenueContextStore,
     ) {
         fun operationalStatus(establishmentSlug: String): Result<OperationalStatus> =
             guestSession
                 .withBearer(establishmentSlug) { bearer -> apiClient.getWithBearer(bearer, "estado-operativo") }
                 .mapCatching(parser::parseOperationalStatus)
                 .mapApiErrors()
-                .onSuccess { Venue.update(it.businessType) }
+                .onSuccess { venueContext.update(it.businessType, it.isSchool) }
 
         fun create(
             establishmentSlug: String,
@@ -55,7 +57,7 @@ class GuestOrderGateway
                             bearer = bearer,
                             path = "pedidos",
                             body = orderContractJson.encodeCreateRequest(request),
-                            headers = mapOf("Idempotency-Key" to idempotencyKey),
+                            headers = idempotencyHeaders(idempotencyKey),
                         )
                     }.getOrThrow()
             }.mapCatching(orderContractJson::parseCreatedOrder)
@@ -66,7 +68,9 @@ class GuestOrderGateway
 
         /** Pedidos del invitado en [establishmentSlug], con seguimiento en vivo. Sin llave no hay lista. */
         fun list(establishmentSlug: String): Result<List<OrderDetail>> {
-            val key = store.readGuestKey() ?: return Result.failure(GuestIdentityRequiredException())
+            val key =
+                store.readGuestKey()
+                    ?: return Result.failure(GuestIdentityRequiredException(venueContext.current.vocabulary.court))
             val body =
                 buildJsonObject {
                     put("establecimiento_slug", establishmentSlug)
@@ -97,7 +101,7 @@ class GuestOrderGateway
                     apiClient.postWithBearer(
                         bearer = bearer,
                         path = "pedidos/$orderId/pago/stripe",
-                        headers = mapOf("Idempotency-Key" to idempotencyKey),
+                        headers = idempotencyHeaders(idempotencyKey),
                     )
                 }.mapCatching(orderContractJson::parseStripeRetry)
                 .mapApiErrors()
@@ -114,23 +118,18 @@ class GuestOrderGateway
                     bearer = firebaseIdToken,
                     path = "invitados/reclamar",
                     body = body,
-                    headers = mapOf("Idempotency-Key" to UUID.randomUUID().toString()),
+                    headers = idempotencyHeaders(UUID.randomUUID().toString()),
                 ).map { guestSession.forgetIdentity() }
         }
 
         private fun <T> Result<T>.mapApiErrors(): Result<T> =
-            fold(
-                onSuccess = { Result.success(it) },
-                onFailure = { error ->
-                    Result.failure(
-                        if (error is ApiClientException) {
-                            OrderRepositoryException(error.code, error.message ?: error.code, error)
-                        } else {
-                            error
-                        },
-                    )
-                },
-            )
+            mapApiFailure {
+                OrderRepositoryException(
+                    it.code,
+                    it.message ?: it.code,
+                    it,
+                )
+            }
 
         private companion object {
             const val NOT_FOUND = "NOT_FOUND"

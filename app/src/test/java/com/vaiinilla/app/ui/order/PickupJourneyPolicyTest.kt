@@ -11,6 +11,7 @@ import com.vaiinilla.app.domain.model.OrderSummary
 import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.model.PreparationStation
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.components.needsPickupQr
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +21,8 @@ import org.junit.Test
 import java.time.Instant
 
 class PickupJourneyPolicyTest {
+    private val venue = VenueContext.STANDARD
+
     @Test
     fun stepsFollowTheKitchen() {
         assertEquals(PickupStep.ORDERED, pickupStep(OrderState.PAID))
@@ -71,9 +74,12 @@ class PickupJourneyPolicyTest {
     @Test
     fun copyMatchesThePwa() {
         assertEquals("¡Listo!", pickupTitle(order(OrderState.READY)))
-        assertEquals("Recógelo en la barra.", pickupHint(order(OrderState.READY)))
+        assertEquals("Recógelo en la barra.", pickupHint(venue, order(OrderState.READY)))
         assertEquals("Por pagar", pickupTitle(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH)))
-        assertEquals("Está listo. En un momento te lo llevan a Mesa 4.", pickupHint(order(OrderState.READY, toSpace = true)))
+        assertEquals(
+            "Está listo. En un momento te lo llevan a Mesa 4.",
+            pickupHint(venue, order(OrderState.READY, toSpace = true)),
+        )
         assertEquals(
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este.",
             pickupCodeHint(order(OrderState.READY, toSpace = true)),
@@ -110,8 +116,11 @@ class PickupJourneyPolicyTest {
     fun pickUpAtBarIsCollectedAtTheBar() {
         // «Pasa por él» (`recoge_en_barra`): se pidió desde la pista, pero se recoge en la barra (Z01).
         val ready = atBar(order(OrderState.READY, toSpace = true))
-        assertEquals("Recógelo en la barra.", pickupHint(ready))
-        assertEquals("Tu comida se está preparando.", pickupHint(atBar(order(OrderState.PREPARING, toSpace = true))))
+        assertEquals("Recógelo en la barra.", pickupHint(venue, ready))
+        assertEquals(
+            "Tu comida se está preparando.",
+            pickupHint(venue, atBar(order(OrderState.PREPARING, toSpace = true))),
+        )
         assertEquals("Pasa a la barra por él y muéstralo en Caja.", pickupCodeHint(ready))
         assertTrue(shouldAutoRevealPickupCode(ready, hasCode = true))
         assertTrue(ready.needsPickupQr(deliveryRequiresQr = false))
@@ -204,9 +213,12 @@ class PickupJourneyPolicyTest {
             )
         assertEquals(CourtMoment.BOOKED, courtMoment(rental, start.minusSeconds(60)))
         assertEquals("En juego", pickupTitle(rental, start.plusSeconds(20 * 60)))
-        assertEquals("Te quedan 40 min en Cancha 2.", pickupHint(rental, start.plusSeconds(20 * 60)))
+        assertEquals("Te quedan 40 min en Cancha 2.", pickupHint(venue, rental, start.plusSeconds(20 * 60)))
         assertEquals("Últimos minutos", pickupTitle(rental, end.minusSeconds(4 * 60 + 30)))
-        assertEquals("Quedan 5 min: los reflectores ya bajaron.", pickupHint(rental, end.minusSeconds(4 * 60 + 30)))
+        assertEquals(
+            "Quedan 5 min: los reflectores ya bajaron.",
+            pickupHint(venue, rental, end.minusSeconds(4 * 60 + 30)),
+        )
         assertEquals("Terminada", pickupTitle(rental, end))
         assertNull(courtMoment(order(OrderState.PREPARING), start))
         assertEquals(1, courtMinutesLeft(end, end.minusSeconds(30)))

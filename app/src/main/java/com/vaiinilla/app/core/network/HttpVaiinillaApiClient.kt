@@ -14,6 +14,18 @@ import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// `catalogo`: el menú que Mesero y Caja usan para tomar pedidos sin internet.
+private val cacheableGetPaths = setOf("wallets/me", "pedidos", "catalogo")
+
+/**
+ * Solo la consulta sin parámetros se guarda: las del personal llevan `actualizado_desde` y las páginas
+ * siguientes un cursor, y cada valor nuevo sería una entrada más que nadie vuelve a leer.
+ */
+internal fun isCacheable(
+    path: String,
+    query: Map<String, String>,
+): Boolean = query.isEmpty() && path in cacheableGetPaths
+
 @Singleton
 class HttpVaiinillaApiClient
     @Inject
@@ -26,14 +38,11 @@ class HttpVaiinillaApiClient
     ) : VaiinillaApiClient {
         override val baseUrl: String = environment.apiBaseUrl
 
-        // `catalogo`: el menú que Mesero y Caja usan para tomar pedidos sin internet.
-        private val cacheableGetPaths = setOf("wallets/me", "pedidos", "catalogo")
-
         override fun readCachedGet(
             path: String,
             query: Map<String, String>,
         ): String? =
-            if (path in cacheableGetPaths) {
+            if (isCacheable(path, query)) {
                 responseCache.read(path, query)
             } else {
                 null
@@ -286,7 +295,7 @@ class HttpVaiinillaApiClient
                         method == "GET" &&
                         requireAuth &&
                         accessToken == null &&
-                        path in cacheableGetPaths
+                        isCacheable(path, query)
                     ) {
                         responseCache.write(path, query, cachedBody)
                     }

@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.OrderReservation
 import com.vaiinilla.app.domain.model.OrderSpace
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.ReservationState
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.components.canAnnounceArrival
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.operational.cashCollectionNotice
@@ -23,6 +24,8 @@ import org.junit.Test
 import java.time.Instant
 
 class ArrivalTest {
+    private val venue = VenueContext.STANDARD
+
     private fun order(
         state: String = "cobrado",
         destination: String = "para_llevar",
@@ -76,9 +79,9 @@ class ArrivalTest {
     @Test
     fun `una renta no ofrece ya llegue y caja la cobra como renta, no para llevar`() {
         assertFalse(rental().canAnnounceArrival(driveThru = true))
-        assertEquals("Renta de Pista 3", cashierPlaceLabel(rental()))
-        assertEquals("Renta", cashierPlaceLabel(rental(spaceName = null)))
-        assertEquals("Para llevar", cashierPlaceLabel(order()))
+        assertEquals("Renta de Pista 3", cashierPlaceLabel(venue, rental()))
+        assertEquals("Renta", cashierPlaceLabel(venue, rental(spaceName = null)))
+        assertEquals("Para llevar", cashierPlaceLabel(venue, order()))
         assertEquals(
             "Renta de Pista 3 cobrada · Cambio: ${moneyLabel("10.00")}",
             cashCollectionNotice(CashCollectionResult(rental(), amountReceived = "100.00", change = "10.00")),

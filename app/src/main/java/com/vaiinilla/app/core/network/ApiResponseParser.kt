@@ -1,6 +1,5 @@
 package com.vaiinilla.app.core.network
 
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -9,11 +8,7 @@ class ApiResponseParser
     @Inject
     constructor() {
         private val json =
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = true
-                isLenient = false
-            }
+            ApiJson.plain
 
         fun parseError(
             raw: String,

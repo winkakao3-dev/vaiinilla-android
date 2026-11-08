@@ -147,6 +147,8 @@ interface AdminSpacesRepository {
         type: SpaceType,
         idempotencyKey: String,
         capacity: Int? = null,
+        floor: Int? = null,
+        category: String? = null,
     ): Result<ManagedSpace>
 
     fun createBatch(
@@ -156,6 +158,8 @@ interface AdminSpacesRepository {
         to: Int,
         idempotencyKey: String,
         capacity: Int? = null,
+        floor: Int? = null,
+        category: String? = null,
     ): Result<SpaceBatchResult>
 
     fun update(
