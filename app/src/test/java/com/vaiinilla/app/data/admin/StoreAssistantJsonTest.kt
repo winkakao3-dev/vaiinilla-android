@@ -1,8 +1,12 @@
 package com.vaiinilla.app.data.admin
 
+import com.vaiinilla.app.data.inventory.InventoryUnit
+import com.vaiinilla.app.data.inventory.RecipeLine
+import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantProduct
 import com.vaiinilla.app.domain.admin.AssistantProductPhoto
+import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.steps
 import kotlinx.serialization.json.Json
@@ -167,5 +171,71 @@ class StoreAssistantJsonTest {
         assertEquals("ninguna", body["estacion_preparacion"]!!.jsonPrimitive.content)
         assertEquals("0", body["tiempo_estimado_min"]!!.jsonPrimitive.content)
         assertEquals(0, body["grupos_opcion"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `lee insumos, recetas y si la propuesta sigue`() {
+        val reply =
+            json.parseReply(
+                """
+                {"data":{"mensaje":"Así quedaría","opciones":[],"sigue":true,"propuesta":{"cambios":{},
+                "motivos":{"recetas":"Lo que lleva cada uno."},
+                "insumos":[{"nombre":"Clamato","unidad":"ml","existencia_inicial":3000,"minimo":500,"costo_unitario":null}],
+                "recetas":[{"producto_id":31,"producto":"Michelada","lineas":[
+                  {"insumo_id":5,"insumo":"Cerveza clara","unidad":"pieza","cantidad":1},
+                  {"insumo_id":null,"insumo":"Clamato","unidad":"ml","cantidad":120}]},
+                  {"producto_id":null,"producto":"Chelada","lineas":[]}]},"quedan_mensajes":50}}
+                """.trimIndent(),
+            )
+        val proposal = reply.proposal!!
+        assertTrue(proposal.continues)
+        assertEquals("Clamato", proposal.supplies.single().name)
+        assertEquals(3000.0, proposal.supplies.single().initialStock!!, 0.0)
+        assertNull(proposal.supplies.single().unitCost)
+        val recipe = proposal.recipes.single()
+        assertEquals(31, recipe.productId)
+        assertEquals(listOf(5L, null), recipe.lines.map { it.supplyId })
+        assertEquals("Lo que lleva cada uno.", proposal.sectionReasons["recetas"])
+        assertEquals("Cerveza clara 1 pz · Clamato 120 ml", AssistantLabels.recipe(recipe))
+        assertEquals("En mililitros · tienes 3,000 ml · te avisa con 500 ml", AssistantLabels.supply(proposal.supplies.single()))
+        // Insumos y recetas se guardan después del menú, y las recetas al final.
+        assertEquals(
+            listOf(AssistantStep.Supply::class, AssistantStep.Recipe::class),
+            proposal.steps().map { it::class },
+        )
+    }
+
+    @Test
+    fun `una propuesta solo con recetas no se pierde`() {
+        val reply =
+            json.parseReply(
+                """{"data":{"mensaje":"Listo","opciones":[],"propuesta":{"recetas":[{"producto_id":2,"producto":"Café",
+                "lineas":[{"insumo_id":9,"insumo":"Café molido","unidad":"g","cantidad":"18.5"}]}]}}}""",
+            )
+        assertEquals(false, reply.proposal!!.continues)
+        assertEquals(18.5, reply.proposal!!.recipes.single().lines.single().quantity, 0.0)
+    }
+
+    @Test
+    fun `la receta conserva lo que ya tenia y cambia solo lo que dice el asistente`() {
+        val current =
+            listOf(
+                RecipeLine(5, "Cerveza clara", InventoryUnit.PIECE, 2.0, null, null, 18.0),
+                RecipeLine(7, "Sal", InventoryUnit.GRAM, 3.0, null, null, 0.1),
+                RecipeLine(5, "Cerveza clara", InventoryUnit.PIECE, 1.0, 40, "Doble", 18.0),
+            )
+        val merged =
+            mergeAssistantRecipe(
+                current,
+                listOf(
+                    AssistantRecipeLine(5, "Cerveza clara", "pieza", 1.0),
+                    AssistantRecipeLine(9, "Clamato", "ml", 120.0),
+                ),
+            )
+        assertEquals(
+            listOf(Triple(7L, null, 3.0), Triple(5L, 40, 1.0), Triple(5L, null, 1.0), Triple(9L, null, 120.0)),
+            merged.map { Triple(it.supplyId, it.optionId, it.quantity) },
+        )
+        assertEquals(assistantNameKey("Limón "), assistantNameKey("limon"))
     }
 }

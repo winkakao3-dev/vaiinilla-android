@@ -584,6 +584,12 @@ private fun ProposalSoFar(
                     if (proposal.invites.isNotEmpty()) {
                         add("Tu equipo" to countLabel(proposal.invites.size, "invitación", "invitaciones"))
                     }
+                    if (proposal.supplies.isNotEmpty()) {
+                        add("Insumos" to countLabel(proposal.supplies.size, "insumo", "insumos"))
+                    }
+                    if (proposal.recipes.isNotEmpty()) {
+                        add("Recetas" to countLabel(proposal.recipes.size, "receta", "recetas"))
+                    }
                 }
             rows.forEachIndexed { index, (title, detail) ->
                 if (index > 0) AdminRowDivider(colors)
@@ -840,6 +846,31 @@ private fun AssistantReview(
                     }
                 }
             }
+            if (proposal.supplies.isNotEmpty()) {
+                item {
+                    ReviewSection("Insumos", colors, reasons["insumos"] ?: "Se dan de alta en tu inventario.") {
+                        proposal.supplies.forEachIndexed { index, supply ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(supply.name, AssistantLabels.supply(supply), colors)
+                        }
+                    }
+                }
+            }
+            if (proposal.recipes.isNotEmpty()) {
+                item {
+                    ReviewSection(
+                        "Recetas",
+                        colors,
+                        reasons["recetas"]
+                            ?: "Cada venta descuenta esto de tu inventario. Lo demás de cada receta se queda igual.",
+                    ) {
+                        proposal.recipes.forEachIndexed { index, recipe ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(recipe.productName, AssistantLabels.recipe(recipe), colors)
+                        }
+                    }
+                }
+            }
             if (proposal.productPhotos.isNotEmpty()) {
                 item {
                     ReviewSection(
@@ -1029,7 +1060,9 @@ private val PHOTO_TOKEN = Regex("""\[(foto\d+)]""")
 private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, mimeType)
 
 private val AssistantProposal.itemCount: Int
-    get() = changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size
+    get() =
+        changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size +
+            supplies.size + recipes.size
 
 @Composable
 private fun ChangeRow(

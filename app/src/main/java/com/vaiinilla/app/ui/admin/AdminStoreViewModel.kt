@@ -338,7 +338,8 @@ class AdminStoreViewModel
 
         /**
          * Aplica la propuesta paso por paso con las rutas de siempre. Si algo falla sigue con lo demás y enseña qué
-         * faltó; aceptar otra vez reintenta solo eso, con las mismas llaves. [onDone] cierra el asistente.
+         * faltó; aceptar otra vez reintenta solo eso, con las mismas llaves. Al guardar todo, la plática sigue con lo
+         * que le falta a la tienda; [onDone] cierra el asistente solo si ya no caben más mensajes.
          */
         fun acceptProposal(onDone: () -> Unit) {
             val current = _assistant.value
@@ -379,10 +380,32 @@ class AdminStoreViewModel
                         )
                     }
                     refresh()
-                    if (failures.isEmpty()) {
+                    val saved = _assistant.value
+                    if (failures.isEmpty() && saved.remainingMessages <= 2) {
                         _assistant.value = StoreAssistantState()
                         showNotice("Tu tienda quedó configurada", isError = false)
                         onDone()
+                    } else if (failures.isEmpty()) {
+                        showNotice("Guardado en tu tienda", isError = false)
+                        val messages =
+                            saved.messages +
+                                AssistantMessage(
+                                    fromOwner = true,
+                                    text = if (proposal.continues) FOLLOW_UP_CONTINUES else FOLLOW_UP_DONE,
+                                )
+                        _assistant.value =
+                            saved.copy(
+                                messages = messages,
+                                options = emptyList(),
+                                proposal = null,
+                                reviewing = false,
+                                applying = false,
+                                progress = null,
+                                proposalKey = null,
+                                appliedSteps = emptySet(),
+                                failures = emptyList(),
+                            )
+                        askAssistant(messages)
                     } else {
                         _assistant.value =
                             _assistant.value.copy(
@@ -625,6 +648,10 @@ class AdminStoreViewModel
     }
 
 /** El servidor rechazó lo que se mandó por largo o por pesado (mensaje con más letras de las que acepta, 413). */
+// Lo que la app dice por el dueño al aceptar, para que el asistente siga con lo que falta.
+internal const val FOLLOW_UP_CONTINUES = "Ya la acepté. Sigue con lo demás."
+internal const val FOLLOW_UP_DONE = "Ya la acepté. ¿Qué le falta a mi tienda?"
+
 internal fun assistantInputTooLong(error: Throwable): Boolean {
     val code = (error as? CatalogRepositoryException)?.code
     return code in INPUT_TOO_LONG_CODES ||
