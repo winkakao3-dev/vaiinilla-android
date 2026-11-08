@@ -81,8 +81,10 @@ internal fun AdminInventorySection(
     assistant: InventoryAssistantViewModel? = null,
     /** Mermas y conteo: Cocina los hace aunque no pueda editar. */
     canCount: Boolean = !readOnly,
-    /** Cocina no ve costos ni el reporte (el servidor tampoco se los manda). */
+    /** Cocina ve costos solo con el permiso del admin (el servidor tampoco se los manda sin él). */
     showCosts: Boolean = true,
+    /** El reporte es de admin y Caja. */
+    showReport: Boolean = showCosts,
     /** El interruptor «Cocina puede editar el inventario»; solo el admin. */
     ownerControls: Boolean = true,
 ) {
@@ -106,7 +108,7 @@ internal fun AdminInventorySection(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                InventoryTab.entries.filter { showCosts || it != InventoryTab.REPORT }.forEach { tab ->
+                InventoryTab.entries.filter { showReport || it != InventoryTab.REPORT }.forEach { tab ->
                     ChipButton(label = tab.label, enabled = true, colors = colors, selected = state.tab == tab) {
                         viewModel.selectTab(tab)
                     }

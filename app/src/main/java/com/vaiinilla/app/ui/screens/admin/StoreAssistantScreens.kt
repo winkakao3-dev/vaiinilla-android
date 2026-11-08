@@ -1142,6 +1142,8 @@ private fun ChangeRow(
 internal fun AssistantEntryCard(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
+    title: String = "Armarlo con el asistente",
+    subtitle: String = "Te pregunta cómo trabajas y te deja todo listo para revisar",
     onOpen: () -> Unit,
 ) {
     Row(
@@ -1156,13 +1158,13 @@ internal fun AssistantEntryCard(
         Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accentInk, modifier = Modifier.size(22.dp))
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(
-                "Armarlo con el asistente",
+                title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black,
                 color = colors.accentInk,
             )
             Text(
-                "Te pregunta cómo trabajas y te deja todo listo para revisar",
+                subtitle,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.accentInk.copy(alpha = 0.8f),

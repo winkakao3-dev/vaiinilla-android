@@ -194,7 +194,7 @@ fun InventoryAlertsCard(
     }
 }
 
-/** El Inventario completo de Cocina: sin costos ni reporte; editar depende del permiso del admin. */
+/** El Inventario completo de Cocina, sin reporte. Con el permiso del admin edita y ve costos (es quien compra). */
 @Composable
 fun KitchenInventoryDialog(
     inventory: AdminInventoryViewModel,
@@ -215,7 +215,8 @@ fun KitchenInventoryDialog(
                 onBack = onDismiss,
                 assistant = assistant,
                 canCount = true,
-                showCosts = false,
+                showCosts = inventory.uiState.value.supplies?.kitchenEdits == true,
+                showReport = false,
                 ownerControls = false,
             )
         }

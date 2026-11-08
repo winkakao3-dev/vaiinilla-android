@@ -204,7 +204,7 @@ private fun StoreCover(
             )
         }
         onOpenAssistant?.let { open ->
-            item(key = "asistente") { AssistantEntryCard(colors, Modifier.adminRise(1), open) }
+            item(key = "asistente") { AssistantEntryCard(colors, Modifier.adminRise(1), onOpen = open) }
         }
         item { StoreHero(state.images, colors, Modifier.adminRise(1)) { onOpen(StorePage.PRESENCE) } }
         item {
