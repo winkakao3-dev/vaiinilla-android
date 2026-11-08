@@ -80,6 +80,8 @@ interface CustomerAssistantRepository {
     fun reply(
         turns: List<CustomerAssistantTurn>,
         establishmentId: String? = null,
+        /** Dónde está y qué sabe la app del cliente; va como primer mensaje (ver AssistantPlaceNote). */
+        context: String? = null,
     ): Result<CustomerAssistantReply>
 
     /** Compra sin cuenta y aún sin darse de alta como invitado: antes de platicar hay que pedirle su nombre. */

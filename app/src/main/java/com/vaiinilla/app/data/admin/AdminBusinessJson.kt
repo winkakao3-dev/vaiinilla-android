@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.admin
 import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.admin.AdminMetric
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.FORCED_CLOSE_REASON_MAX
 import com.vaiinilla.app.domain.admin.ForcedCloseResult
@@ -107,7 +108,8 @@ class AdminBusinessJson {
 
     fun encodeFlow(flow: StoreFlow): String =
         buildJsonObject {
-            put("tipo", flow.typeWire)
+            // El servidor rechaza `tipo` en un hotel aunque no cambie: solo la plataforma lo mueve.
+            if (flow.typeWire != BusinessType.HOTEL.wire) put("tipo", flow.typeWire)
             put("entrega_requiere_qr", flow.deliveryRequiresQr)
             put("permite_pago_al_final", flow.allowsPayAtEnd)
             put("permite_saldo", flow.allowsBalance)

@@ -84,8 +84,6 @@ import com.vaiinilla.app.ui.order.MenuWaiterIcon
 import com.vaiinilla.app.ui.order.MenuWaiterPhase
 import com.vaiinilla.app.ui.order.menuWaiterPillLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
-import com.vaiinilla.app.ui.theme.SeaGlassButton
-import com.vaiinilla.app.ui.theme.SeaGlassTone
 
 /** Lo que lleva el carrito, para la barra que junta "Ver carrito" y "Mesero". */
 data class MenuCartBar(
@@ -196,7 +194,8 @@ internal fun MenuWaiterLayer(
                                 scaleOut(targetScale = 0.92f, transformOrigin = TransformOrigin(0f, 1f))
                         },
                 ) {
-                    WaiterPill(state = state)
+                    // Junto a «Pregúntame qué pedir» va corta, para que quepan las dos (Doop L02c).
+                    WaiterPill(state = state, compact = onOpenAssistant != null)
                 }
                 if (onOpenAssistant != null) {
                     AnimatedVisibility(
@@ -214,21 +213,30 @@ internal fun MenuWaiterLayer(
 }
 
 @Composable
-private fun WaiterPill(state: MenuWaiterCallState) {
+private fun WaiterPill(
+    state: MenuWaiterCallState,
+    compact: Boolean = false,
+) {
     val venue = LocalVenueContext.current
+    val colors = LocalVaiinillaColors.current
     val haptics = rememberVaiinillaHaptics()
     val label = menuWaiterPillLabel(venue, state.call, state.cooldown)
     val waiting = state.call == null && state.cooldown > 0
-    SeaGlassButton(
-        tone = if (state.call != null) SeaGlassTone.lima else SeaGlassTone.vainilla,
-        onClick = {
-            haptics.click()
-            state.tap()
-        },
-        enabled = !waiting,
+    // Doop L02c: crema sólida en reposo y lima mientras la llamada sigue abierta; el vidrio se perdía sobre las fotos.
+    val calling = state.call != null
+    val ink = if (calling) colors.accentInk else colors.paper
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier =
             Modifier
                 .heightIn(min = 52.dp)
+                .shadow(18.dp, RoundedCornerShape(percent = 50), clip = false)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(if (calling) colors.accent else colors.ink)
+                .clickable(enabled = !waiting) {
+                    haptics.click()
+                    state.tap()
+                }.graphicsLayer { alpha = if (waiting) 0.6f else 1f }
                 .testTag(MENU_WAITER_PILL_TAG)
                 // Al limpiar la semántica se va también el toque del botón: se vuelve a declarar para TalkBack.
                 .clearAndSetSemantics {
@@ -246,14 +254,15 @@ private fun WaiterPill(state: MenuWaiterCallState) {
                 },
     ) {
         Spacer(Modifier.width(18.dp))
-        WaiterIcon(icon = label.icon)
+        CompositionLocalProvider(LocalContentColor provides ink) { WaiterIcon(icon = label.icon) }
         AnimatedContent(
-            targetState = label.title,
+            targetState = if (compact) label.shortTitle else label.title,
             transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
             label = "menu-waiter-title",
         ) { title ->
             Text(
                 title,
+                color = ink,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black,
                 maxLines = 1,
@@ -265,13 +274,52 @@ private fun WaiterPill(state: MenuWaiterCallState) {
 }
 
 /**
+ * Doop L02c (3): con productos y sin mesa (para llevar, o sin sesión para llamar), la misma barra larga con el
+ * asistente y «Pedir ya», sin «Mesero» porque no hay a quién llamar. Va arriba de la barra de pestañas.
+ */
+@Composable
+fun MenuCartLayer(
+    cart: MenuCartBar?,
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    onOpenAssistant: (() -> Unit)? = null,
+) {
+    val reduced = reducedMotion()
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = visible && cart != null,
+            enter =
+                if (reduced) {
+                    fadeIn()
+                } else {
+                    fadeIn(tween(200)) + slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it }
+                },
+            exit = if (reduced) fadeOut() else fadeOut(tween(160)) + slideOutVertically { it / 2 },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(
+                        start = VaiinillaBottomNavSideMargin,
+                        end = VaiinillaBottomNavSideMargin,
+                        bottom = VaiinillaBottomNavTop + 10.dp,
+                    ),
+        ) {
+            val shown = remember { mutableStateOf(cart) }
+            if (cart != null) shown.value = cart
+            shown.value?.let { CartWaiterBar(state = null, cart = it, onOpenAssistant = onOpenAssistant) }
+        }
+    }
+}
+/**
  * Una sola barra lima: "Pedir ya · N" y el total abren el carrito para pagar; adentro, a la derecha, "Mesero" llama.
  * Antes era de tinta y decía "Ver carrito": quien no conoce la app no la veía como el paso para pedir (Doop L02b).
  * Si el negocio no tiene llamadas, queda solo el carrito. Salta un poco con cada producto que entra.
  */
 @Composable
 private fun CartWaiterBar(
-    state: MenuWaiterCallState,
+    /** null sin mesa: no hay a quién llamar y la barra queda sin «Mesero». */
+    state: MenuWaiterCallState?,
     cart: MenuCartBar,
     onOpenAssistant: (() -> Unit)? = null,
 ) {
@@ -338,9 +386,9 @@ private fun CartWaiterBar(
             text = cart.total,
             style = TextStyle(fontSize = 15.5.sp, fontWeight = FontWeight.Black),
             color = colors.accentInk,
-            modifier = Modifier.padding(end = if (state.phase == MenuWaiterPhase.UNAVAILABLE) 13.dp else 8.dp),
+            modifier = Modifier.padding(end = if (state == null || state.phase == MenuWaiterPhase.UNAVAILABLE) 13.dp else 8.dp),
         )
-        if (state.phase != MenuWaiterPhase.UNAVAILABLE) WaiterSegment(state = state)
+        if (state != null && state.phase != MenuWaiterPhase.UNAVAILABLE) WaiterSegment(state = state)
     }
 }
 
@@ -459,7 +507,8 @@ private fun AssistantDot(onOpen: () -> Unit) {
                 .minimumInteractiveComponentSize()
                 .size(42.dp)
                 .clip(RoundedCornerShape(percent = 50))
-                .background(colors.ink)
+                // Tinta oscura sobre la barra lima en los dos temas (Doop L02c); colors.ink es crema en oscuro.
+                .background(colors.accentInk)
                 .clickable(role = Role.Button) {
                     haptics.click()
                     onOpen()

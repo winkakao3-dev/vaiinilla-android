@@ -57,6 +57,41 @@ data class AssistantInvite(
     val role: String,
 )
 
+/** Horario para rentar pistas o canchas; [weekDays] y [durations] en null dejan los que ya tiene. */
+data class AssistantCourtHours(
+    val opening: String,
+    val closing: String,
+    val weekDays: List<Int>?,
+    val durations: List<Int>?,
+)
+
+/** Un insumo nuevo del inventario; [unit] es la unidad como la manda el servidor ("ml", "pieza"…). */
+data class AssistantSupply(
+    val name: String,
+    val unit: String,
+    val initialStock: Double?,
+    val minimum: Double?,
+    val unitCost: Double?,
+)
+
+/** Una línea de receta; [supplyId] es null cuando el insumo viene nuevo en la misma propuesta. */
+data class AssistantRecipeLine(
+    val supplyId: Long?,
+    val supplyName: String,
+    val unit: String,
+    val quantity: Double,
+)
+
+/**
+ * Lo que gasta una venta de un producto. [productId] es null si el producto viene nuevo en el menú de la misma
+ * propuesta. Al guardar solo se agregan o cambian estas líneas; lo demás de la receta se queda.
+ */
+data class AssistantRecipe(
+    val productId: Int?,
+    val productName: String,
+    val lines: List<AssistantRecipeLine>,
+)
+
 /**
  * Lo que el asistente propone. [patchBody] es el JSON tal cual para `PATCH /establecimiento/configuracion`
  * (null si no cambia ningún ajuste): el servidor ya lo validó y solo trae lo que cambia. Lo demás se crea con
@@ -71,6 +106,11 @@ data class AssistantProposal(
     val storePhotos: Map<String, String> = emptyMap(),
     val productPhotos: List<AssistantProductPhoto> = emptyList(),
     val sectionReasons: Map<String, String> = emptyMap(),
+    val supplies: List<AssistantSupply> = emptyList(),
+    val recipes: List<AssistantRecipe> = emptyList(),
+    val courtHours: AssistantCourtHours? = null,
+    /** El asistente todavía tiene algo más que proponer después de esta ("sigue"). */
+    val continues: Boolean = false,
 ) {
     val productCount: Int get() = menu.sumOf { it.products.size }
 }
@@ -130,6 +170,24 @@ sealed interface AssistantStep {
     ) : AssistantStep {
         override val label = "Invitar a ${invite.email}"
     }
+
+    data class CourtHours(
+        val hours: AssistantCourtHours,
+    ) : AssistantStep {
+        override val label = "Horario de las pistas"
+    }
+
+    data class Supply(
+        val supply: AssistantSupply,
+    ) : AssistantStep {
+        override val label = "Insumo: ${supply.name}"
+    }
+
+    data class Recipe(
+        val recipe: AssistantRecipe,
+    ) : AssistantStep {
+        override val label = "Receta de ${recipe.productName}"
+    }
 }
 
 /** Los pasos en el orden en que se aplican: primero ajustes y lugares, luego menú, fotos y al final el equipo. */
@@ -137,7 +195,11 @@ fun AssistantProposal.steps(): List<AssistantStep> =
     buildList {
         patchBody?.let { add(AssistantStep.Settings(it, changes.associate { c -> c.field to c.title })) }
         spaces.forEach { add(AssistantStep.Spaces(it)) }
+        courtHours?.let { add(AssistantStep.CourtHours(it)) }
         menu.forEach { add(AssistantStep.Menu(it)) }
+        // Las recetas van después del menú y de los insumos: pueden usar productos e insumos recién creados.
+        supplies.forEach { add(AssistantStep.Supply(it)) }
+        recipes.forEach { add(AssistantStep.Recipe(it)) }
         productPhotos.forEach { add(AssistantStep.ProductPhoto(it)) }
         storePhotos.forEach { (kind, id) -> add(AssistantStep.StorePhoto(kind, id)) }
         invites.forEach { add(AssistantStep.Invite(it)) }
@@ -153,6 +215,73 @@ data class AssistantReply(
 
 /** Cómo se lee cada ajuste en la revisión; los títulos son los de Flujo de mi tienda. */
 object AssistantLabels {
+    private val unitShort =
+        mapOf(
+            "pieza" to "pz",
+            "botella" to "bot",
+            "ml" to "ml",
+            "l" to "L",
+            "g" to "g",
+            "kg" to "kg",
+            "oz" to "oz",
+            "porcion" to "porc",
+        )
+    private val unitLong =
+        mapOf(
+            "pieza" to "piezas",
+            "botella" to "botellas",
+            "ml" to "mililitros",
+            "l" to "litros",
+            "g" to "gramos",
+            "kg" to "kilos",
+            "oz" to "onzas",
+            "porcion" to "porciones",
+        )
+
+    /** "120 ml", "1.5 kg", "3,000 ml". */
+    fun amount(
+        quantity: Double,
+        unit: String,
+    ): String {
+        val number =
+            if (quantity % 1.0 == 0.0) {
+                "%,d".format(java.util.Locale.US, quantity.toLong())
+            } else {
+                "%,.3f".format(java.util.Locale.US, quantity).trimEnd('0').trimEnd('.')
+            }
+        return "$number ${unitShort[unit] ?: unit}"
+    }
+
+    fun supply(supply: AssistantSupply): String =
+        listOfNotNull(
+            "En ${unitLong[supply.unit] ?: supply.unit}",
+            supply.initialStock?.let { "tienes ${amount(it, supply.unit)}" },
+            supply.minimum?.takeIf { it > 0 }?.let { "te avisa con ${amount(it, supply.unit)}" },
+            supply.unitCost?.takeIf { it > 0 }?.let { "cuesta ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
+        ).joinToString(" · ")
+
+    /** "15:00 a 03:00 · todos los días · 1 h, 2 h". */
+    fun courtHours(hours: AssistantCourtHours): String {
+        val days =
+            hours.weekDays?.let { list ->
+                if (list.size ==
+                    7
+                ) {
+                    "todos los días"
+                } else {
+                    list.joinToString(", ") { WEEK_DAYS.getOrElse(it - 1) { "$it" } }
+                }
+            }
+        val durations =
+            hours.durations?.joinToString(", ") { if (it % 60 == 0) "${it / 60} h" else "${it / 60} h ${it % 60} min" }
+        return listOfNotNull("${hours.opening} a ${hours.closing}", days, durations).joinToString(" · ")
+    }
+
+    private val WEEK_DAYS = listOf("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
+
+    fun recipe(recipe: AssistantRecipe): String =
+        recipe.lines.joinToString(" · ") { "${it.supplyName} ${amount(it.quantity, it.unit)}" }
+
     fun title(field: String): String =
         when (field) {
             "tipo" -> "Tipo de negocio"

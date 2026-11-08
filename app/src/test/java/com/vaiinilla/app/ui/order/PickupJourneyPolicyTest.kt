@@ -84,6 +84,11 @@ class PickupJourneyPolicyTest {
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este.",
             pickupCodeHint(order(OrderState.READY, toSpace = true)),
         )
+        // En un hotel la «mesa» es la habitación: no hay mesero que la lleve.
+        assertEquals(
+            "Te lo llevan a tu habitación. Si te piden el código, muéstralo.",
+            pickupCodeHint(order(OrderState.READY, toSpace = true), VenueContext.of("hotel")),
+        )
     }
 
     @Test

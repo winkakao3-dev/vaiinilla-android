@@ -52,12 +52,18 @@ data class InventorySupply(
     val low: Boolean,
     val active: Boolean,
     val usedBy: Int,
+    val supplierName: String? = null,
+    val supplierPhone: String? = null,
 )
 
 data class InventorySupplies(
     val supplies: List<InventorySupply>,
     val lowCount: Int,
     val totalValue: Double,
+    /** Quien ve la lista puede dar de alta y editar (Cocina solo con el permiso del admin). */
+    val canEdit: Boolean = true,
+    /** El admin dejó a Cocina editar el inventario. */
+    val kitchenEdits: Boolean = false,
 )
 
 /**
@@ -72,6 +78,9 @@ data class InventorySupplyInput(
     val unitCost: Double?,
     val initialStock: Double? = null,
     val active: Boolean? = null,
+    /** "" lo borra; null no lo manda. */
+    val supplierName: String? = null,
+    val supplierPhone: String? = null,
 )
 
 data class InventoryProduct(
@@ -152,6 +161,59 @@ data class MovementResult(
     val duplicate: Boolean,
 )
 
+data class InventoryAlertSupply(
+    val id: Long,
+    val name: String,
+    val unit: InventoryUnit,
+    val stock: Double,
+    val minimum: Double,
+    /** Promedio por día de lo vendido en los últimos días (`InventoryAlerts.days`). */
+    val dailyUse: Double,
+    val daysLeft: Int?,
+    /** Lo que falta para cubrir mañana; solo en `tomorrow`. */
+    val shortBy: Double?,
+    val supplierName: String?,
+    val supplierPhone: String?,
+)
+
+/** Un producto que el inventario agotó y los insumos de su receta que ya no alcanzan. */
+data class InventorySoldOut(
+    val id: Int,
+    val name: String,
+    val missing: List<String>,
+)
+
+/** `GET /inventario/avisos`: lo que va a faltar, calculado con las ventas de los últimos [days] días. */
+data class InventoryAlerts(
+    val days: Int,
+    val tomorrow: List<InventoryAlertSupply>,
+    val soldOut: List<InventorySoldOut>,
+    val belowMinimum: List<InventoryAlertSupply>,
+) {
+    val total: Int get() = tomorrow.size + soldOut.size + belowMinimum.size
+
+    /** El primer proveedor con teléfono de lo que falta: el de «Llamar» en los avisos. */
+    val firstSupplier: InventoryAlertSupply?
+        get() = (tomorrow + belowMinimum).firstOrNull { !it.supplierPhone.isNullOrBlank() }
+}
+
+data class InventoryChatMessage(
+    val fromStaff: Boolean,
+    val text: String,
+)
+
+data class InventoryAssistantReply(
+    val message: String,
+    val options: List<String>,
+    val remainingMessages: Int,
+)
+
+/** Lo que sugiere el asistente para un producto; [codes] son los del catálogo (`gluten`, `lacteos`…). */
+data class AllergenSuggestion(
+    val codes: List<String>,
+    val reason: String?,
+)
+
 interface InventoryRepository {
     fun supplies(includeInactive: Boolean = false): Result<InventorySupplies>
 
@@ -210,6 +272,23 @@ interface InventoryRepository {
         fromIso: String?,
         toIso: String?,
     ): Result<InventoryReport>
+
+    fun alerts(): Result<InventoryAlerts> = Result.failure(UnsupportedOperationException("Sin avisos de inventario."))
+
+    /** `PATCH /inventario/permisos` (solo admin): regresa cómo quedó. */
+    fun setKitchenEdits(allowed: Boolean): Result<Boolean> =
+        Result.failure(UnsupportedOperationException("Sin permisos de inventario."))
+
+    fun askAssistant(messages: List<InventoryChatMessage>): Result<InventoryAssistantReply> =
+        Result.failure(UnsupportedOperationException("Sin asistente de inventario."))
+
+    /** Solo sugiere: no guarda nada ni marca el producto como revisado. */
+    fun suggestAllergens(
+        name: String,
+        description: String?,
+        ingredients: String?,
+        productId: Int?,
+    ): Result<AllergenSuggestion> = Result.failure(UnsupportedOperationException("Sin sugerencia de alérgenos."))
 }
 
 @Serializable
@@ -230,6 +309,8 @@ private data class SupplyDto(
     @SerialName("bajo_minimo") val bajoMinimo: Boolean = false,
     val activo: Boolean = true,
     @SerialName("productos_que_lo_usan") val productos: Int = 0,
+    @SerialName("proveedor_nombre") val proveedorNombre: String? = null,
+    @SerialName("proveedor_telefono") val proveedorTelefono: String? = null,
 ) {
     fun toDomain() =
         InventorySupply(
@@ -244,6 +325,8 @@ private data class SupplyDto(
             bajoMinimo,
             activo,
             productos,
+            proveedorNombre?.takeIf(String::isNotBlank),
+            proveedorTelefono?.takeIf(String::isNotBlank),
         )
 }
 
@@ -255,9 +338,21 @@ private data class SummaryDto(
 )
 
 @Serializable
+private data class PermissionsDto(
+    @SerialName("puede_editar") val puedeEditar: Boolean = true,
+    @SerialName("cocina_edita") val cocinaEdita: Boolean = false,
+)
+
+@Serializable
 private data class SuppliesDto(
     val insumos: List<SupplyDto>,
     val resumen: SummaryDto = SummaryDto(),
+    val permisos: PermissionsDto = PermissionsDto(),
+)
+
+@Serializable
+private data class KitchenPermissionBody(
+    @SerialName("cocina_edita") val cocinaEdita: Boolean,
 )
 
 @Serializable
@@ -269,6 +364,88 @@ private data class SupplyBody(
     @SerialName("costo_unitario") val costoUnitario: Double? = null,
     @SerialName("existencia_inicial") val existenciaInicial: Double? = null,
     val activo: Boolean? = null,
+    @SerialName("proveedor_nombre") val proveedorNombre: String? = null,
+    @SerialName("proveedor_telefono") val proveedorTelefono: String? = null,
+)
+
+@Serializable
+private data class SupplierDto(
+    val nombre: String? = null,
+    val telefono: String? = null,
+)
+
+@Serializable
+private data class AlertSupplyDto(
+    val id: Long,
+    val nombre: String,
+    val unidad: String,
+    val existencia: Double = 0.0,
+    val minimo: Double = 0.0,
+    @SerialName("consumo_diario") val consumoDiario: Double = 0.0,
+    @SerialName("alcanza_dias") val alcanzaDias: Int? = null,
+    val falta: Double? = null,
+    val proveedor: SupplierDto? = null,
+) {
+    fun toDomain() =
+        InventoryAlertSupply(
+            id = id,
+            name = nombre,
+            unit = InventoryUnit.of(unidad),
+            stock = existencia,
+            minimum = minimo,
+            dailyUse = consumoDiario,
+            daysLeft = alcanzaDias,
+            shortBy = falta,
+            supplierName = proveedor?.nombre?.takeIf(String::isNotBlank),
+            supplierPhone = proveedor?.telefono?.takeIf(String::isNotBlank),
+        )
+}
+
+@Serializable
+private data class SoldOutDto(
+    val id: Int,
+    val nombre: String,
+    val faltan: List<String> = emptyList(),
+)
+
+@Serializable
+private data class AlertsDto(
+    @SerialName("dias_consumo") val dias: Int = 7,
+    @SerialName("para_manana") val manana: List<AlertSupplyDto> = emptyList(),
+    val agotados: List<SoldOutDto> = emptyList(),
+    @SerialName("bajo_minimo") val bajoMinimo: List<AlertSupplyDto> = emptyList(),
+)
+
+@Serializable
+private data class ChatLineBody(
+    val rol: String,
+    val texto: String,
+)
+
+@Serializable
+private data class ChatBody(
+    val mensajes: List<ChatLineBody>,
+)
+
+@Serializable
+private data class ChatReplyDto(
+    val mensaje: String,
+    val opciones: List<String> = emptyList(),
+    @SerialName("quedan_mensajes") val quedan: Int = Int.MAX_VALUE,
+)
+
+@Serializable
+private data class AllergenBody(
+    val nombre: String,
+    val descripcion: String? = null,
+    val ingredientes: String? = null,
+    @SerialName("producto_id") val productoId: Int? = null,
+)
+
+@Serializable
+private data class AllergenDto(
+    val alergenos: List<String> = emptyList(),
+    val motivo: String? = null,
 )
 
 @Serializable
@@ -458,7 +635,13 @@ class RemoteInventoryRepository(
             .get("inventario/insumos", if (includeInactive) mapOf("inactivos" to "true") else emptyMap())
             .mapCatching { raw ->
                 val dto = json.decodeFromString<Envelope<SuppliesDto>>(raw).data
-                InventorySupplies(dto.insumos.map { it.toDomain() }, dto.resumen.bajoMinimo, dto.resumen.valorTotal)
+                InventorySupplies(
+                    dto.insumos.map { it.toDomain() },
+                    dto.resumen.bajoMinimo,
+                    dto.resumen.valorTotal,
+                    canEdit = dto.permisos.puedeEditar,
+                    kitchenEdits = dto.permisos.cocinaEdita,
+                )
             }.mapApiErrors()
 
     private fun body(input: InventorySupplyInput) =
@@ -471,6 +654,8 @@ class RemoteInventoryRepository(
                 input.unitCost,
                 input.initialStock,
                 input.active,
+                input.supplierName,
+                input.supplierPhone,
             ),
         )
 
@@ -614,6 +799,59 @@ class RemoteInventoryRepository(
                 }
             }.mapApiErrors()
     }
+
+    override fun setKitchenEdits(allowed: Boolean): Result<Boolean> =
+        apiClient
+            .patch("inventario/permisos", json.encodeToString(KitchenPermissionBody(allowed)))
+            .mapCatching { json.decodeFromString<Envelope<PermissionsDto>>(it).data.cocinaEdita }
+            .mapApiErrors()
+
+    override fun alerts(): Result<InventoryAlerts> =
+        apiClient
+            .get("inventario/avisos")
+            .mapCatching { raw ->
+                val dto = json.decodeFromString<Envelope<AlertsDto>>(raw).data
+                InventoryAlerts(
+                    days = dto.dias,
+                    tomorrow = dto.manana.map(AlertSupplyDto::toDomain),
+                    soldOut = dto.agotados.map { InventorySoldOut(it.id, it.nombre, it.faltan) },
+                    belowMinimum = dto.bajoMinimo.map(AlertSupplyDto::toDomain),
+                )
+            }.mapApiErrors()
+
+    override fun askAssistant(messages: List<InventoryChatMessage>): Result<InventoryAssistantReply> =
+        apiClient
+            .post(
+                "inventario/asistente",
+                json.encodeToString(
+                    ChatBody(messages.map { ChatLineBody(if (it.fromStaff) "personal" else "asistente", it.text) }),
+                ),
+            ).mapCatching {
+                val dto = json.decodeFromString<Envelope<ChatReplyDto>>(it).data
+                InventoryAssistantReply(dto.mensaje.trim(), dto.opciones.filter(String::isNotBlank), dto.quedan)
+            }.mapApiErrors()
+
+    override fun suggestAllergens(
+        name: String,
+        description: String?,
+        ingredients: String?,
+        productId: Int?,
+    ): Result<AllergenSuggestion> =
+        apiClient
+            .post(
+                "catalogo/productos/alergenos-sugeridos",
+                json.encodeToString(
+                    AllergenBody(
+                        name.trim(),
+                        description?.trim()?.ifBlank { null },
+                        ingredients?.trim()?.ifBlank { null },
+                        productId,
+                    ),
+                ),
+            ).mapCatching {
+                val dto = json.decodeFromString<Envelope<AllergenDto>>(it).data
+                AllergenSuggestion(dto.alergenos.distinct(), dto.motivo?.trim()?.ifBlank { null })
+            }.mapApiErrors()
 
     override fun report(
         fromIso: String?,

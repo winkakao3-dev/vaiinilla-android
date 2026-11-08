@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.data.assistant.CustomerAssistantJson
 import com.vaiinilla.app.domain.assistant.AssistantCourtCard
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
@@ -81,6 +82,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Lo que el asistente de pedidos puede hacer fuera de la plática; lo conecta la navegación. */
@@ -125,6 +127,7 @@ fun CustomerAssistantScreen(
     // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
     com.vaiinilla.app.ui.components.ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
+    val venue = LocalVenueContext.current
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     // Por turno: lo que no entró al carrito o cómo salió la llamada al mesero.
@@ -211,7 +214,13 @@ fun CustomerAssistantScreen(
                                             notes[index] = "Listo, ya le avisamos. Va para allá."
                                         },
                                         onFailure = {
-                                            notes[index] = it.toUserFacingMessage("No se pudo llamar. Usa el botón Mesero.")
+                                            notes[index] = it.toUserFacingMessage(
+                                                    if (venue.capabilities.waiterIsReception) {
+                                                        "No se pudo llamar. Usa el botón Recepción."
+                                                    } else {
+                                                        "No se pudo llamar. Usa el botón Mesero."
+                                                    },
+                                                )
                                         },
                                     )
                                 }
@@ -224,7 +233,7 @@ fun CustomerAssistantScreen(
                 when {
                     state.needsName ->
                         NameCard(guestName, state.enteringName, state.nameError, colors, onSubmitName)
-                    state.thinking -> Bubble("Escribiendo…", mine = false, colors = colors, muted = true)
+                    state.thinking -> ThinkingBubble(colors)
                     state.error != null ->
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Text(state.error, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.ink2)
@@ -236,7 +245,8 @@ fun CustomerAssistantScreen(
         }
         if (state.turns.isEmpty()) {
             Text(
-                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama al mesero. " +
+                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama " +
+                    (if (venue.capabilities.waiterIsReception) "a recepción. " else "al mesero. ") +
                     "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud.",
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -423,6 +433,28 @@ private fun Welcome(
 }
 
 /** Lo del cliente va en burbuja; lo del asistente corre a todo el ancho, como texto de la pantalla. */
+/**
+ * El modelo tarda de 5 a 40 segundos y la respuesta llega completa al final: el texto avanza para que no parezca
+ * trabado. Se compone de nuevo con cada pregunta, así que empieza desde el primer paso.
+ */
+@Composable
+private fun ThinkingBubble(colors: VaiinillaColors) {
+    var step by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        delay(4_000)
+        step = 1
+        delay(16_000)
+        step = 2
+    }
+    val text =
+        when (step) {
+            0 -> "Revisando el menú…"
+            1 -> "Armando tu respuesta…"
+            else -> "Tarda más de lo normal, pero sigo en eso…"
+        }
+    Bubble(text, mine = false, colors = colors, muted = true)
+}
+
 @Composable
 private fun Bubble(
     text: String,
@@ -489,7 +521,7 @@ private fun NameCard(
             .padding(14.dp),
     ) {        Text("¿Cómo te llamas?", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
         Text(
-            "Con tu nombre te ubica el mesero. No se lo mandamos al asistente.",
+            "Con tu nombre te ubica ${LocalVenueContext.current.attendant}. No se lo mandamos al asistente.",
             fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.muted,
@@ -876,7 +908,12 @@ private fun WaiterCard(
                 Icon(Icons.Outlined.Notifications, null, tint = colors.onInk, modifier = Modifier.size(20.dp))
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Llamar al mesero", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
+                Text(
+                    if (LocalVenueContext.current.capabilities.waiterIsReception) "Llamar a recepción" else "Llamar al mesero",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.ink,
+                )
                 Text(
                     "Motivo: ${offer.detail ?: offer.reason.label}",
                     fontSize = 12.5.sp,

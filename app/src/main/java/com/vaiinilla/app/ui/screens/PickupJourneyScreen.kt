@@ -1419,7 +1419,7 @@ private fun PickupCodeSheet(
             }
             Text("Código de recogida", color = c.muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
-            Text(pickupCodeHint(order), color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
+            Text(pickupCodeHint(order, LocalVenueContext.current), color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.Black)
             Text(
                 order.items.joinToString(" · ") { it.productName },
                 color = c.muted,

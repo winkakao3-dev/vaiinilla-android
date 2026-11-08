@@ -146,7 +146,6 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.rentalChargeLabel
-import com.vaiinilla.app.ui.hotel.staff.HotelChip
 import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.CollectedToday
@@ -496,22 +495,6 @@ fun CashierOperationalScreen(
                 }
             }
 
-            if (venue.capabilities.staffWorksRooms) {
-                // Recepción es una vista dentro de Caja: llegadas, check-in, cargos y el cierre de la cuenta (S04).
-                item(key = "cashier-reception") {
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
-                        HotelChip(
-                            label = "Recepción · llegadas y salidas",
-                            selected = false,
-                            onClick = {
-                                haptics.selection()
-                                receptionOpen = true
-                            },
-                        )
-                    }
-                }
-            }
-
             if (state.queue.lostConnection && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
@@ -645,6 +628,16 @@ fun CashierOperationalScreen(
                                 haptics.selection()
                                 open()
                             }
+                        },
+                    // Recepción es una vista dentro de Caja: llegadas, check-in, cargos y el cierre de la cuenta (S04).
+                    onReception =
+                        if (venue.capabilities.staffWorksRooms) {
+                            {
+                                haptics.selection()
+                                receptionOpen = true
+                            }
+                        } else {
+                            null
                         },
                 )
             }

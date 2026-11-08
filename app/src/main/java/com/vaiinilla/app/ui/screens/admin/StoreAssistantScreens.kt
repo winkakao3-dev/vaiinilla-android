@@ -146,7 +146,12 @@ internal fun StoreWelcome(
                     .clickable(onClick = onAssistant)
                     .padding(18.dp),
             ) {
-                Text("Recomendado", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentInk.copy(alpha = 0.85f))
+                Text(
+                    "Recomendado",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.accentInk.copy(alpha = 0.85f),
+                )
                 Text(
                     "Platícalo con el asistente",
                     fontSize = 18.sp,
@@ -574,7 +579,10 @@ private fun ProposalSoFar(
                         add("Ajustes" to proposal.changes.joinToString(" · ") { it.title })
                     }
                     proposal.spaces.forEach { group ->
-                        add(AssistantLabels.spaceType(group.type) to "${group.prefix} 1 a ${group.prefix} ${group.count}")
+                        add(
+                            AssistantLabels.spaceType(group.type) to
+                                "${group.prefix} 1 a ${group.prefix} ${group.count}",
+                        )
                     }
                     if (proposal.productCount > 0) {
                         add("Menú" to countLabel(proposal.productCount, "producto", "productos"))
@@ -583,6 +591,13 @@ private fun ProposalSoFar(
                     if (photoCount > 0) add("Fotos" to countLabel(photoCount, "foto", "fotos"))
                     if (proposal.invites.isNotEmpty()) {
                         add("Tu equipo" to countLabel(proposal.invites.size, "invitación", "invitaciones"))
+                    }
+                    proposal.courtHours?.let { add("Horario de las pistas" to AssistantLabels.courtHours(it)) }
+                    if (proposal.supplies.isNotEmpty()) {
+                        add("Insumos" to countLabel(proposal.supplies.size, "insumo", "insumos"))
+                    }
+                    if (proposal.recipes.isNotEmpty()) {
+                        add("Recetas" to countLabel(proposal.recipes.size, "receta", "recetas"))
                     }
                 }
             rows.forEachIndexed { index, (title, detail) ->
@@ -598,6 +613,7 @@ private fun countLabel(
     one: String,
     many: String,
 ) = "$count ${if (count == 1) one else many}"
+
 /** Cuenta de letras cuando el mensaje ya es largo; si pasa del tope, dice que se mande en partes. */
 @Composable
 private fun LetterCounter(
@@ -679,8 +695,14 @@ private fun Bubble(
                     modifier =
                         Modifier
                             .widthIn(max = 290.dp)
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp))
-                            .background(colors.textPrimary)
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 20.dp,
+                                    topEnd = 20.dp,
+                                    bottomStart = 20.dp,
+                                    bottomEnd = 6.dp,
+                                ),
+                            ).background(colors.textPrimary)
                             .padding(horizontal = 14.dp, vertical = 11.dp),
                 )
             }
@@ -714,6 +736,7 @@ private fun Bubble(
         }
     }
 }
+
 @Composable
 private fun AssistantReview(
     proposal: AssistantProposal,
@@ -837,6 +860,42 @@ private fun AssistantReview(
                             }
                         }
                         Spacer(Modifier.height(6.dp))
+                    }
+                }
+            }
+            proposal.courtHours?.let { hours ->
+                item {
+                    ReviewSection(
+                        "Horario de las pistas",
+                        colors,
+                        reasons["horario_pistas"] ?: "Cuándo se pueden rentar. Es aparte del horario de pedidos.",
+                    ) {
+                        ItemRow("Se rentan", AssistantLabels.courtHours(hours), colors)
+                    }
+                }
+            }
+            if (proposal.supplies.isNotEmpty()) {
+                item {
+                    ReviewSection("Insumos", colors, reasons["insumos"] ?: "Se dan de alta en tu inventario.") {
+                        proposal.supplies.forEachIndexed { index, supply ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(supply.name, AssistantLabels.supply(supply), colors)
+                        }
+                    }
+                }
+            }
+            if (proposal.recipes.isNotEmpty()) {
+                item {
+                    ReviewSection(
+                        "Recetas",
+                        colors,
+                        reasons["recetas"]
+                            ?: "Cada venta descuenta esto de tu inventario. Lo demás de cada receta se queda igual.",
+                    ) {
+                        proposal.recipes.forEachIndexed { index, recipe ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(recipe.productName, AssistantLabels.recipe(recipe), colors)
+                        }
                     }
                 }
             }
@@ -1029,7 +1088,9 @@ private val PHOTO_TOKEN = Regex("""\[(foto\d+)]""")
 private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, mimeType)
 
 private val AssistantProposal.itemCount: Int
-    get() = changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size
+    get() =
+        changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size +
+            supplies.size + recipes.size + (if (courtHours != null) 1 else 0)
 
 @Composable
 private fun ChangeRow(
@@ -1081,6 +1142,8 @@ private fun ChangeRow(
 internal fun AssistantEntryCard(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
+    title: String = "Armarlo con el asistente",
+    subtitle: String = "Te pregunta cómo trabajas y te deja todo listo para revisar",
     onOpen: () -> Unit,
 ) {
     Row(
@@ -1095,13 +1158,13 @@ internal fun AssistantEntryCard(
         Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accentInk, modifier = Modifier.size(22.dp))
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(
-                "Armarlo con el asistente",
+                title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black,
                 color = colors.accentInk,
             )
             Text(
-                "Te pregunta cómo trabajas y te deja todo listo para revisar",
+                subtitle,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.accentInk.copy(alpha = 0.8f),

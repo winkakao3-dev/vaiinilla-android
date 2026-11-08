@@ -19,8 +19,9 @@ class RemoteCustomerAssistantRepository(
     override fun reply(
         turns: List<CustomerAssistantTurn>,
         establishmentId: String?,
+        context: String?,
     ): Result<CustomerAssistantReply> {
-        val body = json.encodeTurns(turns, establishmentId)
+        val body = json.encodeTurns(turns, establishmentId, context)
         val guestSlug = guestAccess?.guestSlug()
         val raw =
             when {

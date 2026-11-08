@@ -49,6 +49,23 @@ class CustomerAssistantViewModelTest {
     }
 
     @Test
+    fun `manda el contexto mas reciente del lugar con cada pregunta`() {
+        val repository = FakeRepository()
+        val vm = CustomerAssistantViewModel(repository)
+        vm.onVisible("est-1:4", "est-1")
+        vm.setContext("Estoy hospedado en un hotel, en Habitación 204.")
+
+        vm.send("Quiero toallas")
+        waitUntil { repository.replies == 1 }
+        assertEquals("Estoy hospedado en un hotel, en Habitación 204.", repository.lastContext)
+
+        vm.setContext(null)
+        vm.send("Y un café")
+        waitUntil { repository.replies == 2 }
+        assertEquals(null, repository.lastContext)
+    }
+
+    @Test
     fun `una respuesta en camino no entra a la platica nueva`() {
         val gate = CountDownLatch(1)
         val repository = FakeRepository(gate = gate)
@@ -146,12 +163,16 @@ class CustomerAssistantViewModelTest {
 
         @Volatile var lastEstablishment: String? = null
 
+        @Volatile var lastContext: String? = null
+
         override fun reply(
             turns: List<CustomerAssistantTurn>,
             establishmentId: String?,
+            context: String?,
         ): Result<CustomerAssistantReply> {
             started++
             lastEstablishment = establishmentId
+            lastContext = context
             gate?.await()
             replies++
             failure?.let { return Result.failure(it) }

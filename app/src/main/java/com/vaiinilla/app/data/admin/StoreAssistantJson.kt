@@ -3,14 +3,18 @@ package com.vaiinilla.app.data.admin
 import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.admin.AssistantCategory
 import com.vaiinilla.app.domain.admin.AssistantChange
+import com.vaiinilla.app.domain.admin.AssistantCourtHours
 import com.vaiinilla.app.domain.admin.AssistantInvite
 import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantProduct
 import com.vaiinilla.app.domain.admin.AssistantProductPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantRecipe
+import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.AssistantSpaceGroup
+import com.vaiinilla.app.domain.admin.AssistantSupply
 import com.vaiinilla.app.domain.model.OrderWindow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -95,12 +99,18 @@ class StoreAssistantJson(
         return AssistantReply(
             message = message,
             options = options,
-            proposal = (data["propuesta"] as? JsonObject)?.let(::parseProposal),
+            proposal =
+                (data["propuesta"] as? JsonObject)?.let {
+                    parseProposal(it, continues = (data["sigue"] as? JsonPrimitive)?.booleanOrNull == true)
+                },
             remainingMessages = (data["quedan_mensajes"] as? JsonPrimitive)?.intOrNull ?: Int.MAX_VALUE,
         )
     }
 
-    private fun parseProposal(proposal: JsonObject): AssistantProposal? {
+    private fun parseProposal(
+        proposal: JsonObject,
+        continues: Boolean,
+    ): AssistantProposal? {
         val changes = proposal["cambios"] as? JsonObject ?: JsonObject(emptyMap())
         val reasons = proposal["motivos"] as? JsonObject
         val items =
@@ -168,11 +178,66 @@ class StoreAssistantJson(
                     photoId = photo.text("foto") ?: return@mapNotNull null,
                 )
             }
+        val supplies =
+            (proposal["insumos"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val supply = item as? JsonObject ?: return@mapNotNull null
+                AssistantSupply(
+                    name = supply.text("nombre") ?: return@mapNotNull null,
+                    unit = supply.text("unidad") ?: return@mapNotNull null,
+                    initialStock = supply.number("existencia_inicial"),
+                    minimum = supply.number("minimo"),
+                    unitCost = supply.number("costo_unitario"),
+                )
+            }
+        val recipes =
+            (proposal["recetas"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val recipe = item as? JsonObject ?: return@mapNotNull null
+                val lines =
+                    (recipe["lineas"] as? JsonArray).orEmpty().mapNotNull { raw ->
+                        val line = raw as? JsonObject ?: return@mapNotNull null
+                        AssistantRecipeLine(
+                            supplyId = (line["insumo_id"] as? JsonPrimitive)?.longOrNull,
+                            supplyName = line.text("insumo") ?: return@mapNotNull null,
+                            unit = line.text("unidad") ?: return@mapNotNull null,
+                            quantity = line.number("cantidad")?.takeIf { it > 0 } ?: return@mapNotNull null,
+                        )
+                    }
+                if (lines.isEmpty()) return@mapNotNull null
+                AssistantRecipe(
+                    productId = (recipe["producto_id"] as? JsonPrimitive)?.intOrNull,
+                    productName = recipe.text("producto") ?: return@mapNotNull null,
+                    lines = lines,
+                )
+            }
+        val courtHours =
+            (proposal["horario_pistas"] as? JsonObject)?.let { hours ->
+                val opening = hours.text("apertura")
+                val closing = hours.text("cierre")
+                if (opening == null || closing == null) {
+                    null
+                } else {
+                    AssistantCourtHours(
+                        opening = opening,
+                        closing = closing,
+                        weekDays =
+                            (hours["dias_semana"] as? JsonArray)?.mapNotNull {
+                                (it as? JsonPrimitive)?.intOrNull
+                            },
+                        durations =
+                            (hours["duraciones_min"] as? JsonArray)?.mapNotNull {
+                                (it as? JsonPrimitive)
+                                    ?.intOrNull
+                            },
+                    )
+                }
+            }
         val sectionReasons =
             SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
         val nothing =
             items.isEmpty() && spaces.isEmpty() && menu.isEmpty() && invites.isEmpty() && storePhotos.isEmpty()
-        if (nothing && productPhotos.isEmpty()) return null
+        if (nothing && productPhotos.isEmpty() && supplies.isEmpty() && recipes.isEmpty() && courtHours == null) {
+            return null
+        }
         return AssistantProposal(
             patchBody = changes.takeIf { it.isNotEmpty() }?.toString(),
             changes = items,
@@ -182,6 +247,10 @@ class StoreAssistantJson(
             storePhotos = storePhotos,
             productPhotos = productPhotos,
             sectionReasons = sectionReasons,
+            supplies = supplies,
+            recipes = recipes,
+            courtHours = courtHours,
+            continues = continues,
         )
     }
 
@@ -191,6 +260,8 @@ class StoreAssistantJson(
             ?.contentOrNull
             ?.trim()
             ?.takeIf(String::isNotEmpty)
+
+    private fun JsonObject.number(key: String): Double? = (this[key] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull()
 
     private fun valueLabel(
         field: String,
@@ -219,7 +290,8 @@ class StoreAssistantJson(
         }
 
     private companion object {
-        val SECTIONS = listOf("espacios", "menu", "personal", "fotos", "fotos_productos")
+        val SECTIONS =
+            listOf("espacios", "horario_pistas", "menu", "personal", "fotos", "fotos_productos", "insumos", "recetas")
         const val DEFAULT_PREP_MINUTES = 10
     }
 }
