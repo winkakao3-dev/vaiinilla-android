@@ -150,6 +150,17 @@ class HotelContractTest {
     }
 
     @Test
+    fun `who answers a call and what is paid at the end depend on the business`() {
+        assertEquals("el mesero", venue.attendant)
+        assertEquals("canchas", venue.payAtEndSpaces)
+        store.update("boliche")
+        assertEquals("pistas", venue.payAtEndSpaces)
+        store.update("hotel")
+        assertEquals("recepción", venue.attendant)
+        assertEquals("habitaciones", venue.payAtEndSpaces)
+    }
+
+    @Test
     fun `room batch sends floor and category and a plain batch does not`() {
         val admin = AdminBusinessJson()
         val hotel =

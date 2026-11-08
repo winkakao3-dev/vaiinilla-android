@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.data.assistant.CustomerAssistantJson
 import com.vaiinilla.app.domain.assistant.AssistantCourtCard
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
@@ -126,6 +127,7 @@ fun CustomerAssistantScreen(
     // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
     com.vaiinilla.app.ui.components.ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
+    val venue = LocalVenueContext.current
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     // Por turno: lo que no entró al carrito o cómo salió la llamada al mesero.
@@ -212,7 +214,13 @@ fun CustomerAssistantScreen(
                                             notes[index] = "Listo, ya le avisamos. Va para allá."
                                         },
                                         onFailure = {
-                                            notes[index] = it.toUserFacingMessage("No se pudo llamar. Usa el botón Mesero.")
+                                            notes[index] = it.toUserFacingMessage(
+                                                    if (venue.capabilities.waiterIsReception) {
+                                                        "No se pudo llamar. Usa el botón Recepción."
+                                                    } else {
+                                                        "No se pudo llamar. Usa el botón Mesero."
+                                                    },
+                                                )
                                         },
                                     )
                                 }
@@ -237,7 +245,8 @@ fun CustomerAssistantScreen(
         }
         if (state.turns.isEmpty()) {
             Text(
-                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama al mesero. " +
+                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama " +
+                    (if (venue.capabilities.waiterIsReception) "a recepción. " else "al mesero. ") +
                     "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud.",
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -512,7 +521,7 @@ private fun NameCard(
             .padding(14.dp),
     ) {        Text("¿Cómo te llamas?", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
         Text(
-            "Con tu nombre te ubica el mesero. No se lo mandamos al asistente.",
+            "Con tu nombre te ubica ${LocalVenueContext.current.attendant}. No se lo mandamos al asistente.",
             fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.muted,
@@ -899,7 +908,12 @@ private fun WaiterCard(
                 Icon(Icons.Outlined.Notifications, null, tint = colors.onInk, modifier = Modifier.size(20.dp))
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Llamar al mesero", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
+                Text(
+                    if (LocalVenueContext.current.capabilities.waiterIsReception) "Llamar a recepción" else "Llamar al mesero",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.ink,
+                )
                 Text(
                     "Motivo: ${offer.detail ?: offer.reason.label}",
                     fontSize = 12.5.sp,

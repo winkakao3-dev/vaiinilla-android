@@ -439,7 +439,12 @@ private fun WaiterCallNameStep(state: MenuWaiterCallState) {
         }
         Spacer(Modifier.height(20.dp))
         ClientPillButton(
-            text = if (state.busy) "Avisando…" else "Llamar al mesero",
+            text =
+                when {
+                    state.busy -> "Avisando…"
+                    LocalVenueContext.current.capabilities.waiterIsReception -> "Llamar a recepción"
+                    else -> "Llamar al mesero"
+                },
             onClick = submit,
             enabled = !state.busy && name.isNotBlank(),
             height = 54.dp,

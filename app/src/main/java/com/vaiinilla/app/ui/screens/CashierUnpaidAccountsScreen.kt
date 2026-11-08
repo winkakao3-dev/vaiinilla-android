@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.repository.AccountCollection
@@ -118,7 +119,8 @@ internal fun CashierUnpaidAccountsScreen(
             }
             item(key = "explica") {
                 Text(
-                    "Mesas y pistas que pidieron pagar al final y no se han cobrado, también las de un turno que " +
+                    "Mesas y ${LocalVenueContext.current.payAtEndSpaces} que pidieron pagar al final y no se han cobrado, " +
+                        "también las de un turno que " +
                         "ya se cerró. Mientras haya una, la caja no se puede cerrar.",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

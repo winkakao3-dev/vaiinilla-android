@@ -72,9 +72,9 @@ internal fun CashierQuickActions(
     val count = listOfNotNull(onNewOrder, onReload, onSpaces, onReception).size
     val spacesLabel =
         if (pendingSpaces != null && pendingSpaces > 0) {
-            "Mesas y ${venue.vocabulary.courts} · $pendingSpaces"
+            "Mesas y ${venue.payAtEndSpaces} · $pendingSpaces"
         } else {
-            "Mesas y ${venue.vocabulary.courts}"
+            "Mesas y ${venue.payAtEndSpaces}"
         }
     // L01: con letra grande tres mosaicos no caben a lo ancho y «Recargar» se partía a media palabra: van en renglones.
     if (cashierQuickActionsStack(configuration.screenWidthDp, fontScale, count)) {

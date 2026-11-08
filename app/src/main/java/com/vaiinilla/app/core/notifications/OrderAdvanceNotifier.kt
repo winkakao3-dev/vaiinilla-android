@@ -245,8 +245,9 @@ object OrderAdvanceNotifier {
         callId: String,
         noticeId: String? = null,
     ): Shown {
-        val title = "Tu mesero va en camino"
-        val text = "Va a ${SpaceCopy.yourPlace(venue, null)}."
+        val reception = venue.capabilities.waiterIsReception
+        val title = if (reception) "Ya vienen a tu habitación" else "Tu mesero va en camino"
+        val text = if (reception) "Recepción tomó tu llamada." else "Va a ${SpaceCopy.yourPlace(venue, null)}."
         if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =

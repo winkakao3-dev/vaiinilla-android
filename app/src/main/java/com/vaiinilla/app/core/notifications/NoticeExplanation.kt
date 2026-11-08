@@ -142,8 +142,8 @@ data class NoticeExplanation(
                     )
                 type == "staff_alert" && alert == "llamada_mesa" ->
                     make(
-                        "Mesero · llamada",
-                        "$space llama a un mesero.",
+                        if (venue.capabilities.waiterIsReception) "Recepción · llamada" else "Mesero · llamada",
+                        if (venue.capabilities.waiterIsReception) "$space llama a recepción." else "$space llama a un mesero.",
                         "La persona ${venue.vocabulary.seatedPerson} en $space.",
                         "Meseros del negocio de ese espacio.",
                         listOf(OperationalRole.WAITER),
@@ -211,10 +211,14 @@ data class NoticeExplanation(
                     )
                 type == "mesero_en_camino" ->
                     make(
-                        "Mesero en camino",
-                        "Tu mesero va a ${SpaceCopy.yourPlace(venue, null)}.",
-                        "El mesero, al tomar tu llamada.",
-                        "La persona que llamó al mesero.",
+                        if (venue.capabilities.waiterIsReception) "Ya vienen a tu habitación" else "Mesero en camino",
+                        if (venue.capabilities.waiterIsReception) {
+                            "Recepción va a ${SpaceCopy.yourPlace(venue, null)}."
+                        } else {
+                            "Tu mesero va a ${SpaceCopy.yourPlace(venue, null)}."
+                        },
+                        if (venue.capabilities.waiterIsReception) "Recepción, al tomar tu llamada." else "El mesero, al tomar tu llamada.",
+                        "La persona que llamó a ${venue.attendant}.",
                         emptyList(),
                     )
                 else ->
