@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.assistant
 
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.VenueKind
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -36,6 +37,17 @@ class AssistantPlaceNoteTest {
     }
 
     @Test
+    fun `without a table it still says what the business is and how orders arrive`() {
+        val note =
+            AssistantPlaceNote.build(
+                AssistantPlaceFacts(businessLabel = "Restaurante con mesero", delivery = SpaceDelivery.BOTH),
+            )!!
+        assertTrue(note.contains("El negocio es: restaurante con mesero."))
+        assertTrue(note.contains("lo recojo en la barra"))
+        assertTrue(note.contains("Contesta exactamente lo que te pregunte"))
+    }
+
+    @Test
     fun `a hotel restaurant table is not a room`() {
         val note =
             AssistantPlaceNote.build(AssistantPlaceFacts(kind = VenueKind.HOTEL, placeName = "Mesa 3", payAtEnd = true))!!
@@ -59,7 +71,7 @@ class AssistantPlaceNoteTest {
         assertTrue(note.contains("alergia a: gluten, huevo"))
         assertTrue(note.contains("$40"))
         assertTrue(note.length <= AssistantPlaceNote.MAX_LETTERS)
-        assertTrue(note.endsWith("Contesta mi siguiente mensaje con esto en cuenta."))
+        assertTrue(note.endsWith("no me armes ni cambies un pedido si no te lo pido."))
     }
 
     @Test

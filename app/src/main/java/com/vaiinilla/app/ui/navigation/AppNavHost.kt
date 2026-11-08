@@ -1827,6 +1827,8 @@ private fun AppNavHostContent(
                         AssistantPlaceFacts(
                             kind = assistantVenue.kind,
                             isSchool = assistantVenue.isSchool,
+                            businessLabel = venue?.establishment?.businessType?.let { BusinessType.fromWire(it)?.label },
+                            delivery = venue?.establishment?.spaceDelivery,
                             placeName = assistantPlace,
                             placeIsRoom = assistantInRoom,
                             chargeToRoom = hotelConfig?.chargeToRoom ?: true,

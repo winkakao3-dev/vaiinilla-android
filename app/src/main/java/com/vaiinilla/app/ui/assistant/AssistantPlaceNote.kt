@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.assistant
 
+import com.vaiinilla.app.domain.model.SpaceDelivery
 import com.vaiinilla.app.domain.model.VenueKind
 
 /** Lo que la app sabe de dónde y quién le pregunta al asistente; nada que identifique a la persona. */
@@ -19,6 +20,10 @@ data class AssistantPlaceFacts(
     /** Lo que le queda hoy del límite que puso su tutor, ya con formato («$40»). */
     val availableToday: String? = null,
     val hasGuardianBlocks: Boolean = false,
+    /** «Restaurante con mesero», «Boliche»…; null si el servidor no lo manda. */
+    val businessLabel: String? = null,
+    /** Cómo llega lo que pide: a la mesa, en la barra o lo elige el cliente; null si no se sabe. */
+    val delivery: SpaceDelivery? = null,
 )
 
 /**
@@ -32,6 +37,13 @@ object AssistantPlaceNote {
     fun build(facts: AssistantPlaceFacts): String? {
         val parts = mutableListOf<String>()
         place(facts)?.let(parts::add)
+        facts.businessLabel?.let { parts += "El negocio es: ${it.lowercase()}." }
+        when (facts.delivery) {
+            SpaceDelivery.TABLE -> parts += "Lo que pido me lo llevan a mi lugar."
+            SpaceDelivery.BAR -> parts += "Lo que pido lo recojo en la barra."
+            SpaceDelivery.BOTH -> parts += "Puedo elegir si me lo llevan o lo recojo en la barra."
+            null -> Unit
+        }
         if (facts.allergens.isNotEmpty()) {
             parts +=
                 "Tengo alergia a: ${facts.allergens.joinToString(", ") { it.lowercase() }}. No me propongas nada que " +
@@ -42,7 +54,9 @@ object AssistantPlaceNote {
         if (facts.cart.isNotEmpty()) parts += "Ya tengo en el carrito: ${facts.cart.joinToString(", ")}."
         if (parts.isEmpty()) return null
         val header = "Contexto que manda la app (no lo repitas):"
-        val footer = "Contesta mi siguiente mensaje con esto en cuenta."
+        // Sin esta regla el modelo respondía otra pregunta y armaba un pedido con lo del carrito (Kao, 7 nov).
+        val footer =
+            "Contesta exactamente lo que te pregunte; no me armes ni cambies un pedido si no te lo pido."
         val body = StringBuilder(header)
         for (part in parts) {
             if (body.length + part.length + footer.length + 2 > MAX_LETTERS) continue
