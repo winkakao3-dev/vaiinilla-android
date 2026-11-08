@@ -1,5 +1,7 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import com.vaiinilla.app.R
+import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -299,13 +301,13 @@ private fun AssistantChat(
     }
     Column(Modifier.fillMaxSize()) {
         AssistantHeader(
-            title = "Asistente",
-            subtitle = "Armando tu tienda",
+            title = "Vaini",
+            subtitle = "Tu asistente",
             backLabel = "Regresar",
             colors = colors,
             onBack = onClose,
             trailing = {
-                if (state.messages.size > 1) {
+                if (state.messages.isNotEmpty()) {
                     AdminRoundButton(Icons.Rounded.Refresh, "Empezar de nuevo", colors, viewModel::restartAssistant)
                 } else {
                     Spacer(Modifier.size(44.dp))
@@ -318,6 +320,9 @@ private fun AssistantChat(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (state.messages.isEmpty() && !state.thinking) {
+                item(key = "inicio") { AssistantWelcome(colors) }
+            }
             itemsIndexed(state.messages, key = { index, _ -> index }) { _, message ->
                 Bubble(message, colors, photos = state.photos)
             }
@@ -722,9 +727,14 @@ private fun Bubble(
         Column(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val tint = if (colors.isDark) colors.accentLime else colors.accentInk
-                Icon(Icons.Rounded.AutoAwesome, null, tint = tint, modifier = Modifier.size(14.dp))
+                Image(
+                    painter = painterResource(R.drawable.mascot_question),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(26.dp),
+                )
                 Text(
-                    "Asistente",
+                    "Vaini",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = tint,
@@ -1188,6 +1198,70 @@ private fun ChangeRow(
                 )
             }
         }
+    }
+}
+
+/** Antes de que el dueño escriba: Vaini espera, sin adelantarse a hablar. */
+@Composable
+private fun AssistantWelcome(colors: OperationalColors) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.mascot_question),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(112.dp),
+        )
+        Text(
+            "¿Qué hacemos hoy?",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = 14.dp),
+        )
+        Text(
+            "Dime qué te llegó, qué precio cambiar, qué pista apartar o pregúntame cómo vas.",
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 6.dp, start = 12.dp, end = 12.dp),
+        )
+    }
+}
+
+/** En el Inicio del admin: un botón chico con Vaini que abre el asistente. */
+@Composable
+internal fun AssistantButton(
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit,
+) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(26.dp))
+            .background(colors.cardBackground)
+            .clickable(onClick = onOpen)
+            .semantics { contentDescription = "Pregúntale a Vaini, tu asistente" }
+            .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.mascot_question),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(40.dp),
+        )
+        Text(
+            "Pregúntale a Vaini",
+            fontSize = 14.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 

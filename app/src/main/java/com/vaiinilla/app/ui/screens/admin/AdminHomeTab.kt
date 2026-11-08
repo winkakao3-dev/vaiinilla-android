@@ -197,13 +197,7 @@ internal fun AdminHomeTab(
         // Con la tienda lista, la lista de pasos (y su tarjeta) se esconde; el asistente se queda.
         if (onOpenAssistant != null && !showsStoreSetup(setup)) {
             item(key = "asistente") {
-                AssistantEntryCard(
-                    colors,
-                    Modifier.adminRise(2).padding(top = 14.dp),
-                    title = "Pregúntale al asistente",
-                    subtitle = "Te ayuda a cambiar tu menú, horarios, insumos y lo que necesites",
-                    onOpen = onOpenAssistant,
-                )
+                AssistantButton(colors, Modifier.adminRise(2).padding(top = 14.dp), onOpen = onOpenAssistant)
             }
         }
         hotel?.let { hotelSummaryItems(it.uiState.value, colors, it::refresh) }

@@ -230,10 +230,12 @@ class AdminStoreViewModel
 
         // region Asistente de configuración
 
-        /** Al abrir el asistente: si todavía no hay plática, que salude y haga la primera pregunta. */
+        /** Al abrir el asistente no se le pregunta nada: el dueño escribe primero, con ideas para empezar. */
         fun startAssistant() {
             val current = _assistant.value
-            if (current.messages.isEmpty() && !current.thinking) askAssistant(emptyList())
+            if (current.messages.isEmpty() && !current.thinking && current.options.isEmpty()) {
+                _assistant.value = current.copy(options = START_OPTIONS)
+            }
         }
 
         /**
@@ -336,8 +338,7 @@ class AdminStoreViewModel
         /** Empieza otra plática desde cero (la propuesta anterior se descarta). */
         fun restartAssistant() {
             if (_assistant.value.thinking || _assistant.value.applying) return
-            _assistant.value = StoreAssistantState()
-            askAssistant(emptyList())
+            _assistant.value = StoreAssistantState(options = START_OPTIONS)
         }
 
         /**
@@ -391,16 +392,17 @@ class AdminStoreViewModel
                         onDone()
                     } else if (failures.isEmpty()) {
                         showNotice("Guardado en tu tienda", isError = false)
+                        // Lo dice Vaini, no se manda a nombre del dueño: la plática sigue cuando él escriba.
                         val messages =
                             saved.messages +
                                 AssistantMessage(
-                                    fromOwner = true,
+                                    fromOwner = false,
                                     text = if (proposal.continues) FOLLOW_UP_CONTINUES else FOLLOW_UP_DONE,
                                 )
                         _assistant.value =
                             saved.copy(
                                 messages = messages,
-                                options = emptyList(),
+                                options = if (proposal.continues) listOf(CONTINUE_OPTION) else START_OPTIONS,
                                 proposal = null,
                                 reviewing = false,
                                 applying = false,
@@ -409,7 +411,6 @@ class AdminStoreViewModel
                                 appliedSteps = emptySet(),
                                 failures = emptyList(),
                             )
-                        askAssistant(messages)
                     } else {
                         _assistant.value =
                             _assistant.value.copy(
@@ -659,8 +660,10 @@ class AdminStoreViewModel
 
 /** El servidor rechazó lo que se mandó por largo o por pesado (mensaje con más letras de las que acepta, 413). */
 // Lo que la app dice por el dueño al aceptar, para que el asistente siga con lo que falta.
-internal const val FOLLOW_UP_CONTINUES = "Ya la acepté. Sigue con lo demás."
-internal const val FOLLOW_UP_DONE = "Ya la acepté. ¿Qué le falta a mi tienda?"
+internal const val FOLLOW_UP_CONTINUES = "Listo, ya quedó. ¿Sigo con lo que falta?"
+internal const val FOLLOW_UP_DONE = "Listo, ya quedó. ¿Qué más hacemos hoy?"
+internal const val CONTINUE_OPTION = "Sigue con lo demás"
+internal val START_OPTIONS = listOf("¿Cómo voy hoy?", "Me llegó mercancía", "Cambiar un precio", "Apartar una pista")
 
 internal fun assistantInputTooLong(error: Throwable): Boolean {
     val code = (error as? CatalogRepositoryException)?.code
