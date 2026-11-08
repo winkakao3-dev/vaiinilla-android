@@ -26,9 +26,12 @@ import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.VenueContext
+import com.vaiinilla.app.domain.repository.TableSpace
 import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
+import com.vaiinilla.app.ui.hotel.staff.UndoReady
+import com.vaiinilla.app.ui.screens.CashierNewOrderSheet
 import com.vaiinilla.app.ui.screens.CashierQuickActions
 import com.vaiinilla.app.ui.screens.CatalogScreen
 import com.vaiinilla.app.ui.screens.rememberOperationalColors
@@ -36,6 +39,7 @@ import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaThemeMode
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -160,6 +164,48 @@ class HotelQaScreenshotTest {
         settle()
         composeTestRule.onNodeWithText("La cuenta").assertDoesNotExist()
         captureScreenRoboImage("hotel/hotelqa_hoja_recepcion.png")
+    }
+
+    @Test
+    fun cocina_deshacer_cabe_junto_a_lista() {
+        dark(1.3f) {
+            UndoReady(
+                deadline = System.currentTimeMillis() + 5_000,
+                onUndo = {},
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+        settle()
+        composeTestRule.onNodeWithText("Marcada como lista").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Deshacer", substring = true).assertIsDisplayed()
+        captureScreenRoboImage("hotel/hotelqa_cocina_deshacer_1.3.png")
+    }
+
+    @Test
+    fun caja_nuevo_pedido_con_habitaciones_no_se_mueve() {
+        val rooms =
+            (1..12).map { TableSpace(100 + it, "Habitación ${100 + it}", "mesa") } +
+                listOf(TableSpace(1, "Mesa 1", "mesa"), TableSpace(2, "Barra", "barra"))
+        dark(1f) {
+            CashierNewOrderSheet(
+                tables = rooms,
+                tablesLoading = false,
+                tablesError = null,
+                colors = rememberOperationalColors(),
+                onDismiss = {},
+                onTakeAway = {},
+                onTable = {},
+                onRefreshTables = {},
+            )
+        }
+        settle()
+        composeTestRule.onNodeWithText("O a una habitación o mesa:").assertIsDisplayed()
+        val before = composeTestRule.onNodeWithText("Nuevo pedido").fetchSemanticsNode().boundsInRoot.top
+        composeTestRule.mainClock.advanceTimeBy(3_000)
+        composeTestRule.waitForIdle()
+        val after = composeTestRule.onNodeWithText("Nuevo pedido").fetchSemanticsNode().boundsInRoot.top
+        assertEquals("la hoja se movió sola", before, after, 0.5f)
+        captureScreenRoboImage("hotel/hotelqa_caja_nuevo_pedido.png")
     }
 
     @Test

@@ -192,7 +192,7 @@ private fun ageText(elapsedMs: Long?): String {
 
 /** «Lista» espera unos segundos para poder deshacerse: la cuenta atrás va aquí, en el estilo de la tarjeta. */
 @Composable
-private fun UndoReady(
+internal fun UndoReady(
     deadline: Long,
     onUndo: () -> Unit,
     modifier: Modifier = Modifier,
