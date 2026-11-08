@@ -23,6 +23,7 @@ import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.ForcedCloseResult
@@ -186,9 +187,10 @@ class RemoteAdminStoreRepository(
     override fun assistantReply(
         messages: List<AssistantMessage>,
         photoIds: List<String>,
+        sheets: List<AssistantSheet>,
     ): Result<AssistantReply> =
         apiClient
-            .post("establecimiento/asistente", assistantJson.encodeMessages(messages, photoIds))
+            .post("establecimiento/asistente", assistantJson.encodeMessages(messages, photoIds, sheets))
             .mapCatching(assistantJson::parseReply)
             .mapApiErrors()
 
@@ -270,6 +272,14 @@ class RemoteAdminStoreRepository(
                     ).map { }
                     .mapApiErrors()
             is AssistantStep.Booking -> applyBooking(step, idempotencyKey)
+            is AssistantStep.OrderCancel ->
+                apiClient
+                    .post(
+                        "pedidos/${step.cancel.orderId}/cancelaciones",
+                        assistantJson.encodeCancel(step.cancel),
+                        key(idempotencyKey),
+                    ).map { }
+                    .mapApiErrors()
         }
 
     /** El `id` del movimiento sale de la llave del paso: si se reintenta, el servidor no lo cuenta dos veces. */

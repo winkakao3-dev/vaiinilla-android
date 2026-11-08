@@ -8,6 +8,8 @@ import com.vaiinilla.app.domain.admin.AssistantProduct
 import com.vaiinilla.app.domain.admin.AssistantProductPhoto
 import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantStep
+import com.vaiinilla.app.domain.admin.AssistantOrderCancel
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.steps
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -297,6 +299,34 @@ class StoreAssistantJsonTest {
         assertEquals(
             listOf("Movement", "SupplyEdit", "ProductEdit", "ProductEdit", "SpaceEdit", "Booking", "RoleChange"),
             steps,
+        )
+    }
+
+    @Test
+    fun `manda los Excel en cada mensaje y lee los pedidos atorados que se cancelan`() {
+        val body =
+            Json.parseToJsonElement(
+                StoreAssistantJson().encodeMessages(
+                    listOf(AssistantMessage(fromOwner = true, text = "Mi inventario [excel1]")),
+                    sheets = listOf(AssistantSheet("excel1", "Inventario.xlsx", byteArrayOf(0x50, 0x4b, 1))),
+                ),
+            ).jsonObject
+        val sheet = body["archivos"]!!.jsonArray.single().jsonObject
+        assertEquals("excel1", sheet["id"]!!.jsonPrimitive.content)
+        assertEquals("Inventario.xlsx", sheet["nombre"]!!.jsonPrimitive.content)
+        assertEquals("UEsB", sheet["contenido"]!!.jsonPrimitive.content)
+        val reply =
+            StoreAssistantJson().parseReply(
+                """
+                {"data":{"mensaje":"Listo","opciones":[],"propuesta":{"cambios":{},
+                "cancelar_pedidos":[{"pedido_id":"p-128","folio":128,"version":3,"motivo":"Se quedó abierto desde ayer"}]},"sigue":false}}
+                """.trimIndent(),
+            )
+        val cancel = reply.proposal!!.orderCancels.single()
+        assertEquals(AssistantOrderCancel("p-128", 128, 3, "Se quedó abierto desde ayer"), cancel)
+        assertEquals(
+            """{"version_esperada":3,"motivo":"Se quedó abierto desde ayer"}""",
+            StoreAssistantJson().encodeCancel(cancel),
         )
     }
 }

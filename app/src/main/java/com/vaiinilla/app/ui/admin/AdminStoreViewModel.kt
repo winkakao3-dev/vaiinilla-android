@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantUpload
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
@@ -72,6 +73,10 @@ data class StoreAssistantState(
     val photos: Map<String, AssistantPhoto> = emptyMap(),
     /** Las fotos elegidas que se mandan con el siguiente mensaje, en el orden en que se eligieron. */
     val pendingPhotoIds: List<String> = emptyList(),
+    /** Los Excel que el dueño mandó («excel1»…); van completos en cada mensaje para que el asistente los siga viendo. */
+    val sheets: Map<String, AssistantSheet> = emptyMap(),
+    /** Los Excel elegidos que se mandan con el siguiente mensaje. */
+    val pendingSheetIds: List<String> = emptyList(),
     /** Si el error de [error] se arregla con "Reintentar" (no cuando el mensaje fue demasiado largo). */
     val retryable: Boolean = true,
     /** El texto que el servidor rechazó por largo: vuelve al campo para que el dueño lo parta. */
@@ -87,6 +92,7 @@ data class StoreAssistantState(
 ) {
     val canSend: Boolean get() = !thinking && !applying && remainingMessages > 1
     val canAddPhoto: Boolean get() = canSend && photos.size < ASSISTANT_MAX_PHOTOS
+    val canAddSheet: Boolean get() = canSend && sheets.size < ASSISTANT_MAX_SHEETS
 
     /** Cuántas fotos más caben en esta plática. */
     val photosLeft: Int get() = (ASSISTANT_MAX_PHOTOS - photos.size).coerceAtLeast(0)
@@ -94,7 +100,7 @@ data class StoreAssistantState(
     /** Letras que caben en el siguiente mensaje: las marcas de las fotos pendientes también cuentan. */
     val lettersLeftForText: Int get() = STORE_ASSISTANT_MAX_LETTERS - photoTags.length
 
-    internal val photoTags: String get() = pendingPhotoIds.joinToString("") { " [$it]" }
+    internal val photoTags: String get() = (pendingPhotoIds + pendingSheetIds).joinToString("") { " [$it]" }
 }
 
 /** Flujo de mi tienda, pagos con tarjeta y cashback: la configuración del negocio. */
@@ -259,6 +265,7 @@ class AdminStoreViewModel
                     error = null,
                     retryable = true,
                     pendingPhotoIds = emptyList(),
+                    pendingSheetIds = emptyList(),
                 )
             askAssistant(messages)
             return true
@@ -285,6 +292,50 @@ class AdminStoreViewModel
                     error = null,
                     retryable = true,
                 )
+        }
+
+        /**
+         * Un Excel elegido en el chat: se manda con el siguiente mensaje y después en todos, para que el asistente lo
+         * siga viendo. Solo .xlsx de hasta 2 MB, como acepta el servidor.
+         */
+        fun addAssistantSheet(
+            name: String,
+            bytes: ByteArray,
+        ) {
+            val current = _assistant.value
+            if (!current.canAddSheet) return
+            val problem =
+                when {
+                    !name.endsWith(".xlsx", ignoreCase = true) ->
+                        "Solo se pueden mandar archivos de Excel (.xlsx). Guárdalo así y mándalo otra vez."
+                    bytes.size > ASSISTANT_MAX_SHEET_BYTES -> "Ese Excel pesa más de 2 MB. Manda solo las hojas que necesitas."
+                    else -> null
+                }
+            if (problem != null) {
+                _assistant.value = current.copy(error = problem, retryable = false)
+                return
+            }
+            val next =
+                (
+                    current.sheets.keys
+                        .mapNotNull { it.removePrefix("excel").toIntOrNull() }
+                        .maxOrNull() ?: 0
+                ) + 1
+            val id = "excel$next"
+            _assistant.value =
+                current.copy(
+                    sheets = current.sheets + (id to AssistantSheet(id, name, bytes)),
+                    pendingSheetIds = current.pendingSheetIds + id,
+                    error = null,
+                    retryable = true,
+                )
+        }
+
+        fun removeAssistantSheet(id: String) {
+            val current = _assistant.value
+            if (id !in current.pendingSheetIds) return
+            _assistant.value =
+                current.copy(sheets = current.sheets - id, pendingSheetIds = current.pendingSheetIds - id)
         }
 
         /** Quita una de las fotos que aún no se mandan. */
@@ -431,7 +482,9 @@ class AdminStoreViewModel
                 val photoIds =
                     _assistant.value.photos.keys
                         .filter { it !in pending }
-                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds) }
+                val pendingSheets = _assistant.value.pendingSheetIds.toSet()
+                val sheets = _assistant.value.sheets.values.filter { it.id !in pendingSheets }
+                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds, sheets) }
                 val current = _assistant.value
                 _assistant.value =
                     result.fold(
@@ -690,6 +743,8 @@ private fun assistantReplyErrorMessage(error: Throwable): String =
         "ASSISTANT_REPLY_TOO_LONG" ->
             "Es mucho para una sola vez. Mándame una parte del menú, acéptala y seguimos con lo demás."
         "RATE_LIMITED" -> "Muchos mensajes seguidos. Espera unos minutos y vuelve a intentar."
+        // El servidor dice qué Excel no pudo leer y qué hacer.
+        "ASSISTANT_FILE_INVALID" -> error.message ?: "No pude leer ese Excel. Guárdalo como .xlsx y mándalo otra vez."
         else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
     }
 
@@ -699,6 +754,8 @@ private const val HTTP_PAYLOAD_TOO_LARGE = 413
 private val INPUT_TOO_LONG_CODES = setOf("ASSISTANT_MESSAGE_TOO_LONG", "PAYLOAD_TOO_LARGE", "HTTP_413")
 private val PHOTO_TAG = Regex("""\[(foto\d+)]""")
 private const val ASSISTANT_MAX_PHOTOS = 20
+private const val ASSISTANT_MAX_SHEETS = 3
+private const val ASSISTANT_MAX_SHEET_BYTES = 2 * 1024 * 1024
 private val ALREADY_INVITED = setOf("INVITATION_PENDING_EXISTS", "MEMBERSHIP_ROLE_EXISTS")
 
 internal fun assistantStepError(error: Throwable): String =

@@ -6,6 +6,7 @@ import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.ForcedCloseResult
@@ -96,6 +97,7 @@ interface AdminStoreRepository {
     fun assistantReply(
         messages: List<AssistantMessage>,
         photoIds: List<String> = emptyList(),
+        sheets: List<AssistantSheet> = emptyList(),
     ): Result<AssistantReply> = Result.failure(UnsupportedOperationException("Asistente no soportado"))
 
     /**

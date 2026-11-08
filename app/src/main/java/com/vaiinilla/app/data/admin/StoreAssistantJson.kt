@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.admin.AssistantInvite
 import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantMovement
+import com.vaiinilla.app.domain.admin.AssistantOrderCancel
 import com.vaiinilla.app.domain.admin.AssistantProduct
 import com.vaiinilla.app.domain.admin.AssistantProductEdit
 import com.vaiinilla.app.domain.admin.AssistantProductPhoto
@@ -17,6 +18,7 @@ import com.vaiinilla.app.domain.admin.AssistantRecipe
 import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.AssistantRoleChange
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantSpaceEdit
 import com.vaiinilla.app.domain.admin.AssistantSpaceGroup
 import com.vaiinilla.app.domain.admin.AssistantSupply
@@ -37,6 +39,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import java.util.Base64
 
 /** `POST /establecimiento/asistente`: la plática de ida y la respuesta de vuelta. */
 class StoreAssistantJson(
@@ -45,6 +48,7 @@ class StoreAssistantJson(
     fun encodeMessages(
         messages: List<AssistantMessage>,
         photoIds: List<String> = emptyList(),
+        sheets: List<AssistantSheet> = emptyList(),
     ): String =
         buildJsonObject {
             putJsonArray("mensajes") {
@@ -56,6 +60,24 @@ class StoreAssistantJson(
                 }
             }
             if (photoIds.isNotEmpty()) putJsonArray("fotos") { photoIds.forEach { add(JsonPrimitive(it)) } }
+            if (sheets.isNotEmpty()) {
+                putJsonArray("archivos") {
+                    sheets.forEach { sheet ->
+                        addJsonObject {
+                            put("id", sheet.id)
+                            put("nombre", sheet.name)
+                            put("contenido", Base64.getEncoder().encodeToString(sheet.bytes))
+                        }
+                    }
+                }
+            }
+        }.toString()
+
+    /** `POST /pedidos/{id}/cancelaciones` de un pedido atorado sin pago. */
+    fun encodeCancel(cancel: AssistantOrderCancel): String =
+        buildJsonObject {
+            put("version_esperada", cancel.version)
+            put("motivo", cancel.reason)
         }.toString()
 
     /** `POST /catalogo/categorias`. */
@@ -331,12 +353,23 @@ class StoreAssistantJson(
                     players = (booking["jugadores"] as? JsonPrimitive)?.intOrNull,
                 )
             }
-        val sectionReasons =            SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
+        val orderCancels =
+            (proposal["cancelar_pedidos"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val cancel = item as? JsonObject ?: return@mapNotNull null
+                AssistantOrderCancel(
+                    orderId = cancel.text("pedido_id") ?: return@mapNotNull null,
+                    folio = (cancel["folio"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    version = (cancel["version"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    reason = cancel.text("motivo") ?: "Se quedó sin cobrar",
+                )
+            }
+        val sectionReasons =
+            SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
         val nothing =
             items.isEmpty() && spaces.isEmpty() && menu.isEmpty() && invites.isEmpty() && storePhotos.isEmpty()
         val dayToDay =
             movements.isEmpty() && productEdits.isEmpty() && supplyEdits.isEmpty() && spaceEdits.isEmpty() &&
-                roleChanges.isEmpty() && bookings.isEmpty()
+                roleChanges.isEmpty() && bookings.isEmpty() && orderCancels.isEmpty()
         if (nothing && productPhotos.isEmpty() && supplies.isEmpty() && recipes.isEmpty() && courtHours == null &&
             dayToDay
         ) {
@@ -360,6 +393,7 @@ class StoreAssistantJson(
             spaceEdits = spaceEdits,
             roleChanges = roleChanges,
             bookings = bookings,
+            orderCancels = orderCancels,
             continues = continues,
         )
     }
@@ -416,6 +450,7 @@ class StoreAssistantJson(
                 "cambios_espacios",
                 "cambios_personal",
                 "reservas",
+                "cancelar_pedidos",
             )
         val MOVEMENT_TYPES = setOf("entrada", "merma", "conteo")
         const val DEFAULT_PREP_MINUTES = 10

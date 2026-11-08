@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import android.provider.OpenableColumns
 import com.vaiinilla.app.R
 import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.AssistantChange
@@ -77,6 +80,7 @@ import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantUpload
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.StoreAssistantState
@@ -324,7 +328,7 @@ private fun AssistantChat(
                 item(key = "inicio") { AssistantWelcome(colors) }
             }
             itemsIndexed(state.messages, key = { index, _ -> index }) { _, message ->
-                Bubble(message, colors, photos = state.photos)
+                Bubble(message, colors, photos = state.photos, sheets = state.sheets)
             }
             item(key = "estado") {
                 when {
@@ -382,7 +386,17 @@ private fun AssistantChat(
                 }
                 if (uris.size > left) viewModel.tooManyPhotos(left)
             }
-        val hasPhoto = state.pendingPhotoIds.isNotEmpty()
+        val sheetPicker =
+            rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri == null) return@rememberLauncherForActivityResult
+                val name =
+                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                        if (it.moveToFirst()) it.getString(0) else null
+                    } ?: "Excel.xlsx"
+                val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+                if (bytes == null) viewModel.photoPreparationFailed() else viewModel.addAssistantSheet(name, bytes)
+            }
+        val hasPhoto = state.pendingPhotoIds.isNotEmpty() || state.pendingSheetIds.isNotEmpty()
         val tooLong = draft.trim().length > state.lettersLeftForText
         val send = {
             if (state.canSend && !tooLong && (draft.isNotBlank() || hasPhoto)) {
@@ -424,7 +438,24 @@ private fun AssistantChat(
                 }
             }
         }
-        if (hasPhoto) {
+        if (state.pendingSheetIds.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.pendingSheetIds.forEach { id ->
+                    SheetChip(
+                        name = state.sheets[id]?.name ?: id,
+                        colors = colors,
+                        onRemove = { viewModel.removeAssistantSheet(id) },
+                    )
+                }
+            }
+        }
+        if (state.pendingPhotoIds.isNotEmpty()) {
             Column(Modifier.padding(top = 6.dp)) {
                 Text(
                     if (state.pendingPhotoIds.size == 1) {
@@ -479,6 +510,21 @@ private fun AssistantChat(
                     Icons.Rounded.AddPhotoAlternate,
                     null,
                     tint = if (state.canAddPhoto) colors.textPrimary else colors.textMuted,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = state.canAddSheet) { sheetPicker.launch(XLSX_MIME) }
+                    .semantics { contentDescription = "Mandar un Excel" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.TableChart,
+                    null,
+                    tint = if (state.canAddSheet) colors.textPrimary else colors.textMuted,
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -688,18 +734,24 @@ private fun Bubble(
     colors: OperationalColors,
     muted: Boolean = false,
     photos: Map<String, AssistantPhoto> = emptyMap(),
+    sheets: Map<String, AssistantSheet> = emptyMap(),
 ) {
     val mine = message.fromOwner
     val photoIds = PHOTO_TOKEN.findAll(message.text).map { it.groupValues[1] }.toList()
+    val sheetIds = SHEET_TOKEN.findAll(message.text).map { it.groupValues[1] }.toList()
     val text =
         message.text
             .replace(PHOTO_TOKEN, "")
+            .replace(SHEET_TOKEN, "")
             .replace(Regex(" {2,}"), " ")
             .trim()
     if (mine) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
             photoIds.forEach { id ->
                 PhotoThumb(photos[id], colors, size = 150, modifier = Modifier.padding(bottom = 4.dp))
+            }
+            sheetIds.forEach { id ->
+                SheetChip(name = sheets[id]?.name ?: "Excel", colors = colors, modifier = Modifier.padding(bottom = 4.dp))
             }
             if (text.isNotEmpty()) {
                 Text(
@@ -948,6 +1000,11 @@ private fun AssistantReview(
                         proposal.bookings.map { it.court to AssistantLabels.booking(it) },
                     ),
                     Triple(
+                        "Pedidos atorados",
+                        reasons["cancelar_pedidos"] ?: "Se cancelan. No tenían ningún pago: no se cobra ni se devuelve nada.",
+                        proposal.orderCancels.map { "Pedido #${it.folio}" to "Se cancela · ${it.reason}" },
+                    ),
+                    Triple(
                         "Puestos del equipo",
                         reasons["cambios_personal"] ?: "Cambia lo que cada quien ve en su app.",
                         proposal.roleChanges.map { it.person to AssistantLabels.roleChange(it) },
@@ -1148,13 +1205,57 @@ private const val COUNTER_FROM_PERCENT = 80
 
 private val PHOTO_TOKEN = Regex("""\[(foto\d+)]""")
 
+private val SHEET_TOKEN = Regex("""\[(excel\d+)]""")
+
+private const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+/** Un Excel del chat: su nombre y, si todavía no se manda, la × para quitarlo. */
+@Composable
+private fun SheetChip(
+    name: String,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onRemove: (() -> Unit)? = null,
+) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.cardBackground)
+            .padding(start = 12.dp, end = if (onRemove == null) 14.dp else 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.TableChart, null, tint = colors.accentLime, modifier = Modifier.size(18.dp))
+        Text(
+            name,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp).widthIn(max = 200.dp),
+        )
+        if (onRemove != null) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onRemove)
+                    .semantics { contentDescription = "Quitar $name" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Close, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
 private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, mimeType)
 
 private val AssistantProposal.itemCount: Int
     get() =
         changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size +
             supplies.size + recipes.size + (if (courtHours != null) 1 else 0) + movements.size + productEdits.size +
-            supplyEdits.size + spaceEdits.size + roleChanges.size + bookings.size
+            supplyEdits.size + spaceEdits.size + roleChanges.size + bookings.size + orderCancels.size
 
 @Composable
 private fun ChangeRow(

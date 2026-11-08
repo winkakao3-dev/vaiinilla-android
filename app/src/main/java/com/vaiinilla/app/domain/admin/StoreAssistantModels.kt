@@ -178,11 +178,27 @@ data class AssistantProposal(
     val spaceEdits: List<AssistantSpaceEdit> = emptyList(),
     val roleChanges: List<AssistantRoleChange> = emptyList(),
     val bookings: List<AssistantBooking> = emptyList(),
+    val orderCancels: List<AssistantOrderCancel> = emptyList(),
     /** El asistente todavía tiene algo más que proponer después de esta ("sigue"). */
     val continues: Boolean = false,
 ) {
     val productCount: Int get() = menu.sumOf { it.products.size }
 }
+
+/** Un Excel (.xlsx) que el dueño mandó en el chat («excel1»); va completo en cada mensaje, como las fotos. */
+class AssistantSheet(
+    val id: String,
+    val name: String,
+    val bytes: ByteArray,
+)
+
+/** Un pedido atorado que se cancela: por cobrar y sin pago, así que no se devuelve ni se cobra nada. */
+data class AssistantOrderCancel(
+    val orderId: String,
+    val folio: Int,
+    val version: Int,
+    val reason: String,
+)
 
 /** Una foto que el dueño mandó en el chat, ya lista para subir como producto o como logo. */
 class AssistantPhoto(
@@ -293,6 +309,12 @@ sealed interface AssistantStep {
     ) : AssistantStep {
         override val label = "Renta de ${booking.court}"
     }
+
+    data class OrderCancel(
+        val cancel: AssistantOrderCancel,
+    ) : AssistantStep {
+        override val label = "Cancelar el pedido #${cancel.folio}"
+    }
 }
 
 /** Los pasos en el orden en que se aplican: primero ajustes y lugares, luego menú, fotos y al final el equipo. */
@@ -312,6 +334,7 @@ fun AssistantProposal.steps(): List<AssistantStep> =
         spaceEdits.forEach { add(AssistantStep.SpaceEdit(it)) }
         bookings.forEach { add(AssistantStep.Booking(it)) }
         roleChanges.forEach { add(AssistantStep.RoleChange(it)) }
+        orderCancels.forEach { add(AssistantStep.OrderCancel(it)) }
         productPhotos.forEach { add(AssistantStep.ProductPhoto(it)) }
         storePhotos.forEach { (kind, id) -> add(AssistantStep.StorePhoto(kind, id)) }
         invites.forEach { add(AssistantStep.Invite(it)) }
