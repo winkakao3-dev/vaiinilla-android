@@ -194,7 +194,10 @@ class RecorridosEscuelaAdminViewModelTest {
         vm = AdminSchoolViewModel(repo)
         vm.onVisible("escuela-1")
         StaffHarness.awaitUntil("la escuela cargada") {
-            ui.settings != null && ui.requests != null && ui.studentRequests != null && ui.menu != null &&
+            ui.settings != null &&
+                ui.requests != null &&
+                ui.studentRequests != null &&
+                ui.menu != null &&
                 ui.roster != null
         }
     }

@@ -132,8 +132,7 @@ class RecorridosCanchasAdminViewModelTest {
         vm = AdminSpacesViewModel(spaces, reservations, VenueContextStore())
         vm.onVisible("negocio-1")
         StaffHarness.awaitUntil("las canchas y reservas") {
-            ui.spaces != null && ui.schedule != null &&
-                ui.reservations.isNotEmpty()
+            ui.spaces != null && ui.schedule != null && ui.reservations.isNotEmpty()
         }
     }
 

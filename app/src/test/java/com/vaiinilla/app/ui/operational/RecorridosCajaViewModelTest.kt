@@ -3,7 +3,6 @@ package com.vaiinilla.app.ui.operational
 import com.vaiinilla.app.domain.repository.OrderRepositoryException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test

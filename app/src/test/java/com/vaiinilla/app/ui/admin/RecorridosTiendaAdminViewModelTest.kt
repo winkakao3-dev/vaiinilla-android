@@ -3,7 +3,6 @@ package com.vaiinilla.app.ui.admin
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.StoreConfig
-import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreRules
 import com.vaiinilla.app.domain.model.OrderWindow
 import com.vaiinilla.app.ui.operational.FakeCatalog
