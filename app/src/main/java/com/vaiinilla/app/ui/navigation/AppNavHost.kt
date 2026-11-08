@@ -1649,7 +1649,9 @@ private fun AppNavHostContent(
                     onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
                     // Sin mesa la barra «Pedir ya» también abre el asistente, si la tienda lo tiene.
                     onOpenAssistant =
-                        openOrderAssistant.takeIf { orderState.guestVenue?.establishment?.assistantForCustomers != false },
+                        openOrderAssistant.takeIf {
+                            orderState.guestVenue?.establishment?.assistantForCustomers != false
+                        },
                     waiterLayer =
                         menuWaiterSpaceId(
                             guestSpaceId = orderState.guestVenue?.space?.id,
@@ -1819,7 +1821,8 @@ private fun AppNavHostContent(
                         (
                             venue?.space?.let { SpaceCopy.isRoom(assistantVenue, it) }
                                 ?: table?.let {
-                                    SpaceCopy.isRoom(assistantVenue, it.spaceType) && !assistantVenue.isHotelTable(it.spaceId)
+                                    SpaceCopy.isRoom(assistantVenue, it.spaceType) &&
+                                        !assistantVenue.isHotelTable(it.spaceId)
                                 }
                                 ?: false
                         )
@@ -1830,7 +1833,13 @@ private fun AppNavHostContent(
                         AssistantPlaceFacts(
                             kind = assistantVenue.kind,
                             isSchool = assistantVenue.isSchool,
-                            businessLabel = venue?.establishment?.businessType?.let { BusinessType.fromWire(it)?.label },
+                            businessLabel =
+                                venue?.establishment?.businessType?.let {
+                                    BusinessType
+                                        .fromWire(
+                                            it,
+                                        )?.label
+                                },
                             delivery = venue?.establishment?.spaceDelivery,
                             placeName = assistantPlace,
                             placeIsRoom = assistantInRoom,
@@ -1843,7 +1852,10 @@ private fun AppNavHostContent(
                             availableToday = guardianControls?.availableToday?.let(::compactMoney),
                             hasGuardianBlocks =
                                 guardianControls != null &&
-                                    (guardianControls.blockedProductIds.isNotEmpty() || guardianControls.blockedCategoryIds.isNotEmpty()),
+                                    (
+                                        guardianControls.blockedProductIds.isNotEmpty() ||
+                                            guardianControls.blockedCategoryIds.isNotEmpty()
+                                    ),
                         ),
                     )
                 LaunchedEffect(assistantNote) { assistantViewModel.setContext(assistantNote) }

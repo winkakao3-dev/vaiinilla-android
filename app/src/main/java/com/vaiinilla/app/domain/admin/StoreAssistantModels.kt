@@ -264,7 +264,13 @@ object AssistantLabels {
     fun courtHours(hours: AssistantCourtHours): String {
         val days =
             hours.weekDays?.let { list ->
-                if (list.size == 7) "todos los días" else list.joinToString(", ") { WEEK_DAYS.getOrElse(it - 1) { "$it" } }
+                if (list.size ==
+                    7
+                ) {
+                    "todos los días"
+                } else {
+                    list.joinToString(", ") { WEEK_DAYS.getOrElse(it - 1) { "$it" } }
+                }
             }
         val durations =
             hours.durations?.joinToString(", ") { if (it % 60 == 0) "${it / 60} h" else "${it / 60} h ${it % 60} min" }

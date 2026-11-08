@@ -298,7 +298,7 @@ internal fun LazyListScope.inventoryOverview(
     if (alerts == null) {
         item(key = "overview-status") {
             Text(
-                if (state.alertsLoading) "Revisando tu inventario…" else state.alertsError ?: "Revisando tu inventario…",
+                state.alertsError?.takeUnless { state.alertsLoading } ?: "Revisando tu inventario…",
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textSecondary,

@@ -1423,7 +1423,15 @@ private fun ProductSheet(
                                     suggestion = suggestion,
                                     busy = suggesting,
                                     error = suggestionError,
-                                    chosen = suggestion?.codes?.filter { labelOf(it) in chosenLabels }?.toSet().orEmpty(),
+                                    chosen =
+                                        suggestion
+                                            ?.codes
+                                            ?.filter {
+                                                labelOf(
+                                                    it,
+                                                ) in chosenLabels
+                                            }?.toSet()
+                                            .orEmpty(),
                                     colors = colors,
                                     enabled = !saving,
                                     onSuggest = askSuggestion,

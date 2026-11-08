@@ -126,9 +126,7 @@ internal fun AdminInventorySection(
                             item(key = "kitchen-permission") {
                                 AdminToggleRow(
                                     title = "Cocina puede editar el inventario",
-                                    detail =
-                                        "Dar de alta insumos, cambiar recetas y registrar entradas. Apagado, Cocina solo " +
-                                            "ve, registra mermas y cuenta.",
+                                    detail = KITCHEN_PERMISSION_DETAIL,
                                     checked = data.kitchenEdits,
                                     colors = colors,
                                     enabled = !state.saving,
@@ -792,7 +790,13 @@ private fun SupplyEditSheet(
             ) { active = it }
         }
         AdminHint("El mínimo marca el insumo en rojo para que se vuelva a comprar.", colors)
-        AdminTextField("Proveedor", supplierName, { supplierName = it.take(80) }, colors, placeholder = "Abarrotes Rivera")
+        AdminTextField(
+            "Proveedor",
+            supplierName,
+            { supplierName = it.take(80) },
+            colors,
+            placeholder = "Abarrotes Rivera",
+        )
         AdminTextField(
             "Teléfono del proveedor",
             supplierPhone,
@@ -1405,3 +1409,6 @@ private fun quantityError(
 
 /** Lo mismo que acepta el servidor (migración 204). */
 private val SUPPLIER_PHONE = Regex("^[0-9+() .-]{7,30}$")
+
+private const val KITCHEN_PERMISSION_DETAIL =
+    "Dar de alta insumos, cambiar recetas y registrar entradas. Apagado, Cocina solo ve, registra mermas y cuenta."

@@ -219,8 +219,15 @@ class StoreAssistantJson(
                     AssistantCourtHours(
                         opening = opening,
                         closing = closing,
-                        weekDays = (hours["dias_semana"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.intOrNull },
-                        durations = (hours["duraciones_min"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.intOrNull },
+                        weekDays =
+                            (hours["dias_semana"] as? JsonArray)?.mapNotNull {
+                                (it as? JsonPrimitive)?.intOrNull
+                            },
+                        durations =
+                            (hours["duraciones_min"] as? JsonArray)?.mapNotNull {
+                                (it as? JsonPrimitive)
+                                    ?.intOrNull
+                            },
                     )
                 }
             }
@@ -283,7 +290,8 @@ class StoreAssistantJson(
         }
 
     private companion object {
-        val SECTIONS = listOf("espacios", "horario_pistas", "menu", "personal", "fotos", "fotos_productos", "insumos", "recetas")
+        val SECTIONS =
+            listOf("espacios", "horario_pistas", "menu", "personal", "fotos", "fotos_productos", "insumos", "recetas")
         const val DEFAULT_PREP_MINUTES = 10
     }
 }

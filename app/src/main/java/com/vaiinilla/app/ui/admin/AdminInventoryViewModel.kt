@@ -108,7 +108,11 @@ class AdminInventoryViewModel
             onResult: (Result<AllergenSuggestion>) -> Unit,
         ) {
             viewModelScope.launch {
-                onResult(withContext(Dispatchers.IO) { repository.suggestAllergens(name, description, ingredients, productId) })
+                onResult(
+                    withContext(
+                        Dispatchers.IO,
+                    ) { repository.suggestAllergens(name, description, ingredients, productId) },
+                )
             }
         }
 
@@ -121,9 +125,7 @@ class AdminInventoryViewModel
                 result.fold(
                     onSuccess = { saved ->
                         update { copy(saving = false, supplies = this.supplies?.copy(kitchenEdits = saved)) }
-                        notice(
-                            if (saved) "Cocina ya puede editar el inventario" else "Cocina solo ve, registra mermas y cuenta",
-                        )
+                        notice(if (saved) KITCHEN_EDITS_ON else KITCHEN_EDITS_OFF)
                     },
                     onFailure = {
                         update { copy(saving = false, supplies = this.supplies?.copy(kitchenEdits = !allowed)) }
@@ -495,3 +497,6 @@ fun formatQuantity(
         rounded.toBigDecimal().stripTrailingZeros().toPlainString()
     }
 }
+
+private const val KITCHEN_EDITS_ON = "Cocina ya puede editar el inventario"
+private const val KITCHEN_EDITS_OFF = "Cocina solo ve, registra mermas y cuenta"
