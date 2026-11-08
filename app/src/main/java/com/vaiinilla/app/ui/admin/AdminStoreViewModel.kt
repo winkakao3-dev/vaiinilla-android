@@ -270,7 +270,11 @@ class AdminStoreViewModel
             val current = _assistant.value
             if (!current.canAddPhoto) return
             val next =
-                (current.photos.keys.mapNotNull { it.removePrefix("foto").toIntOrNull() }.maxOrNull() ?: 0) + 1
+                (
+                    current.photos.keys
+                        .mapNotNull { it.removePrefix("foto").toIntOrNull() }
+                        .maxOrNull() ?: 0
+                ) + 1
             val id = "foto$next"
             _assistant.value =
                 current.copy(
@@ -423,7 +427,9 @@ class AdminStoreViewModel
             viewModelScope.launch {
                 // Solo las fotos que ya van en algún mensaje; las que siguen pendientes aún no se mandan.
                 val pending = _assistant.value.pendingPhotoIds.toSet()
-                val photoIds = _assistant.value.photos.keys.filter { it !in pending }
+                val photoIds =
+                    _assistant.value.photos.keys
+                        .filter { it !in pending }
                 val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds) }
                 val current = _assistant.value
                 _assistant.value =
@@ -456,7 +462,11 @@ class AdminStoreViewModel
                                             .distinct()
                                             .filter { it in current.photos },
                                     draftToRestore =
-                                        last?.text?.replace(PHOTO_TAG, "")?.replace(Regex(" {2,}"), " ")?.trim(),
+                                        last
+                                            ?.text
+                                            ?.replace(PHOTO_TAG, "")
+                                            ?.replace(Regex(" {2,}"), " ")
+                                            ?.trim(),
                                     error = assistantErrorMessage(error),
                                     retryable = false,
                                 )

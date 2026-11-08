@@ -146,7 +146,12 @@ internal fun StoreWelcome(
                     .clickable(onClick = onAssistant)
                     .padding(18.dp),
             ) {
-                Text("Recomendado", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentInk.copy(alpha = 0.85f))
+                Text(
+                    "Recomendado",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.accentInk.copy(alpha = 0.85f),
+                )
                 Text(
                     "Platícalo con el asistente",
                     fontSize = 18.sp,
@@ -574,7 +579,10 @@ private fun ProposalSoFar(
                         add("Ajustes" to proposal.changes.joinToString(" · ") { it.title })
                     }
                     proposal.spaces.forEach { group ->
-                        add(AssistantLabels.spaceType(group.type) to "${group.prefix} 1 a ${group.prefix} ${group.count}")
+                        add(
+                            AssistantLabels.spaceType(group.type) to
+                                "${group.prefix} 1 a ${group.prefix} ${group.count}",
+                        )
                     }
                     if (proposal.productCount > 0) {
                         add("Menú" to countLabel(proposal.productCount, "producto", "productos"))
@@ -604,6 +612,7 @@ private fun countLabel(
     one: String,
     many: String,
 ) = "$count ${if (count == 1) one else many}"
+
 /** Cuenta de letras cuando el mensaje ya es largo; si pasa del tope, dice que se mande en partes. */
 @Composable
 private fun LetterCounter(
@@ -685,8 +694,14 @@ private fun Bubble(
                     modifier =
                         Modifier
                             .widthIn(max = 290.dp)
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp))
-                            .background(colors.textPrimary)
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 20.dp,
+                                    topEnd = 20.dp,
+                                    bottomStart = 20.dp,
+                                    bottomEnd = 6.dp,
+                                ),
+                            ).background(colors.textPrimary)
                             .padding(horizontal = 14.dp, vertical = 11.dp),
                 )
             }
@@ -720,6 +735,7 @@ private fun Bubble(
         }
     }
 }
+
 @Composable
 private fun AssistantReview(
     proposal: AssistantProposal,

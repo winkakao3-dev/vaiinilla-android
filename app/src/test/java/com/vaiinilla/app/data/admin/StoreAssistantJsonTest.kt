@@ -197,7 +197,10 @@ class StoreAssistantJsonTest {
         assertEquals(listOf(5L, null), recipe.lines.map { it.supplyId })
         assertEquals("Lo que lleva cada uno.", proposal.sectionReasons["recetas"])
         assertEquals("Cerveza clara 1 pz · Clamato 120 ml", AssistantLabels.recipe(recipe))
-        assertEquals("En mililitros · tienes 3,000 ml · te avisa con 500 ml", AssistantLabels.supply(proposal.supplies.single()))
+        assertEquals(
+            "En mililitros · tienes 3,000 ml · te avisa con 500 ml",
+            AssistantLabels.supply(proposal.supplies.single()),
+        )
         // Insumos y recetas se guardan después del menú, y las recetas al final.
         assertEquals(
             listOf(AssistantStep.Supply::class, AssistantStep.Recipe::class),
@@ -213,7 +216,16 @@ class StoreAssistantJsonTest {
                 "lineas":[{"insumo_id":9,"insumo":"Café molido","unidad":"g","cantidad":"18.5"}]}]}}}""",
             )
         assertEquals(false, reply.proposal!!.continues)
-        assertEquals(18.5, reply.proposal!!.recipes.single().lines.single().quantity, 0.0)
+        assertEquals(
+            18.5,
+            reply.proposal!!
+                .recipes
+                .single()
+                .lines
+                .single()
+                .quantity,
+            0.0,
+        )
     }
 
     @Test
