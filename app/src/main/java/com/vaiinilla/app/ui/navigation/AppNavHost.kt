@@ -276,6 +276,9 @@ private fun AppNavHostContent(
     val adminViewModel: AdminViewModel = viewModel()
     val adminStaffViewModel: AdminStaffViewModel = viewModel()
     val adminInventoryViewModel: com.vaiinilla.app.ui.admin.AdminInventoryViewModel = viewModel()
+    // Avisos de lo que falta y el asistente de inventario: admin, Caja y Cocina.
+    val inventoryAssistantViewModel: com.vaiinilla.app.ui.inventory.InventoryAssistantViewModel = viewModel()
+    var inventoryAssistantOpen by rememberSaveable { mutableStateOf(false) }
     val adminCashCutViewModel: com.vaiinilla.app.ui.admin.AdminCashCutViewModel = viewModel()
     val adminStoreViewModel: AdminStoreViewModel = viewModel()
     val adminSpacesViewModel: AdminSpacesViewModel = viewModel()
@@ -2912,6 +2915,15 @@ private fun AppNavHostContent(
                         onStart = pendingRefundsViewModel::onVisible,
                         onStop = pendingRefundsViewModel::onHidden,
                     )
+                    LaunchedEffect(authorizedAccessState.activeContext?.membershipId) {
+                        inventoryAssistantViewModel.onVisible(authorizedAccessState.activeContext?.membershipId)
+                    }
+                    if (inventoryAssistantOpen) {
+                        com.vaiinilla.app.ui.inventory.InventoryAssistantDialog(
+                            inventoryAssistantViewModel,
+                            rememberOperationalColors(),
+                        ) { inventoryAssistantOpen = false }
+                    }
                     CashierOperationalScreen(
                         state = cashierState,
                         cashCutContent = { onClose ->
@@ -3018,11 +3030,18 @@ private fun AppNavHostContent(
                             )
                         },
                         alertsEntry = {
-                            CashierOutboxAlerts(
-                                pending = waiterState.offlineOrders.pending,
-                                orders = cashierState.orders.map { it.summary },
-                                establishmentId = authorizedAccessState.activeContext?.establishmentId,
-                            )
+                            androidx.compose.foundation.layout.Column {
+                                CashierOutboxAlerts(
+                                    pending = waiterState.offlineOrders.pending,
+                                    orders = cashierState.orders.map { it.summary },
+                                    establishmentId = authorizedAccessState.activeContext?.establishmentId,
+                                )
+                                com.vaiinilla.app.ui.inventory.InventoryAlertsCard(
+                                    alerts = inventoryAssistantViewModel.state.value.alerts,
+                                    colors = rememberOperationalColors(),
+                                    onOpen = { inventoryAssistantOpen = true },
+                                )
+                            }
                         },
                         offlineOrdersEntry =
                             waiterState.offlineOrders.takeIf { it.count > 0 }?.let { queue ->
@@ -3136,7 +3155,30 @@ private fun AppNavHostContent(
                         placeName = authorizedAccessState.activeContext?.establishmentName.orEmpty(),
                         onToggleProductAvailable = kitchenViewModel::setProductAvailable,
                         onLoadCatalog = kitchenViewModel::refreshCatalog,
+                        inventoryEntry = {
+                            androidx.compose.foundation.layout.Column {
+                                com.vaiinilla.app.ui.inventory.InventoryAlertsCard(
+                                    alerts = inventoryAssistantViewModel.state.value.alerts,
+                                    colors = rememberOperationalColors(),
+                                    onOpen = { inventoryAssistantOpen = true },
+                                )
+                                com.vaiinilla.app.ui.inventory.InventoryEntryRow(rememberOperationalColors()) {
+                                    inventoryAssistantOpen = true
+                                }
+                            }
+                        },
                     )
+                    val kitchenScope = authorizedAccessState.activeContext?.membershipId
+                    LaunchedEffect(kitchenScope) { inventoryAssistantViewModel.onVisible(kitchenScope) }
+                    // Cocina: el Inventario completo, sin costos; editar depende del permiso del admin.
+                    if (inventoryAssistantOpen) {
+                        LaunchedEffect(kitchenScope) { adminInventoryViewModel.onVisible(kitchenScope.orEmpty()) }
+                        com.vaiinilla.app.ui.inventory.KitchenInventoryDialog(
+                            inventory = adminInventoryViewModel,
+                            assistant = inventoryAssistantViewModel,
+                            colors = rememberOperationalColors(),
+                        ) { inventoryAssistantOpen = false }
+                    }
                     if (reservedSheetOpen) {
                         ReservedOrdersSheet(
                             state = reservedState,
@@ -3197,6 +3239,7 @@ private fun AppNavHostContent(
                             AdminSectionsHost(
                                 staff = adminStaffViewModel,
                                 inventory = adminInventoryViewModel,
+                                inventoryAssistant = inventoryAssistantViewModel,
                                 cashCut = adminCashCutViewModel,
                                 store = adminStoreViewModel,
                                 spaces = adminSpacesViewModel,

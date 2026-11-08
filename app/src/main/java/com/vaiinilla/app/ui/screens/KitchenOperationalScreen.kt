@@ -228,6 +228,8 @@ fun KitchenOperationalScreen(
     /** N03: apagar o prender un producto desde Cocina; null si esta Cocina no lo ofrece. */
     onToggleProductAvailable: ((productId: Int, available: Boolean) -> Unit)? = null,
     onLoadCatalog: () -> Unit = {},
+    /** Lo que falta del inventario y la entrada a Inventario; null no pinta nada. */
+    inventoryEntry: (@Composable () -> Unit)? = null,
 ) {
     val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
@@ -561,6 +563,12 @@ fun KitchenOperationalScreen(
             if (reservedEntry != null) {
                 item(key = "kitchen-reserved") {
                     Box(modifier = Modifier.animateItem()) { reservedEntry() }
+                }
+            }
+
+            if (inventoryEntry != null) {
+                item(key = "kitchen-inventory") {
+                    Box(modifier = Modifier.animateItem()) { inventoryEntry() }
                 }
             }
 

@@ -57,6 +57,14 @@ data class AssistantInvite(
     val role: String,
 )
 
+/** Horario para rentar pistas o canchas; [weekDays] y [durations] en null dejan los que ya tiene. */
+data class AssistantCourtHours(
+    val opening: String,
+    val closing: String,
+    val weekDays: List<Int>?,
+    val durations: List<Int>?,
+)
+
 /** Un insumo nuevo del inventario; [unit] es la unidad como la manda el servidor ("ml", "pieza"…). */
 data class AssistantSupply(
     val name: String,
@@ -100,6 +108,7 @@ data class AssistantProposal(
     val sectionReasons: Map<String, String> = emptyMap(),
     val supplies: List<AssistantSupply> = emptyList(),
     val recipes: List<AssistantRecipe> = emptyList(),
+    val courtHours: AssistantCourtHours? = null,
     /** El asistente todavía tiene algo más que proponer después de esta ("sigue"). */
     val continues: Boolean = false,
 ) {
@@ -162,6 +171,12 @@ sealed interface AssistantStep {
         override val label = "Invitar a ${invite.email}"
     }
 
+    data class CourtHours(
+        val hours: AssistantCourtHours,
+    ) : AssistantStep {
+        override val label = "Horario de las pistas"
+    }
+
     data class Supply(
         val supply: AssistantSupply,
     ) : AssistantStep {
@@ -180,6 +195,7 @@ fun AssistantProposal.steps(): List<AssistantStep> =
     buildList {
         patchBody?.let { add(AssistantStep.Settings(it, changes.associate { c -> c.field to c.title })) }
         spaces.forEach { add(AssistantStep.Spaces(it)) }
+        courtHours?.let { add(AssistantStep.CourtHours(it)) }
         menu.forEach { add(AssistantStep.Menu(it)) }
         // Las recetas van después del menú y de los insumos: pueden usar productos e insumos recién creados.
         supplies.forEach { add(AssistantStep.Supply(it)) }
@@ -243,6 +259,19 @@ object AssistantLabels {
             supply.minimum?.takeIf { it > 0 }?.let { "te avisa con ${amount(it, supply.unit)}" },
             supply.unitCost?.takeIf { it > 0 }?.let { "cuesta ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
         ).joinToString(" · ")
+
+    /** "15:00 a 03:00 · todos los días · 1 h, 2 h". */
+    fun courtHours(hours: AssistantCourtHours): String {
+        val days =
+            hours.weekDays?.let { list ->
+                if (list.size == 7) "todos los días" else list.joinToString(", ") { WEEK_DAYS.getOrElse(it - 1) { "$it" } }
+            }
+        val durations =
+            hours.durations?.joinToString(", ") { if (it % 60 == 0) "${it / 60} h" else "${it / 60} h ${it % 60} min" }
+        return listOfNotNull("${hours.opening} a ${hours.closing}", days, durations).joinToString(" · ")
+    }
+
+    private val WEEK_DAYS = listOf("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
 
     fun recipe(recipe: AssistantRecipe): String =
         recipe.lines.joinToString(" · ") { "${it.supplyName} ${amount(it.quantity, it.unit)}" }

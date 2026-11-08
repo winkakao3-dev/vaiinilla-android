@@ -3,6 +3,7 @@ package com.vaiinilla.app.data.admin
 import com.vaiinilla.app.core.network.ApiJson
 import com.vaiinilla.app.domain.admin.AssistantCategory
 import com.vaiinilla.app.domain.admin.AssistantChange
+import com.vaiinilla.app.domain.admin.AssistantCourtHours
 import com.vaiinilla.app.domain.admin.AssistantInvite
 import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
@@ -208,11 +209,28 @@ class StoreAssistantJson(
                     lines = lines,
                 )
             }
+        val courtHours =
+            (proposal["horario_pistas"] as? JsonObject)?.let { hours ->
+                val opening = hours.text("apertura")
+                val closing = hours.text("cierre")
+                if (opening == null || closing == null) {
+                    null
+                } else {
+                    AssistantCourtHours(
+                        opening = opening,
+                        closing = closing,
+                        weekDays = (hours["dias_semana"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.intOrNull },
+                        durations = (hours["duraciones_min"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.intOrNull },
+                    )
+                }
+            }
         val sectionReasons =
             SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
         val nothing =
             items.isEmpty() && spaces.isEmpty() && menu.isEmpty() && invites.isEmpty() && storePhotos.isEmpty()
-        if (nothing && productPhotos.isEmpty() && supplies.isEmpty() && recipes.isEmpty()) return null
+        if (nothing && productPhotos.isEmpty() && supplies.isEmpty() && recipes.isEmpty() && courtHours == null) {
+            return null
+        }
         return AssistantProposal(
             patchBody = changes.takeIf { it.isNotEmpty() }?.toString(),
             changes = items,
@@ -224,6 +242,7 @@ class StoreAssistantJson(
             sectionReasons = sectionReasons,
             supplies = supplies,
             recipes = recipes,
+            courtHours = courtHours,
             continues = continues,
         )
     }
@@ -264,7 +283,7 @@ class StoreAssistantJson(
         }
 
     private companion object {
-        val SECTIONS = listOf("espacios", "menu", "personal", "fotos", "fotos_productos", "insumos", "recetas")
+        val SECTIONS = listOf("espacios", "horario_pistas", "menu", "personal", "fotos", "fotos_productos", "insumos", "recetas")
         const val DEFAULT_PREP_MINUTES = 10
     }
 }

@@ -148,6 +148,8 @@ class AdminSectionsHost(
     val orderTaker: (@Composable (AdminHeader) -> Unit)? = null,
     /** Negocio › Inventario; null la esconde. */
     val inventory: com.vaiinilla.app.ui.admin.AdminInventoryViewModel? = null,
+    /** «Cómo vas» y el asistente de Inventario; null los esconde. */
+    val inventoryAssistant: com.vaiinilla.app.ui.inventory.InventoryAssistantViewModel? = null,
     /** Negocio › Cortes y reportes; null la esconde. */
     val cashCut: com.vaiinilla.app.ui.admin.AdminCashCutViewModel? = null,
 )
@@ -609,7 +611,10 @@ private fun AdminSectionContent(
         }
         AdminSection.INVENTORY ->
             sections.inventory?.let { inventory ->
-                LaunchedEffect(scope) { inventory.onVisible(scope) }
+                LaunchedEffect(scope) {
+                    inventory.onVisible(scope)
+                    sections.inventoryAssistant?.onVisible(scope)
+                }
                 AdminInventorySection(
                     inventory,
                     state.catalog?.products,
@@ -617,6 +622,7 @@ private fun AdminSectionContent(
                     readOnly,
                     onBack,
                     categories = state.catalog?.categories,
+                    assistant = sections.inventoryAssistant,
                 )
             }
         AdminSection.CUTS ->

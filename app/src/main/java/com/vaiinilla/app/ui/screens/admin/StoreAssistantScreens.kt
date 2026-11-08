@@ -592,6 +592,7 @@ private fun ProposalSoFar(
                     if (proposal.invites.isNotEmpty()) {
                         add("Tu equipo" to countLabel(proposal.invites.size, "invitación", "invitaciones"))
                     }
+                    proposal.courtHours?.let { add("Horario de las pistas" to AssistantLabels.courtHours(it)) }
                     if (proposal.supplies.isNotEmpty()) {
                         add("Insumos" to countLabel(proposal.supplies.size, "insumo", "insumos"))
                     }
@@ -862,6 +863,17 @@ private fun AssistantReview(
                     }
                 }
             }
+            proposal.courtHours?.let { hours ->
+                item {
+                    ReviewSection(
+                        "Horario de las pistas",
+                        colors,
+                        reasons["horario_pistas"] ?: "Cuándo se pueden rentar. Es aparte del horario de pedidos.",
+                    ) {
+                        ItemRow("Se rentan", AssistantLabels.courtHours(hours), colors)
+                    }
+                }
+            }
             if (proposal.supplies.isNotEmpty()) {
                 item {
                     ReviewSection("Insumos", colors, reasons["insumos"] ?: "Se dan de alta en tu inventario.") {
@@ -1078,7 +1090,7 @@ private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, m
 private val AssistantProposal.itemCount: Int
     get() =
         changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size +
-            supplies.size + recipes.size
+            supplies.size + recipes.size + (if (courtHours != null) 1 else 0)
 
 @Composable
 private fun ChangeRow(

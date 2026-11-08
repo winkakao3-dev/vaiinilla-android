@@ -81,7 +81,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.venue.LocalVenueContext
+import com.vaiinilla.app.data.inventory.AllergenSuggestion
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
 import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
 import com.vaiinilla.app.domain.admin.AdminOptionInput
@@ -219,6 +221,10 @@ internal fun AdminMenuTab(
                     sheet = null
                 },
                 recipe = recipe,
+                suggestAllergens =
+                    inventory?.let { inv ->
+                        { n, d, i, done -> inv.suggestAllergens(n, d, i, current.product?.id, done) }
+                    },
             )
             // La receta se abre encima de la hoja del producto; al guardarla o cerrarla se vuelve a él.
             if (inventory != null) InventoryRecipeSheetHost(inventory, catalog?.products, colors, readOnly)
@@ -864,6 +870,8 @@ private fun ProductSheet(
     onArchive: (Product) -> Unit = {},
     takesPreorders: Boolean = false,
     recipe: RecipeEntry? = null,
+    /** El asistente sugiere alérgenos con el nombre, los ingredientes y la receta; null esconde el botón. */
+    suggestAllergens: AllergenSuggester? = null,
 ) {
     val venue = LocalVenueContext.current
     val context = LocalContext.current
@@ -885,6 +893,23 @@ private fun ProductSheet(
     // Solo lo que el admin revisó se manda: guardar el precio no marca revisado un producto que nadie miró.
     var allergensTouched by remember { mutableStateOf(false) }
     var markUnreviewed by remember { mutableStateOf(false) }
+    var suggestion by remember { mutableStateOf<AllergenSuggestion?>(null) }
+    var suggesting by remember { mutableStateOf(false) }
+    var suggestionError by remember { mutableStateOf<String?>(null) }
+    val askSuggestion: () -> Unit = {
+        suggestAllergens?.let { ask ->
+            suggesting = true
+            suggestionError = null
+            ask(name, description, ingredients) { result ->
+                suggesting = false
+                result
+                    .onSuccess { suggestion = it }
+                    .onFailure {
+                        suggestionError = it.toUserFacingMessage("El asistente no pudo revisar este producto.")
+                    }
+            }
+        }
+    }
     var available by remember { mutableStateOf(product?.available ?: true) }
     // Solo lo que el admin tocó: si la receta recién guardada lo agotó, «Guardar cambios» no lo vuelve a vender.
     var availableTouched by remember { mutableStateOf(false) }
@@ -1061,6 +1086,24 @@ private fun ProductSheet(
                                 allergensReviewed = true
                                 allergensTouched = true
                                 markUnreviewed = false
+                            }
+                            if (suggestAllergens != null) {
+                                AllergenSuggestionPanel(
+                                    name = name,
+                                    suggestion = suggestion,
+                                    busy = suggesting,
+                                    error = suggestionError,
+                                    chosen = allergenCodes,
+                                    colors = colors,
+                                    enabled = !saving,
+                                    onSuggest = askSuggestion,
+                                ) { codes ->
+                                    haptics.selection()
+                                    allergenCodes = allergenCodes + codes
+                                    allergensReviewed = true
+                                    allergensTouched = true
+                                    markUnreviewed = false
+                                }
                             }
                             if (allergensReviewed && product != null) {
                                 AdminToggleRow(
@@ -1372,6 +1415,24 @@ private fun ProductSheet(
                                     }
                                 }
                             }
+                            if (suggestAllergens != null) {
+                                val chosenLabels = allergens.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                val labelOf = { code: String -> SchoolAllergen.fromCode(code)?.label ?: code }
+                                AllergenSuggestionPanel(
+                                    name = name,
+                                    suggestion = suggestion,
+                                    busy = suggesting,
+                                    error = suggestionError,
+                                    chosen = suggestion?.codes?.filter { labelOf(it) in chosenLabels }?.toSet().orEmpty(),
+                                    colors = colors,
+                                    enabled = !saving,
+                                    onSuggest = askSuggestion,
+                                ) { codes ->
+                                    haptics.selection()
+                                    val labels = codes.map(labelOf).filter { it !in chosenLabels }
+                                    allergens = (chosenLabels + labels).joinToString(", ")
+                                }
+                            }
                         }
                         AdminToggleRow(
                             title = "Disponible",
@@ -1646,6 +1707,92 @@ internal fun AllergenReview(
             fontSize = 12.sp,
             fontWeight = if (reviewed) FontWeight.Normal else FontWeight.Bold,
             color = if (reviewed) colors.textSecondary else AdminCoral,
+        )
+    }
+}
+
+/** Pide al asistente alérgenos con el nombre, la descripción y los ingredientes; contesta por el último parámetro. */
+internal typealias AllergenSuggester =
+    (name: String, description: String, ingredients: String, onResult: (Result<AllergenSuggestion>) -> Unit) -> Unit
+
+/** «Sugerir alérgenos»: lo sugerido sale aparte y no cuenta hasta que el admin lo toca. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AllergenSuggestionPanel(
+    name: String,
+    suggestion: AllergenSuggestion?,
+    busy: Boolean,
+    error: String?,
+    chosen: Set<String>,
+    colors: OperationalColors,
+    enabled: Boolean,
+    onSuggest: () -> Unit,
+    onUse: (Set<String>) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        val pending = suggestion?.codes?.filter { it !in chosen }.orEmpty()
+        if (suggestion != null) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .border(1.5.dp, colors.accentLime.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Sugerencia del asistente",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (colors.isDark) colors.accentLime else colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (pending.size > 1) {
+                        ChipButton(label = "Usar las ${pending.size}", enabled = enabled, colors = colors) {
+                            onUse(pending.toSet())
+                        }
+                    }
+                }
+                Text(
+                    when {
+                        suggestion.codes.isEmpty() ->
+                            suggestion.reason ?: "No encontró alérgenos. Si estás seguro, márcalo tú."
+                        pending.isEmpty() -> "Ya marcaste todo lo que sugirió."
+                        else -> (suggestion.reason?.let { "$it " } ?: "") + "Revísalo antes de guardar."
+                    },
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
+                )
+                if (pending.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        pending.forEach { code ->
+                            ChipButton(
+                                label = "+ ${SchoolAllergen.fromCode(code)?.label ?: code}",
+                                enabled = enabled,
+                                colors = colors,
+                            ) { onUse(setOf(code)) }
+                        }
+                    }
+                }
+            }
+        }
+        error?.let { Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = AdminCoral) }
+        AdminSecondaryButton(
+            title =
+                when {
+                    busy -> "Revisando la receta…"
+                    suggestion != null -> "Sugerir otra vez"
+                    else -> "Sugerir alérgenos"
+                },
+            colors = colors,
+            outlined = true,
+            enabled = enabled && !busy && name.isNotBlank(),
+            onClick = onSuggest,
         )
     }
 }

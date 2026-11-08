@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.data.inventory.AllergenSuggestion
 import com.vaiinilla.app.data.inventory.InventoryMovement
 import com.vaiinilla.app.data.inventory.InventoryMovementType
 import com.vaiinilla.app.data.inventory.InventoryProduct
@@ -30,6 +31,7 @@ import javax.inject.Inject
 enum class InventoryTab(
     val label: String,
 ) {
+    OVERVIEW("Cómo vas"),
     STOCK("Existencias"),
     RECIPES("Recetas"),
     COUNT("Conteo"),
@@ -47,7 +49,7 @@ enum class InventoryPeriod(
 }
 
 data class AdminInventoryUiState(
-    val tab: InventoryTab = InventoryTab.STOCK,
+    val tab: InventoryTab = InventoryTab.OVERVIEW,
     val supplies: InventorySupplies? = null,
     val products: List<InventoryProduct>? = null,
     val loading: Boolean = false,
@@ -95,6 +97,40 @@ class AdminInventoryViewModel
                 _uiState.value = AdminInventoryUiState()
             }
             refresh()
+        }
+
+        /** Alérgenos que sugiere el asistente para un producto; solo sugiere, no guarda nada. */
+        fun suggestAllergens(
+            name: String,
+            description: String,
+            ingredients: String,
+            productId: Int?,
+            onResult: (Result<AllergenSuggestion>) -> Unit,
+        ) {
+            viewModelScope.launch {
+                onResult(withContext(Dispatchers.IO) { repository.suggestAllergens(name, description, ingredients, productId) })
+            }
+        }
+
+        /** El admin deja o no a Cocina editar el inventario. */
+        fun setKitchenEdits(allowed: Boolean) {
+            val supplies = _uiState.value.supplies ?: return
+            update { copy(saving = true, supplies = supplies.copy(kitchenEdits = allowed)) }
+            viewModelScope.launch {
+                val result = withContext(Dispatchers.IO) { repository.setKitchenEdits(allowed) }
+                result.fold(
+                    onSuccess = { saved ->
+                        update { copy(saving = false, supplies = this.supplies?.copy(kitchenEdits = saved)) }
+                        notice(
+                            if (saved) "Cocina ya puede editar el inventario" else "Cocina solo ve, registra mermas y cuenta",
+                        )
+                    },
+                    onFailure = {
+                        update { copy(saving = false, supplies = this.supplies?.copy(kitchenEdits = !allowed)) }
+                        notice(it.toUserFacingMessage("No se pudo cambiar el permiso de Cocina."), error = true)
+                    },
+                )
+            }
         }
 
         fun selectTab(tab: InventoryTab) {

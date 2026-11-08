@@ -250,4 +250,19 @@ class StoreAssistantJsonTest {
         )
         assertEquals(assistantNameKey("Limón "), assistantNameKey("limon"))
     }
+
+    @Test
+    fun `lee el horario de las pistas aparte del de pedidos`() {
+        val reply =
+            json.parseReply(
+                """{"data":{"mensaje":"Listo","opciones":[],"propuesta":{"cambios":{},"motivos":{"horario_pistas":"De 3 pm a 3 am."},
+                "horario_pistas":{"apertura":"15:00","cierre":"03:00","dias_semana":[1,2,3,4,5,6,7],"duraciones_min":[60,120]}}}}""",
+            )
+        val hours = reply.proposal!!.courtHours!!
+        assertEquals("15:00", hours.opening)
+        assertEquals("03:00", hours.closing)
+        assertEquals("15:00 a 03:00 · todos los días · 1 h, 2 h", AssistantLabels.courtHours(hours))
+        assertEquals("De 3 pm a 3 am.", reply.proposal!!.sectionReasons["horario_pistas"])
+        assertEquals(AssistantStep.CourtHours::class, reply.proposal!!.steps().single()::class)
+    }
 }

@@ -55,6 +55,9 @@ import com.vaiinilla.app.ui.admin.parseQuantity
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.components.physicalPress
+import com.vaiinilla.app.ui.inventory.InventoryAssistantDialog
+import com.vaiinilla.app.ui.inventory.InventoryAssistantViewModel
+import com.vaiinilla.app.ui.inventory.inventoryOverview
 import com.vaiinilla.app.ui.screens.ChipButton
 import com.vaiinilla.app.ui.screens.OperationalColors
 
@@ -74,8 +77,19 @@ internal fun AdminInventorySection(
     onBack: () -> Unit,
     /** Categorías del menú (con su id) para ligar un insumo a una categoría completa en «Lo usan». */
     categories: List<Category>? = null,
+    /** «Cómo vas» y el asistente de inventario; null los esconde. */
+    assistant: InventoryAssistantViewModel? = null,
+    /** Mermas y conteo: Cocina los hace aunque no pueda editar. */
+    canCount: Boolean = !readOnly,
+    /** Cocina no ve costos ni el reporte (el servidor tampoco se los manda). */
+    showCosts: Boolean = true,
+    /** El interruptor «Cocina puede editar el inventario»; solo el admin. */
+    ownerControls: Boolean = true,
 ) {
     val state by viewModel.uiState
+    var assistantOpen by rememberSaveable { mutableStateOf(false) }
+    // Sin permiso (Cocina sin el interruptor del admin) se ve y se cuenta, pero no se edita.
+    val editLocked = readOnly || state.supplies?.canEdit == false
     var sheet by remember { mutableStateOf<Pair<SupplySheet, InventorySupply?>?>(null) }
     var countNote by rememberSaveable { mutableStateOf("") }
 
@@ -92,7 +106,7 @@ internal fun AdminInventorySection(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                InventoryTab.entries.forEach { tab ->
+                InventoryTab.entries.filter { showCosts || it != InventoryTab.REPORT }.forEach { tab ->
                     ChipButton(label = tab.label, enabled = true, colors = colors, selected = state.tab == tab) {
                         viewModel.selectTab(tab)
                     }
@@ -102,17 +116,45 @@ internal fun AdminInventorySection(
         if (state.error != null && state.supplies == null) {
             item(key = "error") { AdminLoadError(state.error!!, colors, viewModel::refresh) }
         }
+        val openAdd = { sheet = SupplySheet.EDIT to null }
+        val openSupply = { supply: InventorySupply -> sheet = SupplySheet.ACTIONS to supply }
         when (state.tab) {
-            InventoryTab.STOCK ->
-                stockTab(state, colors, readOnly, onAdd = { sheet = SupplySheet.EDIT to null }) {
-                    sheet = SupplySheet.ACTIONS to it
+            InventoryTab.OVERVIEW ->
+                if (assistant != null) {
+                    if (ownerControls && !readOnly) {
+                        state.supplies?.let { data ->
+                            item(key = "kitchen-permission") {
+                                AdminToggleRow(
+                                    title = "Cocina puede editar el inventario",
+                                    detail =
+                                        "Dar de alta insumos, cambiar recetas y registrar entradas. Apagado, Cocina solo " +
+                                            "ve, registra mermas y cuenta.",
+                                    checked = data.kitchenEdits,
+                                    colors = colors,
+                                    enabled = !state.saving,
+                                    onChange = viewModel::setKitchenEdits,
+                                )
+                            }
+                        }
+                    }
+                    inventoryOverview(assistant.state.value, colors, assistant::refreshAlerts)
+                    item(key = "overview-ask") {
+                        AdminPrimaryButton(
+                            title = "Pregúntale al asistente",
+                            colors = colors,
+                            modifier = Modifier.padding(top = 16.dp),
+                        ) { assistantOpen = true }
+                    }
+                } else {
+                    stockTab(state, colors, editLocked, showCosts, openAdd, openSupply)
                 }
+            InventoryTab.STOCK -> stockTab(state, colors, editLocked, showCosts, openAdd, openSupply)
             InventoryTab.RECIPES -> recipesTab(state, colors, viewModel::openRecipe)
             InventoryTab.COUNT ->
                 countTab(
                     state = state,
                     colors = colors,
-                    readOnly = readOnly,
+                    readOnly = !canCount,
                     note = countNote,
                     onNote = { countNote = it },
                     onCount = viewModel::setCounted,
@@ -138,7 +180,9 @@ internal fun AdminInventorySection(
                     SupplyActionsSheet(
                         it,
                         colors,
-                        readOnly,
+                        editLocked,
+                        canCount = canCount,
+                        showCosts = showCosts,
                         onDismiss = close,
                         onHistory = {
                             sheet = null
@@ -151,7 +195,7 @@ internal fun AdminInventorySection(
                     ) { next -> sheet = next to it }
                 }
             SupplySheet.EDIT ->
-                SupplyEditSheet(supply, state, colors, onDismiss = close) { input ->
+                SupplyEditSheet(supply, state, colors, showCosts = showCosts, onDismiss = close) { input ->
                     viewModel.saveSupply(supply, input) { sheet = null }
                 }
             SupplySheet.ENTRY, SupplySheet.WASTE, SupplySheet.ADJUST ->
@@ -168,14 +212,17 @@ internal fun AdminInventorySection(
                 }
         }
     }
-    InventoryRecipeSheetHost(viewModel, catalog, colors, readOnly)
+    InventoryRecipeSheetHost(viewModel, catalog, colors, editLocked)
+    if (assistantOpen && assistant != null) {
+        InventoryAssistantDialog(assistant, colors) { assistantOpen = false }
+    }
     state.usesFor?.let { supply ->
         SupplyUsesSheet(
             supply = supply,
             state = state,
             pickable = usesPicker(state.products, catalog, categories),
             colors = colors,
-            readOnly = readOnly,
+            readOnly = editLocked,
             onDismiss = viewModel::closeUses,
             onRetry = { viewModel.openUses(supply) },
             onSave = viewModel::saveUses,
@@ -230,6 +277,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.stockTab(
     state: AdminInventoryUiState,
     colors: OperationalColors,
     readOnly: Boolean,
+    showCosts: Boolean,
     onAdd: () -> Unit,
     onOpen: (InventorySupply) -> Unit,
 ) {
@@ -249,13 +297,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.stockTab(
                     Modifier.weight(1f),
                     alert = data.lowCount > 0,
                 )
-                SummaryFigure("Valor", moneyLabel(data.totalValue), colors, Modifier.weight(1f))
+                if (showCosts) SummaryFigure("Valor", moneyLabel(data.totalValue), colors, Modifier.weight(1f))
             }
         }
     }
     if (!readOnly) {
         item(key = "stock-add") {
             AdminPrimaryButton(title = "Agregar insumo", colors = colors, icon = Icons.Outlined.Add, onClick = onAdd)
+        }
+    } else if (!data.canEdit) {
+        item(key = "stock-locked") {
+            AdminPanel(colors) {
+                Text("Solo ver, mermas y conteo", fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                AdminHint(
+                    "Para dar de alta insumos, recetas o entradas, pídele a tu administrador que te dé permiso.",
+                    colors,
+                )
+            }
         }
     }
     if (data.supplies.isEmpty()) {
@@ -578,6 +636,8 @@ private fun SupplyActionsSheet(
     supply: InventorySupply,
     colors: OperationalColors,
     readOnly: Boolean,
+    canCount: Boolean = !readOnly,
+    showCosts: Boolean = true,
     onDismiss: () -> Unit,
     onHistory: () -> Unit,
     onUses: () -> Unit,
@@ -587,10 +647,12 @@ private fun SupplyActionsSheet(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             SummaryFigure("Hay", qty(supply.stock, supply.unit), colors, Modifier.weight(1f), alert = supply.low)
             SummaryFigure("Mínimo", qty(supply.minimum, supply.unit), colors, Modifier.weight(1f))
-            SummaryFigure("Valor", moneyLabel(supply.value), colors, Modifier.weight(1f))
+            if (showCosts) SummaryFigure("Valor", moneyLabel(supply.value), colors, Modifier.weight(1f))
         }
         if (!readOnly) {
             AdminPrimaryButton(title = "Registrar entrada (compra)", colors = colors) { onPick(SupplySheet.ENTRY) }
+        }
+        if (canCount) {
             AdminSecondaryButton(
                 title = "Registrar merma",
                 colors = colors,
@@ -599,6 +661,8 @@ private fun SupplyActionsSheet(
             AdminSecondaryButton(title = "Contar este insumo", colors = colors, outlined = true) {
                 onPick(SupplySheet.ADJUST)
             }
+        }
+        if (!readOnly) {
             AdminSecondaryButton(title = "Editar insumo", colors = colors, outlined = true) { onPick(SupplySheet.EDIT) }
         }
         AdminSecondaryButton(
@@ -622,6 +686,7 @@ private fun SupplyEditSheet(
     supply: InventorySupply?,
     state: AdminInventoryUiState,
     colors: OperationalColors,
+    showCosts: Boolean = true,
     onDismiss: () -> Unit,
     onSave: (InventorySupplyInput) -> Unit,
 ) {
@@ -640,6 +705,9 @@ private fun SupplyEditSheet(
     val unitLocked = supply != null && (supply.stock != 0.0 || supply.usedBy > 0)
     var initial by rememberSaveable { mutableStateOf("") }
     var active by rememberSaveable { mutableStateOf(supply?.active ?: true) }
+    var supplierName by rememberSaveable { mutableStateOf(supply?.supplierName.orEmpty()) }
+    var supplierPhone by rememberSaveable { mutableStateOf(supply?.supplierPhone.orEmpty()) }
+    val phoneOk = supplierPhone.isBlank() || SUPPLIER_PHONE.matches(supplierPhone.trim())
     val categories =
         state.supplies
             ?.supplies
@@ -693,15 +761,17 @@ private fun SupplyEditSheet(
                 Modifier.weight(1f),
                 keyboardType = KeyboardType.Decimal,
             )
-            AdminTextField(
-                "Costo por ${unit.short}",
-                cost,
-                { cost = it },
-                colors,
-                Modifier.weight(1f),
-                keyboardType = KeyboardType.Decimal,
-                prefix = "$",
-            )
+            if (showCosts) {
+                AdminTextField(
+                    "Costo por ${unit.short}",
+                    cost,
+                    { cost = it },
+                    colors,
+                    Modifier.weight(1f),
+                    keyboardType = KeyboardType.Decimal,
+                    prefix = "$",
+                )
+            }
         }
         if (supply == null) {
             AdminTextField(
@@ -722,6 +792,23 @@ private fun SupplyEditSheet(
             ) { active = it }
         }
         AdminHint("El mínimo marca el insumo en rojo para que se vuelva a comprar.", colors)
+        AdminTextField("Proveedor", supplierName, { supplierName = it.take(80) }, colors, placeholder = "Abarrotes Rivera")
+        AdminTextField(
+            "Teléfono del proveedor",
+            supplierPhone,
+            { supplierPhone = it.take(30) },
+            colors,
+            keyboardType = KeyboardType.Phone,
+            placeholder = "614 123 4567",
+        )
+        AdminHint(
+            if (phoneOk) {
+                "Quién te lo surte. El asistente y los avisos de Caja y Cocina lo dicen cuando se está acabando."
+            } else {
+                "Revisa el teléfono: solo números, espacios, + o guiones."
+            },
+            colors,
+        )
         val badField =
             listOf("mínimo" to minimum, "costo" to cost, "existencia" to initial)
                 .firstOrNull { (_, t) -> t.isNotBlank() && parseQuantity(t) == null }
@@ -733,7 +820,7 @@ private fun SupplyEditSheet(
             title = if (supply == null) "Guardar y escoger productos" else "Guardar",
             colors = colors,
             busy = state.saving,
-            enabled = name.isNotBlank() && badField == null,
+            enabled = name.isNotBlank() && badField == null && phoneOk,
         ) {
             onSave(
                 InventorySupplyInput(
@@ -745,6 +832,9 @@ private fun SupplyEditSheet(
                     unitCost = if (supply == null || cost != savedCost) parseQuantity(cost) ?: 0.0 else null,
                     initialStock = if (supply == null) parseQuantity(initial) else null,
                     active = if (supply == null) null else active,
+                    // "" borra el proveedor; sin cambios no se manda.
+                    supplierName = supplierName.trim().takeIf { it != supply?.supplierName.orEmpty() },
+                    supplierPhone = supplierPhone.trim().takeIf { it != supply?.supplierPhone.orEmpty() },
                 ),
             )
         }
@@ -1312,3 +1402,6 @@ private fun quantityError(
         value > 0 && value < MIN_QUANTITY -> "La cantidad mínima es 0.001."
         else -> null
     }
+
+/** Lo mismo que acepta el servidor (migración 204). */
+private val SUPPLIER_PHONE = Regex("^[0-9+() .-]{7,30}$")
