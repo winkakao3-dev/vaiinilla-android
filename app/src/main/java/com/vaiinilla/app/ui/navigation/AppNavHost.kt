@@ -1644,6 +1644,9 @@ private fun AppNavHostContent(
                     onOpenAccount = { navController.navigateStudent(Routes.WALLET_ACCOUNT) },
                     onOpenCart = { navController.navigateStudent(Routes.CART) },
                     onOpenFeed = { navController.navigate(Routes.MENU_FEED) { launchSingleTop = true } },
+                    // Sin mesa la barra «Pedir ya» también abre el asistente, si la tienda lo tiene.
+                    onOpenAssistant =
+                        openOrderAssistant.takeIf { orderState.guestVenue?.establishment?.assistantForCustomers != false },
                     waiterLayer =
                         menuWaiterSpaceId(
                             guestSpaceId = orderState.guestVenue?.space?.id,

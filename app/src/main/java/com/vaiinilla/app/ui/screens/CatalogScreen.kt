@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -111,14 +110,13 @@ import com.vaiinilla.app.ui.components.EditorialSearchField
 import com.vaiinilla.app.ui.components.EmptyState
 import com.vaiinilla.app.ui.components.HeroGlassPill
 import com.vaiinilla.app.ui.components.MenuCartBar
-import com.vaiinilla.app.ui.components.MenuCartShortcut
+import com.vaiinilla.app.ui.components.MenuCartLayer
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductCardSkeleton
 import com.vaiinilla.app.ui.components.ProductDetailSheet
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.ProfileInitialsButton
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavClearance
-import com.vaiinilla.app.ui.components.VaiinillaBottomNavSideMargin
 import com.vaiinilla.app.ui.components.VaiinillaBottomNavTop
 import com.vaiinilla.app.ui.components.VenueLogo
 import com.vaiinilla.app.ui.components.WholeWordTitle
@@ -179,9 +177,11 @@ fun CatalogScreen(
     onOpenFeed: (() -> Unit)? = null,
     /**
      * "Llamar al mesero" sobre la barra (MenuWaiterLayer); sin mesa no llega. Recibe (carrito, visible): con
-     * carrito, la capa pinta una sola barra "Ver carrito" con "Mesero" adentro en lugar de [MenuCartShortcut].
+     * carrito, la capa pinta una sola barra "Pedir ya" con "Mesero" adentro.
      */
     waiterLayer: (@Composable (MenuCartBar?, Boolean) -> Unit)? = null,
+    /** El asistente en la barra «Pedir ya» cuando no hay mesa (sin [waiterLayer]); null si la tienda no lo tiene. */
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val haptics = rememberVaiinillaHaptics()
     when {
@@ -231,6 +231,7 @@ fun CatalogScreen(
                     },
                 onOpenFeed = onOpenFeed,
                 waiterLayer = waiterLayer,
+                onOpenAssistant = onOpenAssistant,
             )
         else ->
             CatalogError(
@@ -379,6 +380,7 @@ private fun CatalogContent(
     onOpenCart: (() -> Unit)? = null,
     onOpenFeed: (() -> Unit)? = null,
     waiterLayer: (@Composable (MenuCartBar?, Boolean) -> Unit)? = null,
+    onOpenAssistant: (() -> Unit)? = null,
 ) {
     val venue = LocalVenueContext.current
     val catalog = requireNotNull(state.catalog)
@@ -586,17 +588,19 @@ private fun CatalogContent(
             )
         }
 
-        MenuCartShortcut(
-            count = state.cartItemCount,
-            total = moneyLabel(state.cartPreviewTotal),
-            visible = cartShortcutVisible && waiterLayer == null && !hotelCartBar,
-            onClick = { onOpenCart?.invoke() },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = VaiinillaBottomNavSideMargin, bottom = VaiinillaBottomNavTop + 10.dp),
-        )
+        // Sin mesa, la misma barra larga que con mesa, sin «Mesero» (Doop L02c, caso 3).
+        if (waiterLayer == null && !hotelCartBar) {
+            MenuCartLayer(
+                cart =
+                    if (cartShortcutVisible) {
+                        MenuCartBar(state.cartItemCount, moneyLabel(state.cartPreviewTotal)) { onOpenCart?.invoke() }
+                    } else {
+                        null
+                    },
+                visible = state.selectedProduct == null,
+                onOpenAssistant = onOpenAssistant,
+            )
+        }
 
         if (hotelCartBar) {
             HotelCartBar(

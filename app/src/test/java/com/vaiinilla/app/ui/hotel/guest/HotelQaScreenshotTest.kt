@@ -27,6 +27,7 @@ import com.vaiinilla.app.domain.model.PublicEstablishment
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.TableSpace
+import com.vaiinilla.app.ui.components.MENU_CART_BAR_TAG
 import com.vaiinilla.app.ui.components.MenuWaiterLayer
 import com.vaiinilla.app.ui.components.StudentTab
 import com.vaiinilla.app.ui.components.VaiinillaBottomNav
@@ -209,8 +210,42 @@ class HotelQaScreenshotTest {
     }
 
     @Test
-    fun caja_recepcion_es_un_boton() {
-        dark(1.3f) {
+    fun sin_mesa_la_barra_larga_con_asistente_y_sin_mesero() {
+        val base = ScreenshotFixtures.catalogLoadedState()
+        val state = base.copy(cartLines = listOf(CartLine(base.catalog!!.products[0], 1, emptySet())))
+        composeTestRule.setContent {
+            ScreenshotTheme(mode = VaiinillaThemeMode.Dark) {
+                Box(Modifier.fillMaxSize().background(LocalVaiinillaColors.current.paper)) {
+                    CatalogScreen(
+                        state = state,
+                        onRetry = {},
+                        onSearchChange = {},
+                        onCategorySelected = {},
+                        onProductSelected = {},
+                        onDismissProduct = {},
+                        onToggleOption = { _, _ -> },
+                        onClearOptionalGroup = {},
+                        onQuantityChange = {},
+                        onAddProduct = {},
+                        onOpenCart = {},
+                        onOpenAssistant = {},
+                    )
+                    nav(1)()
+                }
+            }
+        }
+        settle()
+        composeTestRule.onNodeWithContentDescription("Pregúntale al asistente qué pedir").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Pedir ya · ").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Mesero").assertDoesNotExist()
+        val bar = composeTestRule.onNodeWithTag(MENU_CART_BAR_TAG).fetchSemanticsNode().boundsInRoot
+        val navTop = composeTestRule.onNodeWithText("Menú").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("la barra (${bar.bottom}) tapa la barra de pestañas ($navTop)", bar.bottom < navTop)
+        captureScreenRoboImage("hotel/hotelqa_sin_mesa_pedir_ya.png")
+    }
+
+    @Test
+    fun caja_recepcion_es_un_boton() {        dark(1.3f) {
             CashierQuickActions(
                 colors = rememberOperationalColors(),
                 enabled = true,

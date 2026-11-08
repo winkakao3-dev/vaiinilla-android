@@ -274,13 +274,52 @@ private fun WaiterPill(
 }
 
 /**
+ * Doop L02c (3): con productos y sin mesa (para llevar, o sin sesión para llamar), la misma barra larga con el
+ * asistente y «Pedir ya», sin «Mesero» porque no hay a quién llamar. Va arriba de la barra de pestañas.
+ */
+@Composable
+fun MenuCartLayer(
+    cart: MenuCartBar?,
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    onOpenAssistant: (() -> Unit)? = null,
+) {
+    val reduced = reducedMotion()
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = visible && cart != null,
+            enter =
+                if (reduced) {
+                    fadeIn()
+                } else {
+                    fadeIn(tween(200)) + slideInVertically(spring(dampingRatio = 0.62f, stiffness = 420f)) { it }
+                },
+            exit = if (reduced) fadeOut() else fadeOut(tween(160)) + slideOutVertically { it / 2 },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(
+                        start = VaiinillaBottomNavSideMargin,
+                        end = VaiinillaBottomNavSideMargin,
+                        bottom = VaiinillaBottomNavTop + 10.dp,
+                    ),
+        ) {
+            val shown = remember { mutableStateOf(cart) }
+            if (cart != null) shown.value = cart
+            shown.value?.let { CartWaiterBar(state = null, cart = it, onOpenAssistant = onOpenAssistant) }
+        }
+    }
+}
+/**
  * Una sola barra lima: "Pedir ya · N" y el total abren el carrito para pagar; adentro, a la derecha, "Mesero" llama.
  * Antes era de tinta y decía "Ver carrito": quien no conoce la app no la veía como el paso para pedir (Doop L02b).
  * Si el negocio no tiene llamadas, queda solo el carrito. Salta un poco con cada producto que entra.
  */
 @Composable
 private fun CartWaiterBar(
-    state: MenuWaiterCallState,
+    /** null sin mesa: no hay a quién llamar y la barra queda sin «Mesero». */
+    state: MenuWaiterCallState?,
     cart: MenuCartBar,
     onOpenAssistant: (() -> Unit)? = null,
 ) {
@@ -347,9 +386,9 @@ private fun CartWaiterBar(
             text = cart.total,
             style = TextStyle(fontSize = 15.5.sp, fontWeight = FontWeight.Black),
             color = colors.accentInk,
-            modifier = Modifier.padding(end = if (state.phase == MenuWaiterPhase.UNAVAILABLE) 13.dp else 8.dp),
+            modifier = Modifier.padding(end = if (state == null || state.phase == MenuWaiterPhase.UNAVAILABLE) 13.dp else 8.dp),
         )
-        if (state.phase != MenuWaiterPhase.UNAVAILABLE) WaiterSegment(state = state)
+        if (state != null && state.phase != MenuWaiterPhase.UNAVAILABLE) WaiterSegment(state = state)
     }
 }
 
@@ -468,7 +507,8 @@ private fun AssistantDot(onOpen: () -> Unit) {
                 .minimumInteractiveComponentSize()
                 .size(42.dp)
                 .clip(RoundedCornerShape(percent = 50))
-                .background(colors.ink)
+                // Tinta oscura sobre la barra lima en los dos temas (Doop L02c); colors.ink es crema en oscuro.
+                .background(colors.accentInk)
                 .clickable(role = Role.Button) {
                     haptics.click()
                     onOpen()
