@@ -7,12 +7,17 @@ import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.network.idempotencyHeaders
 import com.vaiinilla.app.core.network.mapApiFailure
 import com.vaiinilla.app.core.venue.VenueContextStore
+import com.vaiinilla.app.data.contract.ContractResponseParser
+import com.vaiinilla.app.data.inventory.InventoryMovementType
 import com.vaiinilla.app.data.inventory.InventorySupplyInput
 import com.vaiinilla.app.data.inventory.InventoryUnit
 import com.vaiinilla.app.data.inventory.RecipeLine
 import com.vaiinilla.app.data.inventory.RemoteInventoryRepository
 import com.vaiinilla.app.domain.admin.AdminLiveCounts
+import com.vaiinilla.app.domain.admin.AdminOptionGroupInput
+import com.vaiinilla.app.domain.admin.AdminOptionInput
 import com.vaiinilla.app.domain.admin.AdminPeriod
+import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
@@ -37,6 +42,7 @@ import com.vaiinilla.app.domain.admin.StoreConfig
 import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreVideo
 import com.vaiinilla.app.domain.admin.StripeSetup
+import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.domain.repository.AdminSpacesRepository
 import com.vaiinilla.app.domain.repository.AdminStaffRepository
 import com.vaiinilla.app.domain.repository.AdminStoreRepository
@@ -140,6 +146,8 @@ class RemoteAdminStoreRepository(
     private val plain = ApiJson.plain
     private val assistantJson = StoreAssistantJson()
     private val inventory = RemoteInventoryRepository(apiClient)
+    private val adminJson = AdminContractJson()
+    private val catalogParser = ContractResponseParser()
 
     // El admin puede llegar a Mesas y espacios sin estado operativo: el tipo también sale de la configuración.
     private fun syncVenueType(result: Result<StoreConfig>) {
@@ -249,10 +257,192 @@ class RemoteAdminStoreRepository(
             is AssistantStep.CourtHours -> applyCourtHours(step)
             is AssistantStep.Supply -> applyAssistantSupply(step)
             is AssistantStep.Recipe -> applyAssistantRecipe(step)
+            is AssistantStep.Movement -> applyMovement(step, idempotencyKey)
+            is AssistantStep.ProductEdit -> applyProductEdit(step, idempotencyKey)
+            is AssistantStep.SupplyEdit -> applySupplyEdit(step)
+            is AssistantStep.SpaceEdit -> applySpaceEdit(step, idempotencyKey)
+            is AssistantStep.RoleChange ->
+                apiClient
+                    .patch(
+                        "personal/invitaciones/membresias/${step.change.membershipId}",
+                        json.encodeRole(step.change.role),
+                        key(idempotencyKey),
+                    ).map { }
+                    .mapApiErrors()
+            is AssistantStep.Booking -> applyBooking(step, idempotencyKey)
         }
 
-    /** El horario de las pistas: se lee el de hoy y solo cambia lo que dice el asistente (el PUT lo pide completo). */
-    private fun applyCourtHours(step: AssistantStep.CourtHours): Result<Unit> =
+    /** El `id` del movimiento sale de la llave del paso: si se reintenta, el servidor no lo cuenta dos veces. */
+    private fun applyMovement(
+        step: AssistantStep.Movement,
+        idempotencyKey: String,
+    ): Result<Unit> {
+        val movement = step.movement
+        val type =
+            when (movement.type) {
+                "entrada" -> InventoryMovementType.ENTRY
+                "merma" -> InventoryMovementType.WASTE
+                else -> InventoryMovementType.COUNT
+            }
+        val id =
+            java.util.UUID
+                .nameUUIDFromBytes("asistente-movimiento:$idempotencyKey".toByteArray())
+                .toString()
+        return inventory
+            .registerMovement(id, movement.supplyId, type, movement.quantity, movement.unitCost, movement.note)
+            .map { }
+    }
+
+    /**
+     * Archivar o agotar tienen su propia ruta. Precio y descripción van en el PUT, que pide el producto completo:
+     * se lee como está y solo cambia lo que dice el asistente.
+     */
+    private fun applyProductEdit(
+        step: AssistantStep.ProductEdit,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        runCatching {
+            val edit = step.edit
+            if (edit.archive) {
+                apiClient
+                    .post(
+                        "catalogo/productos/${edit.productId}/archivar",
+                        EMPTY_BODY,
+                        key(MutationIdempotency.assistant(idempotencyKey, "archivar")),
+                    ).mapApiErrors()
+                    .getOrThrow()
+                return@runCatching
+            }
+            if (edit.price != null || edit.setsDescription) {
+                val product = findProduct(edit.productId) ?: throw IllegalStateException("${edit.name} ya no está en tu menú.")
+                val input =
+                    AdminProductInput(
+                        categoryId = product.categoryId,
+                        preparationStation = product.preparationStation,
+                        name = product.name,
+                        description = if (edit.setsDescription) edit.description.orEmpty() else product.description,
+                        ingredients = product.ingredients,
+                        allergens = product.allergens.takeUnless { it.trim() in setOf("{}", "[]") }.orEmpty(),
+                        estimatedTimeMinutes = product.estimatedTimeMinutes,
+                        counterPrice = edit.price ?: product.counterPrice,
+                        available = edit.available ?: product.available,
+                        optionGroups =
+                            product.optionGroups.map { group ->
+                                AdminOptionGroupInput(
+                                    id = group.id,
+                                    name = group.name,
+                                    minimumSelections = group.minimumSelections,
+                                    maximumSelections = group.maximumSelections,
+                                    options = group.options.map { AdminOptionInput(it.id, it.name, it.extraPrice) },
+                                )
+                            },
+                    )
+                apiClient
+                    .put(
+                        "catalogo/productos/${edit.productId}",
+                        adminJson.encodeProduct(input),
+                        key(MutationIdempotency.assistant(idempotencyKey, "producto")),
+                    ).mapApiErrors()
+                    .getOrThrow()
+                return@runCatching
+            }
+            edit.available?.let { available ->
+                apiClient
+                    .post(
+                        "catalogo/productos/${edit.productId}/disponibilidad",
+                        catalogParser.encodeAvailability(available),
+                        key(MutationIdempotency.assistant(idempotencyKey, "disponible")),
+                    ).mapApiErrors()
+                    .getOrThrow()
+            }
+            Unit
+        }
+
+    /** El producto como lo tiene el menú, página por página. */
+    private fun findProduct(id: Int): Product? {
+        var cursor: String? = null
+        repeat(MAX_CATALOG_PAGES) {
+            val raw =
+                apiClient
+                    .get("catalogo", cursor?.let { mapOf("cursor" to it) } ?: emptyMap())
+                    .mapApiErrors()
+                    .getOrThrow()
+            val catalog = catalogParser.parseCatalog(raw)
+            catalog.products.firstOrNull { it.id == id }?.let { return it }
+            cursor = catalog.cursor ?: return null
+        }
+        return null
+    }
+
+    /** El PATCH del insumo pide nombre y mínimo: se leen los de hoy y solo cambia lo que dice el asistente. */
+    private fun applySupplyEdit(step: AssistantStep.SupplyEdit): Result<Unit> =
+        runCatching {
+            val edit = step.edit
+            val current =
+                inventory
+                    .supplies()
+                    .getOrThrow()
+                    .supplies
+                    .firstOrNull { it.id == edit.supplyId }
+                    ?: throw IllegalStateException("${edit.name} ya no está en tu inventario.")
+            inventory
+                .updateSupply(
+                    current.id,
+                    InventorySupplyInput(
+                        name = current.name,
+                        category = null,
+                        unit = null,
+                        minimum = edit.minimum ?: current.minimum,
+                        unitCost = edit.unitCost,
+                        supplierName = edit.supplierName,
+                        supplierPhone = edit.supplierPhone,
+                    ),
+                ).getOrThrow()
+            Unit
+        }
+
+    private fun applySpaceEdit(
+        step: AssistantStep.SpaceEdit,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .patch(
+                "espacios/${step.edit.spaceId}",
+                json.encodeSpacePatch(
+                    SpacePatch(
+                        active = step.edit.active,
+                        hourlyPrice = step.edit.hourlyPrice,
+                        setsHourlyPrice = step.edit.setsHourlyPrice,
+                    ),
+                ),
+                key(idempotencyKey),
+            ).map { }
+            .mapApiErrors()
+
+    /** Aparta la pista y la deja por cobrar en efectivo en Caja, como una renta de mostrador. */
+    private fun applyBooking(
+        step: AssistantStep.Booking,
+        idempotencyKey: String,
+    ): Result<Unit> =
+        apiClient
+            .post(
+                "reservas",
+                assistantJson.encodeBooking(step.booking),
+                key(MutationIdempotency.assistant(idempotencyKey, "reserva")),
+            ).mapCatching(assistantJson::parseTextId)
+            .mapApiErrors()
+            .mapCatching { reservationId ->
+                apiClient
+                    .post(
+                        "reservas/$reservationId/pago",
+                        assistantJson.encodeCashLater(),
+                        key(MutationIdempotency.assistant(idempotencyKey, "por-cobrar")),
+                    ).mapApiErrors()
+                    .getOrThrow()
+                Unit
+            }
+
+    /** El horario de las pistas: se lee el de hoy y solo cambia lo que dice el asistente (el PUT lo pide completo). */    private fun applyCourtHours(step: AssistantStep.CourtHours): Result<Unit> =
         apiClient
             .get("reservas/configuracion")
             .mapCatching(json::parseSchedule)
@@ -641,6 +831,9 @@ class AssistantPartialFailure(
 ) : Exception("No se pudo guardar: ${items.joinToString(", ")}", cause)
 
 private const val SUPPLY_NAME_TAKEN = "INSUMO_NAME_CONFLICT"
+
+// El menú llega por páginas; con esto alcanza para cualquier tienda real.
+private const val MAX_CATALOG_PAGES = 20
 
 /** Igual que el servidor compara nombres: sin acentos, sin mayúsculas y sin espacios en las orillas. */
 internal fun assistantNameKey(name: String): String =

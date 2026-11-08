@@ -92,6 +92,69 @@ data class AssistantRecipe(
     val lines: List<AssistantRecipeLine>,
 )
 
+/** Una entrada, merma o conteo de un insumo que ya existe ([type]: "entrada", "merma" o "conteo"). */
+data class AssistantMovement(
+    val supplyId: Long,
+    val supplyName: String,
+    val unit: String,
+    val type: String,
+    val quantity: Double,
+    val unitCost: Double?,
+    val note: String?,
+)
+
+/**
+ * Lo que cambia de un producto que ya existe; null no se toca. [archive] lo quita del menú y deja fuera lo demás.
+ * [description] con [setsDescription] en true y null la borra.
+ */
+data class AssistantProductEdit(
+    val productId: Int,
+    val name: String,
+    val price: String? = null,
+    val description: String? = null,
+    val setsDescription: Boolean = false,
+    val available: Boolean? = null,
+    val archive: Boolean = false,
+)
+
+/** Lo que cambia de un insumo que ya existe; null no se toca y "" borra el proveedor o su teléfono. */
+data class AssistantSupplyEdit(
+    val supplyId: Long,
+    val name: String,
+    val minimum: Double? = null,
+    val unitCost: Double? = null,
+    val supplierName: String? = null,
+    val supplierPhone: String? = null,
+)
+
+/** Lo que cambia de una mesa o lugar; [hourlyPrice] con [setsHourlyPrice] y null lo deja sin renta. */
+data class AssistantSpaceEdit(
+    val spaceId: Int,
+    val name: String,
+    val hourlyPrice: String? = null,
+    val setsHourlyPrice: Boolean = false,
+    val active: Boolean? = null,
+)
+
+/** Cambiar el puesto de alguien del equipo; [person] es su nombre de pila. */
+data class AssistantRoleChange(
+    val membershipId: String,
+    val person: String,
+    val currentRole: String,
+    val role: String,
+)
+
+/** Una renta de pista o cancha: [start] en UTC (ISO) y [localStart] como la dijo el dueño ("2026-11-09T18:00"). */
+data class AssistantBooking(
+    val courtId: Int,
+    val court: String,
+    val start: String,
+    val localStart: String,
+    val durationMinutes: Int,
+    val customerName: String?,
+    val players: Int?,
+)
+
 /**
  * Lo que el asistente propone. [patchBody] es el JSON tal cual para `PATCH /establecimiento/configuracion`
  * (null si no cambia ningún ajuste): el servidor ya lo validó y solo trae lo que cambia. Lo demás se crea con
@@ -109,6 +172,12 @@ data class AssistantProposal(
     val supplies: List<AssistantSupply> = emptyList(),
     val recipes: List<AssistantRecipe> = emptyList(),
     val courtHours: AssistantCourtHours? = null,
+    val movements: List<AssistantMovement> = emptyList(),
+    val productEdits: List<AssistantProductEdit> = emptyList(),
+    val supplyEdits: List<AssistantSupplyEdit> = emptyList(),
+    val spaceEdits: List<AssistantSpaceEdit> = emptyList(),
+    val roleChanges: List<AssistantRoleChange> = emptyList(),
+    val bookings: List<AssistantBooking> = emptyList(),
     /** El asistente todavía tiene algo más que proponer después de esta ("sigue"). */
     val continues: Boolean = false,
 ) {
@@ -188,6 +257,42 @@ sealed interface AssistantStep {
     ) : AssistantStep {
         override val label = "Receta de ${recipe.productName}"
     }
+
+    data class Movement(
+        val movement: AssistantMovement,
+    ) : AssistantStep {
+        override val label = "${movement.supplyName}: ${AssistantLabels.movementKind(movement.type)}"
+    }
+
+    data class ProductEdit(
+        val edit: AssistantProductEdit,
+    ) : AssistantStep {
+        override val label = "Cambios a ${edit.name}"
+    }
+
+    data class SupplyEdit(
+        val edit: AssistantSupplyEdit,
+    ) : AssistantStep {
+        override val label = "Cambios a ${edit.name}"
+    }
+
+    data class SpaceEdit(
+        val edit: AssistantSpaceEdit,
+    ) : AssistantStep {
+        override val label = "Cambios a ${edit.name}"
+    }
+
+    data class RoleChange(
+        val change: AssistantRoleChange,
+    ) : AssistantStep {
+        override val label = "Puesto de ${change.person}"
+    }
+
+    data class Booking(
+        val booking: AssistantBooking,
+    ) : AssistantStep {
+        override val label = "Renta de ${booking.court}"
+    }
 }
 
 /** Los pasos en el orden en que se aplican: primero ajustes y lugares, luego menú, fotos y al final el equipo. */
@@ -200,6 +305,13 @@ fun AssistantProposal.steps(): List<AssistantStep> =
         // Las recetas van después del menú y de los insumos: pueden usar productos e insumos recién creados.
         supplies.forEach { add(AssistantStep.Supply(it)) }
         recipes.forEach { add(AssistantStep.Recipe(it)) }
+        // Las entradas y conteos van después de dar de alta los insumos nuevos.
+        movements.forEach { add(AssistantStep.Movement(it)) }
+        supplyEdits.forEach { add(AssistantStep.SupplyEdit(it)) }
+        productEdits.forEach { add(AssistantStep.ProductEdit(it)) }
+        spaceEdits.forEach { add(AssistantStep.SpaceEdit(it)) }
+        bookings.forEach { add(AssistantStep.Booking(it)) }
+        roleChanges.forEach { add(AssistantStep.RoleChange(it)) }
         productPhotos.forEach { add(AssistantStep.ProductPhoto(it)) }
         storePhotos.forEach { (kind, id) -> add(AssistantStep.StorePhoto(kind, id)) }
         invites.forEach { add(AssistantStep.Invite(it)) }
@@ -278,6 +390,82 @@ object AssistantLabels {
     }
 
     private val WEEK_DAYS = listOf("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
+
+    fun movementKind(type: String): String =
+        when (type) {
+            "entrada" -> "entrada"
+            "merma" -> "merma"
+            "conteo" -> "conteo"
+            else -> type
+        }
+
+    /** "Llegaron 1,000 kg · a $28.00 c/u", "Se tiraron 3 pz", "Contaste 5 pz". */
+    fun movement(movement: AssistantMovement): String {
+        val amount = amount(movement.quantity, movement.unit)
+        val what =
+            when (movement.type) {
+                "entrada" -> "Llegaron $amount"
+                "merma" -> "Se tiraron $amount"
+                "conteo" -> "Contaste $amount"
+                else -> amount
+            }
+        return listOfNotNull(
+            what,
+            movement.unitCost?.takeIf { it > 0 }?.let { "a ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
+            movement.note,
+        ).joinToString(" · ")
+    }
+
+    fun productEdit(edit: AssistantProductEdit): String {
+        if (edit.archive) return "Se quita del menú; sus ventas se quedan"
+        return listOfNotNull(
+            edit.price?.let { "Precio ${money(it)}" },
+            edit.available?.let { if (it) "Se vuelve a vender" else "Agotado" },
+            if (edit.setsDescription) edit.description?.let { "Descripción: $it" } ?: "Sin descripción" else null,
+        ).joinToString(" · ")
+    }
+
+    fun supplyEdit(
+        edit: AssistantSupplyEdit,
+        unit: String? = null,
+    ): String =
+        listOfNotNull(
+            edit.minimum?.let { "Te avisa con ${if (unit != null) amount(it, unit) else formatNumber(it)}" },
+            edit.unitCost?.let { "Cuesta ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
+            edit.supplierName?.let { if (it.isEmpty()) "Sin proveedor" else "Proveedor: $it" },
+            edit.supplierPhone?.let { if (it.isEmpty()) "Sin teléfono" else "Tel. $it" },
+        ).joinToString(" · ")
+
+    fun spaceEdit(edit: AssistantSpaceEdit): String =
+        listOfNotNull(
+            if (edit.setsHourlyPrice) edit.hourlyPrice?.let { "${money(it)} la hora" } ?: "Ya no se renta" else null,
+            edit.active?.let { if (it) "Se prende" else "Se apaga" },
+        ).joinToString(" · ")
+
+    fun roleChange(change: AssistantRoleChange): String = "${role(change.currentRole)} → ${role(change.role)}"
+
+    /** "Lun 9 nov, 18:00 · 2 h · Familia Pérez · 6 jugadores". */
+    fun booking(booking: AssistantBooking): String {
+        val date =
+            runCatching {
+                val local = java.time.LocalDateTime.parse(booking.localStart)
+                val day = WEEK_DAYS[local.dayOfWeek.value - 1].replaceFirstChar { it.uppercase() }
+                "$day ${local.dayOfMonth} ${MONTHS[local.monthValue - 1]}, %02d:%02d".format(local.hour, local.minute)
+            }.getOrDefault(booking.localStart)
+        val minutes = booking.durationMinutes
+        val duration = if (minutes % 60 == 0) "${minutes / 60} h" else "${minutes / 60} h ${minutes % 60} min"
+        return listOfNotNull(
+            date,
+            duration,
+            booking.customerName,
+            booking.players?.let { if (it == 1) "1 jugador" else "$it jugadores" },
+        ).joinToString(" · ")
+    }
+
+    private val MONTHS = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+
+    private fun formatNumber(value: Double): String =
+        if (value % 1.0 == 0.0) "%,d".format(java.util.Locale.US, value.toLong()) else "$value"
 
     fun recipe(recipe: AssistantRecipe): String =
         recipe.lines.joinToString(" · ") { "${it.supplyName} ${amount(it.quantity, it.unit)}" }

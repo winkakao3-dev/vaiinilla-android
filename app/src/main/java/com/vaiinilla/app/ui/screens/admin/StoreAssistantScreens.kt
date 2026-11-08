@@ -599,6 +599,17 @@ private fun ProposalSoFar(
                     if (proposal.recipes.isNotEmpty()) {
                         add("Recetas" to countLabel(proposal.recipes.size, "receta", "recetas"))
                     }
+                    if (proposal.movements.isNotEmpty()) {
+                        add("Inventario" to countLabel(proposal.movements.size, "movimiento", "movimientos"))
+                    }
+                    val edits = proposal.productEdits.size + proposal.supplyEdits.size + proposal.spaceEdits.size
+                    if (edits > 0) add("Cambios" to countLabel(edits, "cambio", "cambios"))
+                    if (proposal.bookings.isNotEmpty()) {
+                        add("Rentas" to countLabel(proposal.bookings.size, "renta", "rentas"))
+                    }
+                    if (proposal.roleChanges.isNotEmpty()) {
+                        add("Puestos" to countLabel(proposal.roleChanges.size, "puesto", "puestos"))
+                    }
                 }
             rows.forEachIndexed { index, (title, detail) ->
                 if (index > 0) AdminRowDivider(colors)
@@ -899,8 +910,50 @@ private fun AssistantReview(
                     }
                 }
             }
-            if (proposal.productPhotos.isNotEmpty()) {
+            val dayToDay =
+                listOf(
+                    Triple(
+                        "Inventario",
+                        reasons["movimientos"] ?: "Se registra en tu inventario y cambia lo que tienes.",
+                        proposal.movements.map { it.supplyName to AssistantLabels.movement(it) },
+                    ),
+                    Triple(
+                        "Productos",
+                        reasons["cambios_productos"] ?: "Solo cambia lo que ves aquí.",
+                        proposal.productEdits.map { it.name to AssistantLabels.productEdit(it) },
+                    ),
+                    Triple(
+                        "Insumos que ya tienes",
+                        reasons["cambios_insumos"] ?: "Solo cambia lo que ves aquí.",
+                        proposal.supplyEdits.map { it.name to AssistantLabels.supplyEdit(it) },
+                    ),
+                    Triple(
+                        "Mesas y lugares",
+                        reasons["cambios_espacios"] ?: "Apagado, un lugar no recibe pedidos ni rentas.",
+                        proposal.spaceEdits.map { it.name to AssistantLabels.spaceEdit(it) },
+                    ),
+                    Triple(
+                        "Rentas",
+                        reasons["reservas"] ?: "Quedan apartadas y por cobrar en Caja.",
+                        proposal.bookings.map { it.court to AssistantLabels.booking(it) },
+                    ),
+                    Triple(
+                        "Puestos del equipo",
+                        reasons["cambios_personal"] ?: "Cambia lo que cada quien ve en su app.",
+                        proposal.roleChanges.map { it.person to AssistantLabels.roleChange(it) },
+                    ),
+                ).filter { it.third.isNotEmpty() }
+            dayToDay.forEach { (title, reason, rows) ->
                 item {
+                    ReviewSection(title, colors, reason) {
+                        rows.forEachIndexed { index, (name, detail) ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(name, detail, colors)
+                        }
+                    }
+                }
+            }
+            if (proposal.productPhotos.isNotEmpty()) {                item {
                     ReviewSection(
                         "Fotos de productos",
                         colors,
@@ -1090,7 +1143,8 @@ private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, m
 private val AssistantProposal.itemCount: Int
     get() =
         changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size +
-            supplies.size + recipes.size + (if (courtHours != null) 1 else 0)
+            supplies.size + recipes.size + (if (courtHours != null) 1 else 0) + movements.size + productEdits.size +
+            supplyEdits.size + spaceEdits.size + roleChanges.size + bookings.size
 
 @Composable
 private fun ChangeRow(

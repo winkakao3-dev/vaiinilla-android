@@ -1,20 +1,26 @@
 package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.core.network.ApiJson
+import com.vaiinilla.app.domain.admin.AssistantBooking
 import com.vaiinilla.app.domain.admin.AssistantCategory
 import com.vaiinilla.app.domain.admin.AssistantChange
 import com.vaiinilla.app.domain.admin.AssistantCourtHours
 import com.vaiinilla.app.domain.admin.AssistantInvite
 import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
+import com.vaiinilla.app.domain.admin.AssistantMovement
 import com.vaiinilla.app.domain.admin.AssistantProduct
+import com.vaiinilla.app.domain.admin.AssistantProductEdit
 import com.vaiinilla.app.domain.admin.AssistantProductPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
 import com.vaiinilla.app.domain.admin.AssistantRecipe
 import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantRoleChange
+import com.vaiinilla.app.domain.admin.AssistantSpaceEdit
 import com.vaiinilla.app.domain.admin.AssistantSpaceGroup
 import com.vaiinilla.app.domain.admin.AssistantSupply
+import com.vaiinilla.app.domain.admin.AssistantSupplyEdit
 import com.vaiinilla.app.domain.model.OrderWindow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -79,6 +85,26 @@ class StoreAssistantJson(
             put("disponible", true)
             putJsonArray("grupos_opcion") {}
         }.toString()
+
+    /** `POST /reservas`: la renta para alguien que llamó o llegó; queda por cobrar en Caja. */
+    fun encodeBooking(booking: AssistantBooking): String =
+        buildJsonObject {
+            put("espacio_id", booking.courtId)
+            put("inicio", booking.start)
+            put("duracion_min", booking.durationMinutes)
+            booking.customerName?.let { put("nombre_cliente", it) }
+            booking.players?.let { put("jugadores", it) }
+        }.toString()
+
+    /** `POST /reservas/{id}/pago` en efectivo sin monto: el pedido de renta queda por cobrar en Caja. */
+    fun encodeCashLater(): String = buildJsonObject { put("metodo_pago", "efectivo") }.toString()
+
+    /** El `id` en texto (UUID) que regresó un POST. */
+    fun parseTextId(body: String): String {
+        val root = json.parseToJsonElement(body).jsonObject
+        val data = (root["data"] as? JsonObject) ?: root
+        return requireNotNull((data["id"] as? JsonPrimitive)?.contentOrNull) { "La respuesta no trae id." }
+    }
 
     /** El `id` del recurso que regresó un POST (`{"data":{"id":…}}`). */
     fun parseId(body: String): Int {
@@ -231,11 +257,89 @@ class StoreAssistantJson(
                     )
                 }
             }
-        val sectionReasons =
-            SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
+        val movements =
+            (proposal["movimientos"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val movement = item as? JsonObject ?: return@mapNotNull null
+                AssistantMovement(
+                    supplyId = (movement["insumo_id"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+                    supplyName = movement.text("insumo") ?: return@mapNotNull null,
+                    unit = movement.text("unidad") ?: return@mapNotNull null,
+                    type = movement.text("tipo")?.takeIf { it in MOVEMENT_TYPES } ?: return@mapNotNull null,
+                    quantity = movement.number("cantidad")?.takeIf { it >= 0 } ?: return@mapNotNull null,
+                    unitCost = movement.number("costo_unitario"),
+                    note = movement.text("nota"),
+                )
+            }
+        val productEdits =
+            (proposal["cambios_productos"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val edit = item as? JsonObject ?: return@mapNotNull null
+                AssistantProductEdit(
+                    productId = (edit["producto_id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    name = edit.text("producto") ?: return@mapNotNull null,
+                    price = edit.text("precio"),
+                    description = edit.text("descripcion"),
+                    setsDescription = edit.containsKey("descripcion"),
+                    available = (edit["disponible"] as? JsonPrimitive)?.booleanOrNull,
+                    archive = (edit["archivar"] as? JsonPrimitive)?.booleanOrNull == true,
+                )
+            }
+        val supplyEdits =
+            (proposal["cambios_insumos"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val edit = item as? JsonObject ?: return@mapNotNull null
+                AssistantSupplyEdit(
+                    supplyId = (edit["insumo_id"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+                    name = edit.text("insumo") ?: return@mapNotNull null,
+                    minimum = edit.number("minimo"),
+                    unitCost = edit.number("costo_unitario"),
+                    // Presente en null lo borra (""); sin la clave no se toca (null).
+                    supplierName = if (edit.containsKey("proveedor_nombre")) edit.text("proveedor_nombre").orEmpty() else null,
+                    supplierPhone =
+                        if (edit.containsKey("proveedor_telefono")) edit.text("proveedor_telefono").orEmpty() else null,
+                )
+            }
+        val spaceEdits =
+            (proposal["cambios_espacios"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val edit = item as? JsonObject ?: return@mapNotNull null
+                AssistantSpaceEdit(
+                    spaceId = (edit["espacio_id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    name = edit.text("espacio") ?: return@mapNotNull null,
+                    hourlyPrice = edit.text("precio_hora"),
+                    setsHourlyPrice = edit.containsKey("precio_hora"),
+                    active = (edit["activo"] as? JsonPrimitive)?.booleanOrNull,
+                )
+            }
+        val roleChanges =
+            (proposal["cambios_personal"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val change = item as? JsonObject ?: return@mapNotNull null
+                AssistantRoleChange(
+                    membershipId = change.text("membresia_id") ?: return@mapNotNull null,
+                    person = change.text("persona") ?: "Alguien del equipo",
+                    currentRole = change.text("rol_actual") ?: return@mapNotNull null,
+                    role = change.text("rol") ?: return@mapNotNull null,
+                )
+            }
+        val bookings =
+            (proposal["reservas"] as? JsonArray).orEmpty().mapNotNull { item ->
+                val booking = item as? JsonObject ?: return@mapNotNull null
+                AssistantBooking(
+                    courtId = (booking["espacio_id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    court = booking.text("espacio") ?: return@mapNotNull null,
+                    start = booking.text("inicio") ?: return@mapNotNull null,
+                    localStart = booking.text("inicio_local") ?: booking.text("inicio")!!,
+                    durationMinutes = (booking["duracion_min"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null,
+                    customerName = booking.text("nombre_cliente"),
+                    players = (booking["jugadores"] as? JsonPrimitive)?.intOrNull,
+                )
+            }
+        val sectionReasons =            SECTIONS.mapNotNull { section -> reasons?.text(section)?.let { section to it } }.toMap()
         val nothing =
             items.isEmpty() && spaces.isEmpty() && menu.isEmpty() && invites.isEmpty() && storePhotos.isEmpty()
-        if (nothing && productPhotos.isEmpty() && supplies.isEmpty() && recipes.isEmpty() && courtHours == null) {
+        val dayToDay =
+            movements.isEmpty() && productEdits.isEmpty() && supplyEdits.isEmpty() && spaceEdits.isEmpty() &&
+                roleChanges.isEmpty() && bookings.isEmpty()
+        if (nothing && productPhotos.isEmpty() && supplies.isEmpty() && recipes.isEmpty() && courtHours == null &&
+            dayToDay
+        ) {
             return null
         }
         return AssistantProposal(
@@ -250,6 +354,12 @@ class StoreAssistantJson(
             supplies = supplies,
             recipes = recipes,
             courtHours = courtHours,
+            movements = movements,
+            productEdits = productEdits,
+            supplyEdits = supplyEdits,
+            spaceEdits = spaceEdits,
+            roleChanges = roleChanges,
+            bookings = bookings,
             continues = continues,
         )
     }
@@ -291,7 +401,23 @@ class StoreAssistantJson(
 
     private companion object {
         val SECTIONS =
-            listOf("espacios", "horario_pistas", "menu", "personal", "fotos", "fotos_productos", "insumos", "recetas")
+            listOf(
+                "espacios",
+                "horario_pistas",
+                "menu",
+                "personal",
+                "fotos",
+                "fotos_productos",
+                "insumos",
+                "recetas",
+                "movimientos",
+                "cambios_productos",
+                "cambios_insumos",
+                "cambios_espacios",
+                "cambios_personal",
+                "reservas",
+            )
+        val MOVEMENT_TYPES = setOf("entrada", "merma", "conteo")
         const val DEFAULT_PREP_MINUTES = 10
     }
 }

@@ -265,4 +265,38 @@ class StoreAssistantJsonTest {
         assertEquals("De 3 pm a 3 am.", reply.proposal!!.sectionReasons["horario_pistas"])
         assertEquals(AssistantStep.CourtHours::class, reply.proposal!!.steps().single()::class)
     }
+
+    @Test
+    fun `lee lo del día a día ya resuelto por el servidor`() {
+        val reply =
+            StoreAssistantJson().parseReply(
+                """
+                {"data":{"mensaje":"Listo","opciones":[],"propuesta":{"cambios":{},"motivos":{"reservas":"Para la familia Pérez."},
+                "movimientos":[{"insumo_id":3,"insumo":"Limón","unidad":"kg","tipo":"entrada","cantidad":1000,"costo_unitario":28,"nota":null}],
+                "cambios_productos":[{"producto_id":7,"producto":"Cerveza","precio":"50.00","disponible":true},{"producto_id":8,"producto":"Nachos","descripcion":null}],
+                "cambios_insumos":[{"insumo_id":4,"insumo":"Cerveza clara","minimo":24,"proveedor_nombre":null}],
+                "cambios_espacios":[{"espacio_id":12,"espacio":"Pista 2","precio_hora":"400.00","activo":false}],
+                "cambios_personal":[{"membresia_id":"m-2","persona":"Juan","rol_actual":"mesero","rol":"cajero"}],
+                "reservas":[{"espacio_id":11,"espacio":"Pista 1","inicio":"2026-11-10T00:00:00.000Z","inicio_local":"2026-11-09T18:00","duracion_min":120,"nombre_cliente":"Familia Pérez","jugadores":6}]
+                },"sigue":false}}
+                """.trimIndent(),
+            )
+        val proposal = reply.proposal!!
+        assertEquals("Llegaron 1,000 kg · a $28.00 c/u", AssistantLabels.movement(proposal.movements.single()))
+        assertEquals("Precio $50.00 · Se vuelve a vender", AssistantLabels.productEdit(proposal.productEdits[0]))
+        assertEquals("Sin descripción", AssistantLabels.productEdit(proposal.productEdits[1]))
+        assertEquals("Te avisa con 24 · Sin proveedor", AssistantLabels.supplyEdit(proposal.supplyEdits.single()))
+        assertEquals("$400.00 la hora · Se apaga", AssistantLabels.spaceEdit(proposal.spaceEdits.single()))
+        assertEquals("Mesero → Caja", AssistantLabels.roleChange(proposal.roleChanges.single()))
+        assertEquals(
+            "Lun 9 nov, 18:00 · 2 h · Familia Pérez · 6 jugadores",
+            AssistantLabels.booking(proposal.bookings.single()),
+        )
+        assertEquals("Para la familia Pérez.", proposal.sectionReasons["reservas"])
+        val steps = proposal.steps().map { it::class.simpleName }
+        assertEquals(
+            listOf("Movement", "SupplyEdit", "ProductEdit", "ProductEdit", "SpaceEdit", "Booking", "RoleChange"),
+            steps,
+        )
+    }
 }
