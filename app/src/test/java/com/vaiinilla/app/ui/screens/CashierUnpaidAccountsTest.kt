@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.math.BigDecimal
 
 class CashierUnpaidAccountsTest {
     @Test
@@ -14,6 +15,12 @@ class CashierUnpaidAccountsTest {
         assertEquals("0.00", unpaidChange("80", "80.00")?.setScale(2)?.toPlainString())
         assertNull(unpaidChange("50", "80.00"))
         assertNull(unpaidChange("", "80.00"))
+    }
+
+    @Test
+    fun `N08 con propina el efectivo tiene que cubrir lo que falta mas la propina`() {
+        assertEquals("12.00", unpaidChange("100", "80.00", BigDecimal("8.00"))?.setScale(2)?.toPlainString())
+        assertNull(unpaidChange("85", "80.00", BigDecimal("8.00")))
     }
 
     @Test

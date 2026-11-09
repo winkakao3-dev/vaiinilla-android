@@ -1201,8 +1201,11 @@ internal fun arrivalSuffix(order: OrderDetail): String =
         ?.let { " · YA LLEGÓ ${BusinessTime.format(it, ArrivalHour)}" }
         .orEmpty()
 
-private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+/** H05: la franja de la comanda de Cocina cuando el cliente ya está esperando; null si no ha avisado. */
+internal fun arrivalBandLabel(order: OrderDetail): String? =
+    order.arrivedAt?.let { "YA LLEGÓ · ${BusinessTime.format(it, ArrivalHour)} · TE ESTÁ ESPERANDO" }
 
+private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 /**
  * El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. Una renta no se lleva: es «Renta de
  * Pista 3» (en vivo, D03).

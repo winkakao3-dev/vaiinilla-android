@@ -43,7 +43,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
+import com.vaiinilla.app.domain.model.TipChoice
+import com.vaiinilla.app.domain.model.TipPercents
+import com.vaiinilla.app.domain.model.amountFor
+import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -53,16 +58,16 @@ import java.math.BigDecimal
 
 private val UnpaidCoral = Color(0xFFE5645A)
 
-/** Cuánto cambio dar; null si lo recibido no alcanza o no es un monto. */
+/** Cuánto cambio dar; null si lo recibido no alcanza para lo que falta más la propina, o no es un monto. */
 internal fun unpaidChange(
     received: String,
     remaining: String,
+    tip: BigDecimal = BigDecimal.ZERO,
 ): BigDecimal? {
     val paid = MoneyInput.parse(received) ?: return null
     val due = remaining.toBigDecimalOrNull() ?: return null
-    return (paid - due).takeIf { it.signum() >= 0 }
+    return (paid - due - tip).takeIf { it.signum() >= 0 }
 }
-
 /**
  * R1 (G09): «Cuentas por cobrar» de Caja. Todas las cuentas a pagar al final sin cobrar, también las de un turno ya
  * cerrado, cada una con su botón para cobrarla en efectivo o terminal. Es a donde lleva «Ver cuentas por cobrar»
@@ -74,7 +79,8 @@ internal fun CashierUnpaidAccountsScreen(
     colors: OperationalColors,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
-    onCharge: (AdminUnpaidAccount, AccountPaymentMethod, String?) -> Unit,
+    /** La cuenta, cómo se cobró, lo recibido en efectivo y la propina (null sin propina). */
+    onCharge: (AdminUnpaidAccount, AccountPaymentMethod, String?, String?) -> Unit,
     onDismissCollected: () -> Unit,
     onClearChargeError: () -> Unit,
 ) {
@@ -194,9 +200,9 @@ internal fun CashierUnpaidAccountsScreen(
             method = method,
             colors = colors,
             onDismiss = { charging = null },
-        ) { received ->
+        ) { received, tip ->
             charging = null
-            onCharge(account, method, received)
+            onCharge(account, method, received, tip)
         }
     }
 }
@@ -349,18 +355,22 @@ private fun CollectedCard(
     }
 }
 
-/** Pide lo recibido en efectivo (con el cambio) o confirma el cobro con terminal. */
+/** Pide lo recibido en efectivo (con el cambio) o confirma el cobro con terminal, con la propina opcional. */
 @Composable
 private fun ChargeUnpaidDialog(
     account: AdminUnpaidAccount,
     method: AccountPaymentMethod,
     colors: OperationalColors,
     onDismiss: () -> Unit,
-    onConfirm: (received: String?) -> Unit,
+    onConfirm: (received: String?, tip: String?) -> Unit,
 ) {
     var received by remember { mutableStateOf("") }
+    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
     val cash = method == AccountPaymentMethod.CASH
-    val change = if (cash) unpaidChange(received, account.remaining) else null
+    val base = account.remaining.toBigDecimalOrNull() ?: BigDecimal.ZERO
+    val tip = tipChoice.amountFor(base)
+    val due = Money.format(base + tip)
+    val change = if (cash) unpaidChange(received, account.remaining, tip) else null
     val ready = !cash || change != null
     Dialog(onDismissRequest = onDismiss) {
         Surface(color = colors.background, shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
@@ -373,21 +383,56 @@ private fun ChargeUnpaidDialog(
                 )
                 Text(
                     if (cash) {
-                        "Por cobrar: ${moneyLabel(account.remaining)} en efectivo."
+                        "Por cobrar: ${moneyLabel(due)} en efectivo."
                     } else {
-                        "Cobra ${moneyLabel(account.remaining)} en la terminal y confirma cuando pase."
+                        "Cobra ${moneyLabel(due)} en la terminal y confirma cuando pase."
                     },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textSecondary,
                 )
+                Text("Propina", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    ChipButton(
+                        label = "Sin",
+                        enabled = true,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = tipChoice == TipChoice.None,
+                    ) { tipChoice = TipChoice.None }
+                    TipPercents.forEach { percent ->
+                        ChipButton(
+                            label = "$percent%",
+                            enabled = true,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = tipChoice == TipChoice.Percent(percent),
+                        ) { tipChoice = TipChoice.Percent(percent) }
+                    }
+                    ChipButton(
+                        label = "Otro",
+                        enabled = true,
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                        selected = tipChoice is TipChoice.Custom,
+                    ) { tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty()) }
+                }
+                (tipChoice as? TipChoice.Custom)?.let { custom ->
+                    OperationalField(
+                        value = custom.amount,
+                        onValueChange = { tipChoice = TipChoice.Custom(MoneyInput.sanitize(it)) },
+                        label = "Monto de la propina",
+                        colors = colors,
+                        keyboardType = KeyboardType.Decimal,
+                    )
+                }
                 if (cash) {
                     OperationalField(
                         value = received,
                         onValueChange = { received = MoneyInput.sanitize(it) },
                         label = "Recibido",
                         colors = colors,
-                        placeholder = moneyLabel(account.remaining),
+                        placeholder = moneyLabel(due),
                         keyboardType = KeyboardType.Decimal,
                         isError = received.isNotEmpty() && change == null,
                         supporting =
@@ -414,7 +459,7 @@ private fun ChargeUnpaidDialog(
                         loading = false,
                         colors = colors,
                         modifier = Modifier.weight(1f),
-                    ) { onConfirm(if (cash) MoneyInput.toWire(received) else null) }
+                    ) { onConfirm(if (cash) MoneyInput.toWire(received) else null, tip.asTipWire()) }
                 }
             }
         }

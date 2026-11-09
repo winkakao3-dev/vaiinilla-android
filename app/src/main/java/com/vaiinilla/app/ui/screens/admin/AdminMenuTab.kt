@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -181,7 +182,9 @@ internal fun AdminMenuTab(
         is MenuSheet.EditProduct -> {
             val editing = current.product
             val recipe =
-                if (editing != null && inventory != null && scope != null) {
+                if (editing == null && inventory != null && scope != null) {
+                    RecipeEntry(detail = NEW_PRODUCT_RECIPE_HINT, onOpen = null)
+                } else if (editing != null && inventory != null && scope != null) {
                     LaunchedEffect(scope, editing.id) { inventory.ensureLoaded(scope) }
                     val inventoryState by inventory.uiState
                     val known = inventoryState.products?.firstOrNull { it.id == editing.id }
@@ -200,32 +203,42 @@ internal fun AdminMenuTab(
                 } else {
                     null
                 }
-            ProductSheet(
-                product = current.product,
-                categories = catalog?.categories.orEmpty().sortedBy { it.order },
-                saving = state.saving,
-                error = sheetError,
-                colors = colors,
-                onDismiss = { sheet = null },
-                onSave = { input, image -> actions.onSaveProduct(current.product?.id, input, image) { sheet = null } },
-                rentsSpaces = rentsSpaces,
-                cardFeeToCustomer = cardFeeToCustomer,
-                isSchool = isSchool,
-                takesPreorders = takesPreorders,
-                onArchive = { product ->
-                    actions.onSetArchived(product, true)
-                    sheet = null
-                },
-                onRemoveImage = { product ->
-                    actions.onRemoveImage(product)
-                    sheet = null
-                },
-                recipe = recipe,
-                suggestAllergens =
-                    inventory?.let { inv ->
-                        { n, d, i, done -> inv.suggestAllergens(n, d, i, current.product?.id, done) }
+            // Al crear, la hoja se rearma desde el producto guardado: los borradores (grupos sin id, foto) no se
+            // vuelven a mandar.
+            key(current.product?.id) {
+                ProductSheet(
+                    product = current.product,
+                    categories = catalog?.categories.orEmpty().sortedBy { it.order },
+                    saving = state.saving,
+                    error = sheetError,
+                    colors = colors,
+                    onDismiss = { sheet = null },
+                    onSave = { input, image ->
+                        actions.onSaveProduct(current.product?.id, input, image) { saved ->
+                            // Un producto recién creado no tiene receta todavía: la hoja se queda abierta para ponérsela.
+                            val keepForRecipe = editing == null && inventory != null && scope != null
+                            sheet = if (keepForRecipe) MenuSheet.EditProduct(saved) else null
+                        }
                     },
-            )
+                    rentsSpaces = rentsSpaces,
+                    cardFeeToCustomer = cardFeeToCustomer,
+                    isSchool = isSchool,
+                    takesPreorders = takesPreorders,
+                    onArchive = { product ->
+                        actions.onSetArchived(product, true)
+                        sheet = null
+                    },
+                    onRemoveImage = { product ->
+                        actions.onRemoveImage(product)
+                        sheet = null
+                    },
+                    recipe = recipe,
+                    suggestAllergens =
+                        inventory?.let { inv ->
+                            { n, d, i, done -> inv.suggestAllergens(n, d, i, current.product?.id, done) }
+                        },
+                )
+            }
             // La receta se abre encima de la hoja del producto; al guardarla o cerrarla se vuelve a él.
             if (inventory != null) InventoryRecipeSheetHost(inventory, catalog?.products, colors, readOnly)
         }
@@ -233,10 +246,13 @@ internal fun AdminMenuTab(
     }
 }
 
+internal const val NEW_PRODUCT_RECIPE_HINT = "Guarda el producto y aquí mismo le pones su receta"
+
 /** El renglón «Receta» de la hoja del producto: cómo va su receta y qué hacer al tocarlo. */
 private class RecipeEntry(
     val detail: String,
-    val onOpen: () -> Unit,
+    /** null mientras el producto no existe en el servidor: el renglón se ve, pero todavía no abre nada. */
+    val onOpen: (() -> Unit)?,
     /** La receta lo dejó agotado: guardar el producto no debe volver a ponerlo disponible. */
     val soldOutByInventory: Boolean = false,
     /** El aviso de Inventario («Receta guardada», «quedó agotado»), que aquí no tiene su página. */
@@ -1477,16 +1493,22 @@ private fun ProductSheet(
                                     title = "Receta",
                                     colors = colors,
                                     detail = entry.detail,
-                                    onClick = {
-                                        haptics.selection()
-                                        entry.onOpen()
-                                    },
+                                    dimmed = entry.onOpen == null,
+                                    onClick =
+                                        entry.onOpen?.let { open ->
+                                            {
+                                                haptics.selection()
+                                                open()
+                                            }
+                                        },
                                 ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = colors.textMuted,
-                                    )
+                                    if (entry.onOpen != null) {
+                                        Icon(
+                                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                            contentDescription = null,
+                                            tint = colors.textMuted,
+                                        )
+                                    }
                                 }
                             }
                         }
