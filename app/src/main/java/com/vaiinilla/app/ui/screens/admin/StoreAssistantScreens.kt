@@ -334,7 +334,16 @@ private fun AssistantChat(
                 when {
                     state.thinking ->
                         Bubble(
-                            AssistantMessage(fromOwner = false, text = "Escribiendo…"),
+                            AssistantMessage(
+                                fromOwner = false,
+                                text =
+                                    when {
+                                        !state.thinkingOnServer -> "Escribiendo…"
+                                        state.sheets.isNotEmpty() ->
+                                            "Leyendo tu Excel… Puedes salir de la app, aquí te espero con la respuesta."
+                                        else -> "Escribiendo… Puedes salir de la app, aquí te espero."
+                                    },
+                            ),
                             colors,
                             muted = true,
                         )

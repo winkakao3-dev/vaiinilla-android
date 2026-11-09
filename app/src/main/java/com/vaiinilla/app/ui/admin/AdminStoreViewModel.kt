@@ -10,9 +10,11 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.admin.AssistantPartialFailure
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.AssistantJob
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantUpload
 import com.vaiinilla.app.domain.admin.CashbackRule
@@ -37,6 +39,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 
@@ -89,6 +92,8 @@ data class StoreAssistantState(
     val failures: List<Pair<String, String>> = emptyList(),
     /** "Guardando 3 de 9" mientras se aplica. */
     val progress: String? = null,
+    /** El servidor ya está armando la respuesta: el dueño puede salir de la app sin perderla. */
+    val thinkingOnServer: Boolean = false,
 ) {
     val canSend: Boolean get() = !thinking && !applying && remainingMessages > 1
     val canAddPhoto: Boolean get() = canSend && photos.size < ASSISTANT_MAX_PHOTOS
@@ -475,7 +480,8 @@ class AdminStoreViewModel
         }
 
         private fun askAssistant(messages: List<AssistantMessage>) {
-            _assistant.value = _assistant.value.copy(thinking = true, error = null, retryable = true)
+            _assistant.value =
+                _assistant.value.copy(thinking = true, thinkingOnServer = false, error = null, retryable = true)
             viewModelScope.launch {
                 // Solo las fotos que ya van en algún mensaje; las que siguen pendientes aún no se mandan.
                 val pending = _assistant.value.pendingPhotoIds.toSet()
@@ -484,7 +490,7 @@ class AdminStoreViewModel
                         .filter { it !in pending }
                 val pendingSheets = _assistant.value.pendingSheetIds.toSet()
                 val sheets = _assistant.value.sheets.values.filter { it.id !in pendingSheets }
-                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds, sheets) }
+                val result = fetchAssistantReply(messages, photoIds, sheets)
                 val current = _assistant.value
                 _assistant.value =
                     result.fold(
@@ -499,6 +505,7 @@ class AdminStoreViewModel
                                 appliedSteps = if (reply.proposal != null) emptySet() else current.appliedSteps,
                                 failures = if (reply.proposal != null) emptyList() else current.failures,
                                 thinking = false,
+                                thinkingOnServer = false,
                                 remainingMessages = reply.remainingMessages,
                             )
                         },
@@ -510,6 +517,7 @@ class AdminStoreViewModel
                                 val photoIds = last?.let { m -> PHOTO_TAG.findAll(m.text).map { it.groupValues[1] } }
                                 current.copy(
                                     thinking = false,
+                                    thinkingOnServer = false,
                                     messages = if (last != null) messages.dropLast(1) else messages,
                                     pendingPhotoIds =
                                         (current.pendingPhotoIds + photoIds.orEmpty())
@@ -525,11 +533,53 @@ class AdminStoreViewModel
                                     retryable = false,
                                 )
                             } else {
-                                current.copy(thinking = false, error = assistantErrorMessage(error), retryable = true)
+                                current.copy(
+                                    thinking = false,
+                                    thinkingOnServer = false,
+                                    error = assistantErrorMessage(error),
+                                    retryable = true,
+                                )
                             }
                         },
                     )
             }
+        }
+
+        /**
+         * Arranca la respuesta en el servidor y pregunta por ella hasta que esté lista. Mientras el dueño está fuera
+         * de la app la red falla: eso no es un error, se sigue preguntando al volver. Un servidor sin la ruta de
+         * trabajos (o una prueba sin ella) contesta con la llamada de siempre.
+         */
+        private suspend fun fetchAssistantReply(
+            messages: List<AssistantMessage>,
+            photoIds: List<String>,
+            sheets: List<AssistantSheet>,
+        ): Result<AssistantReply> {
+            val started = withContext(Dispatchers.IO) { repository.startAssistantJob(messages, photoIds, sheets) }
+            val jobId =
+                started.getOrElse { error ->
+                    if (!assistantJobsMissing(error)) return Result.failure(error)
+                    return withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds, sheets) }
+                }
+            _assistant.value = _assistant.value.copy(thinkingOnServer = true)
+            repeat(ASSISTANT_JOB_MAX_POLLS) {
+                delay(ASSISTANT_JOB_POLL_MS)
+                val status = withContext(Dispatchers.IO) { repository.assistantJob(jobId) }
+                status.fold(
+                    onSuccess = { job ->
+                        when (job) {
+                            AssistantJob.Thinking -> Unit
+                            is AssistantJob.Done -> return Result.success(job.reply)
+                            is AssistantJob.Failed ->
+                                return Result.failure(CatalogRepositoryException(job.code, job.message))
+                        }
+                    },
+                    onFailure = { error -> if (!error.isConnectionCut()) return Result.failure(error) },
+                )
+            }
+            return Result.failure(
+                CatalogRepositoryException("ASSISTANT_JOB_TIMEOUT", "El asistente tardó demasiado."),
+            )
         }
 
         // endregion
@@ -745,12 +795,35 @@ private fun assistantReplyErrorMessage(error: Throwable): String =
         "RATE_LIMITED" -> "Muchos mensajes seguidos. Espera unos minutos y vuelve a intentar."
         // El servidor dice qué Excel no pudo leer y qué hacer.
         "ASSISTANT_FILE_INVALID" -> error.message ?: "No pude leer ese Excel. Guárdalo como .xlsx y mándalo otra vez."
-        else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
+        "ASSISTANT_BUSY" -> "Todavía estoy con lo que me mandaste antes. Espera a que termine."
+        "ASSISTANT_JOB_NOT_FOUND" -> "Se perdió mi respuesta porque el servidor se reinició. Toca Reintentar."
+        "ASSISTANT_JOB_TIMEOUT" -> "Me tardé demasiado con esto. Toca Reintentar o mándame el Excel en partes."
+        else ->
+            if (error.isConnectionCut()) {
+                "Se cortó la conexión con el asistente. Revisa tu internet y toca Reintentar."
+            } else {
+                error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
+            }
     }
+
+/** La red se cortó (sin señal, la app en segundo plano, «Software caused connection abort»). */
+private fun Throwable.isConnectionCut(): Boolean = generateSequence(this) { it.cause }.any { it is IOException }
+
+/** El servidor todavía no tiene la ruta de trabajos (404 de ruta, no de un trabajo vencido). */
+internal fun assistantJobsMissing(error: Throwable): Boolean {
+    if (error is UnsupportedOperationException) return true
+    val api = generateSequence(error) { it.cause }.filterIsInstance<ApiClientException>().firstOrNull()
+    return api?.httpStatus == HTTP_NOT_FOUND && api.code != "ASSISTANT_JOB_NOT_FOUND"
+}
 
 /** Letras por mensaje del dueño, igual que `MAX_LETRAS_MENSAJE` del servidor (cabe un menú completo pegado). */
 const val STORE_ASSISTANT_MAX_LETTERS = 6000
 private const val HTTP_PAYLOAD_TOO_LARGE = 413
+private const val HTTP_NOT_FOUND = 404
+
+// Cada 3 s durante 30 min: un Excel grande puede tardar varios minutos en armarse.
+private const val ASSISTANT_JOB_POLL_MS = 3_000L
+private const val ASSISTANT_JOB_MAX_POLLS = 600
 private val INPUT_TOO_LONG_CODES = setOf("ASSISTANT_MESSAGE_TOO_LONG", "PAYLOAD_TOO_LARGE", "HTTP_413")
 private val PHOTO_TAG = Regex("""\[(foto\d+)]""")
 private const val ASSISTANT_MAX_PHOTOS = 20

@@ -16,6 +16,7 @@ import com.vaiinilla.app.domain.admin.AssistantProductPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
 import com.vaiinilla.app.domain.admin.AssistantRecipe
 import com.vaiinilla.app.domain.admin.AssistantRecipeLine
+import com.vaiinilla.app.domain.admin.AssistantJob
 import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.AssistantRoleChange
 import com.vaiinilla.app.domain.admin.AssistantSheet
@@ -135,9 +136,38 @@ class StoreAssistantJson(
         return requireNotNull((data["id"] as? JsonPrimitive)?.intOrNull) { "La respuesta no trae id." }
     }
 
-    fun parseReply(body: String): AssistantReply {
+    /** `POST /establecimiento/asistente/trabajos`: el id con el que se pregunta por la respuesta. */
+    fun parseJobId(body: String): String {
         val root = json.parseToJsonElement(body).jsonObject
         val data = (root["data"] as? JsonObject) ?: root
+        return requireNotNull((data["trabajo_id"] as? JsonPrimitive)?.contentOrNull) { "La respuesta no trae trabajo_id." }
+    }
+
+    /** `GET /establecimiento/asistente/trabajos/{id}`: pensando, listo con la respuesta de siempre, o error. */
+    fun parseJob(body: String): AssistantJob {
+        val root = json.parseToJsonElement(body).jsonObject
+        val data = (root["data"] as? JsonObject) ?: root
+        return when ((data["estado"] as? JsonPrimitive)?.contentOrNull) {
+            "listo" -> AssistantJob.Done(parseReplyData(requireNotNull(data["respuesta"] as? JsonObject)))
+            "error" -> {
+                val error = data["error"] as? JsonObject
+                AssistantJob.Failed(
+                    code = (error?.get("code") as? JsonPrimitive)?.contentOrNull ?: "ASSISTANT_UNAVAILABLE",
+                    message =
+                        (error?.get("message") as? JsonPrimitive)?.contentOrNull
+                            ?: "El asistente no pudo contestar. Vuelve a intentarlo.",
+                )
+            }
+            else -> AssistantJob.Thinking
+        }
+    }
+
+    fun parseReply(body: String): AssistantReply {
+        val root = json.parseToJsonElement(body).jsonObject
+        return parseReplyData((root["data"] as? JsonObject) ?: root)
+    }
+
+    private fun parseReplyData(data: JsonObject): AssistantReply {
         val message = (data["mensaje"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
         require(message.isNotEmpty()) { "El asistente no mandó mensaje." }
         val options =

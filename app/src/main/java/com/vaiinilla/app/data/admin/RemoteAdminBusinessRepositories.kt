@@ -22,6 +22,7 @@ import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantRecipeLine
+import com.vaiinilla.app.domain.admin.AssistantJob
 import com.vaiinilla.app.domain.admin.AssistantReply
 import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantStep
@@ -192,6 +193,22 @@ class RemoteAdminStoreRepository(
         apiClient
             .post("establecimiento/asistente", assistantJson.encodeMessages(messages, photoIds, sheets))
             .mapCatching(assistantJson::parseReply)
+            .mapApiErrors()
+
+    override fun startAssistantJob(
+        messages: List<AssistantMessage>,
+        photoIds: List<String>,
+        sheets: List<AssistantSheet>,
+    ): Result<String> =
+        apiClient
+            .post("establecimiento/asistente/trabajos", assistantJson.encodeMessages(messages, photoIds, sheets))
+            .mapCatching(assistantJson::parseJobId)
+            .mapApiErrors()
+
+    override fun assistantJob(id: String): Result<AssistantJob> =
+        apiClient
+            .get("establecimiento/asistente/trabajos/$id")
+            .mapCatching(assistantJson::parseJob)
             .mapApiErrors()
 
     override fun applyAssistantStep(

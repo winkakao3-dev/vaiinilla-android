@@ -348,6 +348,20 @@ data class AssistantReply(
     val remainingMessages: Int,
 )
 
+/** Cómo va una respuesta del asistente que el servidor arma en segundo plano. */
+sealed interface AssistantJob {
+    data object Thinking : AssistantJob
+
+    data class Done(
+        val reply: AssistantReply,
+    ) : AssistantJob
+
+    data class Failed(
+        val code: String,
+        val message: String,
+    ) : AssistantJob
+}
+
 /** Cómo se lee cada ajuste en la revisión; los títulos son los de Flujo de mi tienda. */
 object AssistantLabels {
     private val unitShort =

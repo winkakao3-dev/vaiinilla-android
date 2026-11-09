@@ -2,6 +2,7 @@ package com.vaiinilla.app.data.admin
 
 import com.vaiinilla.app.data.inventory.InventoryUnit
 import com.vaiinilla.app.data.inventory.RecipeLine
+import com.vaiinilla.app.domain.admin.AssistantJob
 import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantProduct
@@ -327,6 +328,22 @@ class StoreAssistantJsonTest {
         assertEquals(
             """{"version_esperada":3,"motivo":"Se quedó abierto desde ayer"}""",
             StoreAssistantJson().encodeCancel(cancel),
+        )
+    }
+
+    @Test
+    fun `lee el id del trabajo y como va`() {
+        assertEquals("abc", json.parseJobId("""{"data":{"trabajo_id":"abc","estado":"pensando"}}"""))
+        assertEquals(AssistantJob.Thinking, json.parseJob("""{"data":{"trabajo_id":"abc","estado":"pensando"}}"""))
+        val listo =
+            json.parseJob(
+                """{"data":{"estado":"listo","respuesta":{"mensaje":"Listo","opciones":[],"propuesta":null,"quedan_mensajes":38}}}""",
+            ) as AssistantJob.Done
+        assertEquals("Listo", listo.reply.message)
+        assertEquals(38, listo.reply.remainingMessages)
+        assertEquals(
+            AssistantJob.Failed("ASSISTANT_REPLY_TOO_LONG", "Es mucho"),
+            json.parseJob("""{"data":{"estado":"error","error":{"code":"ASSISTANT_REPLY_TOO_LONG","message":"Es mucho"}}}"""),
         )
     }
 }
