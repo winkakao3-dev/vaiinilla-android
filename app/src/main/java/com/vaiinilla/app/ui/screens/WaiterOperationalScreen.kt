@@ -2143,7 +2143,7 @@ private fun WaiterStationSplit(
 ) {
     val haptics = rememberVaiinillaHaptics()
     val context = LocalContext.current
-    val carriedStore = remember(context) { CarriedCounterPartsStore(context.applicationContext) }
+    val carriedStore = remember(context) { CarriedCounterPartsStore(context) }
     var carried by remember(orderId) { mutableStateOf(carriedStore.isCarried(orderId)) }
     val blue = tileToneColor(TileTone.Turn, colors)
     val yolk = tileToneColor(TileTone.Kitchen, colors)

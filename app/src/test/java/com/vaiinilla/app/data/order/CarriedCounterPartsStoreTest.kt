@@ -53,6 +53,20 @@ class CarriedCounterPartsStoreTest {
     }
 
     @Test
+    fun `solo guarda los ultimos pedidos marcados`() {
+        val store = CarriedCounterPartsStore(context) { clock }
+        repeat(CarriedCounterPartsStore.MAX_ORDERS + 5) {
+            clock += 1
+            store.setCarried("p$it", true)
+        }
+
+        assertFalse(store.isCarried("p0"))
+        assertFalse(store.isCarried("p4"))
+        assertTrue(store.isCarried("p5"))
+        assertTrue(store.isCarried("p${CarriedCounterPartsStore.MAX_ORDERS + 4}"))
+    }
+
+    @Test
     fun `id vacio no se guarda`() {
         val store = CarriedCounterPartsStore(context) { clock }
         store.setCarried("", true)
