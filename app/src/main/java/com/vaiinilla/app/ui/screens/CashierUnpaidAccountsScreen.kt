@@ -42,7 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.vaiinilla.app.domain.admin.AdminUnpaidAccount
+import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
+import com.vaiinilla.app.domain.model.TipChoice
+import com.vaiinilla.app.domain.model.TipPercents
+import com.vaiinilla.app.domain.model.amountFor
+import com.vaiinilla.app.domain.model.asTipWire
 import com.vaiinilla.app.domain.repository.AccountCollection
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.ui.components.moneyLabel
@@ -52,20 +57,36 @@ import java.math.BigDecimal
 
 private val UnpaidCoral = Color(0xFFE5645A)
 
-/** Cuánto cambio dar; null si lo recibido no alcanza o no es un monto. */
+/** Cuánto cambio dar; null si lo recibido no alcanza para lo que falta más la propina, o no es un monto. */
 internal fun unpaidChange(
     received: String,
     remaining: String,
+    tip: BigDecimal = BigDecimal.ZERO,
 ): BigDecimal? {
     val paid = MoneyInput.parse(received) ?: return null
     val due = remaining.toBigDecimalOrNull() ?: return null
-    return (paid - due).takeIf { it.signum() >= 0 }
+    return (paid - due - tip).takeIf { it.signum() >= 0 }
+}
+
+/** Por qué la propina escrita no sirve; null si está bien o no es un monto libre. El tope es el del servidor. */
+internal fun unpaidTipProblem(
+    choice: TipChoice,
+    remaining: String,
+): String? {
+    val custom = choice as? TipChoice.Custom ?: return null
+    val text = custom.amount.trim()
+    if (text.isEmpty()) return null
+    val value =
+        text.toBigDecimalOrNull()?.takeIf { it.signum() >= 0 && it.scale() <= 2 }
+            ?: return "Escribe un monto válido, con hasta dos decimales."
+    val due = remaining.toBigDecimalOrNull() ?: return null
+    return if (value > due) "La propina no puede ser mayor a lo que falta." else null
 }
 
 /**
  * R1 (G09): «Cuentas por cobrar» de Caja. Todas las cuentas a pagar al final sin cobrar, también las de un turno ya
- * cerrado, cada una con su botón para cobrarla en efectivo o terminal. Es a donde lleva «Ver cuentas por cobrar»
- * cuando el cierre de caja se bloquea.
+ * cerrado, cada una con su botón para cobrarla en efectivo o terminal, con propina. Es a donde lleva «Ver cuentas
+ * por cobrar» cuando el cierre de caja se bloquea.
  */
 @Composable
 internal fun CashierUnpaidAccountsScreen(
@@ -73,7 +94,8 @@ internal fun CashierUnpaidAccountsScreen(
     colors: OperationalColors,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
-    onCharge: (AdminUnpaidAccount, AccountPaymentMethod, String?) -> Unit,
+    /** La cuenta, el método, lo recibido (solo efectivo) y la propina (`propina`, null sin propina). */
+    onCharge: (AdminUnpaidAccount, AccountPaymentMethod, String?, String?) -> Unit,
     onDismissCollected: () -> Unit,
     onClearChargeError: () -> Unit,
 ) {
@@ -192,9 +214,9 @@ internal fun CashierUnpaidAccountsScreen(
             method = method,
             colors = colors,
             onDismiss = { charging = null },
-        ) { received ->
+        ) { received, tip ->
             charging = null
-            onCharge(account, method, received)
+            onCharge(account, method, received, tip)
         }
     }
 }
@@ -347,19 +369,27 @@ private fun CollectedCard(
     }
 }
 
-/** Pide lo recibido en efectivo (con el cambio) o confirma el cobro con terminal. */
+/** Pide la propina y lo recibido en efectivo (con el cambio), o confirma el cobro con terminal. */
 @Composable
 private fun ChargeUnpaidDialog(
     account: AdminUnpaidAccount,
     method: AccountPaymentMethod,
     colors: OperationalColors,
     onDismiss: () -> Unit,
-    onConfirm: (received: String?) -> Unit,
+    onConfirm: (received: String?, tip: String?) -> Unit,
 ) {
     var received by remember { mutableStateOf("") }
+    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
     val cash = method == AccountPaymentMethod.CASH
-    val change = if (cash) unpaidChange(received, account.remaining) else null
-    val ready = !cash || change != null
+    val remaining = account.remaining.toBigDecimalOrNull() ?: BigDecimal.ZERO
+    // El servidor rechaza propina sin nada que cobrar: con la cuenta ya cubierta por abonos no se ofrece.
+    val allowTip = remaining.signum() > 0
+    val tipProblem = if (allowTip) unpaidTipProblem(tipChoice, account.remaining) else null
+    val tipAmount = if (allowTip) tipChoice.amountFor(remaining) else BigDecimal.ZERO
+    // Lo que paga la mesa: lo que falta más la propina. `total_esperado` sigue siendo solo lo que falta.
+    val chargeLabel = Money.format(remaining + tipAmount)
+    val change = if (cash) unpaidChange(received, account.remaining, tipAmount) else null
+    val ready = tipProblem == null && (!cash || change != null)
     Dialog(onDismissRequest = onDismiss) {
         Surface(color = colors.background, shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -370,27 +400,71 @@ private fun ChargeUnpaidDialog(
                     color = colors.textPrimary,
                 )
                 Text(
-                    if (cash) {
-                        "Por cobrar: ${moneyLabel(account.remaining)} en efectivo."
-                    } else {
-                        "Cobra ${moneyLabel(account.remaining)} en la terminal y confirma cuando pase."
+                    when {
+                        cash && tipAmount.signum() > 0 ->
+                            "Por cobrar: ${moneyLabel(account.remaining)} más ${moneyLabel(Money.format(tipAmount))} " +
+                                "de propina, ${moneyLabel(chargeLabel)} en efectivo."
+                        cash -> "Por cobrar: ${moneyLabel(account.remaining)} en efectivo."
+                        else -> "Cobra ${moneyLabel(chargeLabel)} en la terminal y confirma cuando pase."
                     },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textSecondary,
                 )
+                if (allowTip) {
+                    Text("Propina", fontSize = 13.sp, fontWeight = FontWeight.Black, color = colors.textSecondary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        ChipButton(
+                            label = "Sin",
+                            enabled = true,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = tipChoice == TipChoice.None,
+                        ) { tipChoice = TipChoice.None }
+                        TipPercents.forEach { percent ->
+                            ChipButton(
+                                label = "$percent%",
+                                enabled = true,
+                                colors = colors,
+                                modifier = Modifier.weight(1f),
+                                selected = tipChoice == TipChoice.Percent(percent),
+                            ) { tipChoice = TipChoice.Percent(percent) }
+                        }
+                        ChipButton(
+                            label = "Otro",
+                            enabled = true,
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                            selected = tipChoice is TipChoice.Custom,
+                        ) { tipChoice = TipChoice.Custom((tipChoice as? TipChoice.Custom)?.amount.orEmpty()) }
+                    }
+                    val custom = tipChoice as? TipChoice.Custom
+                    if (custom != null) {
+                        OperationalField(
+                            value = custom.amount,
+                            onValueChange = { tipChoice = TipChoice.Custom(MoneyInput.sanitize(it)) },
+                            label = "Monto de la propina",
+                            colors = colors,
+                            keyboardType = KeyboardType.Decimal,
+                            isError = tipProblem != null,
+                            supporting = tipProblem,
+                        )
+                    }
+                }
                 if (cash) {
                     OperationalField(
                         value = received,
                         onValueChange = { received = MoneyInput.sanitize(it) },
                         label = "Recibido",
                         colors = colors,
-                        placeholder = moneyLabel(account.remaining),
+                        placeholder = moneyLabel(chargeLabel),
                         keyboardType = KeyboardType.Decimal,
                         isError = received.isNotEmpty() && change == null,
                         supporting =
                             when {
                                 change != null -> "Cambio: ${moneyLabel(change.toPlainString())}"
+                                received.isNotEmpty() && tipAmount.signum() > 0 ->
+                                    "No alcanza para lo que falta más la propina."
                                 received.isNotEmpty() -> "No alcanza para lo que falta."
                                 else -> null
                             },
@@ -412,7 +486,7 @@ private fun ChargeUnpaidDialog(
                         loading = false,
                         colors = colors,
                         modifier = Modifier.weight(1f),
-                    ) { onConfirm(if (cash) MoneyInput.toWire(received) else null) }
+                    ) { onConfirm(if (cash) MoneyInput.toWire(received) else null, tipAmount.asTipWire()) }
                 }
             }
         }
