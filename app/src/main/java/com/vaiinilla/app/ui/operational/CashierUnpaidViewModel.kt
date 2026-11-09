@@ -88,16 +88,17 @@ class CashierUnpaidViewModel
             _uiState.value = _uiState.value.copy(chargeError = null)
         }
 
-        /** Cobra lo que falta de la cuenta. [received] solo en efectivo, ya con dos decimales. */
+        /** Cobra lo que falta de la cuenta. [received] solo en efectivo, ya con dos decimales; [tip] va aparte del total. */
         fun charge(
             account: AdminUnpaidAccount,
             method: AccountPaymentMethod,
             received: String?,
+            tip: String? = null,
         ) {
             if (_uiState.value.charging != null) return
             val accountKey = unpaidAccountKey(account)
             val orderIds = account.orderLines.map { it.id }.takeIf { it.isNotEmpty() }
-            val attempt = listOf(accountKey, method.wire, received, account.remaining, orderIds).joinToString("|")
+            val attempt = listOf(accountKey, method.wire, received, account.remaining, orderIds, tip).joinToString("|")
             val idempotencyKey = chargeKeys.getOrPut(attempt) { UUID.randomUUID().toString() }
             _uiState.value = _uiState.value.copy(charging = accountKey, chargeError = null)
             viewModelScope.launch {
@@ -110,6 +111,7 @@ class CashierUnpaidViewModel
                             expectedTotal = account.remaining,
                             orderIds = orderIds,
                             idempotencyKey = idempotencyKey,
+                            tip = tip,
                         )
                     }
                 result.fold(
