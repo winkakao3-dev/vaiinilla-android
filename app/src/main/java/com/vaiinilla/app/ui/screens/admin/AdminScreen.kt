@@ -170,7 +170,12 @@ class AdminActions(
     val onSelectCustomPeriod: (com.vaiinilla.app.domain.admin.AdminPeriod) -> Unit,
     val onCloseWithoutCharging: (com.vaiinilla.app.domain.admin.AdminUnpaidAccount, String, (Boolean) -> Unit) -> Unit,
     val onSaveCategory: (Int?, com.vaiinilla.app.domain.admin.AdminCategoryInput, () -> Unit) -> Unit,
-    val onSaveProduct: (Int?, com.vaiinilla.app.domain.admin.AdminProductInput, AdminImage?, () -> Unit) -> Unit,
+    val onSaveProduct: (
+        Int?,
+        com.vaiinilla.app.domain.admin.AdminProductInput,
+        AdminImage?,
+        (com.vaiinilla.app.domain.model.Product) -> Unit,
+    ) -> Unit,
     val onSetAvailable: (com.vaiinilla.app.domain.model.Product, Boolean) -> Unit,
     val onRemoveImage: (com.vaiinilla.app.domain.model.Product) -> Unit,
     val onSelectOrderFilter: (com.vaiinilla.app.ui.admin.AdminOrderFilter) -> Unit,
