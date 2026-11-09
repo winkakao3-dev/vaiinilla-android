@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -379,7 +380,7 @@ private fun ChargeUnpaidDialog(
     onConfirm: (received: String?, tip: String?) -> Unit,
 ) {
     var received by remember { mutableStateOf("") }
-    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
+    var tipChoice by rememberSaveable(stateSaver = TipChoiceSaver) { mutableStateOf<TipChoice>(TipChoice.None) }
     val cash = method == AccountPaymentMethod.CASH
     val remaining = account.remaining.toBigDecimalOrNull() ?: BigDecimal.ZERO
     // El servidor rechaza propina sin nada que cobrar: con la cuenta ya cubierta por abonos no se ofrece.
