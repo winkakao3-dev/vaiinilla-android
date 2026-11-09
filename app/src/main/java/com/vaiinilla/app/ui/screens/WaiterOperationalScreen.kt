@@ -2055,22 +2055,6 @@ private fun WaiterTableSheet(
                             onTakeOrder = onTakeOrder?.takeIf { !readOnly },
                             nextReservation = table.availability,
                         )
-                        if (accountHasOrders && table.orders.isNotEmpty()) {
-                            // Cobrar antes de entregar se vale, pero que no pase sin darse cuenta.
-                            val count = table.orders.size
-                            Text(
-                                if (count == 1) {
-                                    "Ojo: 1 pedido de esta cuenta todavía no se entrega."
-                                } else {
-                                    "Ojo: $count pedidos de esta cuenta todavía no se entregan."
-                                },
-                                color = colors.amberInk,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.5.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
                     }
                 }
             }
