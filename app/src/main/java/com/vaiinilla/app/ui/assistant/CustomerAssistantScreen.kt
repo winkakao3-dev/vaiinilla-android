@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -65,7 +66,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -133,7 +133,8 @@ fun CustomerAssistantScreen(
     // Por turno: lo que no entró al carrito o cómo salió la llamada al mesero.
     val notes = remember(state.conversation) { mutableStateMapOf<Int, String>() }
     val scope = rememberCoroutineScope()
-    val rows = state.turns.size + 2
+    val showsAiNotice = state.turns.none { !it.fromCustomer }
+    val rows = state.turns.size + 2 + (if (showsAiNotice) 1 else 0)
     LaunchedEffect(state.turns.size, state.thinking, state.error, state.needsName) {
         list.animateScrollToItem((rows - 1).coerceAtLeast(0))
     }
@@ -158,6 +159,11 @@ fun CustomerAssistantScreen(
             contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // El aviso de la IA se queda arriba hasta la primera respuesta: el invitado que toca una sugerencia luego
+            // luego (o al que se le pide el nombre) también lo ve.
+            if (showsAiNotice) {
+                item(key = "aviso-ia") { AiNotice(colors) }
+            }
             if (state.turns.isEmpty()) {
                 item(key = "bienvenida") { Welcome(customerName, place, colors, onPick = send) }
             }
@@ -243,18 +249,7 @@ fun CustomerAssistantScreen(
                 }
             }
         }
-        if (state.turns.isEmpty()) {
-            Text(
-                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama " +
-                    (if (venue.capabilities.waiterIsReception) "a recepción. " else "al mesero. ") +
-                    "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud.",
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.muted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
-            )
-        } else if (state.remaining <= 1) {
+        if (state.turns.isNotEmpty() && state.remaining <= 1) {
             Text(
                 "Ya platicamos mucho. Empieza una plática nueva con el botón de arriba.",
                 fontSize = 12.5.sp,
@@ -502,6 +497,34 @@ private fun Bubble(
         }
     }
 }
+/** Y04: quién procesa los mensajes, en una tarjeta que se lee, no en una nota gris al pie. */
+@Composable
+private fun AiNotice(colors: VaiinillaColors) {
+    val venue = LocalVenueContext.current
+    Row(
+        Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.paper2)
+            .border(1.dp, colors.line, RoundedCornerShape(18.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(Icons.Outlined.Info, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
+        Text(
+            "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud. " +
+                "Solo hablo del menú y de tu pedido; para lo demás, llama " +
+                (if (venue.capabilities.waiterIsReception) "a recepción." else "al mesero."),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 18.sp,
+            color = colors.ink,
+        )
+    }
+}
+
 /** Compra sin cuenta: el nombre con el que el mesero lo ubica, una sola vez, como al confirmar un pedido. */
 @Composable
 private fun NameCard(
