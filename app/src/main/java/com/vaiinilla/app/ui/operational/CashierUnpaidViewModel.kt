@@ -88,7 +88,10 @@ class CashierUnpaidViewModel
             _uiState.value = _uiState.value.copy(chargeError = null)
         }
 
-        /** Cobra lo que falta de la cuenta. [received] solo en efectivo, ya con dos decimales; [tip] va aparte del total. */
+        /**
+         * Cobra lo que falta de la cuenta. [received] solo en efectivo, ya con dos decimales y cubriendo la propina.
+         * [tip] va como `propina` (docs/propinas.md); null sin propina. `total_esperado` sigue siendo solo la cuenta.
+         */
         fun charge(
             account: AdminUnpaidAccount,
             method: AccountPaymentMethod,
