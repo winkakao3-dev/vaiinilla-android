@@ -13,6 +13,7 @@ import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.ui.components.canAnnounceArrival
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.operational.cashCollectionNotice
+import com.vaiinilla.app.ui.screens.arrivalBandLabel
 import com.vaiinilla.app.ui.screens.arrivalSuffix
 import com.vaiinilla.app.ui.screens.cashierPlaceLabel
 import org.junit.Assert.assertEquals
@@ -111,6 +112,15 @@ class ArrivalTest {
         assertEquals("", arrivalSuffix(order()))
         // 01:30 UTC del 1 oct son las 19:30 del 30 sep en Chihuahua: la hora que ve el negocio (W25).
         assertEquals(" · YA LLEGÓ 19:30", arrivalSuffix(order(arrivedAt = "2026-10-01T01:30:35.102Z")))
+    }
+
+    @Test
+    fun `H05 la comanda de cocina lleva la franja YA LLEGO solo si el cliente aviso`() {
+        assertEquals(null, arrivalBandLabel(order()))
+        assertEquals(
+            "YA LLEGÓ · 19:30 · TE ESTÁ ESPERANDO",
+            arrivalBandLabel(order(arrivedAt = "2026-10-01T01:30:35.102Z")),
+        )
     }
 
     @Test
