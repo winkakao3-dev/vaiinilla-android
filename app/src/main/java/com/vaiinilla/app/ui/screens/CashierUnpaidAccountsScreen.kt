@@ -67,6 +67,33 @@ internal fun unpaidChange(
     val paid = MoneyInput.parse(received) ?: return null
     val due = remaining.toBigDecimalOrNull() ?: return null
     return (paid - due - tip).takeIf { it.signum() >= 0 }
+}
+
+/** Por qué la propina escrita no sirve; null si está bien o no es un monto libre. El tope es el del servidor. */
+internal fun unpaidTipProblem(
+    choice: TipChoice,
+    remaining: String,
+): String? {
+    val custom = choice as? TipChoice.Custom ?: return null
+    val text = custom.amount.trim()
+    if (text.isEmpty()) return null
+    val value =
+        text.toBigDecimalOrNull()?.takeIf { it.signum() >= 0 && it.scale() <= 2 }
+            ?: return "Escribe un monto válido, con hasta dos decimales."
+    val due = remaining.toBigDecimalOrNull() ?: return null
+    return if (value > due) "La propina no puede ser mayor a lo que falta." else null
+}
+/**
+ * R1 (G09): «Cuentas por cobrar» de Caja. Todas las cuentas a pagar al final sin cobrar, también las de un turno ya
+ * cerrado, cada una con su botón para cobrarla en efectivo o terminal, con propina. Es a donde lleva «Ver cuentas
+ * por cobrar» cuando el cierre de caja se bloquea.
+ */
+@Composable
+internal fun CashierUnpaidAccountsScreen(
+    state: CashierUnpaidUiState,
+    colors: OperationalColors,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit,
     /** La cuenta, el método, lo recibido (solo efectivo) y la propina (`propina`, null sin propina). */
     onCharge: (AdminUnpaidAccount, AccountPaymentMethod, String?, String?) -> Unit,
     onDismissCollected: () -> Unit,
