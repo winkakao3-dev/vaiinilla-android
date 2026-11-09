@@ -116,6 +116,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.isConnectionLoss
 import com.vaiinilla.app.core.venue.LocalVenueContext
+import com.vaiinilla.app.data.mode.CarriedCounterStore
 import com.vaiinilla.app.domain.mode.RestrictedMode
 import com.vaiinilla.app.domain.model.CartLine
 import com.vaiinilla.app.domain.model.Catalog
@@ -2138,7 +2139,9 @@ private fun WaiterStationSplit(
     colors: OperationalColors,
 ) {
     val haptics = rememberVaiinillaHaptics()
-    var carried by rememberSaveable(orderId) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val carriedStore = remember(context) { CarriedCounterStore(context) }
+    var carried by remember(orderId) { mutableStateOf(carriedStore.isCarried(orderId)) }
     val blue = tileToneColor(TileTone.Turn, colors)
     val yolk = tileToneColor(TileTone.Kitchen, colors)
     val counterBg = animateSelectionColor(if (carried) colors.cardInner else blue.copy(alpha = 0.12f), "counter-part")
@@ -2173,6 +2176,7 @@ private fun WaiterStationSplit(
                             .physicalPress {
                                 if (carried) haptics.selection() else haptics.success()
                                 carried = !carried
+                                carriedStore.setCarried(orderId, carried)
                             }.semantics {
                                 contentDescription =
                                     if (carried) "Desmarcar lo de Caja" else "Ya llevé lo de Caja"
