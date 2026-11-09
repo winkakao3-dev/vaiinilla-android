@@ -87,7 +87,7 @@ val LocalOpenReceivedNotices = compositionLocalOf<(() -> Unit)?> { null }
 
 /**
  * Historial de los avisos que llegaron a este teléfono. El detalle de cada uno dice qué pasó y, si es de un pedido,
- * lo busca y muestra su folio, negocio, estado y productos (AVISOS-01, AVISOS-03). No cambia nada en el servidor.
+ * lo busca y muestra su folio, negocio, estado y productos (AVISOS-01, AVISOS-04). No cambia nada en el servidor.
  */
 @Composable
 fun ReceivedNoticesScreen(
