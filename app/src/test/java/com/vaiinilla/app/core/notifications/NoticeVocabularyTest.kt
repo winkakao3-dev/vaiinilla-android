@@ -66,7 +66,7 @@ class NoticeVocabularyTest {
         store.update("hotel", false)
         assertEquals("tu habitación", SpaceCopy.yourPlace(venue, null))
         val explanation = NoticeExplanation.explain(venue, mapOf("type" to "mesero_en_camino"))
-        assertEquals("Tu mesero va a tu habitación.", explanation.what)
+        assertEquals("Recepción va a tu habitación.", explanation.what)
     }
 
     @Test
