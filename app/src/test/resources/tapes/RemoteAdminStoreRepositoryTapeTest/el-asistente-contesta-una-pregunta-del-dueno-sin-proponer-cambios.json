@@ -1,0 +1,37 @@
+{
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "establecimiento/asistente",
+            "body": {
+                "mensajes": [
+                    {
+                        "rol": "dueno",
+                        "texto": "¿Cuántos lugares tengo dados de alta?"
+                    }
+                ]
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "mensaje": "Tienes 7 lugares dados de alta: 2 canchas y 5 mesas. ¿Quieres que te los liste por nombre?",
+                    "opciones": [
+                        "Sí, lístamelos",
+                        "No, gracias"
+                    ],
+                    "propuesta": null,
+                    "sigue": false,
+                    "quedan_mensajes": 58
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

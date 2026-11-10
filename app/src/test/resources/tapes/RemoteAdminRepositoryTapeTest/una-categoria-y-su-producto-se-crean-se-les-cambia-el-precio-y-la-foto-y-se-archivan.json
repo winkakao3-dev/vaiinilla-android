@@ -1,0 +1,352 @@
+{
+    "values": {
+        "sufijo": "75084e"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/categorias",
+            "body": {
+                "nombre": "Postres 75084e",
+                "orden": 7
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 115,
+                    "nombre": "Postres 75084e",
+                    "orden": 7
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "catalogo/categorias/115",
+            "body": {
+                "nombre": "Dulces 75084e",
+                "orden": 8
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 115,
+                    "nombre": "Dulces 75084e",
+                    "orden": 8
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos",
+            "body": {
+                "categoria_id": 115,
+                "estacion_preparacion": "cocina",
+                "nombre": "Flan 75084e",
+                "descripcion": "De la casa",
+                "ingredientes": "Leche, huevo y caramelo",
+                "alergenos": null,
+                "tiempo_estimado_min": 4,
+                "precio_mostrador": "38.00",
+                "disponible": true,
+                "grupos_opcion": [],
+                "alergenos_codigos": [
+                    "huevo",
+                    "lacteos"
+                ]
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 214,
+                    "categoria_id": 115,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 75084e",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "38.00",
+                    "precio_digital": "38.00",
+                    "disponible": true,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "catalogo/productos/214",
+            "body": {
+                "categoria_id": 115,
+                "estacion_preparacion": "cocina",
+                "nombre": "Flan 75084e",
+                "descripcion": "De la casa",
+                "ingredientes": "Leche, huevo y caramelo",
+                "alergenos": null,
+                "tiempo_estimado_min": 4,
+                "precio_mostrador": "42.50",
+                "disponible": false,
+                "grupos_opcion": [],
+                "alergenos_codigos": [
+                    "huevo",
+                    "lacteos"
+                ]
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 214,
+                    "categoria_id": 115,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 75084e",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "catalogo/productos/214/imagen",
+            "body": {
+                "multipart": "imagen",
+                "filename": "flan.png",
+                "mime": "image/png",
+                "bytes": 70
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 214,
+                    "categoria_id": 115,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 75084e",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": false,
+                    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783/productos/214/d5b5c225-c0b9-4423-8b20-9ca880eb7530.png",
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "catalogo/productos/214/imagen",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 214,
+                    "categoria_id": 115,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 75084e",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos/214/archivar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 214,
+                    "categoria_id": 115,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 75084e",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": true,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        }
+    ]
+}

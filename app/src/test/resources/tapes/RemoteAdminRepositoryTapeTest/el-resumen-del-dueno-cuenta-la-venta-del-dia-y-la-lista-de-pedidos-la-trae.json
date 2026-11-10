@@ -1,0 +1,1158 @@
+{
+    "values": {
+        "hoy": "2026-11-10"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "723561bf-755c-4908-8c19-047e96ffe7e2",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:12:45.105Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "950.00",
+                    "ultimo_cierre": {
+                        "monto_final": "730.00",
+                        "cerrada_en": "2026-11-10T23:12:35.431Z",
+                        "monto_inicial": "500.00",
+                        "efectivo_esperado": "740.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "reportes/resumen",
+            "query": {
+                "desde": "2026-11-09",
+                "hasta": "2026-11-11"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "stripe": {
+                        "impuesto": "0.00",
+                        "ventas_brutas": "0.00",
+                        "comision_vaiinilla": "0.00",
+                        "costo_procesamiento": "0.00",
+                        "deducciones_totales": "0.00",
+                        "neto_establecimiento": "0.00",
+                        "payout_enviado_banco": "0.00",
+                        "diferencia_estimado_real": "0.00",
+                        "conciliaciones_pendientes": 0,
+                        "saldo_pendiente_periodo_estimado": "0.00",
+                        "saldo_disponible_en_stripe": null,
+                        "saldo_pendiente_en_stripe": null,
+                        "saldo_total_en_stripe": null,
+                        "saldo_fuente": "account_unavailable"
+                    },
+                    "wallet": {
+                        "movimientos": [],
+                        "saldo_total": "0.00",
+                        "conciliacion": {
+                            "alertas": 0,
+                            "wallets_revisadas": 0
+                        },
+                        "clientes_con_saldo": 0
+                    },
+                    "periodo": {
+                        "desde": "2026-11-09",
+                        "hasta": "2026-11-11"
+                    },
+                    "resumen": {
+                        "pedidos": 9,
+                        "propinas": "0.00",
+                        "recargas": "0.00",
+                        "comisiones": "21.60",
+                        "compras_saldo": "0.00",
+                        "ventas_totales": "720.00",
+                        "impuesto_stripe": "0.00",
+                        "ticket_promedio": "80.00",
+                        "recargas_tarjeta": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "ingreso_vaiinilla": "0.00",
+                        "comision_vaiinilla": "0.00",
+                        "pedidos_cancelados": 5,
+                        "productos_vendidos": 16,
+                        "deducciones_totales": "0.00",
+                        "cancelaciones_wallet": "0.00",
+                        "neto_establecimiento": "0.00",
+                        "ventas_brutas_stripe": "0.00",
+                        "diferencia_estimado_real": "0.00",
+                        "costo_procesamiento_stripe": "0.00"
+                    },
+                    "productos": [
+                        {
+                            "nombre": "Torta de cinta",
+                            "ventas": "720.00",
+                            "cantidad": 16,
+                            "producto_id": 211
+                        }
+                    ],
+                    "calculado_en": "2026-11-10T23:23:00.207049+00:00",
+                    "metodos_pago": [
+                        {
+                            "metodo": "efectivo",
+                            "ventas": "675.00",
+                            "pedidos": 8
+                        },
+                        {
+                            "metodo": "saldo",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "metodo": "stripe",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "metodo": "terminal",
+                            "ventas": "45.00",
+                            "pedidos": 1
+                        },
+                        {
+                            "metodo": "transferencia",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        }
+                    ],
+                    "ventas_por_dia": [
+                        {
+                            "fecha": "2026-11-09",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "fecha": "2026-11-10",
+                            "ventas": "720.00",
+                            "pedidos": 9
+                        },
+                        {
+                            "fecha": "2026-11-11",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        }
+                    ],
+                    "pedidos_por_estado": [
+                        {
+                            "estado": "por_cobrar",
+                            "pedidos": 1
+                        },
+                        {
+                            "estado": "cobrado",
+                            "pedidos": 4
+                        },
+                        {
+                            "estado": "preparando",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "listo",
+                            "pedidos": 1
+                        },
+                        {
+                            "estado": "entregado",
+                            "pedidos": 4
+                        },
+                        {
+                            "estado": "cancelado",
+                            "pedidos": 5
+                        },
+                        {
+                            "estado": "no_recogido",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "por_aceptar",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "en_camino",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "expirado",
+                            "pedidos": 0
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "pedidos",
+            "body": {
+                "metodo_pago": "efectivo",
+                "destino": "para_llevar",
+                "espacio_id": null,
+                "notas_cocina": null,
+                "items": [
+                    {
+                        "producto_id": 211,
+                        "cantidad": 1,
+                        "opcion_ids": []
+                    }
+                ],
+                "pago_diferido": false
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
+                    "folio": 16,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "por_cobrar",
+                    "metodo_pago": "efectivo",
+                    "destino": "para_llevar",
+                    "recoge_en_barra": false,
+                    "espacio": null,
+                    "entrega_sin_qr": false,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": false,
+                    "pago_pendiente": false,
+                    "invitado": false,
+                    "version": 1,
+                    "creado_en": "2026-11-10T23:23:01.411Z",
+                    "actualizado_en": "2026-11-10T23:23:01.411Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": null,
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 206,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ],
+                    "calificacion": null,
+                    "qr_token": "v1.6fe71ae325c1431a052144e613648fdba2d119ba61628c3d292815eae4327e38"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "pedidos/f5141c44-5880-4e5f-8218-7d2b13ad276c/cobros-efectivo",
+            "body": {
+                "monto_recibido": "45.00",
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedido": {
+                        "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
+                        "folio": 16,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:23:01.411Z",
+                        "actualizado_en": "2026-11-10T23:23:02.167Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 206,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ]
+                    },
+                    "monto_recibido": "45.00",
+                    "cambio": "0.00",
+                    "propina": "0.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "reportes/resumen",
+            "query": {
+                "desde": "2026-11-09",
+                "hasta": "2026-11-11"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "stripe": {
+                        "impuesto": "0.00",
+                        "ventas_brutas": "0.00",
+                        "comision_vaiinilla": "0.00",
+                        "costo_procesamiento": "0.00",
+                        "deducciones_totales": "0.00",
+                        "neto_establecimiento": "0.00",
+                        "payout_enviado_banco": "0.00",
+                        "diferencia_estimado_real": "0.00",
+                        "conciliaciones_pendientes": 0,
+                        "saldo_pendiente_periodo_estimado": "0.00",
+                        "saldo_disponible_en_stripe": null,
+                        "saldo_pendiente_en_stripe": null,
+                        "saldo_total_en_stripe": null,
+                        "saldo_fuente": "account_unavailable"
+                    },
+                    "wallet": {
+                        "movimientos": [],
+                        "saldo_total": "0.00",
+                        "conciliacion": {
+                            "alertas": 0,
+                            "wallets_revisadas": 0
+                        },
+                        "clientes_con_saldo": 0
+                    },
+                    "periodo": {
+                        "desde": "2026-11-09",
+                        "hasta": "2026-11-11"
+                    },
+                    "resumen": {
+                        "pedidos": 10,
+                        "propinas": "0.00",
+                        "recargas": "0.00",
+                        "comisiones": "22.95",
+                        "compras_saldo": "0.00",
+                        "ventas_totales": "765.00",
+                        "impuesto_stripe": "0.00",
+                        "ticket_promedio": "76.50",
+                        "recargas_tarjeta": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "ingreso_vaiinilla": "0.00",
+                        "comision_vaiinilla": "0.00",
+                        "pedidos_cancelados": 5,
+                        "productos_vendidos": 17,
+                        "deducciones_totales": "0.00",
+                        "cancelaciones_wallet": "0.00",
+                        "neto_establecimiento": "0.00",
+                        "ventas_brutas_stripe": "0.00",
+                        "diferencia_estimado_real": "0.00",
+                        "costo_procesamiento_stripe": "0.00"
+                    },
+                    "productos": [
+                        {
+                            "nombre": "Torta de cinta",
+                            "ventas": "765.00",
+                            "cantidad": 17,
+                            "producto_id": 211
+                        }
+                    ],
+                    "calculado_en": "2026-11-10T23:23:03.22787+00:00",
+                    "metodos_pago": [
+                        {
+                            "metodo": "efectivo",
+                            "ventas": "720.00",
+                            "pedidos": 9
+                        },
+                        {
+                            "metodo": "saldo",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "metodo": "stripe",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "metodo": "terminal",
+                            "ventas": "45.00",
+                            "pedidos": 1
+                        },
+                        {
+                            "metodo": "transferencia",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        }
+                    ],
+                    "ventas_por_dia": [
+                        {
+                            "fecha": "2026-11-09",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "fecha": "2026-11-10",
+                            "ventas": "765.00",
+                            "pedidos": 10
+                        },
+                        {
+                            "fecha": "2026-11-11",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        }
+                    ],
+                    "pedidos_por_estado": [
+                        {
+                            "estado": "por_cobrar",
+                            "pedidos": 1
+                        },
+                        {
+                            "estado": "cobrado",
+                            "pedidos": 5
+                        },
+                        {
+                            "estado": "preparando",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "listo",
+                            "pedidos": 1
+                        },
+                        {
+                            "estado": "entregado",
+                            "pedidos": 4
+                        },
+                        {
+                            "estado": "cancelado",
+                            "pedidos": 5
+                        },
+                        {
+                            "estado": "no_recogido",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "por_aceptar",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "en_camino",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "expirado",
+                            "pedidos": 0
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "pedidos",
+            "query": {
+                "estado": "cobrado",
+                "limit": "30"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "3f9e7b30-a089-4bd8-b567-d218203acdd7",
+                        "folio": 1,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "en_espacio",
+                        "recoge_en_barra": false,
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "terminal",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "terminal"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": true,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:10:14.778Z",
+                        "actualizado_en": "2026-11-10T23:10:23.809Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 187,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null
+                    },
+                    {
+                        "id": "15536e87-7c7a-46c7-bebb-c60ea3e95df4",
+                        "folio": 2,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "en_espacio",
+                        "recoge_en_barra": false,
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "entrega_sin_qr": false,
+                        "subtotal": "90.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "90.00",
+                        "monto_pagado": "90.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "90.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "90.00",
+                        "objetivo_neto_establecimiento": "90.00",
+                        "total_cliente": "90.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": true,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:10:30.154Z",
+                        "actualizado_en": "2026-11-10T23:10:36.042Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 188,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 2,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "90.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null
+                    },
+                    {
+                        "id": "f2ceb511-b086-4a96-9bc6-9a2fbc99b94d",
+                        "folio": 3,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "en_espacio",
+                        "recoge_en_barra": false,
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": true,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:10:30.863Z",
+                        "actualizado_en": "2026-11-10T23:10:36.042Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente2",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 189,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null
+                    },
+                    {
+                        "id": "0473c805-567b-4bef-8f9f-ea2642c64ed3",
+                        "folio": 4,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "90.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "90.00",
+                        "monto_pagado": "90.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "90.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "90.00",
+                        "objetivo_neto_establecimiento": "90.00",
+                        "total_cliente": "90.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:12:30.769Z",
+                        "actualizado_en": "2026-11-10T23:12:31.775Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 190,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 2,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "90.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null
+                    },
+                    {
+                        "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
+                        "folio": 16,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:23:01.411Z",
+                        "actualizado_en": "2026-11-10T23:23:02.167Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 206,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "pedidos/f5141c44-5880-4e5f-8218-7d2b13ad276c/cancelaciones",
+            "body": {
+                "version_esperada": 2,
+                "motivo": "Grabación"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedido": {
+                        "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
+                        "folio": 16,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cancelado",
+                        "metodo_pago": "efectivo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "0.00",
+                        "saldo_pendiente": "45.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 3,
+                        "creado_en": "2026-11-10T23:23:01.411Z",
+                        "actualizado_en": "2026-11-10T23:23:04.459Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": "Grabación",
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": "cajero",
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 206,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ]
+                    },
+                    "cuenta": null,
+                    "devolucion": null,
+                    "reembolso": null,
+                    "efectivo_devuelto": {
+                        "monto": "45.00"
+                    },
+                    "devolucion_pendiente": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

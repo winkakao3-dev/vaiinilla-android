@@ -80,6 +80,11 @@ class ServerTape : TestRule {
         fresh: () -> String,
     ): String = values.getOrPut(key) { if (live != null) fresh() else recorded.values.getValue(key) }
 
+    /** Espera a que el servidor termine algo (un trabajo del asistente). Al repetir la cinta no espera. */
+    fun pause(millis: Long) {
+        if (live != null) Thread.sleep(millis)
+    }
+
     /** El transporte de la app con la sesión de una cuenta de grabación, como `hotel.admin`. */
     fun client(session: String): VaiinillaApiClient = TapeClient(session, bearer = null)
 
