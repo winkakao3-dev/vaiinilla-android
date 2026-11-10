@@ -78,7 +78,6 @@ class NoticePanelTest {
                     "type" to "staff_alert",
                     "alert" to alert,
                 ),
-                true,
             )
 
         assertTrue(explain("por_cobrar").isPending(found("USAGI", "por_cobrar")))
@@ -92,7 +91,7 @@ class NoticePanelTest {
         assertFalse(explain("por_cobrar").isPending(null))
         assertFalse(
             NoticeExplanation
-                .explain(VenueContext.STANDARD, mapOf("type" to "order_state"), true)
+                .explain(VenueContext.STANDARD, mapOf("type" to "order_state"))
                 .isPending(found("USAGI", "por_cobrar")),
         )
     }

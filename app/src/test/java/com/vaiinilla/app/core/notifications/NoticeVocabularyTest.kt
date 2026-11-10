@@ -6,8 +6,6 @@ import com.vaiinilla.app.domain.model.OperationalRole
 import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueKind
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** El vocabulario de los avisos sigue al tipo del negocio: alumno en escuela, huésped en hotel, cliente en el resto. */
@@ -19,7 +17,6 @@ class NoticeVocabularyTest {
         NoticeExplanation.explain(
             venue,
             mapOf("type" to "staff_alert", "alert" to alert, "espacio_nombre" to "Habitación 304"),
-            isRemote = true,
         )
 
     @Test
@@ -68,7 +65,7 @@ class NoticeVocabularyTest {
         assertEquals("tu mesa", SpaceCopy.yourPlace(venue, null))
         store.update("hotel", false)
         assertEquals("tu habitación", SpaceCopy.yourPlace(venue, null))
-        val explanation = NoticeExplanation.explain(venue, mapOf("type" to "mesero_en_camino"), isRemote = true)
+        val explanation = NoticeExplanation.explain(venue, mapOf("type" to "mesero_en_camino"))
         assertEquals("Tu mesero va a tu habitación.", explanation.what)
     }
 
@@ -79,41 +76,12 @@ class NoticeVocabularyTest {
             "Un pedido está listo para llevarlo a su habitación.",
             explain("listo_mesero").what,
         )
-        assertEquals("La persona hospedada en Habitación 304.", explain("llamada_mesa").trigger)
-        val reason =
-            explain("por_cobrar").reason(
-                venue,
-                listOf(NoticeMembership("m1", OperationalRole.CASHIER, "e1", "Hotel Sol")),
-                openMode = null,
-            )
-        assertTrue(reason.contains("Caja en Hotel Sol"))
     }
 
     @Test
     fun `en los demas negocios la explicacion queda como siempre`() {
         store.update("restaurante", false)
         assertEquals("Un pedido está listo para llevarlo a su mesa o espacio.", explain("listo_mesero").what)
-        assertEquals("La persona sentada en Habitación 304.", explain("llamada_mesa").trigger)
-        assertFalse(explain("llamada_mesa").trigger.contains("hospedada"))
-    }
-
-    @Test
-    fun `cada membresia dice su propio nombre del modo cliente`() {
-        store.update("hotel", false)
-        val reason =
-            NoticeExplanation
-                .explain(venue, mapOf("type" to "order_state", "orderId" to "p-1"), isRemote = true)
-                .copy(roles = listOf(OperationalRole.CLIENT))
-                .reason(
-                    venue,
-                    listOf(
-                        NoticeMembership("m1", OperationalRole.CLIENT, "e1", "Escuela Sol", isSchool = true),
-                        NoticeMembership("m2", OperationalRole.CLIENT, "e2", "Hotel Luna"),
-                    ),
-                    openMode = null,
-                )
-        assertTrue(reason.contains("Alumno en Escuela Sol"))
-        assertTrue(reason.contains("Huésped en Hotel Luna"))
     }
 
     @Test

@@ -24,7 +24,7 @@ internal object NoticePanel {
     fun explanation(
         venue: VenueContext,
         notice: ReceivedNotice,
-    ): NoticeExplanation = NoticeExplanation.explain(venue, notice.payload, notice.isRemote)
+    ): NoticeExplanation = NoticeExplanation.explain(venue, notice.payload)
 
     /** Si sigue pendiente solo depende del aviso y del pedido leído, no del vocabulario del negocio. */
     fun isPending(notice: ReceivedNotice): Boolean = explanation(VenueContext.STANDARD, notice).isPending(notice.lookup)

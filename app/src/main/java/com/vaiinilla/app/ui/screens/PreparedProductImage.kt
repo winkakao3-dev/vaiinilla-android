@@ -3,6 +3,7 @@ package com.vaiinilla.app.ui.screens
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.vaiinilla.app.core.image.withExifOrientation
 import com.vaiinilla.app.core.io.readBytesLimited
 import java.io.ByteArrayOutputStream
 
@@ -32,7 +33,7 @@ internal fun prepareProductImage(
             0,
             original.size,
             BitmapFactory.Options().apply { inSampleSize = sample },
-        ) ?: return null
+        )?.withExifOrientation(original) ?: return null
     return try {
         var quality = 88
         var bytes: ByteArray
@@ -73,7 +74,7 @@ internal fun prepareStoreLogo(
             0,
             original.size,
             BitmapFactory.Options().apply { inSampleSize = sample },
-        ) ?: return null
+        )?.withExifOrientation(original) ?: return null
     return try {
         if (decoded.hasAlpha()) {
             val out = ByteArrayOutputStream()

@@ -1,11 +1,13 @@
 package com.vaiinilla.app.data.hotel
 
+import com.vaiinilla.app.core.notifications.OrderAdvanceNotifier
 import com.vaiinilla.app.core.venue.VenueContextStore
 import com.vaiinilla.app.data.admin.AdminBusinessJson
 import com.vaiinilla.app.data.discovery.SpaceResolveEnvelope
 import com.vaiinilla.app.data.discovery.toDomain
 import com.vaiinilla.app.domain.admin.BusinessType
 import com.vaiinilla.app.domain.admin.SpaceType
+import com.vaiinilla.app.domain.admin.StoreFlow
 import com.vaiinilla.app.domain.admin.StoreTemplate
 import com.vaiinilla.app.domain.hotel.CheckoutMethod
 import com.vaiinilla.app.domain.hotel.HotelConfig
@@ -19,6 +21,8 @@ import com.vaiinilla.app.domain.hotel.RoomCleaning
 import com.vaiinilla.app.domain.hotel.StayStatus
 import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.repository.CallReason
+import com.vaiinilla.app.ui.components.callReasons
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -118,6 +122,15 @@ class HotelContractTest {
     }
 
     @Test
+    fun `the platform can pick hotel and saving a hotel flow never sends the locked type`() {
+        assertTrue(com.vaiinilla.app.ui.screens.platform.STORE_TYPES.any { it.first == "hotel" })
+        val hotel = AdminBusinessJson().encodeFlow(StoreFlow("hotel", false, false, true, 5, emptyList()))
+        assertFalse(Json.parseToJsonElement(hotel).jsonObject.containsKey("tipo"))
+        val bar = AdminBusinessJson().encodeFlow(StoreFlow("bar", false, true, true, 5, emptyList()))
+        assertEquals("bar", Json.parseToJsonElement(bar).jsonObject["tipo"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun `a table is a room only in a hotel`() {
         assertEquals("Mesa", SpaceType.TABLE.label(venue))
         assertFalse(SpaceCopy.isRoom(venue, "mesa"))
@@ -125,6 +138,26 @@ class HotelContractTest {
         assertEquals("Habitación", SpaceType.TABLE.label(venue))
         assertTrue(SpaceCopy.isRoom(venue, "mesa"))
         assertFalse(SpaceCopy.isRoom(venue, "barra"))
+    }
+
+    @Test
+    fun `a hotel guest does not ask reception for the bill and kitchen pushes never say paid`() {
+        assertTrue(CallReason.CUENTA in callReasons(venue))
+        store.update("hotel")
+        assertFalse(CallReason.CUENTA in callReasons(venue))
+        val (_, text) = OrderAdvanceNotifier.staffAlertText(venue, 1, "nueva_comanda")
+        assertFalse(text.contains("cobrado"))
+    }
+
+    @Test
+    fun `who answers a call and what is paid at the end depend on the business`() {
+        assertEquals("el mesero", venue.attendant)
+        assertEquals("canchas", venue.payAtEndSpaces)
+        store.update("boliche")
+        assertEquals("pistas", venue.payAtEndSpaces)
+        store.update("hotel")
+        assertEquals("recepción", venue.attendant)
+        assertEquals("habitaciones", venue.payAtEndSpaces)
     }
 
     @Test

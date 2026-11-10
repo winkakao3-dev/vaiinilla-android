@@ -80,6 +80,7 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationSlots
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
 import com.vaiinilla.app.domain.model.VenueContext
@@ -600,7 +601,11 @@ internal fun WaiterSpaceSection(
             }
             if (hasPending && !canCharge) {
                 Text(
-                    "La cuenta se cobra desde Mesero o Caja.",
+                    if (SpaceCopy.isRoom(venue, space.type) && !venue.isHotelTable(space.id)) {
+                        "La habitación se cobra al salir, en Recepción."
+                    } else {
+                        "La cuenta se cobra desde Mesero o Caja."
+                    },
                     fontSize = 12.5.sp,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 12.dp),

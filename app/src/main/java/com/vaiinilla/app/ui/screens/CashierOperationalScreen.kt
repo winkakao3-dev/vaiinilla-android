@@ -146,7 +146,6 @@ import com.vaiinilla.app.ui.components.rememberOperationalAssistantController
 import com.vaiinilla.app.ui.components.rememberTick
 import com.vaiinilla.app.ui.components.rememberVaiinillaHaptics
 import com.vaiinilla.app.ui.components.rentalChargeLabel
-import com.vaiinilla.app.ui.hotel.staff.HotelChip
 import com.vaiinilla.app.ui.hotel.staff.HotelReceptionScreen
 import com.vaiinilla.app.ui.operational.CashSession
 import com.vaiinilla.app.ui.operational.CollectedToday
@@ -496,22 +495,6 @@ fun CashierOperationalScreen(
                 }
             }
 
-            if (venue.capabilities.staffWorksRooms) {
-                // Recepción es una vista dentro de Caja: llegadas, check-in, cargos y el cierre de la cuenta (S04).
-                item(key = "cashier-reception") {
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
-                        HotelChip(
-                            label = "Recepción · llegadas y salidas",
-                            selected = false,
-                            onClick = {
-                                haptics.selection()
-                                receptionOpen = true
-                            },
-                        )
-                    }
-                }
-            }
-
             if (state.queue.lostConnection && state.orders.isNotEmpty()) {
                 item(key = "cashier-offline") {
                     StaffOfflineBanner(offline = true, modifier = Modifier.animateItem(), savesOrders = true)
@@ -645,6 +628,16 @@ fun CashierOperationalScreen(
                                 haptics.selection()
                                 open()
                             }
+                        },
+                    // Recepción es una vista dentro de Caja: llegadas, check-in, cargos y el cierre de la cuenta (S04).
+                    onReception =
+                        if (venue.capabilities.staffWorksRooms) {
+                            {
+                                haptics.selection()
+                                receptionOpen = true
+                            }
+                        } else {
+                            null
                         },
                 )
             }
@@ -1208,8 +1201,11 @@ internal fun arrivalSuffix(order: OrderDetail): String =
         ?.let { " · YA LLEGÓ ${BusinessTime.format(it, ArrivalHour)}" }
         .orEmpty()
 
-private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+/** H05: la franja de la comanda de Cocina cuando el cliente ya está esperando; null si no ha avisado. */
+internal fun arrivalBandLabel(order: OrderDetail): String? =
+    order.arrivedAt?.let { "YA LLEGÓ · ${BusinessTime.format(it, ArrivalHour)} · TE ESTÁ ESPERANDO" }
 
+private val ArrivalHour: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 /**
  * El lugar del pedido para Caja: «Para llevar» o la mesa, barra o cancha. Una renta no se lleva: es «Renta de
  * Pista 3» (en vivo, D03).

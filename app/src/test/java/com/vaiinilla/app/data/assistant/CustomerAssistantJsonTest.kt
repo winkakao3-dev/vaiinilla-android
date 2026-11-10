@@ -27,6 +27,20 @@ class CustomerAssistantJsonTest {
     }
 
     @Test
+    fun `el contexto va primero como mensaje del cliente y la platica cabe en el tope`() {
+        val turns =
+            (1..45).map { CustomerAssistantTurn(fromCustomer = it % 2 == 1, text = "m$it") }
+        val mensajes =
+            Json.parseToJsonElement(json.encodeTurns(turns, context = " Estoy en Mesa 3. ")).jsonObject["mensajes"]!!.jsonArray
+        assertEquals(CustomerAssistantJson.MAX_MESSAGES, mensajes.size)
+        assertEquals("cliente", mensajes.first().jsonObject["rol"]!!.jsonPrimitive.content)
+        assertEquals("Estoy en Mesa 3.", mensajes.first().jsonObject["texto"]!!.jsonPrimitive.content)
+        assertEquals("m45", mensajes.last().jsonObject["texto"]!!.jsonPrimitive.content)
+        val sinContexto = Json.parseToJsonElement(json.encodeTurns(turns.take(1), context = "  ")).jsonObject["mensajes"]!!.jsonArray
+        assertEquals(1, sinContexto.size)
+    }
+
+    @Test
     fun `lee tarjetas, pedido y la oferta de llamar al mesero`() {
         val reply =
             json.parseReply(

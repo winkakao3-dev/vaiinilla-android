@@ -5,6 +5,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.vaiinilla.app.domain.assistant.CustomerAssistantTurn
 import com.vaiinilla.app.ui.screenshot.ScreenshotTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -73,6 +74,19 @@ class RecorridosAsistenteInvitadoTest {
         composeTestRule
             .onNode(hasText("Tus mensajes los procesa una IA de otra empresa", substring = true))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun y04_elAvisoDeLaIASigueMientrasSePideElNombreYAunNoContesta() {
+        show(
+            CustomerAssistantState(
+                turns = listOf(CustomerAssistantTurn(fromCustomer = true, text = "Sin alcohol")),
+                needsName = true,
+            ),
+        )
+        composeTestRule
+            .onNode(hasText("Tus mensajes los procesa una IA de otra empresa", substring = true))
+            .assertExists()
     }
 
     @Test

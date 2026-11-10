@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.R
+import com.vaiinilla.app.core.image.withExifOrientation
 import com.vaiinilla.app.core.io.readBytesLimited
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import kotlinx.coroutines.Dispatchers
@@ -278,7 +279,7 @@ private fun decodeBoundedImage(
         ) ?: return null
     // inSampleSize solo divide entre potencias de 2: el resto se ajusta con un escalado para no guardar de más.
     val scale = maxDimension.toFloat() / maxOf(decoded.width, decoded.height)
-    if (scale >= 1f) return decoded
+    if (scale >= 1f) return decoded.withExifOrientation(bytes)
     return android.graphics.Bitmap
         .createScaledBitmap(
             decoded,
@@ -286,6 +287,7 @@ private fun decodeBoundedImage(
             (decoded.height * scale).toInt().coerceAtLeast(1),
             true,
         ).also { if (it !== decoded) decoded.recycle() }
+        .withExifOrientation(bytes)
 }
 
 @Composable

@@ -1,9 +1,16 @@
 package com.vaiinilla.app.data.admin
 
+import com.vaiinilla.app.data.inventory.InventoryUnit
+import com.vaiinilla.app.data.inventory.RecipeLine
+import com.vaiinilla.app.domain.admin.AssistantJob
+import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantProduct
 import com.vaiinilla.app.domain.admin.AssistantProductPhoto
+import com.vaiinilla.app.domain.admin.AssistantRecipeLine
 import com.vaiinilla.app.domain.admin.AssistantStep
+import com.vaiinilla.app.domain.admin.AssistantOrderCancel
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.steps
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -167,5 +174,176 @@ class StoreAssistantJsonTest {
         assertEquals("ninguna", body["estacion_preparacion"]!!.jsonPrimitive.content)
         assertEquals("0", body["tiempo_estimado_min"]!!.jsonPrimitive.content)
         assertEquals(0, body["grupos_opcion"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `lee insumos, recetas y si la propuesta sigue`() {
+        val reply =
+            json.parseReply(
+                """
+                {"data":{"mensaje":"Así quedaría","opciones":[],"sigue":true,"propuesta":{"cambios":{},
+                "motivos":{"recetas":"Lo que lleva cada uno."},
+                "insumos":[{"nombre":"Clamato","unidad":"ml","existencia_inicial":3000,"minimo":500,"costo_unitario":null}],
+                "recetas":[{"producto_id":31,"producto":"Michelada","lineas":[
+                  {"insumo_id":5,"insumo":"Cerveza clara","unidad":"pieza","cantidad":1},
+                  {"insumo_id":null,"insumo":"Clamato","unidad":"ml","cantidad":120}]},
+                  {"producto_id":null,"producto":"Chelada","lineas":[]}]},"quedan_mensajes":50}}
+                """.trimIndent(),
+            )
+        val proposal = reply.proposal!!
+        assertTrue(proposal.continues)
+        assertEquals("Clamato", proposal.supplies.single().name)
+        assertEquals(3000.0, proposal.supplies.single().initialStock!!, 0.0)
+        assertNull(proposal.supplies.single().unitCost)
+        val recipe = proposal.recipes.single()
+        assertEquals(31, recipe.productId)
+        assertEquals(listOf(5L, null), recipe.lines.map { it.supplyId })
+        assertEquals("Lo que lleva cada uno.", proposal.sectionReasons["recetas"])
+        assertEquals("Cerveza clara 1 pz · Clamato 120 ml", AssistantLabels.recipe(recipe))
+        assertEquals(
+            "En mililitros · tienes 3,000 ml · te avisa con 500 ml",
+            AssistantLabels.supply(proposal.supplies.single()),
+        )
+        // Insumos y recetas se guardan después del menú, y las recetas al final.
+        assertEquals(
+            listOf(AssistantStep.Supply::class, AssistantStep.Recipe::class),
+            proposal.steps().map { it::class },
+        )
+    }
+
+    @Test
+    fun `una propuesta solo con recetas no se pierde`() {
+        val reply =
+            json.parseReply(
+                """{"data":{"mensaje":"Listo","opciones":[],"propuesta":{"recetas":[{"producto_id":2,"producto":"Café",
+                "lineas":[{"insumo_id":9,"insumo":"Café molido","unidad":"g","cantidad":"18.5"}]}]}}}""",
+            )
+        assertEquals(false, reply.proposal!!.continues)
+        assertEquals(
+            18.5,
+            reply.proposal!!
+                .recipes
+                .single()
+                .lines
+                .single()
+                .quantity,
+            0.0,
+        )
+    }
+
+    @Test
+    fun `la receta conserva lo que ya tenia y cambia solo lo que dice el asistente`() {
+        val current =
+            listOf(
+                RecipeLine(5, "Cerveza clara", InventoryUnit.PIECE, 2.0, null, null, 18.0),
+                RecipeLine(7, "Sal", InventoryUnit.GRAM, 3.0, null, null, 0.1),
+                RecipeLine(5, "Cerveza clara", InventoryUnit.PIECE, 1.0, 40, "Doble", 18.0),
+            )
+        val merged =
+            mergeAssistantRecipe(
+                current,
+                listOf(
+                    AssistantRecipeLine(5, "Cerveza clara", "pieza", 1.0),
+                    AssistantRecipeLine(9, "Clamato", "ml", 120.0),
+                ),
+            )
+        assertEquals(
+            listOf(Triple(7L, null, 3.0), Triple(5L, 40, 1.0), Triple(5L, null, 1.0), Triple(9L, null, 120.0)),
+            merged.map { Triple(it.supplyId, it.optionId, it.quantity) },
+        )
+        assertEquals(assistantNameKey("Limón "), assistantNameKey("limon"))
+    }
+
+    @Test
+    fun `lee el horario de las pistas aparte del de pedidos`() {
+        val reply =
+            json.parseReply(
+                """{"data":{"mensaje":"Listo","opciones":[],"propuesta":{"cambios":{},"motivos":{"horario_pistas":"De 3 pm a 3 am."},
+                "horario_pistas":{"apertura":"15:00","cierre":"03:00","dias_semana":[1,2,3,4,5,6,7],"duraciones_min":[60,120]}}}}""",
+            )
+        val hours = reply.proposal!!.courtHours!!
+        assertEquals("15:00", hours.opening)
+        assertEquals("03:00", hours.closing)
+        assertEquals("15:00 a 03:00 · todos los días · 1 h, 2 h", AssistantLabels.courtHours(hours))
+        assertEquals("De 3 pm a 3 am.", reply.proposal!!.sectionReasons["horario_pistas"])
+        assertEquals(AssistantStep.CourtHours::class, reply.proposal!!.steps().single()::class)
+    }
+
+    @Test
+    fun `lee lo del día a día ya resuelto por el servidor`() {
+        val reply =
+            StoreAssistantJson().parseReply(
+                """
+                {"data":{"mensaje":"Listo","opciones":[],"propuesta":{"cambios":{},"motivos":{"reservas":"Para la familia Pérez."},
+                "movimientos":[{"insumo_id":3,"insumo":"Limón","unidad":"kg","tipo":"entrada","cantidad":1000,"costo_unitario":28,"nota":null}],
+                "cambios_productos":[{"producto_id":7,"producto":"Cerveza","precio":"50.00","disponible":true},{"producto_id":8,"producto":"Nachos","descripcion":null}],
+                "cambios_insumos":[{"insumo_id":4,"insumo":"Cerveza clara","minimo":24,"proveedor_nombre":null}],
+                "cambios_espacios":[{"espacio_id":12,"espacio":"Pista 2","precio_hora":"400.00","activo":false}],
+                "cambios_personal":[{"membresia_id":"m-2","persona":"Juan","rol_actual":"mesero","rol":"cajero"}],
+                "reservas":[{"espacio_id":11,"espacio":"Pista 1","inicio":"2026-11-10T00:00:00.000Z","inicio_local":"2026-11-09T18:00","duracion_min":120,"nombre_cliente":"Familia Pérez","jugadores":6}]
+                },"sigue":false}}
+                """.trimIndent(),
+            )
+        val proposal = reply.proposal!!
+        assertEquals("Llegaron 1,000 kg · a $28.00 c/u", AssistantLabels.movement(proposal.movements.single()))
+        assertEquals("Precio $50.00 · Se vuelve a vender", AssistantLabels.productEdit(proposal.productEdits[0]))
+        assertEquals("Sin descripción", AssistantLabels.productEdit(proposal.productEdits[1]))
+        assertEquals("Te avisa con 24 · Sin proveedor", AssistantLabels.supplyEdit(proposal.supplyEdits.single()))
+        assertEquals("$400.00 la hora · Se apaga", AssistantLabels.spaceEdit(proposal.spaceEdits.single()))
+        assertEquals("Mesero → Caja", AssistantLabels.roleChange(proposal.roleChanges.single()))
+        assertEquals(
+            "Lun 9 nov, 18:00 · 2 h · Familia Pérez · 6 jugadores",
+            AssistantLabels.booking(proposal.bookings.single()),
+        )
+        assertEquals("Para la familia Pérez.", proposal.sectionReasons["reservas"])
+        val steps = proposal.steps().map { it::class.simpleName }
+        assertEquals(
+            listOf("Movement", "SupplyEdit", "ProductEdit", "ProductEdit", "SpaceEdit", "Booking", "RoleChange"),
+            steps,
+        )
+    }
+
+    @Test
+    fun `manda los Excel en cada mensaje y lee los pedidos atorados que se cancelan`() {
+        val body =
+            Json.parseToJsonElement(
+                StoreAssistantJson().encodeMessages(
+                    listOf(AssistantMessage(fromOwner = true, text = "Mi inventario [excel1]")),
+                    sheets = listOf(AssistantSheet("excel1", "Inventario.xlsx", byteArrayOf(0x50, 0x4b, 1))),
+                ),
+            ).jsonObject
+        val sheet = body["archivos"]!!.jsonArray.single().jsonObject
+        assertEquals("excel1", sheet["id"]!!.jsonPrimitive.content)
+        assertEquals("Inventario.xlsx", sheet["nombre"]!!.jsonPrimitive.content)
+        assertEquals("UEsB", sheet["contenido"]!!.jsonPrimitive.content)
+        val reply =
+            StoreAssistantJson().parseReply(
+                """
+                {"data":{"mensaje":"Listo","opciones":[],"propuesta":{"cambios":{},
+                "cancelar_pedidos":[{"pedido_id":"p-128","folio":128,"version":3,"motivo":"Se quedó abierto desde ayer"}]},"sigue":false}}
+                """.trimIndent(),
+            )
+        val cancel = reply.proposal!!.orderCancels.single()
+        assertEquals(AssistantOrderCancel("p-128", 128, 3, "Se quedó abierto desde ayer"), cancel)
+        assertEquals(
+            """{"version_esperada":3,"motivo":"Se quedó abierto desde ayer"}""",
+            StoreAssistantJson().encodeCancel(cancel),
+        )
+    }
+
+    @Test
+    fun `lee el id del trabajo y como va`() {
+        assertEquals("abc", json.parseJobId("""{"data":{"trabajo_id":"abc","estado":"pensando"}}"""))
+        assertEquals(AssistantJob.Thinking, json.parseJob("""{"data":{"trabajo_id":"abc","estado":"pensando"}}"""))
+        val listo =
+            json.parseJob(
+                """{"data":{"estado":"listo","respuesta":{"mensaje":"Listo","opciones":[],"propuesta":null,"quedan_mensajes":38}}}""",
+            ) as AssistantJob.Done
+        assertEquals("Listo", listo.reply.message)
+        assertEquals(38, listo.reply.remainingMessages)
+        assertEquals(
+            AssistantJob.Failed("ASSISTANT_REPLY_TOO_LONG", "Es mucho"),
+            json.parseJob("""{"data":{"estado":"error","error":{"code":"ASSISTANT_REPLY_TOO_LONG","message":"Es mucho"}}}"""),
+        )
     }
 }

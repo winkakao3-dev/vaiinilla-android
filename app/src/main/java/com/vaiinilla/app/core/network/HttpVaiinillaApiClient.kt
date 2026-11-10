@@ -501,8 +501,13 @@ class HttpVaiinillaApiClient
                 requestMethod = method
                 connectTimeout = CONNECT_TIMEOUT_MS
                 // Los asistentes pueden tardar: el de la tienda arma propuestas con todo el menú.
-                val slow = SLOW_PATHS.any { path.trimStart('/').startsWith(it) }
-                readTimeout = if (slow) SLOW_READ_TIMEOUT_MS else READ_TIMEOUT_MS
+                val clean = path.trimStart('/')
+                readTimeout =
+                    when {
+                        clean.startsWith(STORE_ASSISTANT_PATH) -> STORE_ASSISTANT_READ_TIMEOUT_MS
+                        SLOW_PATHS.any { clean.startsWith(it) } -> SLOW_READ_TIMEOUT_MS
+                        else -> READ_TIMEOUT_MS
+                    }
             }
         }
 
@@ -556,6 +561,10 @@ class HttpVaiinillaApiClient
             const val MULTIPART_READ_TIMEOUT_MS = 60_000
             const val SLOW_READ_TIMEOUT_MS = 60_000
             // Los asistentes esperan al modelo (hasta 25-40 s y a veces un reintento).
-            val SLOW_PATHS = listOf("establecimiento/asistente", "asistente-cliente")
+            val SLOW_PATHS = listOf("asistente-cliente")
+
+            // El de la tienda puede pensar hasta 4 min una lista larga (todo el menú, un Excel).
+            const val STORE_ASSISTANT_PATH = "establecimiento/asistente"
+            const val STORE_ASSISTANT_READ_TIMEOUT_MS = 270_000
         }
     }

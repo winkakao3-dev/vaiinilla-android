@@ -1,5 +1,8 @@
 package com.vaiinilla.app.ui.screens.admin
 
+import android.provider.OpenableColumns
+import com.vaiinilla.app.R
+import androidx.compose.ui.res.painterResource
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,6 +46,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.domain.admin.AssistantChange
@@ -75,6 +80,7 @@ import com.vaiinilla.app.domain.admin.AssistantLabels
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantUpload
 import com.vaiinilla.app.ui.admin.AdminStoreViewModel
 import com.vaiinilla.app.ui.admin.StoreAssistantState
@@ -146,7 +152,12 @@ internal fun StoreWelcome(
                     .clickable(onClick = onAssistant)
                     .padding(18.dp),
             ) {
-                Text("Recomendado", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold, color = colors.accentInk.copy(alpha = 0.85f))
+                Text(
+                    "Recomendado",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.accentInk.copy(alpha = 0.85f),
+                )
                 Text(
                     "Platícalo con el asistente",
                     fontSize = 18.sp,
@@ -294,13 +305,13 @@ private fun AssistantChat(
     }
     Column(Modifier.fillMaxSize()) {
         AssistantHeader(
-            title = "Asistente",
-            subtitle = "Armando tu tienda",
+            title = "Vaini",
+            subtitle = "Tu asistente",
             backLabel = "Regresar",
             colors = colors,
             onBack = onClose,
             trailing = {
-                if (state.messages.size > 1) {
+                if (state.messages.isNotEmpty()) {
                     AdminRoundButton(Icons.Rounded.Refresh, "Empezar de nuevo", colors, viewModel::restartAssistant)
                 } else {
                     Spacer(Modifier.size(44.dp))
@@ -313,14 +324,26 @@ private fun AssistantChat(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (state.messages.isEmpty() && !state.thinking) {
+                item(key = "inicio") { AssistantWelcome(colors) }
+            }
             itemsIndexed(state.messages, key = { index, _ -> index }) { _, message ->
-                Bubble(message, colors, photos = state.photos)
+                Bubble(message, colors, photos = state.photos, sheets = state.sheets)
             }
             item(key = "estado") {
                 when {
                     state.thinking ->
                         Bubble(
-                            AssistantMessage(fromOwner = false, text = "Escribiendo…"),
+                            AssistantMessage(
+                                fromOwner = false,
+                                text =
+                                    when {
+                                        !state.thinkingOnServer -> "Escribiendo…"
+                                        state.sheets.isNotEmpty() ->
+                                            "Leyendo tu Excel… Puedes salir de la app, aquí te espero con la respuesta."
+                                        else -> "Escribiendo… Puedes salir de la app, aquí te espero."
+                                    },
+                            ),
                             colors,
                             muted = true,
                         )
@@ -372,7 +395,17 @@ private fun AssistantChat(
                 }
                 if (uris.size > left) viewModel.tooManyPhotos(left)
             }
-        val hasPhoto = state.pendingPhotoIds.isNotEmpty()
+        val sheetPicker =
+            rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri == null) return@rememberLauncherForActivityResult
+                val name =
+                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                        if (it.moveToFirst()) it.getString(0) else null
+                    } ?: "Excel.xlsx"
+                val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+                if (bytes == null) viewModel.photoPreparationFailed() else viewModel.addAssistantSheet(name, bytes)
+            }
+        val hasPhoto = state.pendingPhotoIds.isNotEmpty() || state.pendingSheetIds.isNotEmpty()
         val tooLong = draft.trim().length > state.lettersLeftForText
         val send = {
             if (state.canSend && !tooLong && (draft.isNotBlank() || hasPhoto)) {
@@ -414,7 +447,24 @@ private fun AssistantChat(
                 }
             }
         }
-        if (hasPhoto) {
+        if (state.pendingSheetIds.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.pendingSheetIds.forEach { id ->
+                    SheetChip(
+                        name = state.sheets[id]?.name ?: id,
+                        colors = colors,
+                        onRemove = { viewModel.removeAssistantSheet(id) },
+                    )
+                }
+            }
+        }
+        if (state.pendingPhotoIds.isNotEmpty()) {
             Column(Modifier.padding(top = 6.dp)) {
                 Text(
                     if (state.pendingPhotoIds.size == 1) {
@@ -469,6 +519,21 @@ private fun AssistantChat(
                     Icons.Rounded.AddPhotoAlternate,
                     null,
                     tint = if (state.canAddPhoto) colors.textPrimary else colors.textMuted,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = state.canAddSheet) { sheetPicker.launch(XLSX_MIME) }
+                    .semantics { contentDescription = "Mandar un Excel" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.TableChart,
+                    null,
+                    tint = if (state.canAddSheet) colors.textPrimary else colors.textMuted,
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -574,7 +639,10 @@ private fun ProposalSoFar(
                         add("Ajustes" to proposal.changes.joinToString(" · ") { it.title })
                     }
                     proposal.spaces.forEach { group ->
-                        add(AssistantLabels.spaceType(group.type) to "${group.prefix} 1 a ${group.prefix} ${group.count}")
+                        add(
+                            AssistantLabels.spaceType(group.type) to
+                                "${group.prefix} 1 a ${group.prefix} ${group.count}",
+                        )
                     }
                     if (proposal.productCount > 0) {
                         add("Menú" to countLabel(proposal.productCount, "producto", "productos"))
@@ -583,6 +651,24 @@ private fun ProposalSoFar(
                     if (photoCount > 0) add("Fotos" to countLabel(photoCount, "foto", "fotos"))
                     if (proposal.invites.isNotEmpty()) {
                         add("Tu equipo" to countLabel(proposal.invites.size, "invitación", "invitaciones"))
+                    }
+                    proposal.courtHours?.let { add("Horario de las pistas" to AssistantLabels.courtHours(it)) }
+                    if (proposal.supplies.isNotEmpty()) {
+                        add("Insumos" to countLabel(proposal.supplies.size, "insumo", "insumos"))
+                    }
+                    if (proposal.recipes.isNotEmpty()) {
+                        add("Recetas" to countLabel(proposal.recipes.size, "receta", "recetas"))
+                    }
+                    if (proposal.movements.isNotEmpty()) {
+                        add("Inventario" to countLabel(proposal.movements.size, "movimiento", "movimientos"))
+                    }
+                    val edits = proposal.productEdits.size + proposal.supplyEdits.size + proposal.spaceEdits.size
+                    if (edits > 0) add("Cambios" to countLabel(edits, "cambio", "cambios"))
+                    if (proposal.bookings.isNotEmpty()) {
+                        add("Rentas" to countLabel(proposal.bookings.size, "renta", "rentas"))
+                    }
+                    if (proposal.roleChanges.isNotEmpty()) {
+                        add("Puestos" to countLabel(proposal.roleChanges.size, "puesto", "puestos"))
                     }
                 }
             rows.forEachIndexed { index, (title, detail) ->
@@ -598,6 +684,7 @@ private fun countLabel(
     one: String,
     many: String,
 ) = "$count ${if (count == 1) one else many}"
+
 /** Cuenta de letras cuando el mensaje ya es largo; si pasa del tope, dice que se mande en partes. */
 @Composable
 private fun LetterCounter(
@@ -656,18 +743,24 @@ private fun Bubble(
     colors: OperationalColors,
     muted: Boolean = false,
     photos: Map<String, AssistantPhoto> = emptyMap(),
+    sheets: Map<String, AssistantSheet> = emptyMap(),
 ) {
     val mine = message.fromOwner
     val photoIds = PHOTO_TOKEN.findAll(message.text).map { it.groupValues[1] }.toList()
+    val sheetIds = SHEET_TOKEN.findAll(message.text).map { it.groupValues[1] }.toList()
     val text =
         message.text
             .replace(PHOTO_TOKEN, "")
+            .replace(SHEET_TOKEN, "")
             .replace(Regex(" {2,}"), " ")
             .trim()
     if (mine) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
             photoIds.forEach { id ->
                 PhotoThumb(photos[id], colors, size = 150, modifier = Modifier.padding(bottom = 4.dp))
+            }
+            sheetIds.forEach { id ->
+                SheetChip(name = sheets[id]?.name ?: "Excel", colors = colors, modifier = Modifier.padding(bottom = 4.dp))
             }
             if (text.isNotEmpty()) {
                 Text(
@@ -679,8 +772,14 @@ private fun Bubble(
                     modifier =
                         Modifier
                             .widthIn(max = 290.dp)
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp))
-                            .background(colors.textPrimary)
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 20.dp,
+                                    topEnd = 20.dp,
+                                    bottomStart = 20.dp,
+                                    bottomEnd = 6.dp,
+                                ),
+                            ).background(colors.textPrimary)
                             .padding(horizontal = 14.dp, vertical = 11.dp),
                 )
             }
@@ -689,9 +788,14 @@ private fun Bubble(
         Column(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val tint = if (colors.isDark) colors.accentLime else colors.accentInk
-                Icon(Icons.Rounded.AutoAwesome, null, tint = tint, modifier = Modifier.size(14.dp))
+                Image(
+                    painter = painterResource(R.drawable.mascot_question),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(26.dp),
+                )
                 Text(
-                    "Asistente",
+                    "Vaini",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = tint,
@@ -714,6 +818,7 @@ private fun Bubble(
         }
     }
 }
+
 @Composable
 private fun AssistantReview(
     proposal: AssistantProposal,
@@ -840,8 +945,91 @@ private fun AssistantReview(
                     }
                 }
             }
-            if (proposal.productPhotos.isNotEmpty()) {
+            proposal.courtHours?.let { hours ->
                 item {
+                    ReviewSection(
+                        "Horario de las pistas",
+                        colors,
+                        reasons["horario_pistas"] ?: "Cuándo se pueden rentar. Es aparte del horario de pedidos.",
+                    ) {
+                        ItemRow("Se rentan", AssistantLabels.courtHours(hours), colors)
+                    }
+                }
+            }
+            if (proposal.supplies.isNotEmpty()) {
+                item {
+                    ReviewSection("Insumos", colors, reasons["insumos"] ?: "Se dan de alta en tu inventario.") {
+                        proposal.supplies.forEachIndexed { index, supply ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(supply.name, AssistantLabels.supply(supply), colors)
+                        }
+                    }
+                }
+            }
+            if (proposal.recipes.isNotEmpty()) {
+                item {
+                    ReviewSection(
+                        "Recetas",
+                        colors,
+                        reasons["recetas"]
+                            ?: "Cada venta descuenta esto de tu inventario. Lo demás de cada receta se queda igual.",
+                    ) {
+                        proposal.recipes.forEachIndexed { index, recipe ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(recipe.productName, AssistantLabels.recipe(recipe), colors)
+                        }
+                    }
+                }
+            }
+            val dayToDay =
+                listOf(
+                    Triple(
+                        "Inventario",
+                        reasons["movimientos"] ?: "Se registra en tu inventario y cambia lo que tienes.",
+                        proposal.movements.map { it.supplyName to AssistantLabels.movement(it) },
+                    ),
+                    Triple(
+                        "Productos",
+                        reasons["cambios_productos"] ?: "Solo cambia lo que ves aquí.",
+                        proposal.productEdits.map { it.name to AssistantLabels.productEdit(it) },
+                    ),
+                    Triple(
+                        "Insumos que ya tienes",
+                        reasons["cambios_insumos"] ?: "Solo cambia lo que ves aquí.",
+                        proposal.supplyEdits.map { it.name to AssistantLabels.supplyEdit(it) },
+                    ),
+                    Triple(
+                        "Mesas y lugares",
+                        reasons["cambios_espacios"] ?: "Apagado, un lugar no recibe pedidos ni rentas.",
+                        proposal.spaceEdits.map { it.name to AssistantLabels.spaceEdit(it) },
+                    ),
+                    Triple(
+                        "Rentas",
+                        reasons["reservas"] ?: "Quedan apartadas y por cobrar en Caja.",
+                        proposal.bookings.map { it.court to AssistantLabels.booking(it) },
+                    ),
+                    Triple(
+                        "Pedidos atorados",
+                        reasons["cancelar_pedidos"] ?: "Se cancelan. No tenían ningún pago: no se cobra ni se devuelve nada.",
+                        proposal.orderCancels.map { "Pedido #${it.folio}" to "Se cancela · ${it.reason}" },
+                    ),
+                    Triple(
+                        "Puestos del equipo",
+                        reasons["cambios_personal"] ?: "Cambia lo que cada quien ve en su app.",
+                        proposal.roleChanges.map { it.person to AssistantLabels.roleChange(it) },
+                    ),
+                ).filter { it.third.isNotEmpty() }
+            dayToDay.forEach { (title, reason, rows) ->
+                item {
+                    ReviewSection(title, colors, reason) {
+                        rows.forEachIndexed { index, (name, detail) ->
+                            if (index > 0) AdminRowDivider(colors)
+                            ItemRow(name, detail, colors)
+                        }
+                    }
+                }
+            }
+            if (proposal.productPhotos.isNotEmpty()) {                item {
                     ReviewSection(
                         "Fotos de productos",
                         colors,
@@ -1026,10 +1214,57 @@ private const val COUNTER_FROM_PERCENT = 80
 
 private val PHOTO_TOKEN = Regex("""\[(foto\d+)]""")
 
+private val SHEET_TOKEN = Regex("""\[(excel\d+)]""")
+
+private const val XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+/** Un Excel del chat: su nombre y, si todavía no se manda, la × para quitarlo. */
+@Composable
+private fun SheetChip(
+    name: String,
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onRemove: (() -> Unit)? = null,
+) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.cardBackground)
+            .padding(start = 12.dp, end = if (onRemove == null) 14.dp else 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.TableChart, null, tint = colors.accentLime, modifier = Modifier.size(18.dp))
+        Text(
+            name,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp).widthIn(max = 200.dp),
+        )
+        if (onRemove != null) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onRemove)
+                    .semantics { contentDescription = "Quitar $name" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Close, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
 private fun PreparedProductImage.toUpload() = AssistantUpload(bytes, filename, mimeType)
 
 private val AssistantProposal.itemCount: Int
-    get() = changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size
+    get() =
+        changes.size + spaces.size + productCount + productPhotos.size + storePhotos.size + invites.size +
+            supplies.size + recipes.size + (if (courtHours != null) 1 else 0) + movements.size + productEdits.size +
+            supplyEdits.size + spaceEdits.size + roleChanges.size + bookings.size + orderCancels.size
 
 @Composable
 private fun ChangeRow(
@@ -1076,11 +1311,77 @@ private fun ChangeRow(
     }
 }
 
+/** Antes de que el dueño escriba: Vaini espera, sin adelantarse a hablar. */
+@Composable
+private fun AssistantWelcome(colors: OperationalColors) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.mascot_question),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(112.dp),
+        )
+        Text(
+            "¿Qué hacemos hoy?",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = 14.dp),
+        )
+        Text(
+            "Dime qué te llegó, qué precio cambiar, qué pista apartar o pregúntame cómo vas.",
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 6.dp, start = 12.dp, end = 12.dp),
+        )
+    }
+}
+
+/** En el Inicio del admin: un botón chico con Vaini que abre el asistente. */
+@Composable
+internal fun AssistantButton(
+    colors: OperationalColors,
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit,
+) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(26.dp))
+            .background(colors.cardBackground)
+            .clickable(onClick = onOpen)
+            .semantics { contentDescription = "Pregúntale a Vaini, tu asistente" }
+            .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.mascot_question),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(40.dp),
+        )
+        Text(
+            "Pregúntale a Vaini",
+            fontSize = 14.5.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
 /** En Flujo de mi tienda y en «Para dejar lista tu tienda»: abre el asistente. */
 @Composable
 internal fun AssistantEntryCard(
     colors: OperationalColors,
     modifier: Modifier = Modifier,
+    title: String = "Armarlo con el asistente",
+    subtitle: String = "Te pregunta cómo trabajas y te deja todo listo para revisar",
     onOpen: () -> Unit,
 ) {
     Row(
@@ -1095,13 +1396,13 @@ internal fun AssistantEntryCard(
         Icon(Icons.Rounded.AutoAwesome, null, tint = colors.accentInk, modifier = Modifier.size(22.dp))
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(
-                "Armarlo con el asistente",
+                title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Black,
                 color = colors.accentInk,
             )
             Text(
-                "Te pregunta cómo trabajas y te deja todo listo para revisar",
+                subtitle,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.accentInk.copy(alpha = 0.8f),

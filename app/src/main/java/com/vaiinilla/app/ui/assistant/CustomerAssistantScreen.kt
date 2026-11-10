@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -65,11 +66,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.network.toUserFacingMessage
+import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.data.assistant.CustomerAssistantJson
 import com.vaiinilla.app.domain.assistant.AssistantCourtCard
 import com.vaiinilla.app.domain.assistant.AssistantOrderLine
@@ -81,6 +82,7 @@ import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import com.vaiinilla.app.ui.theme.VaiinillaColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Lo que el asistente de pedidos puede hacer fuera de la plática; lo conecta la navegación. */
@@ -125,12 +127,14 @@ fun CustomerAssistantScreen(
     // imePadding deja otro hueco del alto del teclado (la pantalla «se levanta» sola).
     com.vaiinilla.app.ui.components.ResizeForKeyboard()
     val colors = LocalVaiinillaColors.current
+    val venue = LocalVenueContext.current
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     // Por turno: lo que no entró al carrito o cómo salió la llamada al mesero.
     val notes = remember(state.conversation) { mutableStateMapOf<Int, String>() }
     val scope = rememberCoroutineScope()
-    val rows = state.turns.size + 2
+    val showsAiNotice = state.turns.none { !it.fromCustomer }
+    val rows = state.turns.size + 2 + (if (showsAiNotice) 1 else 0)
     LaunchedEffect(state.turns.size, state.thinking, state.error, state.needsName) {
         list.animateScrollToItem((rows - 1).coerceAtLeast(0))
     }
@@ -155,6 +159,11 @@ fun CustomerAssistantScreen(
             contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // El aviso de la IA se queda arriba hasta la primera respuesta: el invitado que toca una sugerencia luego
+            // luego (o al que se le pide el nombre) también lo ve.
+            if (showsAiNotice) {
+                item(key = "aviso-ia") { AiNotice(colors) }
+            }
             if (state.turns.isEmpty()) {
                 item(key = "bienvenida") { Welcome(customerName, place, colors, onPick = send) }
             }
@@ -211,7 +220,13 @@ fun CustomerAssistantScreen(
                                             notes[index] = "Listo, ya le avisamos. Va para allá."
                                         },
                                         onFailure = {
-                                            notes[index] = it.toUserFacingMessage("No se pudo llamar. Usa el botón Mesero.")
+                                            notes[index] = it.toUserFacingMessage(
+                                                    if (venue.capabilities.waiterIsReception) {
+                                                        "No se pudo llamar. Usa el botón Recepción."
+                                                    } else {
+                                                        "No se pudo llamar. Usa el botón Mesero."
+                                                    },
+                                                )
                                         },
                                     )
                                 }
@@ -224,7 +239,7 @@ fun CustomerAssistantScreen(
                 when {
                     state.needsName ->
                         NameCard(guestName, state.enteringName, state.nameError, colors, onSubmitName)
-                    state.thinking -> Bubble("Escribiendo…", mine = false, colors = colors, muted = true)
+                    state.thinking -> ThinkingBubble(colors)
                     state.error != null ->
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Text(state.error, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.ink2)
@@ -234,17 +249,7 @@ fun CustomerAssistantScreen(
                 }
             }
         }
-        if (state.turns.isEmpty()) {
-            Text(
-                "Solo hablo del menú y de tu pedido aquí. Para lo demás, llama al mesero. " +
-                    "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud.",
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.muted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
-            )
-        } else if (state.remaining <= 1) {
+        if (state.turns.isNotEmpty() && state.remaining <= 1) {
             Text(
                 "Ya platicamos mucho. Empieza una plática nueva con el botón de arriba.",
                 fontSize = 12.5.sp,
@@ -423,6 +428,28 @@ private fun Welcome(
 }
 
 /** Lo del cliente va en burbuja; lo del asistente corre a todo el ancho, como texto de la pantalla. */
+/**
+ * El modelo tarda de 5 a 40 segundos y la respuesta llega completa al final: el texto avanza para que no parezca
+ * trabado. Se compone de nuevo con cada pregunta, así que empieza desde el primer paso.
+ */
+@Composable
+private fun ThinkingBubble(colors: VaiinillaColors) {
+    var step by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        delay(4_000)
+        step = 1
+        delay(16_000)
+        step = 2
+    }
+    val text =
+        when (step) {
+            0 -> "Revisando el menú…"
+            1 -> "Armando tu respuesta…"
+            else -> "Tarda más de lo normal, pero sigo en eso…"
+        }
+    Bubble(text, mine = false, colors = colors, muted = true)
+}
+
 @Composable
 private fun Bubble(
     text: String,
@@ -470,6 +497,34 @@ private fun Bubble(
         }
     }
 }
+/** Y04: quién procesa los mensajes, en una tarjeta que se lee, no en una nota gris al pie. */
+@Composable
+private fun AiNotice(colors: VaiinillaColors) {
+    val venue = LocalVenueContext.current
+    Row(
+        Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.paper2)
+            .border(1.dp, colors.line, RoundedCornerShape(18.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(Icons.Outlined.Info, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
+        Text(
+            "Tus mensajes los procesa una IA de otra empresa: no compartas datos personales ni de salud. " +
+                "Solo hablo del menú y de tu pedido; para lo demás, llama " +
+                (if (venue.capabilities.waiterIsReception) "a recepción." else "al mesero."),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 18.sp,
+            color = colors.ink,
+        )
+    }
+}
+
 /** Compra sin cuenta: el nombre con el que el mesero lo ubica, una sola vez, como al confirmar un pedido. */
 @Composable
 private fun NameCard(
@@ -489,7 +544,7 @@ private fun NameCard(
             .padding(14.dp),
     ) {        Text("¿Cómo te llamas?", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
         Text(
-            "Con tu nombre te ubica el mesero. No se lo mandamos al asistente.",
+            "Con tu nombre te ubica ${LocalVenueContext.current.attendant}. No se lo mandamos al asistente.",
             fontSize = 12.5.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.muted,
@@ -876,7 +931,12 @@ private fun WaiterCard(
                 Icon(Icons.Outlined.Notifications, null, tint = colors.onInk, modifier = Modifier.size(20.dp))
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Llamar al mesero", fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
+                Text(
+                    if (LocalVenueContext.current.capabilities.waiterIsReception) "Llamar a recepción" else "Llamar al mesero",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.ink,
+                )
                 Text(
                     "Motivo: ${offer.detail ?: offer.reason.label}",
                     fontSize = 12.5.sp,

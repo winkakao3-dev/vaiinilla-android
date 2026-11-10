@@ -57,7 +57,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -87,8 +86,8 @@ import com.vaiinilla.app.ui.theme.VaiinillaColors
 val LocalOpenReceivedNotices = compositionLocalOf<(() -> Unit)?> { null }
 
 /**
- * Historial de los avisos que llegaron a este teléfono, con lo que explica cada uno: qué es, quién lo provocó, a
- * quién va y por qué le llegó a esta cuenta (AVISOS-01, igual que el panel de iOS). No cambia nada en el servidor.
+ * Historial de los avisos que llegaron a este teléfono. El detalle de cada uno dice qué pasó y, si es de un pedido,
+ * lo busca y muestra su folio, negocio, estado y productos (AVISOS-01, AVISOS-04). No cambia nada en el servidor.
  */
 @Composable
 fun ReceivedNoticesScreen(
@@ -384,7 +383,7 @@ private fun NoticeDetail(
     onLookUp: () -> Unit,
 ) {
     val venue = LocalVenueContext.current
-    val explanation = remember(notice.id) { NoticeExplanation.explain(venue, notice.payload, notice.isRemote) }
+    val explanation = remember(notice.id) { NoticeExplanation.explain(venue, notice.payload) }
     Column(
         modifier =
             Modifier
@@ -405,45 +404,20 @@ private fun NoticeDetail(
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            if (notice.body.isNotBlank()) Text(notice.body, color = colors.ink2, fontSize = 15.sp)
+            Text(notice.body.ifBlank { explanation.what }, color = colors.ink2, fontSize = 15.sp)
             if (notice.lookup !is NoticeLookup.Found) {
                 NoticePanel.customer(notice)?.let { Text("Lo pidió $it", color = colors.ink2, fontSize = 15.sp) }
             }
-            val source = if (notice.isRemote) "del servidor" else "de esta app"
             Text(
-                "${NoticePanel.date(notice.receivedAtMillis)} · $source",
+                NoticePanel.date(notice.receivedAtMillis),
                 color = colors.muted,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
-        Section("Qué es", explanation.what, colors)
-        Section("Quién lo provocó", explanation.trigger, colors)
-        Section("A quién va", explanation.audience, colors)
-        val phone = notice.phone
-        Section(
-            "Por qué llegó a este teléfono",
-            buildString {
-                append(explanation.reason(venue, phone?.memberships.orEmpty(), phone?.openMode))
-                phone?.account?.let { append("\nCuenta: $it.") }
-                if (notice.phoneSeenLater) append("\nLa cuenta se anotó al abrir la app, no cuando llegó el aviso.")
-                if (phone == null) append("\nLlegó sin sesión abierta en este teléfono.")
-            },
-            colors,
-        )
-        Section("Cómo llegó", notice.arrivals.joinToString("\n") { it.label }, colors)
         if (explanation.orderId != null) {
             OrderSection(notice.lookup, searching, colors, onLookUp)
         }
-        Section(
-            "Datos del aviso",
-            notice.payload.entries
-                .sortedBy { it.key }
-                .joinToString("\n") { "${it.key}: ${it.value}" }
-                .ifBlank { "—" },
-            colors,
-            monospace = true,
-        )
     }
 }
 
@@ -471,7 +445,7 @@ private fun OrderSection(
                             color = colors.ink,
                             modifier = Modifier.padding(end = 10.dp).size(20.dp),
                         )
-                        Text("Buscando con los modos de esta cuenta…", color = colors.ink2, fontSize = 14.sp)
+                        Text("Buscando el pedido…", color = colors.ink2, fontSize = 14.sp)
                     }
                 lookup is NoticeLookup.Found -> {
                     val order = lookup.order
@@ -503,12 +477,6 @@ private fun OrderSection(
                         )
                         order.customerName?.let { Text("Lo pidió $it", color = colors.ink2, fontSize = 14.sp) }
                         order.items.forEach { Text(it, color = colors.ink, fontSize = 14.sp) }
-                        Text(
-                            "Leído como ${order.readAs}",
-                            color = colors.muted,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
                     }
                 }
                 lookup is NoticeLookup.Unavailable ->
@@ -519,25 +487,5 @@ private fun OrderSection(
                 else -> EditorialSecondaryButton(text = "Buscar el pedido", onClick = onLookUp)
             }
         }
-    }
-}
-
-@Composable
-private fun Section(
-    title: String,
-    body: String,
-    colors: VaiinillaColors,
-    monospace: Boolean = false,
-) {
-    Column {
-        Text(title, color = colors.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Text(
-            body,
-            color = colors.ink,
-            fontSize = if (monospace) 12.sp else 15.sp,
-            lineHeight = if (monospace) 17.sp else 20.sp,
-            fontFamily = if (monospace) FontFamily.Monospace else null,
-            modifier = Modifier.padding(top = 2.dp),
-        )
     }
 }

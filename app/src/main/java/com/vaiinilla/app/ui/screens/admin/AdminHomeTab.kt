@@ -194,6 +194,12 @@ internal fun AdminHomeTab(
                 )
             }
         }
+        // Con la tienda lista, la lista de pasos (y su tarjeta) se esconde; el asistente se queda.
+        if (onOpenAssistant != null && !showsStoreSetup(setup)) {
+            item(key = "asistente") {
+                AssistantButton(colors, Modifier.adminRise(2).padding(top = 14.dp), onOpen = onOpenAssistant)
+            }
+        }
         hotel?.let { hotelSummaryItems(it.uiState.value, colors, it::refresh) }
         item(key = "ventas-titulo") {
             SalesHeader(periodLabel(state), colors, Modifier.adminRise(3)) { choosingPeriod = true }
@@ -307,7 +313,7 @@ private fun SetupChecklist(
     Column(modifier) {
         AdminH2(if (ready) "Tu tienda está lista" else "Para dejar lista tu tienda", colors)
         if (!ready && onOpenAssistant != null) {
-            AssistantEntryCard(colors, Modifier.padding(bottom = 10.dp), onOpenAssistant)
+            AssistantEntryCard(colors, Modifier.padding(bottom = 10.dp), onOpen = onOpenAssistant)
         }
         AdminPanel(
             colors,
