@@ -1,0 +1,2795 @@
+{
+    "values": {
+        "dias": "2",
+        "matricula": "CINTA-C83BFA"
+    },
+    "exchanges": [
+        {
+            "session": "escuela.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "escuela.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "escuela.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:26:40.353Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "900.00",
+                    "ultimo_cierre": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 116,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 215,
+                            "categoria_id": 116,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:26:42.626Z|215"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "establecimiento/configuracion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 0,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/habilitar",
+            "body": {
+                "codigo_union": "CNTESC"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tutor_habilitado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "tutelas",
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "tutelas/consentimiento",
+            "status": 200,
+            "response": {
+                "data": {
+                    "version": "2026-10-21",
+                    "borrador": true,
+                    "titulo": "Aviso de privacidad para mamás, papás y tutores",
+                    "parrafos": [
+                        "La escuela y Vaiinilla usan los datos de tu hijo para darle de comer en la cafetería: su nombre, matrícula, grupo y foto, las alergias que marques, su saldo, lo que compra y lo que le apartas.",
+                        "Las alergias son datos de salud. Solo sirven para que nadie le venda ni le aparte algo que no puede comer, y para que Cocina y Caja las vean en su ticket.",
+                        "Los ven tú, los otros tutores que la escuela apruebe y el personal de la cafetería mientras lo atiende. No se venden ni se usan para publicidad.",
+                        "Puedes corregirlos desde su ficha y pedirle a la escuela que los borre. Si lo desvinculas, dejas de verlo; su saldo y su historial se quedan con la escuela.",
+                        "Al aceptar confirmas que eres su mamá, papá o tutor y das tu consentimiento expreso para tratar sus datos, incluidos los de salud."
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/consentimiento",
+            "body": {
+                "consentimiento_version": "2026-10-21"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/dependientes",
+            "body": {
+                "nombre": "Niña de cinta",
+                "matricula": "CINTA-C83BFA",
+                "grupo": "3B",
+                "consentimiento_version": "2026-10-21"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                    "nombre": "Niña de cinta",
+                    "grupo": "3B",
+                    "foto_url": null,
+                    "matricula": "CINTA-C83BFA",
+                    "tiene_cuenta": false,
+                    "estado": "pendiente",
+                    "requiere_consentimiento": false,
+                    "saldo": null,
+                    "controles": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "solicitudes-tutela",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "tutela_id": "af940527-1e50-40ef-ba3f-fc25372faf05",
+                        "creado_en": "2026-11-10T23:28:54.437Z",
+                        "tutor": {
+                            "nombre": "Vigía cliente",
+                            "email": null
+                        },
+                        "alumno": {
+                            "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                            "nombre": "Niña de cinta",
+                            "matricula": "CINTA-C83BFA",
+                            "grupo": "3B",
+                            "tiene_cuenta": false
+                        },
+                        "en_padron": false,
+                        "otros_tutores": 0
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "POST",
+            "path": "solicitudes-tutela/af940527-1e50-40ef-ba3f-fc25372faf05/aprobar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tutela_id": "af940527-1e50-40ef-ba3f-fc25372faf05",
+                    "estado": "aprobada"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "tutelas",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "grupo": "3B",
+                        "foto_url": null,
+                        "matricula": "CINTA-C83BFA",
+                        "tiene_cuenta": false,
+                        "estado": "aprobada",
+                        "requiere_consentimiento": false,
+                        "soy_principal": true,
+                        "tutores": [
+                            {
+                                "tutela_id": "af940527-1e50-40ef-ba3f-fc25372faf05",
+                                "nombre": "Vigía cliente",
+                                "principal": true,
+                                "eres_tu": true
+                            }
+                        ],
+                        "tiene_pin": false,
+                        "credenciales": {
+                            "qr": false,
+                            "nfc": false
+                        },
+                        "saldo": "0.00",
+                        "controles": {
+                            "limite_diario": null,
+                            "gastado_hoy": null,
+                            "disponible_hoy": null,
+                            "umbral_saldo_bajo": null,
+                            "notas": null,
+                            "productos_bloqueados": [],
+                            "categorias_bloqueadas": [],
+                            "alergenos": []
+                        }
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cajero",
+            "verb": "POST",
+            "path": "wallets/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54/recargas-efectivo",
+            "body": {
+                "monto": "200.00"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                    "saldo_anterior": "0.00",
+                    "recarga": "200.00",
+                    "saldo_nuevo": "200.00",
+                    "movimiento_id": "010b201a-5326-48b3-8a30-ba8147889753",
+                    "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "establecimiento/configuracion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 0,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PATCH",
+            "path": "establecimiento/configuracion",
+            "body": {
+                "union_requiere_codigo": true,
+                "tutores_requieren_aprobacion": true,
+                "recarga_minima": "50.00",
+                "recarga_maxima": "2000.00",
+                "dias_adelanto_pedido": 5,
+                "hora_corte_pedido": null,
+                "hora_corte_cancelacion": null
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 5,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "menu-dias",
+            "status": 200,
+            "response": {
+                "data": {
+                    "programacion": {
+                        "hoy": "2026-11-10",
+                        "dias_adelanto_pedido": 5,
+                        "hora_corte_pedido": null,
+                        "hora_corte_cancelacion": null,
+                        "franjas": []
+                    },
+                    "dias": [
+                        {
+                            "fecha": "2026-11-12",
+                            "producto_ids": [
+                                215
+                            ]
+                        }
+                    ],
+                    "sin_servicio": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "DELETE",
+            "path": "menu-dias/2026-11-12/sin-servicio",
+            "idempotent": true,
+            "status": 404,
+            "response": {
+                "data": null,
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": {
+                    "code": "NO_SERVICE_DAY_NOT_FOUND",
+                    "message": "Ese día no estaba cerrado.",
+                    "details": []
+                }
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PUT",
+            "path": "menu-dias/2026-11-12",
+            "body": {
+                "producto_ids": [
+                    215
+                ]
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "fecha": "2026-11-12",
+                    "producto_ids": [
+                        215
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "menu-dias",
+            "query": {
+                "desde": "2026-11-12",
+                "hasta": "2026-11-12"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "programacion": {
+                        "hoy": "2026-11-10",
+                        "dias_adelanto_pedido": 5,
+                        "hora_corte_pedido": null,
+                        "hora_corte_cancelacion": null,
+                        "franjas": []
+                    },
+                    "dias": [
+                        {
+                            "fecha": "2026-11-12",
+                            "producto_ids": [
+                                215
+                            ]
+                        }
+                    ],
+                    "sin_servicio": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54/contexto",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "access_token": "TACHADO",
+                    "token_type": "Bearer",
+                    "expires_in": 900,
+                    "contexto": {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "membresia_id": "30f95e28-0425-489c-84d2-b215d2177e39",
+                        "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                        "rol": "cliente",
+                        "modo_restringido": null,
+                        "tutor_usuario_id": "68a49301-0f94-4698-9c5f-d77a76218cd5"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "wallets/me",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recarga_tarjeta": {
+                        "minima": "50.00",
+                        "maxima": "2000.00"
+                    },
+                    "cliente": {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-C83BFA"
+                    },
+                    "wallet": {
+                        "id": "d81236b5-3849-4ce4-a639-efe61036dfb9",
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                        "saldo": "200.00",
+                        "actualizado_en": "2026-11-10T23:28:56.704Z",
+                        "saldo_congelado": false
+                    },
+                    "movimientos": [
+                        {
+                            "id": "43b73c52-f626-4760-b8f8-fe34a6d0cf2b",
+                            "tipo": "recarga_efectivo",
+                            "descripcion": "Recarga en efectivo",
+                            "monto": "200.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": null,
+                            "pedido_folio": null,
+                            "lugar": null,
+                            "resumen_productos": null,
+                            "creado_en": "2026-11-10T23:28:56.704Z"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "menu-dias",
+            "status": 200,
+            "response": {
+                "data": {
+                    "programacion": {
+                        "hoy": "2026-11-10",
+                        "dias_adelanto_pedido": 5,
+                        "hora_corte_pedido": null,
+                        "hora_corte_cancelacion": null,
+                        "franjas": []
+                    },
+                    "dias": [
+                        {
+                            "fecha": "2026-11-12",
+                            "producto_ids": [
+                                215
+                            ]
+                        }
+                    ],
+                    "sin_servicio": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "pedidos/semana",
+            "body": {
+                "pedidos": [
+                    {
+                        "fecha_entrega": "2026-11-12",
+                        "items": [
+                            {
+                                "producto_id": 215,
+                                "cantidad": 1,
+                                "opcion_ids": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedidos": [
+                        {
+                            "id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "folio": 1,
+                            "sin_conexion": null,
+                            "fecha_operativa": "2026-11-12",
+                            "tipo_establecimiento": "cafeteria",
+                            "fecha_entrega": "2026-11-12",
+                            "franja_entrega": null,
+                            "estado": "cobrado",
+                            "metodo_pago": "saldo",
+                            "destino": "para_llevar",
+                            "recoge_en_barra": false,
+                            "espacio": null,
+                            "entrega_sin_qr": false,
+                            "subtotal": "45.00",
+                            "ahorro_combinado": "0.00",
+                            "cashback_otorgado": "0.00",
+                            "total": "45.00",
+                            "monto_pagado": "45.00",
+                            "saldo_pendiente": "0.00",
+                            "metodo_pago_cobrado": "saldo",
+                            "pagos_por_metodo": [
+                                {
+                                    "monto": "45.00",
+                                    "metodo": "saldo"
+                                }
+                            ],
+                            "descuento_compra_conjunta": "0.00",
+                            "subtotal_con_descuento": "45.00",
+                            "objetivo_neto_establecimiento": "45.00",
+                            "total_cliente": "45.00",
+                            "extras": "0.00",
+                            "application_fee": null,
+                            "moneda": "mxn",
+                            "pricing_policy_version": "non_stripe_customer_price_v2",
+                            "pago_diferido": false,
+                            "pago_pendiente": false,
+                            "invitado": false,
+                            "version": 1,
+                            "creado_en": "2026-11-10T23:29:02.162Z",
+                            "actualizado_en": "2026-11-10T23:29:02.162Z",
+                            "vence_operacion_en": null,
+                            "motivo_pendiente_operativo": null,
+                            "motivo_cancelacion": null,
+                            "motivo_cancelacion_codigo": null,
+                            "cancelado_por_rol": null,
+                            "notas_cocina": null,
+                            "usuario": null,
+                            "reserva": null,
+                            "llegada_en": null,
+                            "minutos_estimados": 5,
+                            "listo_en": null,
+                            "entregado_en": null,
+                            "no_recogido_en": null,
+                            "items": [
+                                {
+                                    "id": 208,
+                                    "producto_id": 215,
+                                    "nombre_producto": "Torta de cinta",
+                                    "imagen_url": null,
+                                    "estacion_preparacion": "cocina",
+                                    "cantidad": 1,
+                                    "precio_digital_unitario": "45.00",
+                                    "subtotal": "45.00",
+                                    "opciones": [],
+                                    "rechazo": null
+                                }
+                            ],
+                            "calificacion": null,
+                            "anticipo": null,
+                            "por_cobrar_al_entregar": "0.00",
+                            "cobrado_al_entregar": null,
+                            "aceptar_antes_de": null,
+                            "pagar_antes_de": null,
+                            "qr_token": "v1.b8be72490f2e407036a253af6efd45823a58ec4f982f9daf95d7d9cd6dd07ff6"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "pedidos",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                        "folio": 1,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-12",
+                        "tipo_establecimiento": "cafeteria",
+                        "fecha_entrega": "2026-11-12",
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "saldo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "saldo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "saldo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 1,
+                        "creado_en": "2026-11-10T23:29:02.162Z",
+                        "actualizado_en": "2026-11-10T23:29:02.162Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": null,
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 208,
+                                "producto_id": 215,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null,
+                        "anticipo": null,
+                        "por_cobrar_al_entregar": "0.00",
+                        "cobrado_al_entregar": null,
+                        "aceptar_antes_de": null,
+                        "pagar_antes_de": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "wallets/me",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recarga_tarjeta": {
+                        "minima": "50.00",
+                        "maxima": "2000.00"
+                    },
+                    "cliente": {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-C83BFA"
+                    },
+                    "wallet": {
+                        "id": "d81236b5-3849-4ce4-a639-efe61036dfb9",
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                        "saldo": "155.00",
+                        "actualizado_en": "2026-11-10T23:29:02.162Z",
+                        "saldo_congelado": false
+                    },
+                    "movimientos": [
+                        {
+                            "id": "ce193631-0f48-5cf6-9f1d-a8241066775c",
+                            "tipo": "compra",
+                            "descripcion": "Compra con saldo",
+                            "monto": "-45.00",
+                            "saldo_posterior": "155.00",
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "pedido_folio": 1,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:02.162Z"
+                        },
+                        {
+                            "id": "43b73c52-f626-4760-b8f8-fe34a6d0cf2b",
+                            "tipo": "recarga_efectivo",
+                            "descripcion": "Recarga en efectivo",
+                            "monto": "200.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": null,
+                            "pedido_folio": null,
+                            "lugar": null,
+                            "resumen_productos": null,
+                            "creado_en": "2026-11-10T23:28:56.704Z"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "menu-dias/2026-11-12/apartados",
+            "status": 200,
+            "response": {
+                "data": {
+                    "fecha": "2026-11-12",
+                    "pedidos": 1,
+                    "sin_servicio": null,
+                    "productos": [
+                        {
+                            "producto_id": 215,
+                            "nombre": "Torta de cinta",
+                            "cantidad": 1,
+                            "pedidos": 1
+                        }
+                    ],
+                    "alumnos": [
+                        {
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "folio": 1,
+                            "nombre": "Niña de cinta",
+                            "matricula": "CINTA-C83BFA",
+                            "grupo": "3B",
+                            "alergias": [],
+                            "franja_entrega": null,
+                            "productos": [
+                                {
+                                    "nombre": "Torta de cinta",
+                                    "cantidad": 1
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cajero",
+            "verb": "GET",
+            "path": "menu-dias/2026-11-12/apartados",
+            "status": 200,
+            "response": {
+                "data": {
+                    "fecha": "2026-11-12",
+                    "pedidos": 1,
+                    "sin_servicio": null,
+                    "productos": [
+                        {
+                            "producto_id": 215,
+                            "nombre": "Torta de cinta",
+                            "cantidad": 1,
+                            "pedidos": 1
+                        }
+                    ],
+                    "alumnos": [
+                        {
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "folio": 1,
+                            "nombre": "Niña de cinta",
+                            "matricula": "CINTA-C83BFA",
+                            "grupo": "3B",
+                            "alergias": [],
+                            "franja_entrega": null,
+                            "productos": [
+                                {
+                                    "nombre": "Torta de cinta",
+                                    "cantidad": 1
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PUT",
+            "path": "menu-dias/2026-11-12/sin-servicio",
+            "body": {
+                "motivo": "Junta de consejo"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "fecha": "2026-11-12",
+                    "motivo": "Junta de consejo",
+                    "cancelados": 1,
+                    "devuelto": "45.00",
+                    "sin_cancelar": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "wallets/me",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recarga_tarjeta": {
+                        "minima": "50.00",
+                        "maxima": "2000.00"
+                    },
+                    "cliente": {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-C83BFA"
+                    },
+                    "wallet": {
+                        "id": "d81236b5-3849-4ce4-a639-efe61036dfb9",
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                        "saldo": "200.00",
+                        "actualizado_en": "2026-11-10T23:29:05.260Z",
+                        "saldo_congelado": false
+                    },
+                    "movimientos": [
+                        {
+                            "id": "7df3cc0f-cc4d-5ea4-9bc9-bde2d53b6a0a",
+                            "tipo": "cancelacion",
+                            "descripcion": "Devolución por cancelación",
+                            "monto": "45.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "pedido_folio": 1,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:05.260Z"
+                        },
+                        {
+                            "id": "ce193631-0f48-5cf6-9f1d-a8241066775c",
+                            "tipo": "compra",
+                            "descripcion": "Compra con saldo",
+                            "monto": "-45.00",
+                            "saldo_posterior": "155.00",
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "pedido_folio": 1,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:02.162Z"
+                        },
+                        {
+                            "id": "43b73c52-f626-4760-b8f8-fe34a6d0cf2b",
+                            "tipo": "recarga_efectivo",
+                            "descripcion": "Recarga en efectivo",
+                            "monto": "200.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": null,
+                            "pedido_folio": null,
+                            "lugar": null,
+                            "resumen_productos": null,
+                            "creado_en": "2026-11-10T23:28:56.704Z"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "menu-dias/2026-11-12/apartados",
+            "status": 200,
+            "response": {
+                "data": {
+                    "fecha": "2026-11-12",
+                    "pedidos": 0,
+                    "sin_servicio": "Junta de consejo",
+                    "productos": [],
+                    "alumnos": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "DELETE",
+            "path": "menu-dias/2026-11-12/sin-servicio",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "fecha": "2026-11-12"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "pedidos/semana",
+            "body": {
+                "pedidos": [
+                    {
+                        "fecha_entrega": "2026-11-12",
+                        "items": [
+                            {
+                                "producto_id": 215,
+                                "cantidad": 1,
+                                "opcion_ids": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedidos": [
+                        {
+                            "id": "ca69e66d-cf1e-4b51-b10b-bb2bc83386e7",
+                            "folio": 2,
+                            "sin_conexion": null,
+                            "fecha_operativa": "2026-11-12",
+                            "tipo_establecimiento": "cafeteria",
+                            "fecha_entrega": "2026-11-12",
+                            "franja_entrega": null,
+                            "estado": "cobrado",
+                            "metodo_pago": "saldo",
+                            "destino": "para_llevar",
+                            "recoge_en_barra": false,
+                            "espacio": null,
+                            "entrega_sin_qr": false,
+                            "subtotal": "45.00",
+                            "ahorro_combinado": "0.00",
+                            "cashback_otorgado": "0.00",
+                            "total": "45.00",
+                            "monto_pagado": "45.00",
+                            "saldo_pendiente": "0.00",
+                            "metodo_pago_cobrado": "saldo",
+                            "pagos_por_metodo": [
+                                {
+                                    "monto": "45.00",
+                                    "metodo": "saldo"
+                                }
+                            ],
+                            "descuento_compra_conjunta": "0.00",
+                            "subtotal_con_descuento": "45.00",
+                            "objetivo_neto_establecimiento": "45.00",
+                            "total_cliente": "45.00",
+                            "extras": "0.00",
+                            "application_fee": null,
+                            "moneda": "mxn",
+                            "pricing_policy_version": "non_stripe_customer_price_v2",
+                            "pago_diferido": false,
+                            "pago_pendiente": false,
+                            "invitado": false,
+                            "version": 1,
+                            "creado_en": "2026-11-10T23:29:07.593Z",
+                            "actualizado_en": "2026-11-10T23:29:07.593Z",
+                            "vence_operacion_en": null,
+                            "motivo_pendiente_operativo": null,
+                            "motivo_cancelacion": null,
+                            "motivo_cancelacion_codigo": null,
+                            "cancelado_por_rol": null,
+                            "notas_cocina": null,
+                            "usuario": null,
+                            "reserva": null,
+                            "llegada_en": null,
+                            "minutos_estimados": 5,
+                            "listo_en": null,
+                            "entregado_en": null,
+                            "no_recogido_en": null,
+                            "items": [
+                                {
+                                    "id": 209,
+                                    "producto_id": 215,
+                                    "nombre_producto": "Torta de cinta",
+                                    "imagen_url": null,
+                                    "estacion_preparacion": "cocina",
+                                    "cantidad": 1,
+                                    "precio_digital_unitario": "45.00",
+                                    "subtotal": "45.00",
+                                    "opciones": [],
+                                    "rechazo": null
+                                }
+                            ],
+                            "calificacion": null,
+                            "anticipo": null,
+                            "por_cobrar_al_entregar": "0.00",
+                            "cobrado_al_entregar": null,
+                            "aceptar_antes_de": null,
+                            "pagar_antes_de": null,
+                            "qr_token": "v1.30d9c01a878e5390506c8d21b14b4b125926fe29b6606bede804635615a38d37"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "pedidos",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                        "folio": 1,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-12",
+                        "tipo_establecimiento": "cafeteria",
+                        "fecha_entrega": "2026-11-12",
+                        "franja_entrega": null,
+                        "estado": "cancelado",
+                        "metodo_pago": "saldo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "saldo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "saldo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:29:02.162Z",
+                        "actualizado_en": "2026-11-10T23:29:05.260Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": "Sin servicio: Junta de consejo",
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": "admin",
+                        "notas_cocina": null,
+                        "usuario": null,
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 208,
+                                "producto_id": 215,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null,
+                        "anticipo": null,
+                        "por_cobrar_al_entregar": "0.00",
+                        "cobrado_al_entregar": null,
+                        "aceptar_antes_de": null,
+                        "pagar_antes_de": null
+                    },
+                    {
+                        "id": "ca69e66d-cf1e-4b51-b10b-bb2bc83386e7",
+                        "folio": 2,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-12",
+                        "tipo_establecimiento": "cafeteria",
+                        "fecha_entrega": "2026-11-12",
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "saldo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "saldo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "saldo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 1,
+                        "creado_en": "2026-11-10T23:29:07.593Z",
+                        "actualizado_en": "2026-11-10T23:29:07.593Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": null,
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 209,
+                                "producto_id": 215,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null,
+                        "anticipo": null,
+                        "por_cobrar_al_entregar": "0.00",
+                        "cobrado_al_entregar": null,
+                        "aceptar_antes_de": null,
+                        "pagar_antes_de": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "pedidos/ca69e66d-cf1e-4b51-b10b-bb2bc83386e7/cancelaciones",
+            "body": {
+                "version_esperada": 1,
+                "motivo": "Cancelado por su tutor"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedido": {
+                        "id": "ca69e66d-cf1e-4b51-b10b-bb2bc83386e7",
+                        "folio": 2,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-12",
+                        "tipo_establecimiento": "cafeteria",
+                        "fecha_entrega": "2026-11-12",
+                        "franja_entrega": null,
+                        "estado": "cancelado",
+                        "metodo_pago": "saldo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "45.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "saldo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "45.00",
+                                "metodo": "saldo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:29:07.593Z",
+                        "actualizado_en": "2026-11-10T23:29:08.933Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": "Cancelado por su tutor",
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": "cliente",
+                        "notas_cocina": null,
+                        "usuario": null,
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 209,
+                                "producto_id": 215,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null,
+                        "anticipo": null,
+                        "por_cobrar_al_entregar": "0.00",
+                        "cobrado_al_entregar": null,
+                        "aceptar_antes_de": null,
+                        "pagar_antes_de": null
+                    },
+                    "cuenta": null,
+                    "devolucion": {
+                        "monto": "45.00",
+                        "movimiento_id": "e0eb1209-3cfc-47e5-a542-4b0f86e7a2f9",
+                        "saldo_nuevo": "200.00"
+                    },
+                    "reembolso": null,
+                    "efectivo_devuelto": null,
+                    "devolucion_pendiente": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "wallets/me",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recarga_tarjeta": {
+                        "minima": "50.00",
+                        "maxima": "2000.00"
+                    },
+                    "cliente": {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-C83BFA"
+                    },
+                    "wallet": {
+                        "id": "d81236b5-3849-4ce4-a639-efe61036dfb9",
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                        "saldo": "200.00",
+                        "actualizado_en": "2026-11-10T23:29:08.933Z",
+                        "saldo_congelado": false
+                    },
+                    "movimientos": [
+                        {
+                            "id": "e47f8b92-ec1e-4ffc-8272-c95658a27d4b",
+                            "tipo": "cancelacion",
+                            "descripcion": "Devolución por cancelación",
+                            "monto": "45.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": "ca69e66d-cf1e-4b51-b10b-bb2bc83386e7",
+                            "pedido_folio": 2,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:08.933Z"
+                        },
+                        {
+                            "id": "1e802cd8-fca5-5ed4-89ef-51ce4dda7f01",
+                            "tipo": "compra",
+                            "descripcion": "Compra con saldo",
+                            "monto": "-45.00",
+                            "saldo_posterior": "155.00",
+                            "pedido_id": "ca69e66d-cf1e-4b51-b10b-bb2bc83386e7",
+                            "pedido_folio": 2,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:07.593Z"
+                        },
+                        {
+                            "id": "7df3cc0f-cc4d-5ea4-9bc9-bde2d53b6a0a",
+                            "tipo": "cancelacion",
+                            "descripcion": "Devolución por cancelación",
+                            "monto": "45.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "pedido_folio": 1,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:05.260Z"
+                        },
+                        {
+                            "id": "ce193631-0f48-5cf6-9f1d-a8241066775c",
+                            "tipo": "compra",
+                            "descripcion": "Compra con saldo",
+                            "monto": "-45.00",
+                            "saldo_posterior": "155.00",
+                            "pedido_id": "9c8b79dd-b5ae-416d-8142-f9e9ef18b197",
+                            "pedido_folio": 1,
+                            "lugar": "Apartado",
+                            "resumen_productos": "1× Torta de cinta",
+                            "creado_en": "2026-11-10T23:29:02.162Z"
+                        },
+                        {
+                            "id": "43b73c52-f626-4760-b8f8-fe34a6d0cf2b",
+                            "tipo": "recarga_efectivo",
+                            "descripcion": "Recarga en efectivo",
+                            "monto": "200.00",
+                            "saldo_posterior": "200.00",
+                            "pedido_id": null,
+                            "pedido_folio": null,
+                            "lugar": null,
+                            "resumen_productos": null,
+                            "creado_en": "2026-11-10T23:28:56.704Z"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54/solicitudes",
+            "body": {
+                "tipo": "devolucion",
+                "como_devolver": "efectivo",
+                "nota": "Nos cambiamos"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "14bdd29e-36f4-428d-8d3f-4fed78a9d4fd",
+                    "tipo": "devolucion",
+                    "estado": "pendiente",
+                    "como_devolver": "efectivo",
+                    "nota": "Nos cambiamos",
+                    "saldo_al_pedir": "200.00",
+                    "monto_devuelto": null,
+                    "sesion_caja_id": null,
+                    "motivo_rechazo": null,
+                    "creado_en": "2026-11-10T23:29:10.099Z",
+                    "resuelta_en": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "solicitudes-alumno",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "14bdd29e-36f4-428d-8d3f-4fed78a9d4fd",
+                        "tipo": "devolucion",
+                        "como_devolver": "efectivo",
+                        "nota": "Nos cambiamos",
+                        "creado_en": "2026-11-10T23:29:10.099Z",
+                        "saldo_al_pedir": "200.00",
+                        "saldo_actual": "200.00",
+                        "tutor": {
+                            "nombre": "Vigía cliente",
+                            "email": null
+                        },
+                        "alumno": {
+                            "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                            "nombre": "Niña de cinta",
+                            "matricula": "CINTA-C83BFA",
+                            "grupo": "3B"
+                        }
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "POST",
+            "path": "solicitudes-alumno/14bdd29e-36f4-428d-8d3f-4fed78a9d4fd/rechazar",
+            "body": {
+                "motivo": "Falta la identificación"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "14bdd29e-36f4-428d-8d3f-4fed78a9d4fd",
+                    "tipo": "devolucion",
+                    "estado": "rechazada",
+                    "como_devolver": "efectivo",
+                    "nota": "Nos cambiamos",
+                    "saldo_al_pedir": "200.00",
+                    "monto_devuelto": null,
+                    "sesion_caja_id": null,
+                    "motivo_rechazo": "Falta la identificación",
+                    "creado_en": "2026-11-10T23:29:10.099Z",
+                    "resuelta_en": "2026-11-10T23:29:11.138Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "tutelas/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54/solicitudes",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "14bdd29e-36f4-428d-8d3f-4fed78a9d4fd",
+                        "tipo": "devolucion",
+                        "estado": "rechazada",
+                        "como_devolver": "efectivo",
+                        "nota": "Nos cambiamos",
+                        "saldo_al_pedir": "200.00",
+                        "monto_devuelto": null,
+                        "sesion_caja_id": null,
+                        "motivo_rechazo": "Falta la identificación",
+                        "creado_en": "2026-11-10T23:29:10.099Z",
+                        "resuelta_en": "2026-11-10T23:29:11.138Z"
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54/solicitudes",
+            "body": {
+                "tipo": "devolucion",
+                "como_devolver": "efectivo"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "90dafaa6-e258-4058-a160-bc19ce89875b",
+                    "tipo": "devolucion",
+                    "estado": "pendiente",
+                    "como_devolver": "efectivo",
+                    "nota": null,
+                    "saldo_al_pedir": "200.00",
+                    "monto_devuelto": null,
+                    "sesion_caja_id": null,
+                    "motivo_rechazo": null,
+                    "creado_en": "2026-11-10T23:29:12.166Z",
+                    "resuelta_en": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "POST",
+            "path": "solicitudes-alumno/90dafaa6-e258-4058-a160-bc19ce89875b/resolver",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "90dafaa6-e258-4058-a160-bc19ce89875b",
+                    "tipo": "devolucion",
+                    "estado": "resuelta",
+                    "como_devolver": "efectivo",
+                    "nota": null,
+                    "saldo_al_pedir": "200.00",
+                    "monto_devuelto": "200.00",
+                    "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d",
+                    "motivo_rechazo": null,
+                    "creado_en": "2026-11-10T23:29:12.166Z",
+                    "resuelta_en": "2026-11-10T23:29:12.708Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "tutelas/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54/solicitudes",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "90dafaa6-e258-4058-a160-bc19ce89875b",
+                        "tipo": "devolucion",
+                        "estado": "resuelta",
+                        "como_devolver": "efectivo",
+                        "nota": null,
+                        "saldo_al_pedir": "200.00",
+                        "monto_devuelto": "200.00",
+                        "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d",
+                        "motivo_rechazo": null,
+                        "creado_en": "2026-11-10T23:29:12.166Z",
+                        "resuelta_en": "2026-11-10T23:29:12.708Z"
+                    },
+                    {
+                        "id": "14bdd29e-36f4-428d-8d3f-4fed78a9d4fd",
+                        "tipo": "devolucion",
+                        "estado": "rechazada",
+                        "como_devolver": "efectivo",
+                        "nota": "Nos cambiamos",
+                        "saldo_al_pedir": "200.00",
+                        "monto_devuelto": null,
+                        "sesion_caja_id": null,
+                        "motivo_rechazo": "Falta la identificación",
+                        "creado_en": "2026-11-10T23:29:10.099Z",
+                        "resuelta_en": "2026-11-10T23:29:11.138Z"
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "GET",
+            "path": "tutelas",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "grupo": "3B",
+                        "foto_url": null,
+                        "matricula": "CINTA-C83BFA",
+                        "tiene_cuenta": false,
+                        "estado": "aprobada",
+                        "requiere_consentimiento": false,
+                        "soy_principal": true,
+                        "tutores": [
+                            {
+                                "tutela_id": "af940527-1e50-40ef-ba3f-fc25372faf05",
+                                "nombre": "Vigía cliente",
+                                "principal": true,
+                                "eres_tu": true
+                            }
+                        ],
+                        "tiene_pin": false,
+                        "credenciales": {
+                            "qr": false,
+                            "nfc": false
+                        },
+                        "saldo": "0.00",
+                        "controles": {
+                            "limite_diario": null,
+                            "gastado_hoy": null,
+                            "disponible_hoy": null,
+                            "umbral_saldo_bajo": null,
+                            "notas": null,
+                            "productos_bloqueados": [],
+                            "categorias_bloqueadas": [],
+                            "alergenos": []
+                        }
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "DELETE",
+            "path": "tutelas/d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                    "activa": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PATCH",
+            "path": "establecimiento/configuracion",
+            "body": {
+                "union_requiere_codigo": true,
+                "tutores_requieren_aprobacion": true,
+                "recarga_minima": "50.00",
+                "recarga_maxima": "2000.00",
+                "dias_adelanto_pedido": 0,
+                "hora_corte_pedido": null,
+                "hora_corte_cancelacion": null
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 0,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}
