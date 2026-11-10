@@ -49,6 +49,13 @@ enum class InventoryPeriod(
     MONTH("30 días"),
 }
 
+/** Lo que el asistente lleva sugerido de alérgenos para el producto que se edita. */
+data class AllergenSuggestionUi(
+    val busy: Boolean = false,
+    val suggestion: AllergenSuggestion? = null,
+    val error: String? = null,
+)
+
 data class AdminInventoryUiState(
     val tab: InventoryTab = InventoryTab.OVERVIEW,
     val supplies: InventorySupplies? = null,
@@ -71,6 +78,7 @@ data class AdminInventoryUiState(
     val uses: List<SupplyProductLink>? = null,
     val notice: String? = null,
     val noticeIsError: Boolean = false,
+    val allergenSuggestion: AllergenSuggestionUi = AllergenSuggestionUi(),
 )
 
 /** Negocio › Inventario: insumos, recetas, conteos y el reporte por periodo (backend migración 140). */
@@ -84,6 +92,7 @@ class AdminInventoryViewModel
         val uiState: State<AdminInventoryUiState> = _uiState
         private var scope: String? = null
         private var noticeJob: Job? = null
+        private var suggestionRequest = 0
 
         /** La misma llave mientras el usuario reintenta el mismo movimiento: el servidor no lo cuenta dos veces. */
         private var pendingMovementKey: Pair<String, String>? = null
@@ -106,15 +115,37 @@ class AdminInventoryViewModel
             description: String,
             ingredients: String,
             productId: Int?,
-            onResult: (Result<AllergenSuggestion>) -> Unit,
         ) {
+            val request = ++suggestionRequest
+            update { copy(allergenSuggestion = allergenSuggestion.copy(busy = true, error = null)) }
             viewModelScope.launch {
-                onResult(
-                    withContext(
-                        Dispatchers.IO,
-                    ) { repository.suggestAllergens(name, description, ingredients, productId) },
-                )
+                val result =
+                    withContext(Dispatchers.IO) {
+                        repository.suggestAllergens(name, description, ingredients, productId)
+                    }
+                // Se abrió otro producto mientras contestaba: esta sugerencia ya no es de él.
+                if (request != suggestionRequest) return@launch
+                update {
+                    copy(
+                        allergenSuggestion =
+                            result.fold(
+                                onSuccess = { AllergenSuggestionUi(suggestion = it) },
+                                onFailure = {
+                                    allergenSuggestion.copy(
+                                        busy = false,
+                                        error = it.toUserFacingMessage("El asistente no pudo revisar este producto."),
+                                    )
+                                },
+                            ),
+                    )
+                }
             }
+        }
+
+        /** Al abrir el editor de otro producto: lo sugerido para el anterior no aplica. */
+        fun forgetAllergenSuggestion() {
+            suggestionRequest++
+            update { copy(allergenSuggestion = AllergenSuggestionUi()) }
         }
 
         /** El admin deja o no a Cocina editar el inventario. */

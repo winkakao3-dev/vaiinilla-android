@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.node.Ref
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,7 +101,8 @@ internal fun AdminInventorySection(
     var assistantOpen by rememberSaveable { mutableStateOf(false) }
     // Sin permiso (Cocina sin el interruptor del admin) se ve y se cuenta, pero no se edita.
     val editLocked = readOnly || state.supplies?.canEdit == false
-    var sheet by remember { mutableStateOf<Pair<SupplySheet, InventorySupply?>?>(null) }
+    // Se guarda el id y no el insumo: sobrevive a que Android recree la pantalla y la hoja muestra la existencia al día.
+    var sheet by rememberSaveable { mutableStateOf<Pair<SupplySheet, Long?>?>(null) }
     var countNote by rememberSaveable { mutableStateOf("") }
 
     AdminSectionPage(
@@ -127,7 +129,7 @@ internal fun AdminInventorySection(
             item(key = "error") { AdminLoadError(state.error!!, colors, viewModel::refresh) }
         }
         val openAdd = { sheet = SupplySheet.EDIT to null }
-        val openSupply = { supply: InventorySupply -> sheet = SupplySheet.ACTIONS to supply }
+        val openSupply = { supply: InventorySupply -> sheet = SupplySheet.ACTIONS to supply.id }
         when (state.tab) {
             InventoryTab.OVERVIEW ->
                 if (assistant != null) {
@@ -175,7 +177,12 @@ internal fun AdminInventorySection(
         }
     }
 
-    val current = sheet
+    val current =
+        sheet?.let { (kind, supplyId) ->
+            val supply = supplyId?.let { id -> state.supplies?.supplies?.firstOrNull { it.id == id } }
+            // Con id y sin su insumo (la lista aún carga) no se abre nada: «Editar» sin insumo daría de alta uno nuevo.
+            if (supplyId != null && supply == null) null else kind to supply
+        }
     if (current != null) {
         val (kind, supply) = current
         val close = {
@@ -200,7 +207,7 @@ internal fun AdminInventorySection(
                             sheet = null
                             viewModel.openUses(it)
                         },
-                    ) { next -> sheet = next to it }
+                    ) { next -> sheet = next to it.id }
                 }
             SupplySheet.EDIT ->
                 SupplyEditSheet(
@@ -998,8 +1005,8 @@ private fun RecipeSheet(
         )
         initialized = true
     }
-    var adding by remember { mutableStateOf(false) }
-    var addOption by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var addOption by rememberSaveable { mutableStateOf<Pair<Int, String>?>(null) }
     val options =
         catalogProduct?.optionGroups.orEmpty().flatMap { g ->
             g.options.map { it.id to "${g.name}: ${it.name}" }
@@ -1239,9 +1246,9 @@ private fun RecipeSupplyPicker(
     onCreate: (name: String, unit: InventoryUnit, stock: Double?) -> Unit,
     onCancel: () -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf(InventoryUnit.PIECE) }
-    var stock by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var unit by rememberSaveable { mutableStateOf(InventoryUnit.PIECE) }
+    var stock by rememberSaveable { mutableStateOf("") }
     val needle = query.normalizeForSearch()
     val visible =
         available
@@ -1319,8 +1326,9 @@ private fun MenuProductMatches(
 ) {
     val matches = remember(query, products) { matchingMenuProducts(query, products) }
     // Sin la última lista, las filas desaparecerían de golpe mientras el panel se cierra.
-    var lastMatches by remember { mutableStateOf(matches) }
-    if (matches.isNotEmpty() && matches != lastMatches) lastMatches = matches
+    val lastShown = remember { Ref<List<InventoryProduct>>() }
+    if (matches.isNotEmpty()) lastShown.value = matches
+    val rows = lastShown.value.orEmpty()
     AnimatedVisibility(
         visible = query.isBlank(),
         enter = expandVertically(spring()) + fadeIn(spring()),
@@ -1336,7 +1344,7 @@ private fun MenuProductMatches(
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             AdminCapsLabel("Ya está en tu menú", colors)
             AdminPanel(colors, padding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)) {
-                lastMatches.forEachIndexed { index, product ->
+                rows.forEachIndexed { index, product ->
                     if (index > 0) AdminRowDivider(colors)
                     AdminRow(
                         title = product.name,
@@ -1466,7 +1474,7 @@ private fun SupplyUsesSheet(
         )
         initialized = true
     }
-    var adding by remember { mutableStateOf(false) }
+    var adding by rememberSaveable { mutableStateOf(false) }
     val defaultQuantity =
         if (supply.unit == InventoryUnit.PIECE || supply.unit == InventoryUnit.BOTTLE) "1" else ""
     var addQuantity by remember(supply.id) { mutableStateOf(defaultQuantity) }

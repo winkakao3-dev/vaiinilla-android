@@ -27,7 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +99,8 @@ internal fun CashierUnpaidAccountsScreen(
     onDismissCollected: () -> Unit,
     onClearChargeError: () -> Unit,
 ) {
-    var charging by remember { mutableStateOf<Pair<AdminUnpaidAccount, AccountPaymentMethod>?>(null) }
+    // Se guarda la llave de la cuenta y no la cuenta: la hoja de cobro sobrevive a que Android recree la pantalla.
+    var charging by rememberSaveable { mutableStateOf<Pair<String, AccountPaymentMethod>?>(null) }
     BackHandler(onBack = onBack)
     val accounts = state.accounts?.accounts.orEmpty()
     Box(Modifier.fillMaxSize().background(colors.background)) {
@@ -202,14 +203,16 @@ internal fun CashierUnpaidAccountsScreen(
                             colors = colors,
                             busy = state.charging == unpaidAccountKey(account),
                             enabled = state.charging == null,
-                            onCash = { charging = account to AccountPaymentMethod.CASH },
-                            onTerminal = { charging = account to AccountPaymentMethod.TERMINAL },
+                            onCash = { charging = unpaidAccountKey(account) to AccountPaymentMethod.CASH },
+                            onTerminal = { charging = unpaidAccountKey(account) to AccountPaymentMethod.TERMINAL },
                         )
                     }
             }
         }
     }
-    charging?.let { (account, method) ->
+    val open =
+        charging?.let { (key, method) -> accounts.firstOrNull { unpaidAccountKey(it) == key }?.let { it to method } }
+    open?.let { (account, method) ->
         ChargeUnpaidDialog(
             account = account,
             method = method,
@@ -379,8 +382,8 @@ private fun ChargeUnpaidDialog(
     onDismiss: () -> Unit,
     onConfirm: (received: String?, tip: String?) -> Unit,
 ) {
-    var received by remember { mutableStateOf("") }
-    var tipChoice by remember { mutableStateOf<TipChoice>(TipChoice.None) }
+    var received by rememberSaveable { mutableStateOf("") }
+    var tipChoice by rememberSaveable(stateSaver = TipChoiceSaver) { mutableStateOf<TipChoice>(TipChoice.None) }
     val cash = method == AccountPaymentMethod.CASH
     val remaining = account.remaining.toBigDecimalOrNull() ?: BigDecimal.ZERO
     // El servidor rechaza propina sin nada que cobrar: con la cuenta ya cubierta por abonos no se ofrece.

@@ -11,17 +11,6 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
-import com.vaiinilla.app.data.inventory.InventoryMovement
-import com.vaiinilla.app.data.inventory.InventoryMovementType
-import com.vaiinilla.app.data.inventory.InventoryProduct
-import com.vaiinilla.app.data.inventory.InventoryReport
-import com.vaiinilla.app.data.inventory.InventoryRepository
-import com.vaiinilla.app.data.inventory.InventorySupplies
-import com.vaiinilla.app.data.inventory.InventorySupply
-import com.vaiinilla.app.data.inventory.InventorySupplyInput
-import com.vaiinilla.app.data.inventory.MovementResult
-import com.vaiinilla.app.data.inventory.RecipeLine
-import com.vaiinilla.app.data.inventory.SupplyProductLink
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.PreparationStation
@@ -67,7 +56,7 @@ class AdminMenuNewProductRecipeUiTest {
             catalog = Catalog(categories = listOf(Category(1, "Bebidas", 1)), products = emptyList(), cursor = null),
         )
 
-    private val inventory = AdminInventoryViewModel(EmptyInventory())
+    private val inventory = AdminInventoryViewModel(StubInventory())
 
     private fun actions(onSave: (() -> Unit)? = null) =
         AdminActions(
@@ -128,59 +117,4 @@ class AdminMenuNewProductRecipeUiTest {
         composeTestRule.onAllNodesWithText("Guardar cambios").onFirst().assertExists()
         composeTestRule.onAllNodesWithText(NEW_PRODUCT_RECIPE_HINT).assertCountEquals(0)
     }
-}
-
-private class EmptyInventory : InventoryRepository {
-    override fun supplies(includeInactive: Boolean) =
-        Result.success(InventorySupplies(emptyList<InventorySupply>(), 0, 0.0))
-
-    override fun createSupply(input: InventorySupplyInput): Result<InventorySupply> =
-        Result.failure(UnsupportedOperationException())
-
-    override fun updateSupply(
-        id: Long,
-        input: InventorySupplyInput,
-    ): Result<InventorySupply> = Result.failure(UnsupportedOperationException())
-
-    override fun registerMovement(
-        id: String,
-        supplyId: Long,
-        type: InventoryMovementType,
-        quantity: Double,
-        unitCost: Double?,
-        note: String?,
-    ) = Result.success(MovementResult(quantity, quantity, false))
-
-    override fun registerCount(
-        counts: List<Triple<String, Long, Double>>,
-        note: String?,
-    ) = Result.success(0)
-
-    override fun products() = Result.success(emptyList<InventoryProduct>())
-
-    override fun recipe(productId: Int) = Result.success(emptyList<RecipeLine>())
-
-    override fun saveRecipe(
-        productId: Int,
-        lines: List<RecipeLine>,
-    ) = Result.success(lines)
-
-    override fun supplyProducts(supplyId: Long) = Result.success(emptyList<SupplyProductLink>())
-
-    override fun saveSupplyProducts(
-        supplyId: Long,
-        products: Map<Int, Double>,
-        categories: Map<Int, Double>,
-    ) = Result.success(emptyList<SupplyProductLink>())
-
-    override fun movements(
-        fromIso: String?,
-        toIso: String?,
-        supplyId: Long?,
-    ) = Result.success(emptyList<InventoryMovement>())
-
-    override fun report(
-        fromIso: String?,
-        toIso: String?,
-    ) = Result.success(InventoryReport(fromIso.orEmpty(), toIso.orEmpty(), emptyList(), 0.0, 0.0, 0.0, 0.0))
 }

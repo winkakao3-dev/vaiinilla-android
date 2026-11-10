@@ -48,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -239,7 +240,7 @@ fun CustomerAssistantScreen(
                 when {
                     state.needsName ->
                         NameCard(guestName, state.enteringName, state.nameError, colors, onSubmitName)
-                    state.thinking -> ThinkingBubble(colors)
+                    state.thinking -> ThinkingBubble(state, colors)
                     state.error != null ->
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Text(state.error, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.ink2)
@@ -430,16 +431,19 @@ private fun Welcome(
 /** Lo del cliente va en burbuja; lo del asistente corre a todo el ancho, como texto de la pantalla. */
 /**
  * El modelo tarda de 5 a 40 segundos y la respuesta llega completa al final: el texto avanza para que no parezca
- * trabado. Se compone de nuevo con cada pregunta, así que empieza desde el primer paso.
+ * trabado. El paso sale de la hora en que se preguntó, que guarda el ViewModel: si Android recrea la pantalla a media
+ * espera, no vuelve al primero.
  */
 @Composable
-private fun ThinkingBubble(colors: VaiinillaColors) {
-    var step by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        delay(4_000)
-        step = 1
-        delay(16_000)
-        step = 2
+private fun ThinkingBubble(
+    state: CustomerAssistantState,
+    colors: VaiinillaColors,
+) {
+    val step by produceState(state.thinkingStep(System.currentTimeMillis()), state.thinkingSince) {
+        while (value < CustomerAssistantState.LAST_THINKING_STEP) {
+            delay(500)
+            value = state.thinkingStep(System.currentTimeMillis())
+        }
     }
     val text =
         when (step) {

@@ -31,6 +31,32 @@ class CustomerAssistantViewModelTest {
     }
 
     @Test
+    fun `el texto de espera avanza con el tiempo que lleva la pregunta`() {
+        val state = CustomerAssistantState(thinking = true, thinkingSince = 1_000)
+        assertEquals(0, state.thinkingStep(now = 4_999))
+        assertEquals(1, state.thinkingStep(now = 5_000))
+        assertEquals(1, state.thinkingStep(now = 20_999))
+        assertEquals(CustomerAssistantState.LAST_THINKING_STEP, state.thinkingStep(now = 21_000))
+    }
+
+    @Test
+    fun `cada pregunta anota cuando empezo la espera`() {
+        val gate = CountDownLatch(1)
+        val repository = FakeRepository(gate = gate)
+        val vm = CustomerAssistantViewModel(repository)
+        vm.onVisible("est-1:4", "est-1")
+        val before = System.currentTimeMillis()
+
+        vm.send("¿Qué me recomiendas?")
+        waitUntil { repository.started == 1 }
+
+        assertTrue(vm.state.value.thinking)
+        assertTrue(vm.state.value.thinkingSince >= before)
+        gate.countDown()
+        waitUntil { !vm.state.value.thinking }
+    }
+
+    @Test
     fun `el invitado sin alta da su nombre y la platica sigue`() {
         val repository = FakeRepository(guestNeedsName = true)
         val vm = CustomerAssistantViewModel(repository)

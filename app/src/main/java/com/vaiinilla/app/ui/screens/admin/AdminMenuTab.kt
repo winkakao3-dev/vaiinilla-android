@@ -82,7 +82,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.core.venue.LocalVenueContext
 import com.vaiinilla.app.data.inventory.AllergenSuggestion
 import com.vaiinilla.app.domain.admin.AdminCategoryInput
@@ -100,6 +99,7 @@ import com.vaiinilla.app.domain.school.SchoolAllergen
 import com.vaiinilla.app.ui.admin.AdminImage
 import com.vaiinilla.app.ui.admin.AdminInventoryViewModel
 import com.vaiinilla.app.ui.admin.AdminUiState
+import com.vaiinilla.app.ui.admin.AllergenSuggestionUi
 import com.vaiinilla.app.ui.components.PhysicalPressScale
 import com.vaiinilla.app.ui.components.ProductImage
 import com.vaiinilla.app.ui.components.animateSelectionColor
@@ -160,7 +160,11 @@ internal fun AdminMenuTab(
                 colors,
                 readOnly,
                 actions,
-                onOpen = { sheet = it },
+                onOpen = {
+                    // Lo que el asistente sugirió para el producto anterior no es de este.
+                    if (it is MenuSheet.EditProduct) inventory?.forgetAllergenSuggestion()
+                    sheet = it
+                },
                 saving = state.saving,
                 header = header,
                 isSchool = isSchool,
@@ -233,9 +237,11 @@ internal fun AdminMenuTab(
                         sheet = null
                     },
                     recipe = recipe,
-                    suggestAllergens =
+                    allergenAssistant =
                         inventory?.let { inv ->
-                            { n, d, i, done -> inv.suggestAllergens(n, d, i, current.product?.id, done) }
+                            AllergenAssistant(inv.uiState.value.allergenSuggestion) { n, d, i ->
+                                inv.suggestAllergens(n, d, i, current.product?.id)
+                            }
                         },
                 )
             }
@@ -887,7 +893,7 @@ private fun ProductSheet(
     takesPreorders: Boolean = false,
     recipe: RecipeEntry? = null,
     /** El asistente sugiere alérgenos con el nombre, los ingredientes y la receta; null esconde el botón. */
-    suggestAllergens: AllergenSuggester? = null,
+    allergenAssistant: AllergenAssistant? = null,
 ) {
     val venue = LocalVenueContext.current
     val context = LocalContext.current
@@ -909,23 +915,10 @@ private fun ProductSheet(
     // Solo lo que el admin revisó se manda: guardar el precio no marca revisado un producto que nadie miró.
     var allergensTouched by remember { mutableStateOf(false) }
     var markUnreviewed by remember { mutableStateOf(false) }
-    var suggestion by remember { mutableStateOf<AllergenSuggestion?>(null) }
-    var suggesting by remember { mutableStateOf(false) }
-    var suggestionError by remember { mutableStateOf<String?>(null) }
-    val askSuggestion: () -> Unit = {
-        suggestAllergens?.let { ask ->
-            suggesting = true
-            suggestionError = null
-            ask(name, description, ingredients) { result ->
-                suggesting = false
-                result
-                    .onSuccess { suggestion = it }
-                    .onFailure {
-                        suggestionError = it.toUserFacingMessage("El asistente no pudo revisar este producto.")
-                    }
-            }
-        }
-    }
+    val suggestion = allergenAssistant?.state?.suggestion
+    val suggesting = allergenAssistant?.state?.busy == true
+    val suggestionError = allergenAssistant?.state?.error
+    val askSuggestion: () -> Unit = { allergenAssistant?.ask?.invoke(name, description, ingredients) }
     var available by remember { mutableStateOf(product?.available ?: true) }
     // Solo lo que el admin tocó: si la receta recién guardada lo agotó, «Guardar cambios» no lo vuelve a vender.
     var availableTouched by remember { mutableStateOf(false) }
@@ -1103,7 +1096,7 @@ private fun ProductSheet(
                                 allergensTouched = true
                                 markUnreviewed = false
                             }
-                            if (suggestAllergens != null) {
+                            if (allergenAssistant != null) {
                                 AllergenSuggestionPanel(
                                     name = name,
                                     suggestion = suggestion,
@@ -1431,7 +1424,7 @@ private fun ProductSheet(
                                     }
                                 }
                             }
-                            if (suggestAllergens != null) {
+                            if (allergenAssistant != null) {
                                 val chosenLabels = allergens.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                                 val labelOf = { code: String -> SchoolAllergen.fromCode(code)?.label ?: code }
                                 AllergenSuggestionPanel(
@@ -1741,9 +1734,11 @@ internal fun AllergenReview(
     }
 }
 
-/** Pide al asistente alérgenos con el nombre, la descripción y los ingredientes; contesta por el último parámetro. */
-internal typealias AllergenSuggester =
-    (name: String, description: String, ingredients: String, onResult: (Result<AllergenSuggestion>) -> Unit) -> Unit
+/** El asistente de alérgenos visto desde el editor: lo que lleva sugerido y cómo pedirle otra revisión. */
+internal class AllergenAssistant(
+    val state: AllergenSuggestionUi,
+    val ask: (name: String, description: String, ingredients: String) -> Unit,
+)
 
 /** «Sugerir alérgenos»: lo sugerido sale aparte y no cuenta hasta que el admin lo toca. */
 @OptIn(ExperimentalLayoutApi::class)
