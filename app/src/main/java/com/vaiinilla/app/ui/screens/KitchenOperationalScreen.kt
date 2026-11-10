@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.SoupKitchen
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -228,6 +229,8 @@ fun KitchenOperationalScreen(
     /** N03: apagar o prender un producto desde Cocina; null si esta Cocina no lo ofrece. */
     onToggleProductAvailable: ((productId: Int, available: Boolean) -> Unit)? = null,
     onLoadCatalog: () -> Unit = {},
+    /** Lo que falta del inventario y la entrada a Inventario; null no pinta nada. */
+    inventoryEntry: (@Composable () -> Unit)? = null,
 ) {
     val venue = LocalVenueContext.current
     val colors = rememberOperationalColors()
@@ -561,6 +564,12 @@ fun KitchenOperationalScreen(
             if (reservedEntry != null) {
                 item(key = "kitchen-reserved") {
                     Box(modifier = Modifier.animateItem()) { reservedEntry() }
+                }
+            }
+
+            if (inventoryEntry != null) {
+                item(key = "kitchen-inventory") {
+                    Box(modifier = Modifier.animateItem()) { inventoryEntry() }
                 }
             }
 
@@ -916,10 +925,11 @@ private fun KitchenOrderCard(
                 summary.state == OrderState.PENDING_PAYMENT && !summary.payAtEnd -> add("falta pagar")
                 summary.payAtEnd && summary.paymentPending -> add("a la cuenta")
             }
-        }.joinToString(" · ") + arrivalSuffix(order)
+        }.joinToString(" · ")
     Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), color = KitchenPaper) {
         Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 14.dp)) {
             TicketAllergyBand(order.user?.allergies.orEmpty())
+            arrivalBandLabel(order)?.let { KitchenArrivalBand(it) }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1092,6 +1102,26 @@ internal fun MoreDots(color: Color) {
 }
 
 // El mismo papel que el ticket de Caja: las dos pantallas imprimen la misma comanda.
+/** H05 (Miguel): «ya llegó» iba en gris dentro del lugar y no se notaba; va en una franja como la de alergias. */
+@Composable
+private fun KitchenArrivalBand(label: String) {
+    Row(
+        modifier =
+            Modifier
+                .padding(top = 10.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(KitchenArrivalLime)
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Rounded.DirectionsCar, contentDescription = null, tint = KitchenInk, modifier = Modifier.size(16.dp))
+        Text(label, color = KitchenInk, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.8.sp)
+    }
+}
+
+private val KitchenArrivalLime = Color(0xFFA8D52C)
 private val KitchenPaper = Color(0xFFF5ECDA)
 private val KitchenInk = Color(0xFF1D1C18)
 private val KitchenMuted = Color(0xFF6B6656)

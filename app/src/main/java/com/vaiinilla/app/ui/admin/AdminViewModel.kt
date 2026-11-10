@@ -475,7 +475,7 @@ class AdminViewModel
             id: Int?,
             input: AdminProductInput,
             image: AdminImage?,
-            onDone: () -> Unit,
+            onDone: (Product) -> Unit,
         ) {
             AdminProductRules.problem(input)?.let { return showNotice(it, isError = true) }
             if (_uiState.value.saving) return
@@ -514,7 +514,7 @@ class AdminViewModel
                 }
                 _uiState.value = _uiState.value.copy(saving = false)
                 showNotice(warning ?: "${product.name} guardado", isError = warning != null)
-                onDone()
+                onDone(product)
                 refreshCatalog()
             }
         }

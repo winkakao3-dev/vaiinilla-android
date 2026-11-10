@@ -61,8 +61,9 @@ internal enum class CashierSearchFilter(
 }
 
 /**
- * «Vengo por el de Diego»: busca por nombre (sin importar acentos ni mayúsculas) o por folio entre los
- * pedidos que Caja ya tiene. Lo más nuevo primero.
+ * «Vengo por el de Diego»: busca entre los pedidos que Caja ya tiene por nombre o matrícula (sin importar acentos ni
+ * mayúsculas), por el inicio del folio o el folio provisional sin internet, por la mesa o pista y por el teléfono de
+ * un pedido a domicilio. Lo más nuevo primero.
  */
 internal fun cashierOrderSearch(
     orders: List<OrderDetail>,
@@ -78,11 +79,28 @@ internal fun cashierOrderSearch(
                 CashierSearchFilter.READY -> order.summary.state == OrderState.READY
                 CashierSearchFilter.DELIVERED -> order.summary.state == OrderState.DELIVERED
             }
-        }.filter { order ->
-            needle.isEmpty() ||
-                order.summary.folio.toString() == needle ||
-                searchKey(staffCustomerName(order).orEmpty()).contains(needle)
-        }.sortedByDescending { it.summary.createdAt }
+        }.filter { order -> needle.isEmpty() || order.matches(needle) }
+        .sortedByDescending { it.summary.createdAt }
+}
+
+/** Con menos dígitos casi cualquier teléfono coincide. */
+private const val PHONE_DIGITS_TO_MATCH = 4
+
+private fun OrderDetail.matches(needle: String): Boolean {
+    val texts =
+        listOfNotNull(
+            staffCustomerName(this),
+            user?.name,
+            user?.enrollment,
+            summary.space?.name,
+            offlineCapture?.localFolio,
+        )
+    if (summary.folio.toString().startsWith(needle)) return true
+    if (texts.any { searchKey(it).contains(needle) }) return true
+    val digits = needle.filter(Char::isDigit)
+    if (digits.length < PHONE_DIGITS_TO_MATCH || needle.any(Char::isLetter)) return false
+    val phone = homeDelivery?.address?.phone?.filter(Char::isDigit).orEmpty()
+    return phone.contains(digits)
 }
 
 private fun searchKey(text: String): String =
@@ -159,9 +177,9 @@ internal fun CashierOrderSearchSheet(
             OperationalField(
                 value = query,
                 onValueChange = { query = it },
-                label = "Nombre o folio",
+                label = "Nombre, folio, mesa o teléfono",
                 colors = colors,
-                placeholder = "Diego, 11…",
+                placeholder = "Diego, 11, Pista 4…",
             )
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -194,7 +212,7 @@ internal fun CashierOrderSearchSheet(
             }
             if (results.isEmpty()) {
                 Text(
-                    if (query.isBlank()) "No hay pedidos aquí." else "Ningún pedido de hoy se llama así.",
+                    if (query.isBlank()) "No hay pedidos aquí." else "Ningún pedido de hoy coincide con «${query.trim()}».",
                     color = colors.textSecondary,
                     fontSize = 13.5.sp,
                     modifier = Modifier.padding(vertical = 8.dp),
@@ -222,7 +240,8 @@ internal fun CashierOrderSearchSheet(
                 }
             }
             Text(
-                "También busca por folio: escribe «11» y sale el #11. Por ahora solo busca en los pedidos de hoy.",
+                "Escribe «11» y salen los folios que empiezan así. El teléfono solo lo tienen los pedidos a domicilio. " +
+                    "Busca en los pedidos de hoy.",
                 color = colors.textSecondary,
                 fontSize = 12.5.sp,
             )

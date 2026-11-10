@@ -20,3 +20,9 @@ data class StudentAuthMfaResolution(
     val operation: StudentAuthMfaOperation,
     val session: StudentAuthSession?,
 )
+
+data class TotpEnrollmentData(
+    val sharedSecretKey: String,
+    val qrCodeUrl: String,
+)
+

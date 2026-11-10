@@ -15,6 +15,7 @@ import com.vaiinilla.app.data.platform.PlatformStore
 import com.vaiinilla.app.data.platform.PlatformStripe
 import com.vaiinilla.app.domain.auth.student.StudentAuthMfaChallenge
 import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
+import com.vaiinilla.app.domain.auth.student.TotpEnrollmentData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -86,6 +87,10 @@ data class PlatformUiState(
     val confirming: Boolean = false,
     val confirmError: String? = null,
     val challenge: StudentAuthMfaChallenge? = null,
+    val enrollData: TotpEnrollmentData? = null,
+    val enrollCode: String = "",
+    val enrolling: Boolean = false,
+    val enrollError: String? = null,
     val period: PulsePeriod = PulsePeriod.WEEK,
     val metrics: PlatformMetrics? = null,
     val stores: List<PlatformStore> = emptyList(),
@@ -148,6 +153,7 @@ class PlatformViewModel
             tokenUntil = 0
             pending = null
             keys.clear()
+            auth.cancelTotpEnrollment()
             _state.value = PlatformUiState()
         }
 
@@ -335,8 +341,20 @@ class PlatformViewModel
 
         fun cancelConfirm(leave: () -> Unit) {
             _state.value.challenge?.let { auth.cancelMfa(it.id) }
+            auth.cancelTotpEnrollment()
             pending = null
-            update { copy(needsConfirm = false, challenge = null, confirming = false, confirmError = null) }
+            update {
+                copy(
+                    needsConfirm = false,
+                    challenge = null,
+                    enrollData = null,
+                    enrollCode = "",
+                    confirming = false,
+                    enrolling = false,
+                    confirmError = null,
+                    enrollError = null,
+                )
+            }
             if (token == null) leave()
         }
 
@@ -344,7 +362,15 @@ class PlatformViewModel
             update { copy(confirming = true, confirmError = null) }
             viewModelScope.launch {
                 auth.reauthenticateWithPassword(password).fold(
-                    onSuccess = { exchange() },
+                    onSuccess = {
+                        val isAuthority = _state.value.authority?.isAuthority == true
+                        val totpEnrolled = _state.value.authority?.totpEnrolled == true
+                        if (isAuthority && !totpEnrolled) {
+                            startTotpEnrollment()
+                        } else {
+                            exchange()
+                        }
+                    },
                     onFailure = { error ->
                         when (error) {
                             is StudentAuthMfaRequiredException ->
@@ -377,6 +403,71 @@ class PlatformViewModel
             }
         }
 
+        fun startTotpEnrollment() {
+            update { copy(confirming = true, confirmError = null, enrollError = null) }
+            viewModelScope.launch {
+                auth.startTotpEnrollment().fold(
+                    onSuccess = { data ->
+                        update {
+                            copy(
+                                confirming = false,
+                                enrollData = data,
+                                enrollCode = "",
+                                enrollError = null,
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        update {
+                            copy(
+                                confirming = false,
+                                confirmError = "No se pudo iniciar el alta del autenticador: ${error.message}",
+                            )
+                        }
+                    },
+                )
+            }
+        }
+
+        fun updateEnrollCode(value: String) {
+            update { copy(enrollCode = value.filter(Char::isDigit).take(6), enrollError = null) }
+        }
+
+        fun submitTotpEnrollment() {
+            val code = _state.value.enrollCode
+            if (code.length != 6) return
+            update { copy(enrolling = true, enrollError = null) }
+            viewModelScope.launch {
+                auth.finalizeTotpEnrollment(code).fold(
+                    onSuccess = {
+                        update {
+                            copy(
+                                enrolling = false,
+                                enrollData = null,
+                                enrollCode = "",
+                                authority = authority?.copy(totpEnrolled = true),
+                            )
+                        }
+                        exchange()
+                    },
+                    onFailure = { error ->
+                        update {
+                            copy(
+                                enrolling = false,
+                                enrollError = error.toUserFacingMessage(),
+                            )
+                        }
+                    },
+                )
+            }
+        }
+
+        fun cancelTotpEnrollment(leave: () -> Unit) {
+            auth.cancelTotpEnrollment()
+            update { copy(enrollData = null, enrollCode = "", enrolling = false, enrollError = null) }
+            cancelConfirm(leave)
+        }
+
         private suspend fun exchange() {
             val result =
                 auth
@@ -386,7 +477,17 @@ class PlatformViewModel
                 onSuccess = { context ->
                     token = context.accessToken
                     tokenUntil = System.currentTimeMillis() + context.expiresIn * 1000L - SAFETY_MARGIN_MS
-                    update { copy(needsConfirm = false, confirming = false, challenge = null, confirmError = null) }
+                    update {
+                        copy(
+                            needsConfirm = false,
+                            confirming = false,
+                            challenge = null,
+                            enrollData = null,
+                            enrollCode = "",
+                            confirmError = null,
+                            enrollError = null,
+                        )
+                    }
                     val retry = pending
                     pending = null
                     retry?.let { guarded(it, showBusy = true) }
@@ -394,17 +495,16 @@ class PlatformViewModel
                     refreshStores()
                 },
                 onFailure = { error ->
-                    update {
-                        copy(
-                            confirming = false,
-                            challenge = null,
-                            confirmError =
-                                if ((error as? ApiClientException)?.code == "MFA_REQUIRED") {
-                                    "Esta cuenta no tiene código de 6 dígitos activado."
-                                } else {
-                                    error.toUserFacingMessage()
-                                },
-                        )
+                    if ((error as? ApiClientException)?.code == "MFA_REQUIRED") {
+                        startTotpEnrollment()
+                    } else {
+                        update {
+                            copy(
+                                confirming = false,
+                                challenge = null,
+                                confirmError = error.toUserFacingMessage(),
+                            )
+                        }
                     }
                 },
             )

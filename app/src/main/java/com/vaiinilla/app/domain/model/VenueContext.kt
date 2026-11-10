@@ -87,6 +87,12 @@ data class VenueContext(
 
     val isHotel: Boolean get() = kind == VenueKind.HOTEL
 
+    /** Quién atiende cuando el cliente llama: «recepción» en un hotel, «el mesero» en lo demás. */
+    val attendant: String get() = if (capabilities.waiterIsReception) "recepción" else "el mesero"
+
+    /** Lo que se paga al final además de las mesas: habitaciones en un hotel, canchas o pistas en lo demás. */
+    val payAtEndSpaces: String get() = if (capabilities.staffWorksRooms) vocabulary.rooms else vocabulary.courts
+
     fun isHotelTable(id: Int?): Boolean = id != null && id in hotelTables
 
     val vocabulary: VenueVocabulary =

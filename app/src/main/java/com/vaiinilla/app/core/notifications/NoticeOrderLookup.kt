@@ -43,7 +43,7 @@ class NoticeOrderLookup
                     ?: return unavailable("No hay sesión para buscar el pedido. Vuelve a entrar.")
             // Sin tope: una cuenta puede tener Caja en 8 negocios y el push no dice cuál (AVISOS-02).
             val candidates = candidates(roles, establishmentId, modes)
-            if (candidates.isEmpty()) return unavailable("Esta cuenta no tiene ningún modo con el que leer ese pedido.")
+            if (candidates.isEmpty()) return unavailable("No tienes acceso a ese pedido desde esta cuenta.")
             var lastFailure: Throwable? = null
             for (mode in candidates) {
                 try {
@@ -62,7 +62,7 @@ class NoticeOrderLookup
                     lastFailure = error
                 }
             }
-            return unavailable(message(lastFailure, candidates.size))
+            return unavailable(message(lastFailure))
         }
 
         companion object {
@@ -105,17 +105,13 @@ class NoticeOrderLookup
 
             private fun unavailable(reason: String) = NoticeLookup.Unavailable(reason, System.currentTimeMillis())
 
-            private fun message(
-                error: Throwable?,
-                tried: Int,
-            ): String {
+            private fun message(error: Throwable?): String {
                 if (error is IOException) return "No hay conexión para buscar el pedido."
                 if (error is ApiClientException && error.httpStatus == 429) {
                     return "El servidor pidió esperar. Vuelve a intentarlo en un momento."
                 }
-                val modes = if (tried == 1) "el modo que tiene" else "los $tried modos que tiene"
-                return "Esta cuenta no pudo leer el pedido con $modes. Es de un negocio donde ya no tiene ese modo, " +
-                    "o ya no existe."
+                return "No encontramos este pedido. Puede que ya no exista o que sea de un negocio donde ya no " +
+                    "tienes acceso."
             }
         }
     }

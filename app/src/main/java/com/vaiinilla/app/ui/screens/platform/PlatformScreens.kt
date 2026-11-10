@@ -90,6 +90,7 @@ internal val STORE_TYPES =
         "comedor" to "Comedor",
         "evento" to "Evento",
         "reposteria" to "Repostería",
+        "hotel" to "Hotel",
     )
 
 internal val TIME_ZONES =
@@ -830,7 +831,13 @@ private fun ConfirmOverlay(
     var code by rememberSaveable { mutableStateOf("") }
     val challenge = state.challenge
     var factor by rememberSaveable { mutableStateOf<String?>(null) }
-    BackHandler { viewModel.cancelConfirm(onExit) }
+    BackHandler {
+        if (state.enrollData != null) {
+            viewModel.cancelTotpEnrollment(onExit)
+        } else {
+            viewModel.cancelConfirm(onExit)
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -842,38 +849,200 @@ private fun ConfirmOverlay(
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
     ) {
-        Text("PLATAFORMA", color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 30.dp))
-        Text("Confirma que eres tú", color = colors.ink, fontSize = 30.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 6.dp).semantics { heading() })
+        if (state.enrollData != null) {
+            TotpEnrollStage(
+                enrollData = state.enrollData,
+                code = state.enrollCode,
+                loading = state.enrolling,
+                errorMessage = state.enrollError,
+                onCodeChange = viewModel::updateEnrollCode,
+                onSubmit = viewModel::submitTotpEnrollment,
+                onCancel = { viewModel.cancelTotpEnrollment(onExit) },
+            )
+        } else {
+            Text("PLATAFORMA", color = colors.muted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp, modifier = Modifier.padding(top = 30.dp))
+            Text("Confirma que eres tú", color = colors.ink, fontSize = 30.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 6.dp).semantics { heading() })
+            Text(
+                "Desde aquí se crean tiendas de todos. Por eso te pedimos tu contraseña y tu código cada vez. Tu sesión dura 10 minutos y, al vencer, no pierdes lo que estabas llenando.",
+                color = colors.muted,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
+            )
+            if (challenge == null) {
+                state.confirmError?.let { Banner(it, true) }
+                Field("Contraseña", password, { password = it }, keyboardType = KeyboardType.Password, password = true)
+                PrimaryButton("Continuar", state.confirming, enabled = password.isNotEmpty()) {
+                    viewModel.confirmPassword(password)
+                    code = ""
+                }
+                TextAction("Salir") { viewModel.cancelConfirm(onExit) }
+            } else {
+                val selected = factor ?: challenge.factors.firstOrNull()?.uid
+                TotpMfaChallengeForm(
+                    factors = challenge.factors,
+                    selectedFactorUid = selected,
+                    code = code,
+                    loading = state.confirming,
+                    errorMessage = state.confirmError,
+                    onFactorSelected = { factor = it },
+                    onCodeChange = { code = it },
+                    onSubmit = { selected?.let { viewModel.confirmCode(it, code) } },
+                    onCancel = { viewModel.cancelConfirm(onExit) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TotpEnrollStage(
+    enrollData: com.vaiinilla.app.domain.auth.student.TotpEnrollmentData,
+    code: String,
+    loading: Boolean,
+    errorMessage: String?,
+    onCodeChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalVaiinillaColors.current
+    val context = LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(2000)
+            copied = false
+        }
+    }
+
+    val formattedKey = remember(enrollData.sharedSecretKey) {
+        enrollData.sharedSecretKey.chunked(4).joinToString(" ")
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         Text(
-            "Desde aquí se crean tiendas de todos. Por eso te pedimos tu contraseña y tu código cada vez. Tu sesión dura 10 minutos y, al vencer, no pierdes lo que estabas llenando.",
+            "PLATAFORMA · SEGURIDAD",
+            color = colors.muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.padding(top = 30.dp),
+        )
+        Text(
+            "Activa tu autenticador",
+            color = colors.ink,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            "Las funciones de Super Admin requieren autenticación en dos pasos. Vincula Google Authenticator, Microsoft Authenticator o 1Password para generar tu código de 6 dígitos.",
             color = colors.muted,
             fontSize = 14.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
+            modifier = Modifier.padding(bottom = 6.dp),
         )
-        if (challenge == null) {
-            state.confirmError?.let { Banner(it, true) }
-            Field("Contraseña", password, { password = it }, keyboardType = KeyboardType.Password, password = true)
-            PrimaryButton("Continuar", state.confirming, enabled = password.isNotEmpty()) {
-                viewModel.confirmPassword(password)
-                code = ""
-            }
-            TextAction("Salir") { viewModel.cancelConfirm(onExit) }
-        } else {
-            val selected = factor ?: challenge.factors.firstOrNull()?.uid
-            TotpMfaChallengeForm(
-                factors = challenge.factors,
-                selectedFactorUid = selected,
-                code = code,
-                loading = state.confirming,
-                errorMessage = state.confirmError,
-                onFactorSelected = { factor = it },
-                onCodeChange = { code = it },
-                onSubmit = { selected?.let { viewModel.confirmCode(it, code) } },
-                onCancel = { viewModel.cancelConfirm(onExit) },
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.paper2)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "Paso 1 · Agrega la cuenta en tu app",
+                color = colors.ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
             )
+
+            PrimaryButton("Abrir app autenticadora", busy = false) {
+                val opened = runCatching {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(enrollData.qrCodeUrl))
+                    context.startActivity(intent)
+                    true
+                }.getOrDefault(false)
+                if (!opened) {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(enrollData.sharedSecretKey))
+                    copied = true
+                }
+            }
+
+            Text(
+                "O copia la clave para escribirla manualmente:",
+                color = colors.muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.paper)
+                    .clickable {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(enrollData.sharedSecretKey))
+                        copied = true
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formattedKey,
+                    color = colors.ink,
+                    fontSize = 13.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (copied) "¡Copiada!" else "Copiar",
+                    color = if (copied) colors.accent else colors.ink2,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
         }
+
+        Text(
+            "Paso 2 · Escribe el código de 6 dígitos",
+            color = colors.ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+
+        errorMessage?.let { Banner(it, true) }
+
+        Field(
+            label = "Código generado por tu aplicación",
+            value = code,
+            onValue = onCodeChange,
+            keyboardType = KeyboardType.NumberPassword,
+            hint = "000000",
+        )
+
+        PrimaryButton(
+            text = "Confirmar y entrar a Plataforma",
+            busy = loading,
+            enabled = code.length == 6 && !loading,
+            onClick = onSubmit,
+        )
+
+        TextAction("Cancelar", onCancel)
     }
 }
 

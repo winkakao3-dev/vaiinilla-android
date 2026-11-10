@@ -29,11 +29,21 @@ class CustomerAssistantJson(
     fun encodeTurns(
         turns: List<CustomerAssistantTurn>,
         establishmentId: String? = null,
+        context: String? = null,
     ): String =
         buildJsonObject {
             establishmentId?.takeIf(String::isNotBlank)?.let { put("establecimiento_id", it) }
+            val note = context?.trim()?.takeIf(String::isNotEmpty)?.take(MAX_LETTERS)
             putJsonArray("mensajes") {
-                turns.takeLast(MAX_MESSAGES).forEach { turn ->
+                // El servidor no tiene un campo para esto: el contexto entra como el primer mensaje del cliente y
+                // cuenta dentro del tope de mensajes.
+                note?.let {
+                    addJsonObject {
+                        put("rol", "cliente")
+                        put("texto", it)
+                    }
+                }
+                turns.takeLast(if (note == null) MAX_MESSAGES else MAX_MESSAGES - 1).forEach { turn ->
                     addJsonObject {
                         put("rol", if (turn.fromCustomer) "cliente" else "asistente")
                         put("texto", turn.text.take(MAX_LETTERS))

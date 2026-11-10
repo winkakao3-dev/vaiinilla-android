@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vaiinilla.app.core.notifications.TableCallPushes
 import com.vaiinilla.app.domain.model.SpaceCopy
+import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.repository.CallReason
 import com.vaiinilla.app.domain.repository.CallStatus
 import com.vaiinilla.app.domain.repository.TableCall
@@ -91,6 +92,10 @@ internal val CallReason.chipLabel: String
 
 /** El orden del dibujo: lo que más se pide primero y «Otra cosa» al final. */
 private val ReasonOrder = listOf(CallReason.CUENTA, CallReason.PROBLEMA, CallReason.UTENSILIOS, CallReason.ATENCION)
+
+/** En un hotel lo pedido se carga a la habitación y se paga al salir: a recepción no se le pide «la cuenta». */
+internal fun callReasons(venue: VenueContext): List<CallReason> =
+    if (venue.capabilities.waiterIsReception) ReasonOrder - CallReason.CUENTA else ReasonOrder
 
 /**
  * La llamada al mesero de una mesa, para el menú y la mesa compartida: la mantiene al día mientras se ve y abre
@@ -190,7 +195,7 @@ internal fun WaiterCallContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Ya enviada, el motivo no se cambia: el servidor solo lo recibe al crear la llamada.
-            val reasons = if (call == null) ReasonOrder else listOf(call.reason)
+            val reasons = if (call == null) callReasons(LocalVenueContext.current) else listOf(call.reason)
             reasons.forEach { reason ->
                 ReasonChip(
                     reason = reason,
@@ -434,7 +439,12 @@ private fun WaiterCallNameStep(state: MenuWaiterCallState) {
         }
         Spacer(Modifier.height(20.dp))
         ClientPillButton(
-            text = if (state.busy) "Avisando…" else "Llamar al mesero",
+            text =
+                when {
+                    state.busy -> "Avisando…"
+                    LocalVenueContext.current.capabilities.waiterIsReception -> "Llamar a recepción"
+                    else -> "Llamar al mesero"
+                },
             onClick = submit,
             enabled = !state.busy && name.isNotBlank(),
             height = 54.dp,

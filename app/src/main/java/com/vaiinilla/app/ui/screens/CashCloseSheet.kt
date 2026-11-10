@@ -257,7 +257,8 @@ fun CashCloseContent(
                 CashWarningCard(
                     title = "Hay una cuenta sin cobrar",
                     body =
-                        "Una mesa o ${venue.vocabulary.court} pidió pagar al final y todavía no se cobra. " +
+                        "Una mesa o ${if (venue.capabilities.staffWorksRooms) venue.vocabulary.room else venue.vocabulary.court} " +
+                            "pidió pagar al final y todavía no se cobra. " +
                             "Cóbrala antes de cerrar para no perder ese dinero.",
                     action =
                         onOpenAccounts?.let { open ->

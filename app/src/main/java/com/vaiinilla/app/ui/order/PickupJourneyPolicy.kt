@@ -5,6 +5,7 @@ import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PaymentMethod
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RentalStep
@@ -177,9 +178,14 @@ internal fun pickupHint(
     }
 }
 
-internal fun pickupCodeHint(order: OrderDetail): String =
+internal fun pickupCodeHint(
+    order: OrderDetail,
+    venue: VenueContext = VenueContext.STANDARD,
+): String =
     when {
         order.summary.pickUpAtBar -> "Pasa a la barra por él y muéstralo en Caja."
+        order.summary.destination == OrderDestination.IN_SPACE && SpaceCopy.isRoomOrder(venue, order) ->
+            "Te lo llevan a tu habitación. Si te piden el código, muéstralo."
         order.summary.destination == OrderDestination.IN_SPACE ->
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este."
         order.cashPending() -> "Muéstralo en Caja para pagar."

@@ -30,6 +30,7 @@ class RecorridosAsistenteViewModelTest {
             override fun reply(
                 turns: List<CustomerAssistantTurn>,
                 establishmentId: String?,
+                context: String?,
             ): Result<CustomerAssistantReply> {
                 seenTurns += turns
                 return Result.success(replies[seenTurns.size - 1])

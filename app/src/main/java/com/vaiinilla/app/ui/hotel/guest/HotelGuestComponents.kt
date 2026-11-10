@@ -175,7 +175,8 @@ internal fun HotelActionTile(
             Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = colors.ink, fontSize = 17.sp, fontWeight = FontWeight.Black, maxLines = 1)
+            // «Room service» no cabe en un renglón a la mitad del ancho: se mostraba solo «Room».
+            Text(title, color = colors.ink, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black, maxLines = 2)
             Text(
                 subtitle,
                 color = colors.muted,
