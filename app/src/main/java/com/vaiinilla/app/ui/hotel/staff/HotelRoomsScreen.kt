@@ -47,8 +47,7 @@ fun HotelRoomsScreen(
         onFilter = viewModel::setFilter,
         onFloor = viewModel::nextFloor,
         onRoom = viewModel::toggleCleaning,
-        onTake = viewModel::take,
-        onResolve = viewModel::resolve,
+        onAdvance = viewModel::advance,
         onBack = onBack,
         modifier = modifier,
     )
@@ -61,8 +60,7 @@ internal fun HotelRoomsContent(
     onFilter: (RoomsFilter) -> Unit,
     onFloor: () -> Unit,
     onRoom: (HotelRoom) -> Unit,
-    onTake: (HotelRequest) -> Unit,
-    onResolve: (HotelRequest) -> Unit,
+    onAdvance: (HotelRequest) -> Unit,
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -129,8 +127,7 @@ internal fun HotelRoomsContent(
                 request = request,
                 now = now,
                 busy = state.busyId == request.id,
-                onTake = { onTake(request) },
-                onResolve = { onResolve(request) },
+                onAdvance = { onAdvance(request) },
             )
         }
     }
@@ -188,11 +185,9 @@ private fun RequestRow(
     request: HotelRequest,
     now: Instant,
     busy: Boolean,
-    onTake: () -> Unit,
-    onResolve: () -> Unit,
+    onAdvance: () -> Unit,
 ) {
     val colors = LocalVaiinillaColors.current
-    val taken = request.status == RequestStatus.TAKEN
     Row(
         modifier =
             Modifier
@@ -213,8 +208,8 @@ private fun RequestRow(
             )
         }
         HotelButton(
-            label = if (taken) "Listo" else "Tomar",
-            onClick = if (taken) onResolve else onTake,
+            label = staffAction(request).buttonLabel,
+            onClick = onAdvance,
             enabled = !busy,
             height = 38.dp,
             fontSize = 13,
