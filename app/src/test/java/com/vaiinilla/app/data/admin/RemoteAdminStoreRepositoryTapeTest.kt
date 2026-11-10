@@ -62,8 +62,8 @@ class RemoteAdminStoreRepositoryTapeTest {
         val store = store()
         val suffix = tape.value("sufijo") { UUID.randomUUID().toString().take(4) }
         val ask =
-            "Crea 2 mesas con el prefijo Terraza $suffix y agrega al menú la categoría Bebidas $suffix con el producto " +
-                "Agua de jamaica $suffix a 25 pesos, que prepara cocina. Propónlo ya, no me preguntes nada más."
+            "Crea 2 mesas con el prefijo Terraza $suffix y agrega al menú la categoría Bebidas $suffix con el " +
+                "producto Agua de jamaica $suffix a 25 pesos, que prepara cocina. Propónlo ya, no me preguntes nada más."
         val jobId =
             store
                 .startAssistantJob(
