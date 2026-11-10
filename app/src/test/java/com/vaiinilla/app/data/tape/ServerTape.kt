@@ -111,11 +111,15 @@ class ServerTape : TestRule {
         val server = live
         val answered =
             if (server != null) {
-                server.send(request).also { exchanges += it.copy(response = it.response?.let(::withoutTokens)) }
+                server.send(request).also {
+                    exchanges +=
+                        it.copy(body = it.body?.let(::withoutSecrets), response = it.response?.let(::withoutSecrets))
+                }
             } else {
                 val expected = recorded.exchanges.getOrNull(next) ?: fail("La app pidió de más: ${request.summary()}")
                 next += 1
-                assertEquals("Intercambio $next de ${file.name}", (expected as Exchange).asRequest(), request)
+                val sent = request.copy(body = request.body?.let(::withoutSecrets))
+                assertEquals("Intercambio $next de ${file.name}", (expected as Exchange).asRequest(), sent)
                 expected
             }
         val raw = answered.response?.toString() ?: answered.responseText.orEmpty()
@@ -207,6 +211,17 @@ class ServerTape : TestRule {
             headers: Map<String, String>,
         ) = call("DELETE", path, body = body, headers = headers, explicitBearer = bearer)
 
+        override fun getPublic(
+            path: String,
+            query: Map<String, String>,
+        ) = TapeClient(PUBLIC, bearer = null).get(path, query)
+
+        override fun postPublic(
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ) = TapeClient(PUBLIC, bearer = null).post(path, body, headers)
+
         override fun putMultipart(
             path: String,
             fieldName: String,
@@ -227,6 +242,8 @@ class ServerTape : TestRule {
     }
 
     private companion object {
+        /** La sesión de quien no ha entrado: sus llamadas viajan sin credencial. */
+        const val PUBLIC = "publico"
         val FORMAT =
             Json {
                 prettyPrint = true
@@ -234,18 +251,21 @@ class ServerTape : TestRule {
             }
         val TOKEN = Regex("^eyJ[\\w-]+\\.[\\w-]+\\.[\\w-]+$")
 
-        fun withoutTokens(element: JsonElement): JsonElement =
+        /** Nombres de campo que guardan una credencial aunque no parezcan un token (la llave del invitado). */
+        val SECRET_FIELDS = setOf("llave", "refresh_token", "id_token")
+        val HIDDEN = JsonPrimitive("TACHADO")
+
+        fun withoutSecrets(element: JsonElement): JsonElement =
             when (element) {
-                is JsonObject -> JsonObject(element.mapValues { withoutTokens(it.value) })
-                is JsonArray -> JsonArray(element.map(::withoutTokens))
-                is JsonPrimitive ->
-                    if (element.isString &&
-                        TOKEN.matches(element.content)
-                    ) {
-                        JsonPrimitive("TACHADO")
-                    } else {
-                        element
-                    }
+                is JsonObject ->
+                    JsonObject(
+                        element.mapValues { (name, value) ->
+                            val secret = name in SECRET_FIELDS && value is JsonPrimitive && value.isString
+                            if (secret) HIDDEN else withoutSecrets(value)
+                        },
+                    )
+                is JsonArray -> JsonArray(element.map(::withoutSecrets))
+                is JsonPrimitive -> if (element.isString && TOKEN.matches(element.content)) HIDDEN else element
             }
     }
 }
@@ -315,7 +335,7 @@ internal class LiveServer(
     private val sessions: Map<String, String>,
 ) {
     fun send(request: Exchange): Exchange {
-        val bearer = request.bearer ?: sessions.getValue(request.session)
+        val bearer = request.bearer ?: sessions[request.session]
         val query =
             request.query.entries
                 .joinToString("&") { "${it.key}=${URLEncoder.encode(it.value, "UTF-8")}" }
@@ -334,7 +354,9 @@ internal class LiveServer(
         command += url + request.path + query
         val process = ProcessBuilder(command).redirectErrorStream(true).start()
         // La sesión viaja por la entrada de curl para que no quede en la lista de procesos.
-        process.outputStream.use { it.write("header = \"Authorization: Bearer $bearer\"\n".toByteArray()) }
+        process.outputStream.use { input ->
+            if (bearer != null) input.write("header = \"Authorization: Bearer $bearer\"\n".toByteArray())
+        }
         val output = process.inputStream.bufferedReader().readText()
         process.waitFor()
         temporary?.delete()

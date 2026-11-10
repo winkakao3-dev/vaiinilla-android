@@ -1,0 +1,186 @@
+{
+    "stores": {
+        "restaurante": {
+            "slug": "cintas-restaurante",
+            "id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+            "users": {
+                "admin": "9d258c7d-fad0-4d46-bd03-e84014a946bc",
+                "extra": "6560429e-b512-4869-8f14-51a73cf681a1",
+                "cajero": "1d134fbb-00ea-45f2-a2bd-e391a8266bde",
+                "cocina": "a88f1ddb-fcf6-4640-b70d-e826cd55507c",
+                "mesero": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                "cliente": "14190545-8d53-4eaa-a292-7d926e257245",
+                "cliente2": "b30aadaf-74d8-434b-b1f7-4e5be3c3565d"
+            },
+            "latitude": 28.6353,
+            "longitude": -106.0889
+        }
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "723561bf-755c-4908-8c19-047e96ffe7e2",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:12:45.105Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "950.00",
+                    "ultimo_cierre": {
+                        "monto_final": "730.00",
+                        "cerrada_en": "2026-11-10T23:12:35.431Z",
+                        "monto_inicial": "500.00",
+                        "efectivo_esperado": "740.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "asistente-cliente",
+            "body": {
+                "establecimiento_id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+                "mensajes": [
+                    {
+                        "rol": "cliente",
+                        "texto": "¿Qué me recomiendas de comer?"
+                    }
+                ]
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "mensaje": "Te recomiendo la Torta de cinta, lleva pan con frijoles, cuesta $45 y sale en unos 5 minutitos. ¿Te armo una?",
+                    "productos": [
+                        {
+                            "producto_id": 211,
+                            "nombre": "Torta de cinta",
+                            "precio": "45.00",
+                            "imagen_url": null,
+                            "disponible": true,
+                            "requiere_opciones": false,
+                            "minutos": 5
+                        }
+                    ],
+                    "pistas": [],
+                    "pedido": null,
+                    "llamar_mesero": null,
+                    "opciones": [
+                        "Sí, quiero una",
+                        "¿Qué lleva?",
+                        "Ver canchas libres"
+                    ],
+                    "quedan_mensajes": 38
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

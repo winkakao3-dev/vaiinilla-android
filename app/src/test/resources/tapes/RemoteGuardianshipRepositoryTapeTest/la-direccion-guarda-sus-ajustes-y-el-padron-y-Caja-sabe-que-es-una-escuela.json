@@ -1,6 +1,6 @@
 {
     "values": {
-        "matricula": "PADRON-614493"
+        "matricula": "PADRON-BC41BB"
     },
     "exchanges": [
         {
@@ -26,7 +26,7 @@
                     "recarga_minima": "50.00",
                     "recarga_maxima": "2000.00",
                     "fondo_sugerido": null,
-                    "dias_adelanto_pedido": 0,
+                    "dias_adelanto_pedido": 5,
                     "hora_corte_pedido": null,
                     "hora_corte_cancelacion": null,
                     "hora_inicio_dia": "00:00",
@@ -476,7 +476,7 @@
                 "tutores_requieren_aprobacion": true,
                 "recarga_minima": "50.00",
                 "recarga_maxima": "2000.00",
-                "dias_adelanto_pedido": 0,
+                "dias_adelanto_pedido": 5,
                 "hora_corte_pedido": null,
                 "hora_corte_cancelacion": null
             },
@@ -500,7 +500,7 @@
                     "recarga_minima": "50.00",
                     "recarga_maxima": "2000.00",
                     "fondo_sugerido": null,
-                    "dias_adelanto_pedido": 0,
+                    "dias_adelanto_pedido": 5,
                     "hora_corte_pedido": null,
                     "hora_corte_cancelacion": null,
                     "hora_inicio_dia": "00:00",
@@ -730,7 +730,7 @@
             "body": {
                 "alumnos": [
                     {
-                        "matricula": "PADRON-614493",
+                        "matricula": "PADRON-BC41BB",
                         "nombre": "Alumno del padrón",
                         "grupo": "1A"
                     }
@@ -761,7 +761,7 @@
                     "total": 1,
                     "alumnos": [
                         {
-                            "matricula": "PADRON-614493",
+                            "matricula": "PADRON-BC41BB",
                             "nombre": "Alumno del padrón",
                             "grupo": "1A"
                         }
@@ -825,7 +825,7 @@
                     "tutor_habilitado": false,
                     "tiempo_estimado_min": 5,
                     "sla_recuperacion_operativa_min": 15,
-                    "consultado_en": "2026-11-10T23:29:19.473Z"
+                    "consultado_en": "2026-11-10T23:41:54.027Z"
                 },
                 "meta": {
                     "page": null,

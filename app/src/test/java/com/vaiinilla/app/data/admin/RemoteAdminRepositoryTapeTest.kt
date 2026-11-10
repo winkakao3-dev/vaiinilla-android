@@ -7,8 +7,11 @@ import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminProductInput
 import com.vaiinilla.app.domain.model.OrderState
 import com.vaiinilla.app.domain.model.PreparationStation
+import com.vaiinilla.app.domain.repository.StoreImageKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -85,6 +88,39 @@ class RemoteAdminRepositoryTapeTest {
                 .isBlank(),
         )
 
+        val catalog = floor.catalog("cajero")
+        assertTrue(catalog.setProductAvailability(product.id, true, floor.key()).getOrThrow().available)
+        val logo =
+            floor
+                .catalog(
+                    "admin",
+                ).uploadStoreImage(StoreImageKind.LOGO, PIXEL, "logo.png", "image/png", floor.key())
+        assertNotNull(logo.getOrThrow().logoUrl)
+        assertNotNull(
+            floor
+                .catalog("admin")
+                .getStoreImages()
+                .getOrThrow()
+                .logoUrl,
+        )
+        assertNull(
+            floor
+                .catalog("admin")
+                .removeStoreImage(StoreImageKind.LOGO, floor.key())
+                .getOrThrow()
+                .logoUrl,
+        )
+
+        admin.setProductArchived(product.id, true, floor.key()).getOrThrow()
+        admin.setProductArchived(product.id, false, floor.key()).getOrThrow()
+        assertTrue(
+            floor
+                .catalog("admin")
+                .getCatalog()
+                .getOrThrow()
+                .products
+                .any { it.id == product.id },
+        )
         admin.setProductArchived(product.id, true, floor.key()).getOrThrow()
         assertTrue(
             floor

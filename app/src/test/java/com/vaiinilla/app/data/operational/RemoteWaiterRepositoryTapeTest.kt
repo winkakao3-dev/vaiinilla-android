@@ -4,6 +4,12 @@ import com.vaiinilla.app.data.tape.ServerTape
 import com.vaiinilla.app.data.tape.TapeFloor
 import com.vaiinilla.app.domain.admin.SpacePatch
 import com.vaiinilla.app.domain.admin.SpaceType
+import com.vaiinilla.app.domain.model.CreateOrderItem
+import com.vaiinilla.app.domain.model.CreateOrderRequest
+import com.vaiinilla.app.domain.model.OrderDestination
+import com.vaiinilla.app.domain.model.OrderOrigin
+import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.domain.repository.AbonoMode
 import com.vaiinilla.app.domain.repository.AccountPaymentMethod
 import com.vaiinilla.app.domain.repository.CallReason
@@ -168,6 +174,56 @@ class RemoteWaiterRepositoryTapeTest {
         val second = other.call(table.id, CallReason.UTENSILIOS, null, floor.key()).getOrThrow()
         assertEquals(CallStatus.CANCELADA, other.cancelCall(second, floor.key()).getOrThrow().status)
         assertNull(other.currentCall(table.id).getOrThrow())
+
+        val kitchen = floor.orders("cocina")
+        val cooking =
+            kitchen
+                .transition(
+                    order.summary.id,
+                    OrderState.PREPARING,
+                    order.summary.version,
+                    floor.key(),
+                    null,
+                ).getOrThrow()
+        kitchen.transition(order.summary.id, OrderState.READY, cooking.summary.version, floor.key(), null).getOrThrow()
+        val ready =
+            waiter
+                .board()
+                .getOrThrow()
+                .tables
+                .single { it.space.id == table.id }
+                .orders
+                .single { it.id == order.summary.id }
+        assertEquals(OrderState.READY, ready.state)
+        waiter.deliver(ready, null, floor.key()).getOrThrow()
+        assertEquals(
+            OrderState.DELIVERED,
+            floor
+                .orders("cliente")
+                .getOrder(order.summary.id)
+                .getOrThrow()
+                .summary.state,
+        )
+
+        // Lo que el mesero tomó para la mesa no es de nadie hasta que alguien lo reclama.
+        val taken =
+            CreateOrderRequest(
+                paymentMethod = PaymentMethod.CASH,
+                destination = OrderDestination.IN_SPACE,
+                spaceId = table.id,
+                kitchenNotes = "",
+                items = listOf(CreateOrderItem(product.id, 1, emptyList())),
+                payAtEnd = true,
+                origin = OrderOrigin.MOSTRADOR,
+            )
+        val byWaiter =
+            floor
+                .orders("mesero")
+                .createOrder(taken, floor.key())
+                .getOrThrow()
+                .order
+        val claimed = floor.sharedTable("cliente2").claim(byWaiter.summary.folio, payIt = true).getOrThrow()
+        assertEquals(money(byWaiter.summary.total), claimed.myShare.total)
 
         val rest =
             waiter

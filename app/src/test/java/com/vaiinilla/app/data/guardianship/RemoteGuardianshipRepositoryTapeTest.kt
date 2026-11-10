@@ -94,6 +94,9 @@ class RemoteGuardianshipRepositoryTapeTest {
                 floor.client("cajero"),
             ).reloadCash(child.userId, "100.00", floor.key()).getOrThrow()
         assertEquals(money("100.00"), money(receipt.newBalance))
+        val wallets = RemoteWalletRepository(floor.client("cajero"))
+        assertTrue(wallets.searchClients("Niña de cinta").getOrThrow().any { it.userId == child.userId })
+        assertEquals(money("100.00"), money(wallets.lookupClient(child.userId).getOrThrow().balance!!))
         val counter = counter()
         val card = counter.search(child.studentId!!).getOrThrow().single { it.userId == child.userId }
         assertEquals(BigDecimal("100.00"), card.balance)
@@ -213,8 +216,9 @@ class RemoteGuardianshipRepositoryTapeTest {
                 floor.key(),
             ).getOrThrow()
         school().guardianRequests().getOrThrow().filter { it.studentId == child.studentId }.forEach {
-            school().reviewGuardianRequest(it.id, approve = false, floor.key()).getOrThrow()
+            school().reviewGuardianRequest(it.id, approve = true, floor.key()).getOrThrow()
         }
+        assertEquals(2, school().searchGuardianships(child.studentId!!).getOrThrow().size)
         school().searchGuardianships(child.studentId!!).getOrThrow().filter { !it.isPrincipal }.forEach {
             school().removeGuardianship(it.id, floor.key()).getOrThrow()
         }
@@ -247,6 +251,14 @@ class RemoteGuardianshipRepositoryTapeTest {
                 DependentContextSession(child.userId, guardian::issueContext),
             )
         assertEquals(BigDecimal("200.00"), asChild.wallet().getOrThrow().balance)
+        assertTrue(
+            "sin límites puestos, nada le queda bloqueado",
+            asChild
+                .controls()
+                .getOrThrow()!!
+                .blockedProductIds
+                .isEmpty(),
+        )
         val childCalendar = asChild.menuCalendar().getOrThrow()
         assertEquals(setOf(product.id), childCalendar.menu(day.toString()))
         val slot = childCalendar.schedule.slots.firstOrNull()

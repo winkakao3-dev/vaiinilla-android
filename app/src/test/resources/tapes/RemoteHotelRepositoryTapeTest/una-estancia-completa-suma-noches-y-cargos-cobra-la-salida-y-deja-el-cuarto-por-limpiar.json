@@ -1,6 +1,6 @@
 {
     "values": {
-        "habitacion": "Cinta b6d704 ",
+        "habitacion": "Cinta 00e275 ",
         "salida": "2026-11-12"
     },
     "exchanges": [
@@ -59,7 +59,7 @@
             "verb": "POST",
             "path": "habitaciones/lote",
             "body": {
-                "prefijo": "Cinta b6d704",
+                "prefijo": "Cinta 00e275",
                 "desde": 1,
                 "hasta": 1,
                 "piso": 2,
@@ -90,6 +90,30 @@
             "status": 200,
             "response": {
                 "data": [
+                    {
+                        "id": 133,
+                        "nombre": "Cinta 00e275 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
                     {
                         "id": 107,
                         "nombre": "Cinta 671d55 1",
@@ -185,6 +209,18 @@
                         "estancia": null,
                         "solicitudes_abiertas": 0,
                         "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
                     }
                 ],
                 "meta": {
@@ -201,7 +237,7 @@
             "verb": "POST",
             "path": "estancias",
             "body": {
-                "espacio_id": 113,
+                "espacio_id": 133,
                 "huesped_nombre": "Huésped de cinta",
                 "salida": "2026-11-12",
                 "tarifa_noche": "1000.00"
@@ -210,15 +246,15 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": null,
                     "usuarios_vinculados": 0,
-                    "codigo": "389938",
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "codigo": "464200",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -226,7 +262,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": false,
                     "total": "2000.00",
@@ -258,7 +294,7 @@
             "verb": "POST",
             "path": "estancias",
             "body": {
-                "espacio_id": 113,
+                "espacio_id": 133,
                 "huesped_nombre": "Otro de cinta",
                 "salida": "2026-11-12"
             },
@@ -304,21 +340,21 @@
             "verb": "POST",
             "path": "estancias/vincular",
             "body": {
-                "codigo": "389938",
-                "espacio_id": 113
+                "codigo": "464200",
+                "espacio_id": 133
             },
             "status": 200,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
                     "codigo": null,
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -326,7 +362,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": false,
                     "total": "2000.00",
@@ -372,15 +408,15 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
                     "codigo": null,
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -388,7 +424,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": false,
                     "total": "2000.00",
@@ -437,15 +473,15 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
                     "codigo": null,
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -453,7 +489,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": true,
                     "total": "2000.00",
@@ -500,6 +536,34 @@
             "response": {
                 "data": [
                     {
+                        "id": 133,
+                        "nombre": "Cinta 00e275 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": true,
+                        "no_molestar": true,
+                        "estancia": {
+                            "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
+                            "huesped_nombre": "Huésped de cinta",
+                            "salida_prevista": "2026-11-12T18:00:00.000Z"
+                        },
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
                         "id": 107,
                         "nombre": "Cinta 671d55 1",
                         "piso": 2,
@@ -541,13 +605,9 @@
                         "piso": 2,
                         "categoria": "doble",
                         "limpieza": "lista",
-                        "ocupada": true,
-                        "no_molestar": true,
-                        "estancia": {
-                            "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
-                            "huesped_nombre": "Huésped de cinta",
-                            "salida_prevista": "2026-11-12T18:00:00.000Z"
-                        },
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
                         "solicitudes_abiertas": 0,
                         "pedidos_en_curso": 0
                     },
@@ -598,6 +658,18 @@
                         "estancia": null,
                         "solicitudes_abiertas": 0,
                         "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
                     }
                 ],
                 "meta": {
@@ -619,15 +691,15 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
                     "codigo": null,
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -635,7 +707,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": false,
                     "total": "2000.00",
@@ -677,7 +749,7 @@
         {
             "session": "hotel.cajero",
             "verb": "POST",
-            "path": "estancias/92f45a6c-345f-4af0-80ad-20df85a3f4f3/cargos",
+            "path": "estancias/3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f/cargos",
             "body": {
                 "concepto": "Agua del minibar",
                 "monto": "85.00",
@@ -687,15 +759,15 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
-                    "codigo": "389938",
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "codigo": "464200",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -703,7 +775,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": false,
                     "total": "2085.00",
@@ -719,11 +791,11 @@
                     "cobrado_en": null,
                     "cargos": [
                         {
-                            "id": 10,
+                            "id": 14,
                             "concepto": "Agua del minibar",
                             "categoria": "minibar",
                             "monto": "85.00",
-                            "creado_en": "2026-11-10T23:04:54.088Z"
+                            "creado_en": "2026-11-10T23:39:21.206Z"
                         }
                     ],
                     "pedidos": [],
@@ -741,19 +813,19 @@
         {
             "session": "hotel.cajero",
             "verb": "GET",
-            "path": "estancias/92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+            "path": "estancias/3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
             "status": 200,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "en_casa",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
-                    "codigo": "389938",
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "codigo": "464200",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -761,7 +833,7 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
                     "salio_en": null,
                     "no_molestar": false,
                     "total": "2085.00",
@@ -777,11 +849,11 @@
                     "cobrado_en": null,
                     "cargos": [
                         {
-                            "id": 10,
+                            "id": 14,
                             "concepto": "Agua del minibar",
                             "categoria": "minibar",
                             "monto": "85.00",
-                            "creado_en": "2026-11-10T23:04:54.088Z"
+                            "creado_en": "2026-11-10T23:39:21.206Z"
                         }
                     ],
                     "pedidos": [],
@@ -809,15 +881,15 @@
                     "hoy": "2026-11-10",
                     "estancias": [
                         {
-                            "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                            "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                             "estado": "en_casa",
                             "huesped": "Huésped de cinta",
                             "contacto": null,
                             "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                             "usuarios_vinculados": 1,
-                            "codigo": "389938",
-                            "espacio_id": 113,
-                            "espacio_nombre": "Cinta b6d704 1",
+                            "codigo": "464200",
+                            "espacio_id": 133,
+                            "espacio_nombre": "Cinta 00e275 1",
                             "piso": 2,
                             "categoria": "doble",
                             "entrada": "2026-11-10",
@@ -825,7 +897,7 @@
                             "noches": 2,
                             "salida_prevista": "2026-11-12T18:00:00.000Z",
                             "tarifa_noche": "1000.00",
-                            "entro_en": "2026-11-10T23:04:49.694Z",
+                            "entro_en": "2026-11-10T23:39:17.008Z",
                             "salio_en": null,
                             "no_molestar": false,
                             "total": "2085.00",
@@ -860,7 +932,7 @@
         {
             "session": "hotel.cajero",
             "verb": "POST",
-            "path": "estancias/92f45a6c-345f-4af0-80ad-20df85a3f4f3/checkout",
+            "path": "estancias/3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f/checkout",
             "body": {
                 "metodo_pago": "efectivo",
                 "monto_recibido": "5000.00",
@@ -891,7 +963,7 @@
         {
             "session": "hotel.cajero",
             "verb": "POST",
-            "path": "estancias/92f45a6c-345f-4af0-80ad-20df85a3f4f3/checkout",
+            "path": "estancias/3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f/checkout",
             "body": {
                 "metodo_pago": "efectivo",
                 "monto_recibido": "5000.00",
@@ -902,15 +974,15 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "92f45a6c-345f-4af0-80ad-20df85a3f4f3",
+                    "id": "3f6bb5e7-8b05-4d77-aa0d-373fcdf1933f",
                     "estado": "salio",
                     "huesped": "Huésped de cinta",
                     "contacto": null,
                     "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
                     "usuarios_vinculados": 1,
-                    "codigo": "389938",
-                    "espacio_id": 113,
-                    "espacio_nombre": "Cinta b6d704 1",
+                    "codigo": "464200",
+                    "espacio_id": 133,
+                    "espacio_nombre": "Cinta 00e275 1",
                     "piso": 2,
                     "categoria": "doble",
                     "entrada": "2026-11-10",
@@ -918,8 +990,8 @@
                     "noches": 2,
                     "salida_prevista": "2026-11-12T18:00:00.000Z",
                     "tarifa_noche": "1000.00",
-                    "entro_en": "2026-11-10T23:04:49.694Z",
-                    "salio_en": "2026-11-10T23:04:56.280Z",
+                    "entro_en": "2026-11-10T23:39:17.008Z",
+                    "salio_en": "2026-11-10T23:39:23.441Z",
                     "no_molestar": false,
                     "total": "2085.00",
                     "cuenta": {
@@ -931,14 +1003,14 @@
                     },
                     "metodo_cobro": "efectivo",
                     "total_cobrado": "2085.00",
-                    "cobrado_en": "2026-11-10T23:04:56.280Z",
+                    "cobrado_en": "2026-11-10T23:39:23.441Z",
                     "cargos": [
                         {
-                            "id": 10,
+                            "id": 14,
                             "concepto": "Agua del minibar",
                             "categoria": "minibar",
                             "monto": "85.00",
-                            "creado_en": "2026-11-10T23:04:54.088Z"
+                            "creado_en": "2026-11-10T23:39:21.206Z"
                         }
                     ],
                     "pedidos": [],
@@ -986,6 +1058,30 @@
             "response": {
                 "data": [
                     {
+                        "id": 133,
+                        "nombre": "Cinta 00e275 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
                         "id": 107,
                         "nombre": "Cinta 671d55 1",
                         "piso": 2,
@@ -1026,7 +1122,7 @@
                         "nombre": "Cinta b6d704 1",
                         "piso": 2,
                         "categoria": "doble",
-                        "limpieza": "por_limpiar",
+                        "limpieza": "lista",
                         "ocupada": false,
                         "no_molestar": false,
                         "estancia": null,
@@ -1080,6 +1176,18 @@
                         "estancia": null,
                         "solicitudes_abiertas": 0,
                         "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
                     }
                 ],
                 "meta": {
@@ -1094,7 +1202,7 @@
         {
             "session": "hotel.mesero",
             "verb": "POST",
-            "path": "habitaciones/113/limpieza",
+            "path": "habitaciones/133/limpieza",
             "body": {
                 "limpieza": "lista"
             },
@@ -1102,8 +1210,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": 113,
-                    "nombre": "Cinta b6d704 1",
+                    "id": 133,
+                    "nombre": "Cinta 00e275 1",
                     "limpieza": "lista"
                 },
                 "meta": {

@@ -1,6 +1,6 @@
 {
     "values": {
-        "matricula": "CINTA-F3BF17"
+        "matricula": "CINTA-16ADC7"
     },
     "exchanges": [
         {
@@ -42,7 +42,7 @@
                     "cierre_automatico": false,
                     "umbral_alerta_horas": 24,
                     "excede_umbral": false,
-                    "efectivo_esperado": "800.00",
+                    "efectivo_esperado": "1200.00",
                     "ultimo_cierre": null
                 },
                 "meta": {
@@ -124,7 +124,7 @@
                     "recarga_minima": "50.00",
                     "recarga_maxima": "2000.00",
                     "fondo_sugerido": null,
-                    "dias_adelanto_pedido": 0,
+                    "dias_adelanto_pedido": 5,
                     "hora_corte_pedido": null,
                     "hora_corte_cancelacion": null,
                     "hora_inicio_dia": "00:00",
@@ -358,18 +358,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "93aec14c-deea-444d-8416-8a613dc3dcf6",
+                        "usuario_id": "457835aa-5646-4c73-9cc2-077b33580706",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-7A5F8A",
+                        "matricula": "CINTA-9AE61C",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "d8cb77ab-3dd9-4864-9077-6ecae7c578a4",
+                                "tutela_id": "9e58ae40-d7c6-4276-bf33-6dbc99ea26c1",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -405,12 +405,12 @@
         {
             "session": "escuela.cliente",
             "verb": "DELETE",
-            "path": "tutelas/93aec14c-deea-444d-8416-8a613dc3dcf6",
+            "path": "tutelas/457835aa-5646-4c73-9cc2-077b33580706",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "93aec14c-deea-444d-8416-8a613dc3dcf6",
+                    "usuario_id": "457835aa-5646-4c73-9cc2-077b33580706",
                     "activa": false
                 },
                 "meta": {
@@ -475,7 +475,7 @@
             "path": "tutelas/dependientes",
             "body": {
                 "nombre": "Niña de cinta",
-                "matricula": "CINTA-F3BF17",
+                "matricula": "CINTA-16ADC7",
                 "grupo": "3B",
                 "consentimiento_version": "2026-10-21"
             },
@@ -483,11 +483,11 @@
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-F3BF17",
+                    "matricula": "CINTA-16ADC7",
                     "tiene_cuenta": false,
                     "estado": "pendiente",
                     "requiere_consentimiento": false,
@@ -511,16 +511,16 @@
             "response": {
                 "data": [
                     {
-                        "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
-                        "creado_en": "2026-11-10T23:28:16.837Z",
+                        "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
+                        "creado_en": "2026-11-10T23:40:45.468Z",
                         "tutor": {
                             "nombre": "Vigía cliente",
                             "email": null
                         },
                         "alumno": {
-                            "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                            "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-F3BF17",
+                            "matricula": "CINTA-16ADC7",
                             "grupo": "3B",
                             "tiene_cuenta": false
                         },
@@ -540,13 +540,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/f6f8fbc8-9caa-469a-b33d-7271d96f9e71/aprobar",
+            "path": "solicitudes-tutela/4f954cc5-534a-4af2-82a2-03a416157fb4/aprobar",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
+                    "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
                     "estado": "aprobada"
                 },
                 "meta": {
@@ -566,18 +566,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-F3BF17",
+                        "matricula": "CINTA-16ADC7",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
+                                "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -613,7 +613,7 @@
         {
             "session": "escuela.cliente",
             "verb": "PATCH",
-            "path": "tutelas/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+            "path": "tutelas/6638fc3f-3204-4db6-9b53-73966c10c39f",
             "body": {
                 "limite_diario": "60.00",
                 "umbral_saldo_bajo": null,
@@ -628,18 +628,18 @@
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-F3BF17",
+                    "matricula": "CINTA-16ADC7",
                     "tiene_cuenta": false,
                     "estado": "aprobada",
                     "requiere_consentimiento": false,
                     "soy_principal": true,
                     "tutores": [
                         {
-                            "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
+                            "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
                             "nombre": "Vigía cliente",
                             "principal": true,
                             "eres_tu": true
@@ -676,7 +676,7 @@
         {
             "session": "escuela.cliente",
             "verb": "PATCH",
-            "path": "tutelas/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+            "path": "tutelas/6638fc3f-3204-4db6-9b53-73966c10c39f",
             "body": {
                 "umbral_saldo_bajo": "50.00"
             },
@@ -684,18 +684,18 @@
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-F3BF17",
+                    "matricula": "CINTA-16ADC7",
                     "tiene_cuenta": false,
                     "estado": "aprobada",
                     "requiere_consentimiento": false,
                     "soy_principal": true,
                     "tutores": [
                         {
-                            "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
+                            "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
                             "nombre": "Vigía cliente",
                             "principal": true,
                             "eres_tu": true
@@ -732,7 +732,7 @@
         {
             "session": "escuela.cajero",
             "verb": "POST",
-            "path": "wallets/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe/recargas-efectivo",
+            "path": "wallets/6638fc3f-3204-4db6-9b53-73966c10c39f/recargas-efectivo",
             "body": {
                 "monto": "100.00"
             },
@@ -740,12 +740,159 @@
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "saldo_anterior": "0.00",
                     "recarga": "100.00",
                     "saldo_nuevo": "100.00",
-                    "movimiento_id": "6a965bff-855e-4d0e-837e-c83db9651369",
+                    "movimiento_id": "b847f598-6158-48d7-87d8-15d5e3801b1f",
                     "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cajero",
+            "verb": "GET",
+            "path": "wallets/clientes",
+            "query": {
+                "q": "Niña de cinta"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-F3BF17",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": "2026-11-10T23:28:22.629Z",
+                        "saldo": "55.00"
+                    },
+                    {
+                        "usuario_id": "42baa839-ea14-49fd-a5d4-509e4fa753ed",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-80201B",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": "2026-11-10T23:38:12.028Z",
+                        "saldo": "55.00"
+                    },
+                    {
+                        "usuario_id": "457835aa-5646-4c73-9cc2-077b33580706",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-9AE61C",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "200.00"
+                    },
+                    {
+                        "usuario_id": "4ffdd866-f8fc-48fe-91b6-1aa0cc261e12",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-834833",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "0.00"
+                    },
+                    {
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-16ADC7",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "100.00"
+                    },
+                    {
+                        "usuario_id": "929adfe6-e936-432b-955a-368a40ed2450",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-EC1912",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "0.00"
+                    },
+                    {
+                        "usuario_id": "93aec14c-deea-444d-8416-8a613dc3dcf6",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-7A5F8A",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "200.00"
+                    },
+                    {
+                        "usuario_id": "d3e504d3-ab5e-422d-a34c-5bc3e77b2c54",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-C83BFA",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": "2026-11-10T23:29:07.593Z",
+                        "saldo": "0.00"
+                    },
+                    {
+                        "usuario_id": "d5cb3b3e-b812-4d09-8225-ab90a91bca9a",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-5C6F28",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "100.00"
+                    },
+                    {
+                        "usuario_id": "f0922482-a67b-48c4-ad5c-c5395f84fec4",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-774A90",
+                        "correo_enmascarado": null,
+                        "ultimo_pedido_en": null,
+                        "saldo": "0.00"
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cajero",
+            "verb": "GET",
+            "path": "wallets/6638fc3f-3204-4db6-9b53-73966c10c39f",
+            "query": {
+                "limit": "1"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "cliente": {
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
+                        "nombre": "Niña de cinta",
+                        "identificador_cliente": "CINTA-16ADC7"
+                    },
+                    "wallet": {
+                        "id": "f7ba0ebd-5098-46fc-a33b-845c60bfeb5b",
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
+                        "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                        "saldo": "100.00",
+                        "actualizado_en": "2026-11-10T23:40:48.848Z",
+                        "saldo_congelado": false
+                    },
+                    "movimientos": [
+                        {
+                            "id": "85e2de11-03b3-4f56-8134-c78e47f692a3",
+                            "tipo": "recarga_efectivo",
+                            "descripcion": "Recarga en efectivo",
+                            "monto": "100.00",
+                            "saldo_posterior": "100.00",
+                            "pedido_id": null,
+                            "pedido_folio": null,
+                            "lugar": null,
+                            "resumen_productos": null,
+                            "creado_en": "2026-11-10T23:40:48.848Z"
+                        }
+                    ]
                 },
                 "meta": {
                     "page": null,
@@ -761,15 +908,15 @@
             "verb": "GET",
             "path": "alumnos",
             "query": {
-                "q": "CINTA-F3BF17"
+                "q": "CINTA-16ADC7"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                         "nombre": "Niña de cinta",
-                        "matricula": "CINTA-F3BF17",
+                        "matricula": "CINTA-16ADC7",
                         "grupo": "3B",
                         "foto_url": null,
                         "tiene_cuenta": false,
@@ -803,7 +950,7 @@
         {
             "session": "escuela.cajero",
             "verb": "POST",
-            "path": "alumnos/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe/compras",
+            "path": "alumnos/6638fc3f-3204-4db6-9b53-73966c10c39f/compras",
             "body": {
                 "items": [
                     {
@@ -837,7 +984,7 @@
         {
             "session": "escuela.cliente",
             "verb": "PATCH",
-            "path": "tutelas/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+            "path": "tutelas/6638fc3f-3204-4db6-9b53-73966c10c39f",
             "body": {
                 "limite_diario": "60.00",
                 "umbral_saldo_bajo": null,
@@ -850,18 +997,18 @@
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-F3BF17",
+                    "matricula": "CINTA-16ADC7",
                     "tiene_cuenta": false,
                     "estado": "aprobada",
                     "requiere_consentimiento": false,
                     "soy_principal": true,
                     "tutores": [
                         {
-                            "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
+                            "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
                             "nombre": "Vigía cliente",
                             "principal": true,
                             "eres_tu": true
@@ -896,7 +1043,7 @@
         {
             "session": "escuela.cajero",
             "verb": "POST",
-            "path": "alumnos/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe/compras",
+            "path": "alumnos/6638fc3f-3204-4db6-9b53-73966c10c39f/compras",
             "body": {
                 "items": [
                     {
@@ -910,8 +1057,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "acd6ea61-b113-4178-ad86-bc683ea7e51d",
-                    "folio": 1,
+                    "id": "e158ae3d-a0a6-486e-8995-f20a4a2dd29c",
+                    "folio": 3,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "cafeteria",
@@ -948,8 +1095,8 @@
                     "pago_pendiente": false,
                     "invitado": false,
                     "version": 1,
-                    "creado_en": "2026-11-10T23:28:22.629Z",
-                    "actualizado_en": "2026-11-10T23:28:22.629Z",
+                    "creado_en": "2026-11-10T23:40:52.653Z",
+                    "actualizado_en": "2026-11-10T23:40:52.653Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -958,7 +1105,7 @@
                     "notas_cocina": null,
                     "usuario": {
                         "nombre": "Niña de cinta",
-                        "matricula": "CINTA-F3BF17",
+                        "matricula": "CINTA-16ADC7",
                         "alergias": []
                     },
                     "reserva": null,
@@ -969,7 +1116,7 @@
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 207,
+                            "id": 221,
                             "producto_id": 215,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -981,7 +1128,7 @@
                             "rechazo": null
                         }
                     ],
-                    "qr_token": "v1.feee77ccba69bc414cc93332844afeaf67cc6944d39ee1d451b32741ad94d16e"
+                    "qr_token": "v1.7211d39dcff14c57655d505b8dfa677cb4d782cfa26d894eddf2e1d2a75cf3b7"
                 },
                 "meta": {
                     "page": null,
@@ -997,15 +1144,15 @@
             "verb": "GET",
             "path": "alumnos",
             "query": {
-                "q": "CINTA-F3BF17"
+                "q": "CINTA-16ADC7"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                         "nombre": "Niña de cinta",
-                        "matricula": "CINTA-F3BF17",
+                        "matricula": "CINTA-16ADC7",
                         "grupo": "3B",
                         "foto_url": null,
                         "tiene_cuenta": false,
@@ -1021,8 +1168,8 @@
                         "pide_pin": false,
                         "pedidos_hoy": [
                             {
-                                "id": "acd6ea61-b113-4178-ad86-bc683ea7e51d",
-                                "folio": 1,
+                                "id": "e158ae3d-a0a6-486e-8995-f20a4a2dd29c",
+                                "folio": 3,
                                 "total": "45.00",
                                 "estado": "cobrado",
                                 "resumen": "1× Torta de cinta",
@@ -1043,7 +1190,7 @@
         {
             "session": "escuela.cajero",
             "verb": "POST",
-            "path": "alumnos/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe/compras",
+            "path": "alumnos/6638fc3f-3204-4db6-9b53-73966c10c39f/compras",
             "body": {
                 "items": [
                     {
@@ -1073,7 +1220,7 @@
         {
             "session": "escuela.cliente",
             "verb": "PATCH",
-            "path": "tutelas/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+            "path": "tutelas/6638fc3f-3204-4db6-9b53-73966c10c39f",
             "body": {
                 "limite_diario": "60.00",
                 "umbral_saldo_bajo": null,
@@ -1088,18 +1235,18 @@
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-F3BF17",
+                    "matricula": "CINTA-16ADC7",
                     "tiene_cuenta": false,
                     "estado": "aprobada",
                     "requiere_consentimiento": false,
                     "soy_principal": true,
                     "tutores": [
                         {
-                            "tutela_id": "f6f8fbc8-9caa-469a-b33d-7271d96f9e71",
+                            "tutela_id": "4f954cc5-534a-4af2-82a2-03a416157fb4",
                             "nombre": "Vigía cliente",
                             "principal": true,
                             "eres_tu": true
@@ -1138,15 +1285,15 @@
             "verb": "GET",
             "path": "alumnos",
             "query": {
-                "q": "CINTA-F3BF17"
+                "q": "CINTA-16ADC7"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                        "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                         "nombre": "Niña de cinta",
-                        "matricula": "CINTA-F3BF17",
+                        "matricula": "CINTA-16ADC7",
                         "grupo": "3B",
                         "foto_url": null,
                         "tiene_cuenta": false,
@@ -1164,8 +1311,8 @@
                         "pide_pin": false,
                         "pedidos_hoy": [
                             {
-                                "id": "acd6ea61-b113-4178-ad86-bc683ea7e51d",
-                                "folio": 1,
+                                "id": "e158ae3d-a0a6-486e-8995-f20a4a2dd29c",
+                                "folio": 3,
                                 "total": "45.00",
                                 "estado": "cobrado",
                                 "resumen": "1× Torta de cinta",
@@ -1186,12 +1333,12 @@
         {
             "session": "escuela.cliente",
             "verb": "DELETE",
-            "path": "tutelas/1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+            "path": "tutelas/6638fc3f-3204-4db6-9b53-73966c10c39f",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "1c49e0d8-cbfc-4584-863e-4fbc91aa5cfe",
+                    "usuario_id": "6638fc3f-3204-4db6-9b53-73966c10c39f",
                     "activa": false
                 },
                 "meta": {

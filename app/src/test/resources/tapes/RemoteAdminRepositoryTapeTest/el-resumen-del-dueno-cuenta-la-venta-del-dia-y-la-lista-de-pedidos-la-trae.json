@@ -113,7 +113,7 @@
                         "cashback_otorgado": "0.00",
                         "ingreso_vaiinilla": "0.00",
                         "comision_vaiinilla": "0.00",
-                        "pedidos_cancelados": 5,
+                        "pedidos_cancelados": 8,
                         "productos_vendidos": 16,
                         "deducciones_totales": "0.00",
                         "cancelaciones_wallet": "0.00",
@@ -130,7 +130,7 @@
                             "producto_id": 211
                         }
                     ],
-                    "calculado_en": "2026-11-10T23:23:00.207049+00:00",
+                    "calculado_en": "2026-11-10T23:37:51.885039+00:00",
                     "metodos_pago": [
                         {
                             "metodo": "efectivo",
@@ -194,11 +194,11 @@
                         },
                         {
                             "estado": "entregado",
-                            "pedidos": 4
+                            "pedidos": 5
                         },
                         {
                             "estado": "cancelado",
-                            "pedidos": 5
+                            "pedidos": 8
                         },
                         {
                             "estado": "no_recogido",
@@ -253,6 +253,11 @@
                         {
                             "id": 115,
                             "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
                             "orden": 8
                         }
                     ],
@@ -310,8 +315,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
-                    "folio": 16,
+                    "id": "482f6b32-33f0-400f-9784-8d7548599334",
+                    "folio": 20,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "restaurante",
@@ -343,8 +348,8 @@
                     "pago_pendiente": false,
                     "invitado": false,
                     "version": 1,
-                    "creado_en": "2026-11-10T23:23:01.411Z",
-                    "actualizado_en": "2026-11-10T23:23:01.411Z",
+                    "creado_en": "2026-11-10T23:37:53.124Z",
+                    "actualizado_en": "2026-11-10T23:37:53.124Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -360,7 +365,7 @@
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 206,
+                            "id": 213,
                             "producto_id": 211,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -373,7 +378,7 @@
                         }
                     ],
                     "calificacion": null,
-                    "qr_token": "v1.6fe71ae325c1431a052144e613648fdba2d119ba61628c3d292815eae4327e38"
+                    "qr_token": "v1.0f6d2402b29595eb80dd18040d10283471f2590fe4df51e2271bf7a994069b0f"
                 },
                 "meta": {
                     "page": null,
@@ -387,7 +392,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "pedidos/f5141c44-5880-4e5f-8218-7d2b13ad276c/cobros-efectivo",
+            "path": "pedidos/482f6b32-33f0-400f-9784-8d7548599334/cobros-efectivo",
             "body": {
                 "monto_recibido": "45.00",
                 "version_esperada": 1
@@ -397,8 +402,8 @@
             "response": {
                 "data": {
                     "pedido": {
-                        "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
-                        "folio": 16,
+                        "id": "482f6b32-33f0-400f-9784-8d7548599334",
+                        "folio": 20,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -435,8 +440,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 2,
-                        "creado_en": "2026-11-10T23:23:01.411Z",
-                        "actualizado_en": "2026-11-10T23:23:02.167Z",
+                        "creado_en": "2026-11-10T23:37:53.124Z",
+                        "actualizado_en": "2026-11-10T23:37:54.047Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -456,7 +461,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 206,
+                                "id": 213,
                                 "producto_id": 211,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -535,7 +540,7 @@
                         "cashback_otorgado": "0.00",
                         "ingreso_vaiinilla": "0.00",
                         "comision_vaiinilla": "0.00",
-                        "pedidos_cancelados": 5,
+                        "pedidos_cancelados": 8,
                         "productos_vendidos": 17,
                         "deducciones_totales": "0.00",
                         "cancelaciones_wallet": "0.00",
@@ -552,7 +557,7 @@
                             "producto_id": 211
                         }
                     ],
-                    "calculado_en": "2026-11-10T23:23:03.22787+00:00",
+                    "calculado_en": "2026-11-10T23:37:54.786873+00:00",
                     "metodos_pago": [
                         {
                             "metodo": "efectivo",
@@ -616,11 +621,11 @@
                         },
                         {
                             "estado": "entregado",
-                            "pedidos": 4
+                            "pedidos": 5
                         },
                         {
                             "estado": "cancelado",
-                            "pedidos": 5
+                            "pedidos": 8
                         },
                         {
                             "estado": "no_recogido",
@@ -969,8 +974,8 @@
                         "calificacion": null
                     },
                     {
-                        "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
-                        "folio": 16,
+                        "id": "482f6b32-33f0-400f-9784-8d7548599334",
+                        "folio": 20,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -1007,8 +1012,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 2,
-                        "creado_en": "2026-11-10T23:23:01.411Z",
-                        "actualizado_en": "2026-11-10T23:23:02.167Z",
+                        "creado_en": "2026-11-10T23:37:53.124Z",
+                        "actualizado_en": "2026-11-10T23:37:54.047Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -1028,7 +1033,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 206,
+                                "id": 213,
                                 "producto_id": 211,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -1055,7 +1060,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "pedidos/f5141c44-5880-4e5f-8218-7d2b13ad276c/cancelaciones",
+            "path": "pedidos/482f6b32-33f0-400f-9784-8d7548599334/cancelaciones",
             "body": {
                 "version_esperada": 2,
                 "motivo": "Grabación"
@@ -1065,8 +1070,8 @@
             "response": {
                 "data": {
                     "pedido": {
-                        "id": "f5141c44-5880-4e5f-8218-7d2b13ad276c",
-                        "folio": 16,
+                        "id": "482f6b32-33f0-400f-9784-8d7548599334",
+                        "folio": 20,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -1103,8 +1108,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 3,
-                        "creado_en": "2026-11-10T23:23:01.411Z",
-                        "actualizado_en": "2026-11-10T23:23:04.459Z",
+                        "creado_en": "2026-11-10T23:37:53.124Z",
+                        "actualizado_en": "2026-11-10T23:37:56.184Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": "Grabación",
@@ -1124,7 +1129,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 206,
+                                "id": 213,
                                 "producto_id": 211,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,

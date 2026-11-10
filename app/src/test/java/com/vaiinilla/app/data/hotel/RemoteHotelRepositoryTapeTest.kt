@@ -236,16 +236,19 @@ class RemoteHotelRepositoryTapeTest {
         val today =
             reception
                 .checkIn(
-                    draft.copy(checkIn = day("hoy", 0), checkOut = day("mañana", 1)),
+                    draft.copy(checkIn = day("mañana", 1), checkOut = day("pasado", 2)),
                     key(),
                 ).getOrThrow()
-        val arrived =
-            if (today.status == StayStatus.RESERVED) {
-                reception.confirmArrival(today.id, today.version, key()).getOrThrow()
-            } else {
-                today
-            }
+        assertEquals(StayStatus.RESERVED, today.status)
+        val arrived = reception.confirmArrival(today.id, today.version, key()).getOrThrow()
         assertEquals(StayStatus.IN_HOUSE, arrived.status)
+        assertTrue(
+            reception
+                .rooms()
+                .getOrThrow()
+                .single { it.id == room.id }
+                .occupied,
+        )
 
         val admin = hotel("admin")
         val summary = admin.summary().getOrThrow()
