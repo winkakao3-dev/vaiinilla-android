@@ -1,6 +1,9 @@
 {
     "values": {
-        "insumo": "Frijol de cinta 8049e1"
+        "compra": "621a54b2-5358-4777-acd4-192aed258131",
+        "insumo": "Frijol de cinta d16614",
+        "movimiento-1": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+        "movimiento-2": "0b1b4a44-969f-4087-a481-87ffcf078630"
     },
     "exchanges": [
         {
@@ -8,7 +11,7 @@
             "verb": "POST",
             "path": "inventario/insumos",
             "body": {
-                "nombre": "Frijol de cinta 8049e1",
+                "nombre": "Frijol de cinta d16614",
                 "categoria": "Abarrotes",
                 "unidad": "kg",
                 "minimo": 2.0,
@@ -20,8 +23,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": 73,
-                    "nombre": "Frijol de cinta 8049e1",
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
                     "categoria": "Abarrotes",
                     "unidad": "kg",
                     "existencia": 5,
@@ -33,7 +36,7 @@
                     "proveedor_nombre": "Don Beto",
                     "proveedor_telefono": "6140000000",
                     "productos_que_lo_usan": 0,
-                    "actualizado_en": "2026-11-10T23:18:48.626Z"
+                    "actualizado_en": "2026-11-10T23:43:56.763Z"
                 },
                 "meta": {
                     "page": null,
@@ -47,9 +50,9 @@
         {
             "session": "restaurante.admin",
             "verb": "PATCH",
-            "path": "inventario/insumos/73",
+            "path": "inventario/insumos/74",
             "body": {
-                "nombre": "Frijol de cinta 8049e1",
+                "nombre": "Frijol de cinta d16614",
                 "categoria": "Abarrotes",
                 "unidad": "kg",
                 "minimo": 6.0,
@@ -60,8 +63,8 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": 73,
-                    "nombre": "Frijol de cinta 8049e1",
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
                     "categoria": "Abarrotes",
                     "unidad": "kg",
                     "existencia": 5,
@@ -73,7 +76,7 @@
                     "proveedor_nombre": "Don Beto",
                     "proveedor_telefono": "6140000000",
                     "productos_que_lo_usan": 0,
-                    "actualizado_en": "2026-11-10T23:18:49.222Z"
+                    "actualizado_en": "2026-11-10T23:43:57.373Z"
                 },
                 "meta": {
                     "page": null,
@@ -89,8 +92,8 @@
             "verb": "POST",
             "path": "inventario/movimientos",
             "body": {
-                "id": "6c1056a3-4f96-4231-af07-95d6d279aa24",
-                "insumo_id": 73,
+                "id": "621a54b2-5358-4777-acd4-192aed258131",
+                "insumo_id": 74,
                 "tipo": "entrada",
                 "cantidad": 10.0,
                 "costo_unitario": 32.0,
@@ -99,8 +102,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "6c1056a3-4f96-4231-af07-95d6d279aa24",
-                    "insumo_id": 73,
+                    "id": "621a54b2-5358-4777-acd4-192aed258131",
+                    "insumo_id": 74,
                     "tipo": "entrada",
                     "cantidad": 10,
                     "existencia": 15,
@@ -120,8 +123,8 @@
             "verb": "POST",
             "path": "inventario/movimientos",
             "body": {
-                "id": "6c1056a3-4f96-4231-af07-95d6d279aa24",
-                "insumo_id": 73,
+                "id": "621a54b2-5358-4777-acd4-192aed258131",
+                "insumo_id": 74,
                 "tipo": "entrada",
                 "cantidad": 10.0,
                 "costo_unitario": 32.0,
@@ -130,8 +133,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "6c1056a3-4f96-4231-af07-95d6d279aa24",
-                    "insumo_id": 73,
+                    "id": "621a54b2-5358-4777-acd4-192aed258131",
+                    "insumo_id": 74,
                     "tipo": "entrada",
                     "cantidad": 10,
                     "existencia": 15,
@@ -151,8 +154,8 @@
             "verb": "POST",
             "path": "inventario/movimientos",
             "body": {
-                "id": "d576bb59-09c7-458d-9a62-f84b53c8aa64",
-                "insumo_id": 73,
+                "id": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+                "insumo_id": 74,
                 "tipo": "merma",
                 "cantidad": 1.0,
                 "nota": "Se cayó"
@@ -160,8 +163,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "d576bb59-09c7-458d-9a62-f84b53c8aa64",
-                    "insumo_id": 73,
+                    "id": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+                    "insumo_id": 74,
                     "tipo": "merma",
                     "cantidad": -1,
                     "existencia": 14,
@@ -184,8 +187,8 @@
                 "nota": "Conteo de cierre",
                 "conteos": [
                     {
-                        "id": "1b9215ed-a8c0-4633-a097-c238a1326a96",
-                        "insumo_id": 73,
+                        "id": "0b1b4a44-969f-4087-a481-87ffcf078630",
+                        "insumo_id": 74,
                         "cantidad": 13.5
                     }
                 ]
@@ -195,8 +198,8 @@
                 "data": {
                     "resultados": [
                         {
-                            "id": "1b9215ed-a8c0-4633-a097-c238a1326a96",
-                            "insumo_id": 73,
+                            "id": "0b1b4a44-969f-4087-a481-87ffcf078630",
+                            "insumo_id": 74,
                             "tipo": "conteo",
                             "cantidad": -0.5,
                             "existencia": 13.5,
@@ -223,8 +226,8 @@
                 "data": {
                     "insumos": [
                         {
-                            "id": 73,
-                            "nombre": "Frijol de cinta 8049e1",
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
                             "categoria": "Abarrotes",
                             "unidad": "kg",
                             "existencia": 13.5,
@@ -236,7 +239,7 @@
                             "proveedor_nombre": "Don Beto",
                             "proveedor_telefono": "6140000000",
                             "productos_que_lo_usan": 0,
-                            "actualizado_en": "2026-11-10T23:18:51.303Z"
+                            "actualizado_en": "2026-11-10T23:43:59.466Z"
                         }
                     ],
                     "resumen": {
@@ -267,9 +270,29 @@
                 "data": {
                     "categorias": [
                         {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
                             "id": 112,
                             "nombre": "Cintas",
                             "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
+                            "orden": 8
                         }
                     ],
                     "productos": [
@@ -311,7 +334,7 @@
             "body": {
                 "lineas": [
                     {
-                        "insumo_id": 73,
+                        "insumo_id": 74,
                         "cantidad": 0.25
                     }
                 ]
@@ -322,9 +345,9 @@
                     "producto_id": 211,
                     "lineas": [
                         {
-                            "id": 340,
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": 342,
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "cantidad": 0.25,
                             "opcion_id": null,
@@ -353,9 +376,9 @@
                     "producto_id": 211,
                     "lineas": [
                         {
-                            "id": 340,
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": 342,
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "cantidad": 0.25,
                             "opcion_id": null,
@@ -408,7 +431,7 @@
         {
             "session": "restaurante.admin",
             "verb": "GET",
-            "path": "inventario/insumos/73/productos",
+            "path": "inventario/insumos/74/productos",
             "status": 200,
             "response": {
                 "data": [
@@ -432,7 +455,7 @@
         {
             "session": "restaurante.admin",
             "verb": "PUT",
-            "path": "inventario/insumos/73/productos",
+            "path": "inventario/insumos/74/productos",
             "body": {
                 "productos": [
                     {
@@ -501,7 +524,7 @@
                     "cierre_automatico": false,
                     "umbral_alerta_horas": 24,
                     "excede_umbral": false,
-                    "efectivo_esperado": "860.00",
+                    "efectivo_esperado": "1085.00",
                     "ultimo_cierre": {
                         "monto_final": "730.00",
                         "cerrada_en": "2026-11-10T23:12:35.431Z",
@@ -541,8 +564,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "9d131a2f-9597-4661-aa06-263506c30451",
-                    "folio": 14,
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "restaurante",
@@ -574,8 +597,8 @@
                     "pago_pendiente": false,
                     "invitado": false,
                     "version": 1,
-                    "creado_en": "2026-11-10T23:18:57.637Z",
-                    "actualizado_en": "2026-11-10T23:18:57.637Z",
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:05.436Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -591,7 +614,7 @@
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 204,
+                            "id": 224,
                             "producto_id": 211,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -604,7 +627,7 @@
                         }
                     ],
                     "calificacion": null,
-                    "qr_token": "v1.cd522f282ff67c9e493afe31450eace40696c10e63db956d0fb6ac11fe603aaf"
+                    "qr_token": "v1.c84e2a1bdc03bffc4c36e212d20ab7f2f9497658c39310fa9fc6cc5ae1fd14ac"
                 },
                 "meta": {
                     "page": null,
@@ -618,7 +641,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "pedidos/9d131a2f-9597-4661-aa06-263506c30451/cobros-efectivo",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/cobros-efectivo",
             "body": {
                 "monto_recibido": "90.00",
                 "version_esperada": 1
@@ -628,8 +651,8 @@
             "response": {
                 "data": {
                     "pedido": {
-                        "id": "9d131a2f-9597-4661-aa06-263506c30451",
-                        "folio": 14,
+                        "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                        "folio": 25,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -666,8 +689,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 2,
-                        "creado_en": "2026-11-10T23:18:57.637Z",
-                        "actualizado_en": "2026-11-10T23:18:58.555Z",
+                        "creado_en": "2026-11-10T23:44:05.436Z",
+                        "actualizado_en": "2026-11-10T23:44:06.309Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -687,7 +710,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 204,
+                                "id": 224,
                                 "producto_id": 211,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -716,7 +739,7 @@
         {
             "session": "restaurante.cocina",
             "verb": "POST",
-            "path": "pedidos/9d131a2f-9597-4661-aa06-263506c30451/transiciones",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/transiciones",
             "body": {
                 "estado_objetivo": "preparando",
                 "version_esperada": 2
@@ -725,8 +748,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "9d131a2f-9597-4661-aa06-263506c30451",
-                    "folio": 14,
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "restaurante",
@@ -763,8 +786,8 @@
                     "pago_pendiente": false,
                     "invitado": false,
                     "version": 3,
-                    "creado_en": "2026-11-10T23:18:57.637Z",
-                    "actualizado_en": "2026-11-10T23:18:59.341Z",
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:07.008Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -784,7 +807,7 @@
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 204,
+                            "id": 224,
                             "producto_id": 211,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -809,7 +832,7 @@
         {
             "session": "restaurante.cocina",
             "verb": "POST",
-            "path": "pedidos/9d131a2f-9597-4661-aa06-263506c30451/transiciones",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/transiciones",
             "body": {
                 "estado_objetivo": "listo",
                 "version_esperada": 3
@@ -818,8 +841,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "9d131a2f-9597-4661-aa06-263506c30451",
-                    "folio": 14,
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "restaurante",
@@ -856,8 +879,8 @@
                     "pago_pendiente": false,
                     "invitado": false,
                     "version": 4,
-                    "creado_en": "2026-11-10T23:18:57.637Z",
-                    "actualizado_en": "2026-11-10T23:18:59.958Z",
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:07.641Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -872,12 +895,12 @@
                     "reserva": null,
                     "llegada_en": null,
                     "minutos_estimados": 5,
-                    "listo_en": "2026-11-10T23:18:59.958Z",
+                    "listo_en": "2026-11-10T23:44:07.641Z",
                     "entregado_en": null,
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 204,
+                            "id": 224,
                             "producto_id": 211,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -902,7 +925,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "pedidos/9d131a2f-9597-4661-aa06-263506c30451/transiciones",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/transiciones",
             "body": {
                 "estado_objetivo": "entregado",
                 "version_esperada": 4
@@ -911,8 +934,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "9d131a2f-9597-4661-aa06-263506c30451",
-                    "folio": 14,
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "restaurante",
@@ -949,8 +972,8 @@
                     "pago_pendiente": false,
                     "invitado": false,
                     "version": 5,
-                    "creado_en": "2026-11-10T23:18:57.637Z",
-                    "actualizado_en": "2026-11-10T23:19:00.543Z",
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:08.173Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -965,12 +988,12 @@
                     "reserva": null,
                     "llegada_en": null,
                     "minutos_estimados": 5,
-                    "listo_en": "2026-11-10T23:18:59.958Z",
-                    "entregado_en": "2026-11-10T23:19:00.543Z",
+                    "listo_en": "2026-11-10T23:44:07.641Z",
+                    "entregado_en": "2026-11-10T23:44:08.173Z",
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 204,
+                            "id": 224,
                             "producto_id": 211,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -1001,8 +1024,8 @@
                 "data": {
                     "insumos": [
                         {
-                            "id": 73,
-                            "nombre": "Frijol de cinta 8049e1",
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
                             "categoria": "Abarrotes",
                             "unidad": "kg",
                             "existencia": 12.5,
@@ -1014,7 +1037,7 @@
                             "proveedor_nombre": "Don Beto",
                             "proveedor_telefono": "6140000000",
                             "productos_que_lo_usan": 1,
-                            "actualizado_en": "2026-11-10T23:18:58.555Z"
+                            "actualizado_en": "2026-11-10T23:44:06.309Z"
                         }
                     ],
                     "resumen": {
@@ -1041,19 +1064,19 @@
             "verb": "GET",
             "path": "inventario/movimientos",
             "query": {
-                "insumo_id": "73",
+                "insumo_id": "74",
                 "limite": "300"
             },
             "status": 200,
             "response": {
                 "data": {
-                    "desde": "2026-11-09T23:19:01.894Z",
-                    "hasta": "2026-11-10T23:19:01.894Z",
+                    "desde": "2026-11-09T23:44:09.296Z",
+                    "hasta": "2026-11-10T23:44:09.296Z",
                     "movimientos": [
                         {
-                            "id": "1ce267d8-fc41-45c9-bdf3-2a0fee13dab7",
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": "85aa1e08-1cd9-4ddb-9202-5f93f994949c",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "tipo": "venta",
                             "cantidad": -1,
@@ -1061,15 +1084,15 @@
                             "existencia_esperada": null,
                             "costo_unitario": null,
                             "nota": null,
-                            "pedido_id": "9d131a2f-9597-4661-aa06-263506c30451",
-                            "folio": 14,
+                            "pedido_id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                            "folio": 25,
                             "registrado_por": null,
-                            "creado_en": "2026-11-10T23:18:58.555Z"
+                            "creado_en": "2026-11-10T23:44:06.309Z"
                         },
                         {
-                            "id": "1b9215ed-a8c0-4633-a097-c238a1326a96",
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": "0b1b4a44-969f-4087-a481-87ffcf078630",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "tipo": "conteo",
                             "cantidad": -0.5,
@@ -1080,12 +1103,12 @@
                             "pedido_id": null,
                             "folio": null,
                             "registrado_por": "Vigía admin",
-                            "creado_en": "2026-11-10T23:18:51.303Z"
+                            "creado_en": "2026-11-10T23:43:59.466Z"
                         },
                         {
-                            "id": "d576bb59-09c7-458d-9a62-f84b53c8aa64",
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "tipo": "merma",
                             "cantidad": -1,
@@ -1096,12 +1119,12 @@
                             "pedido_id": null,
                             "folio": null,
                             "registrado_por": "Vigía admin",
-                            "creado_en": "2026-11-10T23:18:50.782Z"
+                            "creado_en": "2026-11-10T23:43:58.963Z"
                         },
                         {
-                            "id": "6c1056a3-4f96-4231-af07-95d6d279aa24",
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": "621a54b2-5358-4777-acd4-192aed258131",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "tipo": "entrada",
                             "cantidad": 10,
@@ -1112,12 +1135,12 @@
                             "pedido_id": null,
                             "folio": null,
                             "registrado_por": "Vigía admin",
-                            "creado_en": "2026-11-10T23:18:49.748Z"
+                            "creado_en": "2026-11-10T23:43:57.913Z"
                         },
                         {
-                            "id": "4b381818-2e72-4fac-ac06-4ad6d54cb85a",
-                            "insumo_id": 73,
-                            "insumo": "Frijol de cinta 8049e1",
+                            "id": "1d950e5a-f9f4-4876-8eb3-01d65f228865",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "tipo": "inicial",
                             "cantidad": 5,
@@ -1128,7 +1151,7 @@
                             "pedido_id": null,
                             "folio": null,
                             "registrado_por": "Vigía admin",
-                            "creado_en": "2026-11-10T23:18:48.626Z"
+                            "creado_en": "2026-11-10T23:43:56.763Z"
                         }
                     ]
                 },
@@ -1148,12 +1171,30 @@
             "status": 200,
             "response": {
                 "data": {
-                    "desde": "2026-11-09T23:19:02.527Z",
-                    "hasta": "2026-11-10T23:19:02.527Z",
+                    "desde": "2026-11-09T23:44:09.809Z",
+                    "hasta": "2026-11-10T23:44:09.809Z",
                     "insumos": [
                         {
                             "id": 73,
                             "nombre": "Frijol de cinta 8049e1",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "inicial": 5,
+                            "entradas": 10,
+                            "vendido": 1,
+                            "mermas": 1,
+                            "diferencias": -0.5,
+                            "final": 12.5,
+                            "actual": 12.5,
+                            "bajo_minimo": false,
+                            "costo_vendido": 30,
+                            "costo_mermas": 30,
+                            "costo_diferencias": -15,
+                            "compras_monto": 320
+                        },
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
                             "categoria": "Abarrotes",
                             "unidad": "kg",
                             "inicial": 5,
@@ -1171,10 +1212,10 @@
                         }
                     ],
                     "totales": {
-                        "costo_vendido": 31.33,
-                        "costo_mermas": 31.33,
-                        "costo_diferencias": -15.67,
-                        "compras_monto": 320,
+                        "costo_vendido": 61.33,
+                        "costo_mermas": 61.33,
+                        "costo_diferencias": -30.67,
+                        "compras_monto": 640,
                         "bajo_minimo": 0
                     }
                 },
@@ -1190,9 +1231,9 @@
         {
             "session": "restaurante.admin",
             "verb": "PATCH",
-            "path": "inventario/insumos/73",
+            "path": "inventario/insumos/74",
             "body": {
-                "nombre": "Frijol de cinta 8049e1",
+                "nombre": "Frijol de cinta d16614",
                 "categoria": "Abarrotes",
                 "unidad": "kg",
                 "minimo": 20.0,
@@ -1203,8 +1244,8 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": 73,
-                    "nombre": "Frijol de cinta 8049e1",
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
                     "categoria": "Abarrotes",
                     "unidad": "kg",
                     "existencia": 12.5,
@@ -1216,7 +1257,7 @@
                     "proveedor_nombre": "Don Beto",
                     "proveedor_telefono": "6140000000",
                     "productos_que_lo_usan": 1,
-                    "actualizado_en": "2026-11-10T23:19:03.044Z"
+                    "actualizado_en": "2026-11-10T23:44:10.323Z"
                 },
                 "meta": {
                     "page": null,
@@ -1239,8 +1280,8 @@
                     "agotados": [],
                     "bajo_minimo": [
                         {
-                            "id": 73,
-                            "nombre": "Frijol de cinta 8049e1",
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
                             "unidad": "kg",
                             "existencia": 12.5,
                             "minimo": 20,
@@ -1293,8 +1334,8 @@
                 "data": {
                     "insumos": [
                         {
-                            "id": 73,
-                            "nombre": "Frijol de cinta 8049e1",
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
                             "categoria": "Abarrotes",
                             "unidad": "kg",
                             "existencia": 12.5,
@@ -1306,7 +1347,7 @@
                             "proveedor_nombre": "Don Beto",
                             "proveedor_telefono": "6140000000",
                             "productos_que_lo_usan": 1,
-                            "actualizado_en": "2026-11-10T23:19:03.044Z"
+                            "actualizado_en": "2026-11-10T23:44:10.323Z"
                         }
                     ],
                     "resumen": {
@@ -1358,8 +1399,8 @@
                 "data": {
                     "insumos": [
                         {
-                            "id": 73,
-                            "nombre": "Frijol de cinta 8049e1",
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
                             "categoria": "Abarrotes",
                             "unidad": "kg",
                             "existencia": 12.5,
@@ -1369,7 +1410,7 @@
                             "proveedor_nombre": "Don Beto",
                             "proveedor_telefono": "6140000000",
                             "productos_que_lo_usan": 1,
-                            "actualizado_en": "2026-11-10T23:19:03.044Z"
+                            "actualizado_en": "2026-11-10T23:44:10.323Z"
                         }
                     ],
                     "resumen": {
@@ -1415,9 +1456,9 @@
         {
             "session": "restaurante.admin",
             "verb": "PATCH",
-            "path": "inventario/insumos/73",
+            "path": "inventario/insumos/74",
             "body": {
-                "nombre": "Frijol de cinta 8049e1",
+                "nombre": "Frijol de cinta d16614",
                 "categoria": "Abarrotes",
                 "unidad": "kg",
                 "minimo": 2.0,
@@ -1429,8 +1470,8 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": 73,
-                    "nombre": "Frijol de cinta 8049e1",
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
                     "categoria": "Abarrotes",
                     "unidad": "kg",
                     "existencia": 12.5,
@@ -1442,7 +1483,7 @@
                     "proveedor_nombre": "Don Beto",
                     "proveedor_telefono": "6140000000",
                     "productos_que_lo_usan": 0,
-                    "actualizado_en": "2026-11-10T23:19:06.819Z"
+                    "actualizado_en": "2026-11-10T23:44:14.037Z"
                 },
                 "meta": {
                     "page": null,

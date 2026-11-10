@@ -1,6 +1,6 @@
 {
     "values": {
-        "matricula": "CINTA-143975"
+        "matricula": "CINTA-126990"
     },
     "exchanges": [
         {
@@ -321,7 +321,7 @@
             "path": "tutelas/dependientes",
             "body": {
                 "nombre": "Niña de cinta",
-                "matricula": "CINTA-143975",
+                "matricula": "CINTA-126990",
                 "grupo": "3B",
                 "consentimiento_version": "2026-10-21"
             },
@@ -329,11 +329,11 @@
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-143975",
+                    "matricula": "CINTA-126990",
                     "tiene_cuenta": false,
                     "estado": "pendiente",
                     "requiere_consentimiento": false,
@@ -357,16 +357,16 @@
             "response": {
                 "data": [
                     {
-                        "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
-                        "creado_en": "2026-11-10T23:41:00.492Z",
+                        "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
+                        "creado_en": "2026-11-10T23:44:33.983Z",
                         "tutor": {
                             "nombre": "Vigía cliente",
                             "email": null
                         },
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B",
                             "tiene_cuenta": false
                         },
@@ -386,13 +386,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/ca92e81e-779b-471b-9dad-9299a1508a7f/aprobar",
+            "path": "solicitudes-tutela/22d08690-aa62-4aa4-bddb-a241b2752c00/aprobar",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                    "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                     "estado": "aprobada"
                 },
                 "meta": {
@@ -412,18 +412,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                                "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -459,7 +459,7 @@
         {
             "session": "escuela.cliente",
             "verb": "PUT",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/pin",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/pin",
             "body": {
                 "pin": "4821"
             },
@@ -486,18 +486,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                                "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -535,15 +535,15 @@
             "verb": "GET",
             "path": "alumnos",
             "query": {
-                "q": "CINTA-143975"
+                "q": "CINTA-126990"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "grupo": "3B",
                         "foto_url": null,
                         "tiene_cuenta": false,
@@ -572,7 +572,7 @@
         {
             "session": "escuela.cajero",
             "verb": "POST",
-            "path": "alumnos/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/credenciales",
+            "path": "alumnos/d518239d-0a54-45fa-ba77-e8beb37c0947/credenciales",
             "body": {
                 "tipo": "qr"
             },
@@ -581,10 +581,10 @@
             "response": {
                 "data": {
                     "credencial": {
-                        "id": "c9bb980f-26bb-42fb-9471-ea98271d0bb0",
+                        "id": "3063dcdb-a88c-48fc-a58d-73e9fa5f3472",
                         "tipo": "qr",
-                        "creado_en": "2026-11-10T23:41:04.924Z",
-                        "valor": "vaiinilla:alumno:I2d-l27GhjkTpf6r8wZiHwZ2"
+                        "creado_en": "2026-11-10T23:44:37.840Z",
+                        "valor": "vaiinilla:alumno:Mu0W2IE1Sd7O-zsTKIfpp23S"
                     }
                 },
                 "meta": {
@@ -601,15 +601,15 @@
             "verb": "GET",
             "path": "alumnos",
             "query": {
-                "credencial": "vaiinilla:alumno:I2d-l27GhjkTpf6r8wZiHwZ2"
+                "credencial": "vaiinilla:alumno:Mu0W2IE1Sd7O-zsTKIfpp23S"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "grupo": "3B",
                         "foto_url": null,
                         "tiene_cuenta": false,
@@ -638,7 +638,7 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/credenciales/bloquear",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/credenciales/bloquear",
             "idempotent": true,
             "status": 200,
             "response": {
@@ -657,7 +657,7 @@
         {
             "session": "escuela.cliente",
             "verb": "DELETE",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/pin",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/pin",
             "idempotent": true,
             "status": 200,
             "response": {
@@ -681,18 +681,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                                "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -1040,13 +1040,13 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/codigo-tutor",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/codigo-tutor",
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "codigo": "RQNKZK",
-                    "vence_en": "2026-11-11T23:41:10.952Z"
+                    "codigo": "E2JDZ6",
+                    "vence_en": "2026-11-11T23:44:43.289Z"
                 },
                 "meta": {
                     "page": null,
@@ -1062,18 +1062,18 @@
             "verb": "POST",
             "path": "tutelas/vincular",
             "body": {
-                "codigo": "RQNKZK",
+                "codigo": "E2JDZ6",
                 "consentimiento_version": "2026-10-21"
             },
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-143975",
+                    "matricula": "CINTA-126990",
                     "tiene_cuenta": false,
                     "estado": "pendiente",
                     "requiere_consentimiento": false,
@@ -1097,16 +1097,16 @@
             "response": {
                 "data": [
                     {
-                        "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
-                        "creado_en": "2026-11-10T23:41:11.526Z",
+                        "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
+                        "creado_en": "2026-11-10T23:44:43.805Z",
                         "tutor": {
                             "nombre": "Vigía cliente2",
                             "email": null
                         },
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B",
                             "tiene_cuenta": false
                         },
@@ -1126,13 +1126,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/3f9f5914-a276-42f2-abaf-524db95ca2a3/aprobar",
+            "path": "solicitudes-tutela/83be4775-a3cb-437c-b57a-89b60eb6f600/aprobar",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                    "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                     "estado": "aprobada"
                 },
                 "meta": {
@@ -1152,24 +1152,24 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                                "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
                             },
                             {
-                                "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                                "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                                 "nombre": "Vigía cliente2",
                                 "principal": false,
                                 "eres_tu": false
@@ -1205,29 +1205,29 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/tutores/3f9f5914-a276-42f2-abaf-524db95ca2a3/principal",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/tutores/83be4775-a3cb-437c-b57a-89b60eb6f600/principal",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-143975",
+                    "matricula": "CINTA-126990",
                     "tiene_cuenta": false,
                     "estado": "aprobada",
                     "requiere_consentimiento": false,
                     "soy_principal": false,
                     "tutores": [
                         {
-                            "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                            "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                             "nombre": "Vigía cliente2",
                             "principal": true,
                             "eres_tu": false
                         },
                         {
-                            "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                            "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                             "nombre": "Vigía cliente",
                             "principal": false,
                             "eres_tu": true
@@ -1264,17 +1264,17 @@
             "verb": "GET",
             "path": "solicitudes-tutela/tutores",
             "query": {
-                "q": "CINTA-143975"
+                "q": "CINTA-126990"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                        "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1284,11 +1284,11 @@
                         "principal": true
                     },
                     {
-                        "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                        "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1310,13 +1310,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/ca92e81e-779b-471b-9dad-9299a1508a7f/principal",
+            "path": "solicitudes-tutela/22d08690-aa62-4aa4-bddb-a241b2752c00/principal",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f"
+                    "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00"
                 },
                 "meta": {
                     "page": null,
@@ -1335,24 +1335,24 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                        "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-143975",
+                        "matricula": "CINTA-126990",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                                "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
                             },
                             {
-                                "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                                "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                                 "nombre": "Vigía cliente2",
                                 "principal": false,
                                 "eres_tu": false
@@ -1388,23 +1388,23 @@
         {
             "session": "escuela.cliente",
             "verb": "DELETE",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/tutores/3f9f5914-a276-42f2-abaf-524db95ca2a3",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/tutores/83be4775-a3cb-437c-b57a-89b60eb6f600",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-143975",
+                    "matricula": "CINTA-126990",
                     "tiene_cuenta": false,
                     "estado": "aprobada",
                     "requiere_consentimiento": false,
                     "soy_principal": true,
                     "tutores": [
                         {
-                            "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                            "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                             "nombre": "Vigía cliente",
                             "principal": true,
                             "eres_tu": true
@@ -1455,13 +1455,13 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/codigo-tutor",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/codigo-tutor",
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "codigo": "KDR6HM",
-                    "vence_en": "2026-11-11T23:41:17.570Z"
+                    "codigo": "JWA4JC",
+                    "vence_en": "2026-11-11T23:44:49.065Z"
                 },
                 "meta": {
                     "page": null,
@@ -1477,18 +1477,18 @@
             "verb": "POST",
             "path": "tutelas/vincular",
             "body": {
-                "codigo": "KDR6HM",
+                "codigo": "JWA4JC",
                 "consentimiento_version": "2026-10-21"
             },
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-143975",
+                    "matricula": "CINTA-126990",
                     "tiene_cuenta": false,
                     "estado": "pendiente",
                     "requiere_consentimiento": false,
@@ -1512,16 +1512,16 @@
             "response": {
                 "data": [
                     {
-                        "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
-                        "creado_en": "2026-11-10T23:41:11.526Z",
+                        "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
+                        "creado_en": "2026-11-10T23:44:43.805Z",
                         "tutor": {
                             "nombre": "Vigía cliente2",
                             "email": null
                         },
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B",
                             "tiene_cuenta": false
                         },
@@ -1541,13 +1541,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/3f9f5914-a276-42f2-abaf-524db95ca2a3/aprobar",
+            "path": "solicitudes-tutela/83be4775-a3cb-437c-b57a-89b60eb6f600/aprobar",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                    "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                     "estado": "aprobada"
                 },
                 "meta": {
@@ -1564,17 +1564,17 @@
             "verb": "GET",
             "path": "solicitudes-tutela/tutores",
             "query": {
-                "q": "CINTA-143975"
+                "q": "CINTA-126990"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                        "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1584,11 +1584,11 @@
                         "principal": true
                     },
                     {
-                        "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                        "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1612,17 +1612,17 @@
             "verb": "GET",
             "path": "solicitudes-tutela/tutores",
             "query": {
-                "q": "CINTA-143975"
+                "q": "CINTA-126990"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                        "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1632,11 +1632,11 @@
                         "principal": true
                     },
                     {
-                        "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3",
+                        "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1658,13 +1658,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/3f9f5914-a276-42f2-abaf-524db95ca2a3/quitar",
+            "path": "solicitudes-tutela/83be4775-a3cb-437c-b57a-89b60eb6f600/quitar",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "3f9f5914-a276-42f2-abaf-524db95ca2a3"
+                    "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600"
                 },
                 "meta": {
                     "page": null,
@@ -1680,17 +1680,158 @@
             "verb": "GET",
             "path": "solicitudes-tutela/tutores",
             "query": {
-                "q": "CINTA-143975"
+                "q": "CINTA-126990"
             },
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "tutela_id": "ca92e81e-779b-471b-9dad-9299a1508a7f",
+                        "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
                         "alumno": {
-                            "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-143975",
+                            "matricula": "CINTA-126990",
+                            "grupo": "3B"
+                        },
+                        "tutor": {
+                            "nombre": "Vigía cliente",
+                            "email": null
+                        },
+                        "principal": true
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente",
+            "verb": "POST",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/codigo-tutor",
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "codigo": "KZ4PG2",
+                    "vence_en": "2026-11-11T23:44:53.264Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cliente2",
+            "verb": "POST",
+            "path": "tutelas/vincular",
+            "body": {
+                "codigo": "KZ4PG2",
+                "consentimiento_version": "2026-10-21"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
+                    "nombre": "Niña de cinta",
+                    "grupo": "3B",
+                    "foto_url": null,
+                    "matricula": "CINTA-126990",
+                    "tiene_cuenta": false,
+                    "estado": "pendiente",
+                    "requiere_consentimiento": false,
+                    "saldo": null,
+                    "controles": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "solicitudes-tutela",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
+                        "creado_en": "2026-11-10T23:44:43.805Z",
+                        "tutor": {
+                            "nombre": "Vigía cliente2",
+                            "email": null
+                        },
+                        "alumno": {
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
+                            "nombre": "Niña de cinta",
+                            "matricula": "CINTA-126990",
+                            "grupo": "3B",
+                            "tiene_cuenta": false
+                        },
+                        "en_padron": false,
+                        "otros_tutores": 1
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "POST",
+            "path": "solicitudes-tutela/83be4775-a3cb-437c-b57a-89b60eb6f600/rechazar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tutela_id": "83be4775-a3cb-437c-b57a-89b60eb6f600",
+                    "estado": "rechazada"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "solicitudes-tutela/tutores",
+            "query": {
+                "q": "CINTA-126990"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "tutela_id": "22d08690-aa62-4aa4-bddb-a241b2752c00",
+                        "alumno": {
+                            "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
+                            "nombre": "Niña de cinta",
+                            "matricula": "CINTA-126990",
                             "grupo": "3B"
                         },
                         "tutor": {
@@ -1717,8 +1858,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "codigo": "2SSBXH",
-                    "vence_en": "2026-11-10T23:56:21.787Z"
+                    "codigo": "VAETF6",
+                    "vence_en": "2026-11-10T23:59:56.239Z"
                 },
                 "meta": {
                     "page": null,
@@ -1732,13 +1873,13 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169/codigo-cuenta",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947/codigo-cuenta",
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "codigo": "3ME5N43B",
-                    "vence_en": "2026-11-11T23:41:22.298Z"
+                    "codigo": "9SHGGCBY",
+                    "vence_en": "2026-11-11T23:44:56.731Z"
                 },
                 "meta": {
                     "page": null,
@@ -1752,12 +1893,12 @@
         {
             "session": "escuela.cliente",
             "verb": "DELETE",
-            "path": "tutelas/4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+            "path": "tutelas/d518239d-0a54-45fa-ba77-e8beb37c0947",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "4cde60a7-bd30-4deb-86c6-2e8cdc5d3169",
+                    "usuario_id": "d518239d-0a54-45fa-ba77-e8beb37c0947",
                     "activa": false
                 },
                 "meta": {

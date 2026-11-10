@@ -140,7 +140,7 @@ class RemoteGuardianshipRepositoryTapeTest {
     }
 
     @Test
-    fun `el hijo recibe PIN y credencial, otro tutor se suma con un codigo y la escuela decide quien es el principal`() {
+    fun `el hijo recibe PIN y credencial y otro tutor se suma con un codigo que la escuela aprueba o rechaza`() {
         val consent = readyGuardian()
         val child = approvedChild(consent)
         val guardian = guardian()
@@ -223,6 +223,16 @@ class RemoteGuardianshipRepositoryTapeTest {
             school().removeGuardianship(it.id, floor.key()).getOrThrow()
         }
         assertEquals(1, school().searchGuardianships(child.studentId!!).getOrThrow().size)
+        val third = guardian.createGuardianCode(child.userId, floor.key()).getOrThrow().code
+        other.link(third, consent, floor.key()).getOrThrow()
+        school().guardianRequests().getOrThrow().filter { it.studentId == child.studentId }.forEach {
+            school().reviewGuardianRequest(it.id, approve = false, floor.key()).getOrThrow()
+        }
+        assertEquals(
+            "un tutor rechazado no queda ligado",
+            1,
+            school().searchGuardianships(child.studentId!!).getOrThrow().size,
+        )
         assertNotNull(guardian.createLinkCode(floor.key()).getOrThrow().code)
         assertNotNull(guardian.createAccountCode(child.userId, floor.key()).getOrThrow().code)
         guardian.unlink(child.userId, floor.key()).getOrThrow()

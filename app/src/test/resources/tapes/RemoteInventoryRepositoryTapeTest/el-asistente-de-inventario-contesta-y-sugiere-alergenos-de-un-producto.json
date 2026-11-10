@@ -15,10 +15,10 @@
             "status": 200,
             "response": {
                 "data": {
-                    "mensaje": "Para mañana no te falta nada, con lo que tienes alcanza. No hay nada bajo el mínimo ni agotado.",
+                    "mensaje": "No tienes insumos registrados, así que no te marca nada para mañana. Regístralos en Inventario para llevar bien tu stock.",
                     "opciones": [
-                        "¿Qué está bajo el mínimo?",
-                        "¿Algo agotado hoy?"
+                        "¿Cómo registro un insumo?",
+                        "¿Qué hay en inventario?"
                     ],
                     "quedan_mensajes": 28
                 },
@@ -48,7 +48,7 @@
                         "lacteos",
                         "lactosa"
                     ],
-                    "motivo": "Pan de trigo aporta gluten, huevo aporta huevo y queso con mantequilla aportan lácteos y lactosa.",
+                    "motivo": "El pan de trigo aporta gluten, el huevo aporta huevo y el queso con mantequilla aportan lácteos y lactosa.",
                     "con_receta": false
                 },
                 "meta": {

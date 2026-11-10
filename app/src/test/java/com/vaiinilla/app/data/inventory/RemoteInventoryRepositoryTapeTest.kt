@@ -19,12 +19,13 @@ class RemoteInventoryRepositoryTapeTest {
 
     private fun inventory(account: String = "admin") = RemoteInventoryRepository(floor.client(account))
 
-    private fun id() = UUID.randomUUID().toString()
+    /** El id de un movimiento lo pone la app: se guarda en la cinta para mandar el mismo al repetirla. */
+    private fun id(name: String) = tape.value(name) { UUID.randomUUID().toString() }
 
     @Test
     fun `un insumo entra, se merma, se cuenta, se liga a un producto y la venta lo descuenta`() {
         val inventory = inventory()
-        val name = tape.value("insumo") { "Frijol de cinta ${id().take(6)}" }
+        val name = tape.value("insumo") { "Frijol de cinta ${UUID.randomUUID().toString().take(6)}" }
         val input =
             InventorySupplyInput(
                 name = name,
@@ -48,7 +49,7 @@ class RemoteInventoryRepositoryTapeTest {
             inventory.updateSupply(supply.id, input.copy(minimum = 6.0)).getOrThrow().low,
         )
 
-        val purchase = id()
+        val purchase = id("compra")
         val entry =
             inventory
                 .registerMovement(
@@ -76,7 +77,7 @@ class RemoteInventoryRepositoryTapeTest {
         val waste =
             inventory
                 .registerMovement(
-                    id(),
+                    id("movimiento-1"),
                     supply.id,
                     InventoryMovementType.WASTE,
                     1.0,
@@ -84,7 +85,14 @@ class RemoteInventoryRepositoryTapeTest {
                     "Se cayó",
                 ).getOrThrow()
         assertEquals(14.0, waste.stock, 0.001)
-        assertEquals(1, inventory.registerCount(listOf(Triple(id(), supply.id, 13.5)), "Conteo de cierre").getOrThrow())
+        assertEquals(
+            1,
+            inventory
+                .registerCount(
+                    listOf(Triple(id("movimiento-2"), supply.id, 13.5)),
+                    "Conteo de cierre",
+                ).getOrThrow(),
+        )
         assertEquals(
             13.5,
             inventory

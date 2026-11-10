@@ -1,7 +1,7 @@
 {
     "values": {
         "dias": "2",
-        "matricula": "CINTA-517256"
+        "matricula": "CINTA-9FA769"
     },
     "exchanges": [
         {
@@ -43,7 +43,7 @@
                     "cierre_automatico": false,
                     "umbral_alerta_horas": 24,
                     "excede_umbral": false,
-                    "efectivo_esperado": "1300.00",
+                    "efectivo_esperado": "1400.00",
                     "ultimo_cierre": null
                 },
                 "meta": {
@@ -420,7 +420,7 @@
             "path": "tutelas/dependientes",
             "body": {
                 "nombre": "Niña de cinta",
-                "matricula": "CINTA-517256",
+                "matricula": "CINTA-9FA769",
                 "grupo": "3B",
                 "consentimiento_version": "2026-10-21"
             },
@@ -428,11 +428,11 @@
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                    "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                     "nombre": "Niña de cinta",
                     "grupo": "3B",
                     "foto_url": null,
-                    "matricula": "CINTA-517256",
+                    "matricula": "CINTA-9FA769",
                     "tiene_cuenta": false,
                     "estado": "pendiente",
                     "requiere_consentimiento": false,
@@ -456,16 +456,16 @@
             "response": {
                 "data": [
                     {
-                        "tutela_id": "81d31e59-bfa1-4366-aae6-f0f5ea7f1c16",
-                        "creado_en": "2026-11-10T23:41:28.676Z",
+                        "tutela_id": "d7deb335-7bb9-4ee0-aa59-c96733732c1a",
+                        "creado_en": "2026-11-10T23:45:03.558Z",
                         "tutor": {
                             "nombre": "Vigía cliente",
                             "email": null
                         },
                         "alumno": {
-                            "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                            "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-517256",
+                            "matricula": "CINTA-9FA769",
                             "grupo": "3B",
                             "tiene_cuenta": false
                         },
@@ -485,13 +485,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-tutela/81d31e59-bfa1-4366-aae6-f0f5ea7f1c16/aprobar",
+            "path": "solicitudes-tutela/d7deb335-7bb9-4ee0-aa59-c96733732c1a/aprobar",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "tutela_id": "81d31e59-bfa1-4366-aae6-f0f5ea7f1c16",
+                    "tutela_id": "d7deb335-7bb9-4ee0-aa59-c96733732c1a",
                     "estado": "aprobada"
                 },
                 "meta": {
@@ -511,18 +511,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-517256",
+                        "matricula": "CINTA-9FA769",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "81d31e59-bfa1-4366-aae6-f0f5ea7f1c16",
+                                "tutela_id": "d7deb335-7bb9-4ee0-aa59-c96733732c1a",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -558,7 +558,7 @@
         {
             "session": "escuela.cajero",
             "verb": "POST",
-            "path": "wallets/bd933748-7e71-4300-a09f-39282270ef60/recargas-efectivo",
+            "path": "wallets/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2/recargas-efectivo",
             "body": {
                 "monto": "200.00"
             },
@@ -566,11 +566,11 @@
             "status": 201,
             "response": {
                 "data": {
-                    "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                    "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                     "saldo_anterior": "0.00",
                     "recarga": "200.00",
                     "saldo_nuevo": "200.00",
-                    "movimiento_id": "0125b6f6-6d03-44e2-a286-3025997db495",
+                    "movimiento_id": "f7b7b414-37ce-4b4e-a730-b91aa5a263ae",
                     "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d"
                 },
                 "meta": {
@@ -1167,7 +1167,7 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/bd933748-7e71-4300-a09f-39282270ef60/contexto",
+            "path": "tutelas/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2/contexto",
             "idempotent": true,
             "status": 200,
             "response": {
@@ -1176,8 +1176,8 @@
                     "token_type": "Bearer",
                     "expires_in": 900,
                     "contexto": {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
-                        "membresia_id": "8aa678d3-21e8-4bb2-9b1e-879374151a00",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
+                        "membresia_id": "eb889d0e-8b7d-426f-80c7-57192155e692",
                         "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
                         "rol": "cliente",
                         "modo_restringido": null,
@@ -1205,21 +1205,21 @@
                         "maxima": "2000.00"
                     },
                     "cliente": {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "nombre": "Niña de cinta",
-                        "identificador_cliente": "CINTA-517256"
+                        "identificador_cliente": "CINTA-9FA769"
                     },
                     "wallet": {
-                        "id": "3854fbac-cdb0-4a35-9933-ae72e94ba6af",
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "id": "15a71f0c-3dce-49db-bdfd-2716c749a46c",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
                         "saldo": "200.00",
-                        "actualizado_en": "2026-11-10T23:41:30.750Z",
+                        "actualizado_en": "2026-11-10T23:45:05.887Z",
                         "saldo_congelado": false
                     },
                     "movimientos": [
                         {
-                            "id": "c0bf713a-8625-42a0-9bce-5f28e2b1db17",
+                            "id": "b48b8129-3bd6-4d2c-a47e-bfa7197e31e3",
                             "tipo": "recarga_efectivo",
                             "descripcion": "Recarga en efectivo",
                             "monto": "200.00",
@@ -1228,7 +1228,7 @@
                             "pedido_folio": null,
                             "lugar": null,
                             "resumen_productos": null,
-                            "creado_en": "2026-11-10T23:41:30.750Z"
+                            "creado_en": "2026-11-10T23:45:05.887Z"
                         }
                     ]
                 },
@@ -1326,8 +1326,8 @@
                 "data": {
                     "pedidos": [
                         {
-                            "id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "folio": 3,
+                            "id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "folio": 5,
                             "sin_conexion": null,
                             "fecha_operativa": "2026-11-12",
                             "tipo_establecimiento": "cafeteria",
@@ -1364,8 +1364,8 @@
                             "pago_pendiente": false,
                             "invitado": false,
                             "version": 1,
-                            "creado_en": "2026-11-10T23:41:36.591Z",
-                            "actualizado_en": "2026-11-10T23:41:36.591Z",
+                            "creado_en": "2026-11-10T23:45:12.367Z",
+                            "actualizado_en": "2026-11-10T23:45:12.367Z",
                             "vence_operacion_en": null,
                             "motivo_pendiente_operativo": null,
                             "motivo_cancelacion": null,
@@ -1381,7 +1381,7 @@
                             "no_recogido_en": null,
                             "items": [
                                 {
-                                    "id": 222,
+                                    "id": 226,
                                     "producto_id": 215,
                                     "nombre_producto": "Torta de cinta",
                                     "imagen_url": null,
@@ -1399,7 +1399,7 @@
                             "cobrado_al_entregar": null,
                             "aceptar_antes_de": null,
                             "pagar_antes_de": null,
-                            "qr_token": "v1.895887a2846fd8fa62fb988299059a84142f0c9bfa40cc05256f36001e8f350e"
+                            "qr_token": "v1.2e9e424714c5a0f9c7bb29c295205fd20c2440bb4ce9ce997fd185a4e0994ca8"
                         }
                     ]
                 },
@@ -1420,8 +1420,8 @@
             "response": {
                 "data": [
                     {
-                        "id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                        "folio": 3,
+                        "id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                        "folio": 5,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-12",
                         "tipo_establecimiento": "cafeteria",
@@ -1458,8 +1458,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 1,
-                        "creado_en": "2026-11-10T23:41:36.591Z",
-                        "actualizado_en": "2026-11-10T23:41:36.591Z",
+                        "creado_en": "2026-11-10T23:45:12.367Z",
+                        "actualizado_en": "2026-11-10T23:45:12.367Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -1475,7 +1475,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 222,
+                                "id": 226,
                                 "producto_id": 215,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -1516,33 +1516,33 @@
                         "maxima": "2000.00"
                     },
                     "cliente": {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "nombre": "Niña de cinta",
-                        "identificador_cliente": "CINTA-517256"
+                        "identificador_cliente": "CINTA-9FA769"
                     },
                     "wallet": {
-                        "id": "3854fbac-cdb0-4a35-9933-ae72e94ba6af",
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "id": "15a71f0c-3dce-49db-bdfd-2716c749a46c",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
                         "saldo": "155.00",
-                        "actualizado_en": "2026-11-10T23:41:36.591Z",
+                        "actualizado_en": "2026-11-10T23:45:12.367Z",
                         "saldo_congelado": false
                     },
                     "movimientos": [
                         {
-                            "id": "e2e067e2-ef87-5ec0-8ca2-fbfaac0599e6",
+                            "id": "f399bebe-227d-5721-9e6f-8ab3d6c1853c",
                             "tipo": "compra",
                             "descripcion": "Compra con saldo",
                             "monto": "-45.00",
                             "saldo_posterior": "155.00",
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "pedido_folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "pedido_folio": 5,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:36.591Z"
+                            "creado_en": "2026-11-10T23:45:12.367Z"
                         },
                         {
-                            "id": "c0bf713a-8625-42a0-9bce-5f28e2b1db17",
+                            "id": "b48b8129-3bd6-4d2c-a47e-bfa7197e31e3",
                             "tipo": "recarga_efectivo",
                             "descripcion": "Recarga en efectivo",
                             "monto": "200.00",
@@ -1551,7 +1551,7 @@
                             "pedido_folio": null,
                             "lugar": null,
                             "resumen_productos": null,
-                            "creado_en": "2026-11-10T23:41:30.750Z"
+                            "creado_en": "2026-11-10T23:45:05.887Z"
                         }
                     ]
                 },
@@ -1584,10 +1584,10 @@
                     ],
                     "alumnos": [
                         {
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "folio": 5,
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-517256",
+                            "matricula": "CINTA-9FA769",
                             "grupo": "3B",
                             "alergias": [],
                             "franja_entrega": null,
@@ -1629,10 +1629,10 @@
                     ],
                     "alumnos": [
                         {
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "folio": 5,
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-517256",
+                            "matricula": "CINTA-9FA769",
                             "grupo": "3B",
                             "alergias": [],
                             "franja_entrega": null,
@@ -1692,45 +1692,45 @@
                         "maxima": "2000.00"
                     },
                     "cliente": {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "nombre": "Niña de cinta",
-                        "identificador_cliente": "CINTA-517256"
+                        "identificador_cliente": "CINTA-9FA769"
                     },
                     "wallet": {
-                        "id": "3854fbac-cdb0-4a35-9933-ae72e94ba6af",
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "id": "15a71f0c-3dce-49db-bdfd-2716c749a46c",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
                         "saldo": "200.00",
-                        "actualizado_en": "2026-11-10T23:41:39.543Z",
+                        "actualizado_en": "2026-11-10T23:45:15.670Z",
                         "saldo_congelado": false
                     },
                     "movimientos": [
                         {
-                            "id": "6a8e40e6-1407-515d-b161-b645416c9bd9",
+                            "id": "f062594a-f5e6-52c6-bdcc-966f8f9297b3",
                             "tipo": "cancelacion",
                             "descripcion": "Devolución por cancelación",
                             "monto": "45.00",
                             "saldo_posterior": "200.00",
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "pedido_folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "pedido_folio": 5,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:39.543Z"
+                            "creado_en": "2026-11-10T23:45:15.670Z"
                         },
                         {
-                            "id": "e2e067e2-ef87-5ec0-8ca2-fbfaac0599e6",
+                            "id": "f399bebe-227d-5721-9e6f-8ab3d6c1853c",
                             "tipo": "compra",
                             "descripcion": "Compra con saldo",
                             "monto": "-45.00",
                             "saldo_posterior": "155.00",
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "pedido_folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "pedido_folio": 5,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:36.591Z"
+                            "creado_en": "2026-11-10T23:45:12.367Z"
                         },
                         {
-                            "id": "c0bf713a-8625-42a0-9bce-5f28e2b1db17",
+                            "id": "b48b8129-3bd6-4d2c-a47e-bfa7197e31e3",
                             "tipo": "recarga_efectivo",
                             "descripcion": "Recarga en efectivo",
                             "monto": "200.00",
@@ -1739,7 +1739,7 @@
                             "pedido_folio": null,
                             "lugar": null,
                             "resumen_productos": null,
-                            "creado_en": "2026-11-10T23:41:30.750Z"
+                            "creado_en": "2026-11-10T23:45:05.887Z"
                         }
                     ]
                 },
@@ -1817,8 +1817,8 @@
                 "data": {
                     "pedidos": [
                         {
-                            "id": "8ce257bb-77e1-4ffd-b14d-b09a716feb10",
-                            "folio": 4,
+                            "id": "cbe76966-d799-45e2-a3c2-89e0692d86ba",
+                            "folio": 6,
                             "sin_conexion": null,
                             "fecha_operativa": "2026-11-12",
                             "tipo_establecimiento": "cafeteria",
@@ -1855,8 +1855,8 @@
                             "pago_pendiente": false,
                             "invitado": false,
                             "version": 1,
-                            "creado_en": "2026-11-10T23:41:41.710Z",
-                            "actualizado_en": "2026-11-10T23:41:41.710Z",
+                            "creado_en": "2026-11-10T23:45:18.068Z",
+                            "actualizado_en": "2026-11-10T23:45:18.068Z",
                             "vence_operacion_en": null,
                             "motivo_pendiente_operativo": null,
                             "motivo_cancelacion": null,
@@ -1872,7 +1872,7 @@
                             "no_recogido_en": null,
                             "items": [
                                 {
-                                    "id": 223,
+                                    "id": 227,
                                     "producto_id": 215,
                                     "nombre_producto": "Torta de cinta",
                                     "imagen_url": null,
@@ -1890,7 +1890,7 @@
                             "cobrado_al_entregar": null,
                             "aceptar_antes_de": null,
                             "pagar_antes_de": null,
-                            "qr_token": "v1.8ad0fca72dd3d27ca26ddacc9e04b74b85eadd04c3088ca4126fe7a4f309d454"
+                            "qr_token": "v1.8d656ab50810095185159ac646e1cd4b71899f5dc6b77ea56882825292c7f239"
                         }
                     ]
                 },
@@ -1911,8 +1911,8 @@
             "response": {
                 "data": [
                     {
-                        "id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                        "folio": 3,
+                        "id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                        "folio": 5,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-12",
                         "tipo_establecimiento": "cafeteria",
@@ -1949,8 +1949,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 2,
-                        "creado_en": "2026-11-10T23:41:36.591Z",
-                        "actualizado_en": "2026-11-10T23:41:39.543Z",
+                        "creado_en": "2026-11-10T23:45:12.367Z",
+                        "actualizado_en": "2026-11-10T23:45:15.670Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": "Sin servicio: Junta de consejo",
@@ -1966,7 +1966,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 222,
+                                "id": 226,
                                 "producto_id": 215,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -1986,8 +1986,8 @@
                         "pagar_antes_de": null
                     },
                     {
-                        "id": "8ce257bb-77e1-4ffd-b14d-b09a716feb10",
-                        "folio": 4,
+                        "id": "cbe76966-d799-45e2-a3c2-89e0692d86ba",
+                        "folio": 6,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-12",
                         "tipo_establecimiento": "cafeteria",
@@ -2024,8 +2024,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 1,
-                        "creado_en": "2026-11-10T23:41:41.710Z",
-                        "actualizado_en": "2026-11-10T23:41:41.710Z",
+                        "creado_en": "2026-11-10T23:45:18.068Z",
+                        "actualizado_en": "2026-11-10T23:45:18.068Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -2041,7 +2041,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 223,
+                                "id": 227,
                                 "producto_id": 215,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -2073,7 +2073,7 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "pedidos/8ce257bb-77e1-4ffd-b14d-b09a716feb10/cancelaciones",
+            "path": "pedidos/cbe76966-d799-45e2-a3c2-89e0692d86ba/cancelaciones",
             "body": {
                 "version_esperada": 1,
                 "motivo": "Cancelado por su tutor"
@@ -2083,8 +2083,8 @@
             "response": {
                 "data": {
                     "pedido": {
-                        "id": "8ce257bb-77e1-4ffd-b14d-b09a716feb10",
-                        "folio": 4,
+                        "id": "cbe76966-d799-45e2-a3c2-89e0692d86ba",
+                        "folio": 6,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-12",
                         "tipo_establecimiento": "cafeteria",
@@ -2121,8 +2121,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 2,
-                        "creado_en": "2026-11-10T23:41:41.710Z",
-                        "actualizado_en": "2026-11-10T23:41:43.225Z",
+                        "creado_en": "2026-11-10T23:45:18.068Z",
+                        "actualizado_en": "2026-11-10T23:45:19.268Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": "Cancelado por su tutor",
@@ -2138,7 +2138,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 223,
+                                "id": 227,
                                 "producto_id": 215,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -2160,7 +2160,7 @@
                     "cuenta": null,
                     "devolucion": {
                         "monto": "45.00",
-                        "movimiento_id": "a1eb5783-b2b8-4376-b9d0-7cb7678b3c3b",
+                        "movimiento_id": "a3a29bab-9411-4833-ad31-be7531b033b2",
                         "saldo_nuevo": "200.00"
                     },
                     "reembolso": null,
@@ -2188,69 +2188,69 @@
                         "maxima": "2000.00"
                     },
                     "cliente": {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "nombre": "Niña de cinta",
-                        "identificador_cliente": "CINTA-517256"
+                        "identificador_cliente": "CINTA-9FA769"
                     },
                     "wallet": {
-                        "id": "3854fbac-cdb0-4a35-9933-ae72e94ba6af",
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "id": "15a71f0c-3dce-49db-bdfd-2716c749a46c",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "establecimiento_id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
                         "saldo": "200.00",
-                        "actualizado_en": "2026-11-10T23:41:43.225Z",
+                        "actualizado_en": "2026-11-10T23:45:19.268Z",
                         "saldo_congelado": false
                     },
                     "movimientos": [
                         {
-                            "id": "c725d8c2-6362-40ca-864e-0665138c4b43",
+                            "id": "7a9247ab-ab42-406f-97e1-795209c6d10a",
                             "tipo": "cancelacion",
                             "descripcion": "Devolución por cancelación",
                             "monto": "45.00",
                             "saldo_posterior": "200.00",
-                            "pedido_id": "8ce257bb-77e1-4ffd-b14d-b09a716feb10",
-                            "pedido_folio": 4,
+                            "pedido_id": "cbe76966-d799-45e2-a3c2-89e0692d86ba",
+                            "pedido_folio": 6,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:43.225Z"
+                            "creado_en": "2026-11-10T23:45:19.268Z"
                         },
                         {
-                            "id": "eb0a824b-b880-5e66-8abd-943f6b6b4bc2",
+                            "id": "210a39b2-6eb4-50eb-8dd9-24f2c005044e",
                             "tipo": "compra",
                             "descripcion": "Compra con saldo",
                             "monto": "-45.00",
                             "saldo_posterior": "155.00",
-                            "pedido_id": "8ce257bb-77e1-4ffd-b14d-b09a716feb10",
-                            "pedido_folio": 4,
+                            "pedido_id": "cbe76966-d799-45e2-a3c2-89e0692d86ba",
+                            "pedido_folio": 6,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:41.710Z"
+                            "creado_en": "2026-11-10T23:45:18.068Z"
                         },
                         {
-                            "id": "6a8e40e6-1407-515d-b161-b645416c9bd9",
+                            "id": "f062594a-f5e6-52c6-bdcc-966f8f9297b3",
                             "tipo": "cancelacion",
                             "descripcion": "Devolución por cancelación",
                             "monto": "45.00",
                             "saldo_posterior": "200.00",
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "pedido_folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "pedido_folio": 5,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:39.543Z"
+                            "creado_en": "2026-11-10T23:45:15.670Z"
                         },
                         {
-                            "id": "e2e067e2-ef87-5ec0-8ca2-fbfaac0599e6",
+                            "id": "f399bebe-227d-5721-9e6f-8ab3d6c1853c",
                             "tipo": "compra",
                             "descripcion": "Compra con saldo",
                             "monto": "-45.00",
                             "saldo_posterior": "155.00",
-                            "pedido_id": "a6fbd0db-4b9c-4d43-9ab6-c1cdc12ace09",
-                            "pedido_folio": 3,
+                            "pedido_id": "4596f847-3537-4f2e-bd7d-8d3ba800037d",
+                            "pedido_folio": 5,
                             "lugar": "Apartado",
                             "resumen_productos": "1× Torta de cinta",
-                            "creado_en": "2026-11-10T23:41:36.591Z"
+                            "creado_en": "2026-11-10T23:45:12.367Z"
                         },
                         {
-                            "id": "c0bf713a-8625-42a0-9bce-5f28e2b1db17",
+                            "id": "b48b8129-3bd6-4d2c-a47e-bfa7197e31e3",
                             "tipo": "recarga_efectivo",
                             "descripcion": "Recarga en efectivo",
                             "monto": "200.00",
@@ -2259,7 +2259,7 @@
                             "pedido_folio": null,
                             "lugar": null,
                             "resumen_productos": null,
-                            "creado_en": "2026-11-10T23:41:30.750Z"
+                            "creado_en": "2026-11-10T23:45:05.887Z"
                         }
                     ]
                 },
@@ -2275,7 +2275,7 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/bd933748-7e71-4300-a09f-39282270ef60/solicitudes",
+            "path": "tutelas/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2/solicitudes",
             "body": {
                 "tipo": "devolucion",
                 "como_devolver": "efectivo",
@@ -2285,7 +2285,7 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "aca0bbac-c2bc-4485-b548-c1606149c1e1",
+                    "id": "4561fbc8-2159-40a7-99ba-b1d2fd8bbed5",
                     "tipo": "devolucion",
                     "estado": "pendiente",
                     "como_devolver": "efectivo",
@@ -2294,7 +2294,7 @@
                     "monto_devuelto": null,
                     "sesion_caja_id": null,
                     "motivo_rechazo": null,
-                    "creado_en": "2026-11-10T23:41:44.352Z",
+                    "creado_en": "2026-11-10T23:45:20.453Z",
                     "resuelta_en": null
                 },
                 "meta": {
@@ -2314,11 +2314,11 @@
             "response": {
                 "data": [
                     {
-                        "id": "aca0bbac-c2bc-4485-b548-c1606149c1e1",
+                        "id": "4561fbc8-2159-40a7-99ba-b1d2fd8bbed5",
                         "tipo": "devolucion",
                         "como_devolver": "efectivo",
                         "nota": "Nos cambiamos",
-                        "creado_en": "2026-11-10T23:41:44.352Z",
+                        "creado_en": "2026-11-10T23:45:20.453Z",
                         "saldo_al_pedir": "200.00",
                         "saldo_actual": "200.00",
                         "tutor": {
@@ -2326,9 +2326,9 @@
                             "email": null
                         },
                         "alumno": {
-                            "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                            "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                             "nombre": "Niña de cinta",
-                            "matricula": "CINTA-517256",
+                            "matricula": "CINTA-9FA769",
                             "grupo": "3B"
                         }
                     }
@@ -2345,7 +2345,7 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-alumno/aca0bbac-c2bc-4485-b548-c1606149c1e1/rechazar",
+            "path": "solicitudes-alumno/4561fbc8-2159-40a7-99ba-b1d2fd8bbed5/rechazar",
             "body": {
                 "motivo": "Falta la identificación"
             },
@@ -2353,7 +2353,7 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": "aca0bbac-c2bc-4485-b548-c1606149c1e1",
+                    "id": "4561fbc8-2159-40a7-99ba-b1d2fd8bbed5",
                     "tipo": "devolucion",
                     "estado": "rechazada",
                     "como_devolver": "efectivo",
@@ -2362,8 +2362,8 @@
                     "monto_devuelto": null,
                     "sesion_caja_id": null,
                     "motivo_rechazo": "Falta la identificación",
-                    "creado_en": "2026-11-10T23:41:44.352Z",
-                    "resuelta_en": "2026-11-10T23:41:45.968Z"
+                    "creado_en": "2026-11-10T23:45:20.453Z",
+                    "resuelta_en": "2026-11-10T23:45:21.492Z"
                 },
                 "meta": {
                     "page": null,
@@ -2377,12 +2377,12 @@
         {
             "session": "escuela.cliente",
             "verb": "GET",
-            "path": "tutelas/bd933748-7e71-4300-a09f-39282270ef60/solicitudes",
+            "path": "tutelas/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2/solicitudes",
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "id": "aca0bbac-c2bc-4485-b548-c1606149c1e1",
+                        "id": "4561fbc8-2159-40a7-99ba-b1d2fd8bbed5",
                         "tipo": "devolucion",
                         "estado": "rechazada",
                         "como_devolver": "efectivo",
@@ -2391,8 +2391,8 @@
                         "monto_devuelto": null,
                         "sesion_caja_id": null,
                         "motivo_rechazo": "Falta la identificación",
-                        "creado_en": "2026-11-10T23:41:44.352Z",
-                        "resuelta_en": "2026-11-10T23:41:45.968Z"
+                        "creado_en": "2026-11-10T23:45:20.453Z",
+                        "resuelta_en": "2026-11-10T23:45:21.492Z"
                     }
                 ],
                 "meta": {
@@ -2407,7 +2407,7 @@
         {
             "session": "escuela.cliente",
             "verb": "POST",
-            "path": "tutelas/bd933748-7e71-4300-a09f-39282270ef60/solicitudes",
+            "path": "tutelas/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2/solicitudes",
             "body": {
                 "tipo": "devolucion",
                 "como_devolver": "efectivo"
@@ -2416,7 +2416,7 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "efe7e62f-a0da-4ca8-97de-dc3b08bbd822",
+                    "id": "d55f232c-ea9a-4f77-83ab-ba63c3ae1116",
                     "tipo": "devolucion",
                     "estado": "pendiente",
                     "como_devolver": "efectivo",
@@ -2425,7 +2425,7 @@
                     "monto_devuelto": null,
                     "sesion_caja_id": null,
                     "motivo_rechazo": null,
-                    "creado_en": "2026-11-10T23:41:47.012Z",
+                    "creado_en": "2026-11-10T23:45:22.639Z",
                     "resuelta_en": null
                 },
                 "meta": {
@@ -2440,13 +2440,13 @@
         {
             "session": "escuela.admin",
             "verb": "POST",
-            "path": "solicitudes-alumno/efe7e62f-a0da-4ca8-97de-dc3b08bbd822/resolver",
+            "path": "solicitudes-alumno/d55f232c-ea9a-4f77-83ab-ba63c3ae1116/resolver",
             "body": {},
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "id": "efe7e62f-a0da-4ca8-97de-dc3b08bbd822",
+                    "id": "d55f232c-ea9a-4f77-83ab-ba63c3ae1116",
                     "tipo": "devolucion",
                     "estado": "resuelta",
                     "como_devolver": "efectivo",
@@ -2455,8 +2455,8 @@
                     "monto_devuelto": "200.00",
                     "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d",
                     "motivo_rechazo": null,
-                    "creado_en": "2026-11-10T23:41:47.012Z",
-                    "resuelta_en": "2026-11-10T23:41:47.535Z"
+                    "creado_en": "2026-11-10T23:45:22.639Z",
+                    "resuelta_en": "2026-11-10T23:45:23.183Z"
                 },
                 "meta": {
                     "page": null,
@@ -2470,12 +2470,12 @@
         {
             "session": "escuela.cliente",
             "verb": "GET",
-            "path": "tutelas/bd933748-7e71-4300-a09f-39282270ef60/solicitudes",
+            "path": "tutelas/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2/solicitudes",
             "status": 200,
             "response": {
                 "data": [
                     {
-                        "id": "efe7e62f-a0da-4ca8-97de-dc3b08bbd822",
+                        "id": "d55f232c-ea9a-4f77-83ab-ba63c3ae1116",
                         "tipo": "devolucion",
                         "estado": "resuelta",
                         "como_devolver": "efectivo",
@@ -2484,11 +2484,11 @@
                         "monto_devuelto": "200.00",
                         "sesion_caja_id": "0f2a32d0-b7fd-4835-bb28-2e677a245e7d",
                         "motivo_rechazo": null,
-                        "creado_en": "2026-11-10T23:41:47.012Z",
-                        "resuelta_en": "2026-11-10T23:41:47.535Z"
+                        "creado_en": "2026-11-10T23:45:22.639Z",
+                        "resuelta_en": "2026-11-10T23:45:23.183Z"
                     },
                     {
-                        "id": "aca0bbac-c2bc-4485-b548-c1606149c1e1",
+                        "id": "4561fbc8-2159-40a7-99ba-b1d2fd8bbed5",
                         "tipo": "devolucion",
                         "estado": "rechazada",
                         "como_devolver": "efectivo",
@@ -2497,8 +2497,8 @@
                         "monto_devuelto": null,
                         "sesion_caja_id": null,
                         "motivo_rechazo": "Falta la identificación",
-                        "creado_en": "2026-11-10T23:41:44.352Z",
-                        "resuelta_en": "2026-11-10T23:41:45.968Z"
+                        "creado_en": "2026-11-10T23:45:20.453Z",
+                        "resuelta_en": "2026-11-10T23:45:21.492Z"
                     }
                 ],
                 "meta": {
@@ -2518,18 +2518,18 @@
             "response": {
                 "data": [
                     {
-                        "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                        "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                         "nombre": "Niña de cinta",
                         "grupo": "3B",
                         "foto_url": null,
-                        "matricula": "CINTA-517256",
+                        "matricula": "CINTA-9FA769",
                         "tiene_cuenta": false,
                         "estado": "aprobada",
                         "requiere_consentimiento": false,
                         "soy_principal": true,
                         "tutores": [
                             {
-                                "tutela_id": "81d31e59-bfa1-4366-aae6-f0f5ea7f1c16",
+                                "tutela_id": "d7deb335-7bb9-4ee0-aa59-c96733732c1a",
                                 "nombre": "Vigía cliente",
                                 "principal": true,
                                 "eres_tu": true
@@ -2565,12 +2565,12 @@
         {
             "session": "escuela.cliente",
             "verb": "DELETE",
-            "path": "tutelas/bd933748-7e71-4300-a09f-39282270ef60",
+            "path": "tutelas/bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "usuario_id": "bd933748-7e71-4300-a09f-39282270ef60",
+                    "usuario_id": "bc0f9950-2b71-4ec4-b49b-98f5df1cb2f2",
                     "activa": false
                 },
                 "meta": {
