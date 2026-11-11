@@ -366,6 +366,11 @@ android {
                     file("src/test/fixtures").absolutePath,
                 )
                 it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
+                // El arnés jvm-roles le escribe PATCH por dentro al HttpURLConnection del JDK, que no lo acepta.
+                it.jvmArgs(
+                    "--add-opens=java.base/java.net=ALL-UNNAMED",
+                    "--add-opens=java.base/sun.net.www.protocol.https=ALL-UNNAMED",
+                )
                 // El arnés jvm-roles corre como un java suelto, sin Gradle vivo: `vbuild jvm-roles` pide aquí su classpath.
                 it.doFirst {
                     System.getenv("JVM_ROLES_CLASSPATH_FILE")?.let { out ->

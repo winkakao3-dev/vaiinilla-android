@@ -57,6 +57,9 @@ class VigiaTest {
     private val network = VigiaNetwork(ApiResponseParser())
     private lateinit var vigia: Vigia
 
+    /** «MÉTODO /ruta» de cada petición que recibió [localServer]. */
+    private val requestLines = CopyOnWriteArrayList<String>()
+
     @Before
     fun setUp() {
         // Igual que el arnés: con avance automático, una animación infinita no deja que la pantalla quede quieta.
@@ -355,14 +358,33 @@ class VigiaTest {
         }
     }
 
+    @Test
+    fun `a PATCH leaves the JVM as a PATCH, like on Android`() {
+        localServer(200, "{}") { base, _ ->
+            val http = VigiaHttp(network, "https://api.invalid/")
+
+            val connection = send(http, "$base/establecimiento/configuracion", method = "PATCH")
+
+            assertEquals(200, connection.responseCode)
+            assertEquals("PATCH", connection.requestMethod)
+            assertEquals(listOf("PATCH /establecimiento/configuracion"), requestLines)
+        }
+    }
+
     /** Un POST como el de HttpVaiinillaApiClient, con el manejador de [http] y sin instalar nada en la JVM. */
     private fun post(
         http: VigiaHttp,
         spec: String,
+    ): HttpURLConnection = send(http, spec, method = "POST")
+
+    private fun send(
+        http: VigiaHttp,
+        spec: String,
+        method: String,
     ): HttpURLConnection {
         val connection = URL(null, spec, http.handler("http")).openConnection() as HttpURLConnection
         val body = "{}".toByteArray()
-        connection.requestMethod = "POST"
+        connection.requestMethod = method
         connection.doOutput = true
         connection.setFixedLengthStreamingMode(body.size)
         connection.outputStream.use { it.write(body) }
@@ -402,6 +424,7 @@ class VigiaTest {
         val reader = socket.getInputStream().bufferedReader(Charsets.ISO_8859_1)
         val head = generateSequence { reader.readLine() }.takeWhile { it.isNotEmpty() }.toList()
         hits += head.first().split(" ")[1]
+        requestLines += head.first().substringBeforeLast(" ")
         val length =
             head
                 .firstOrNull { it.startsWith("content-length:", ignoreCase = true) }

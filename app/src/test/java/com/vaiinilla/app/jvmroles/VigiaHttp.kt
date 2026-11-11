@@ -102,6 +102,23 @@ class VigiaHttp(
 }
 
 /**
+ * El HttpURLConnection del JDK rechaza PATCH y el de Android (OkHttp) lo acepta: aquí se le escribe por dentro.
+ * La conexión https del JDK guarda la de verdad en `delegate`. La JVM necesita --add-opens de java.net y de
+ * sun.net.www.protocol.https.
+ */
+private fun forcePatch(connection: HttpURLConnection) {
+    val method = HttpURLConnection::class.java.getDeclaredField("method").apply { isAccessible = true }
+    method.set(connection, PATCH)
+    generateSequence<Class<*>>(connection.javaClass) { it.superclass }
+        .firstNotNullOfOrNull { type -> runCatching { type.getDeclaredField("delegate") }.getOrNull() }
+        ?.apply { isAccessible = true }
+        ?.get(connection)
+        ?.let { inner -> method.set(inner, PATCH) }
+}
+
+private const val PATCH = "PATCH"
+
+/**
  * Delega todo en la conexión del JDK salvo el modo streaming. Extiende HttpsURLConnection para que un cast a HTTPS
  * siga funcionando; con http los métodos de TLS no aplican.
  */
@@ -124,7 +141,7 @@ private open class DelegatingConnection(
     override fun getRequestMethod(): String = delegate.getRequestMethod()
 
     override fun setRequestMethod(method: String?) {
-        delegate.setRequestMethod(method)
+        if (method == PATCH) forcePatch(delegate) else delegate.setRequestMethod(method)
     }
 
     override fun getDoOutput(): Boolean = delegate.getDoOutput()
