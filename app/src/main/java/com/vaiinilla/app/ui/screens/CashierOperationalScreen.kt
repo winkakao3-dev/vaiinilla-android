@@ -104,6 +104,7 @@ import com.vaiinilla.app.domain.model.CatalogProductDraft
 import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.OperationalRole
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderDetail
 import com.vaiinilla.app.domain.model.OrderItem
 import com.vaiinilla.app.domain.model.OrderState
@@ -322,6 +323,7 @@ fun CashierOperationalScreen(
             else -> null
         }
     val actionableCashierOrders = cashierQueueOrders(state.orders)
+    val paidInKitchenOrders = cashierPaidInKitchenOrders(state.orders)
     // La hoja de cobro (C02) solo se abre con un pedido elegido y se cierra sola cuando ese pedido sale de la fila.
     val chargeOrder = actionableCashierOrders.firstOrNull { it.summary.id == selectedCashierOrderId }
     val scanTarget = cashierScanTarget(actionableCashierOrders, deliveryRequiresQr)
@@ -761,6 +763,27 @@ fun CashierOperationalScreen(
                                 onRetry = onRefresh,
                             )
                         else -> CashierQueueEmpty(colors = colors)
+                    }
+                }
+            }
+
+            if (paidInKitchenOrders.isNotEmpty()) {
+                item(key = "cashier-paid-in-kitchen") {
+                    Column(modifier = Modifier.animateItem(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Pagados, preparándose",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.textPrimary,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                        Text(
+                            "Ya están cobrados. Pasan a la fila cuando estén listos para entregar.",
+                            fontSize = 12.5.sp,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                        CashierQueueCard(orders = paidInKitchenOrders, tick = tick, colors = colors, onOpen = null)
                     }
                 }
             }
@@ -1515,7 +1538,7 @@ private fun CashierQueueCard(
     tick: State<Int>,
     colors: OperationalColors,
     modifier: Modifier = Modifier,
-    onOpen: (OrderDetail) -> Unit,
+    onOpen: ((OrderDetail) -> Unit)?,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().border(1.dp, colors.cardBorder, RoundedCornerShape(22.dp)),
@@ -1533,7 +1556,7 @@ private fun CashierQueueCard(
                     if (index > 0) {
                         HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(horizontal = 14.dp))
                     }
-                    QueueTicketRow(order = order, tick = tick, colors = colors, onClick = { onOpen(order) })
+                    QueueTicketRow(order = order, tick = tick, colors = colors, onClick = onOpen?.let { open -> { open(order) } })
                 }
             }
         }
@@ -1545,7 +1568,7 @@ private fun QueueTicketRow(
     order: OrderDetail,
     tick: State<Int>,
     colors: OperationalColors,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
     val venue = LocalVenueContext.current
     val summary = order.summary
@@ -1553,7 +1576,13 @@ private fun QueueTicketRow(
     Row(
         modifier =
             Modifier
-                .physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                .then(
+                    if (onClick != null) {
+                        Modifier.physicalPress(scale = PhysicalPressScale.Small, onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                )
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -2416,6 +2445,21 @@ internal fun cashierQueueOrders(orders: List<OrderDetail>): List<OrderDetail> =
     orders
         .filter { it.summary.needsCashCollection || it.summary.state == OrderState.READY }
         .sortedBy { it.summary.createdAt }
+
+/**
+ * Lo ya cobrado que sigue en cocina (G03): sale de la fila porque no hay nada que hacer, pero Caja lo sigue viendo
+ * por si el cliente pregunta. Quedan fuera lo que va a domicilio, lo apartado para otro día y las rentas.
+ */
+internal fun cashierPaidInKitchenOrders(orders: List<OrderDetail>): List<OrderDetail> =
+    orders
+        .filter {
+            val summary = it.summary
+            !summary.needsCashCollection &&
+                summary.state in setOf(OrderState.PAID, OrderState.PREPARING) &&
+                summary.destination != OrderDestination.HOME_DELIVERY &&
+                (summary.deliveryDate == null || summary.deliveryDate == summary.operationalDate) &&
+                it.reservation == null
+        }.sortedBy { it.summary.createdAt }
 
 /** Aviso antes de rechazar un pedido que ya tiene dinero cobrado: el servidor registra la devolución. */
 internal fun paidRejectionWarning(

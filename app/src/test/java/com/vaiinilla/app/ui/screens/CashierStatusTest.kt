@@ -1,6 +1,8 @@
 package com.vaiinilla.app.ui.screens
 
+import com.vaiinilla.app.domain.model.OrderDestination
 import com.vaiinilla.app.domain.model.OrderState
+import com.vaiinilla.app.domain.model.PaymentMethod
 import com.vaiinilla.app.ui.screenshot.ScreenshotFixtures
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -33,5 +35,27 @@ class CashierStatusTest {
         assertEquals(false, cashierOrderStatus(pending).paid)
         val ready = ScreenshotFixtures.sampleOrder(state = OrderState.READY).summary
         assertEquals(true, cashierOrderStatus(ready).ready)
+    }
+
+    @Test
+    fun `lo cobrado que sigue en cocina se ve aparte y sale al estar listo`() {
+        fun order(
+            id: String,
+            state: OrderState,
+            method: PaymentMethod = PaymentMethod.STRIPE,
+            destination: OrderDestination = OrderDestination.TAKE_AWAY,
+        ) = ScreenshotFixtures
+            .sampleOrder(state = state, paymentMethod = method, destination = destination)
+            .let { it.copy(summary = it.summary.copy(id = id)) }
+        val cooking = order("cocina", OrderState.PREPARING)
+        val paid = order("pagado", OrderState.PAID)
+        val toCollect = order("por-cobrar", OrderState.PENDING_PAYMENT, PaymentMethod.CASH)
+        val ready = order("listo", OrderState.READY)
+        val home = order("domicilio", OrderState.PREPARING, destination = OrderDestination.HOME_DELIVERY)
+        val tomorrow = paid.copy(summary = paid.summary.copy(id = "manana", deliveryDate = "2099-01-01"))
+        val orders = listOf(cooking, paid, toCollect, ready, home, tomorrow)
+
+        assertEquals(setOf("cocina", "pagado"), cashierPaidInKitchenOrders(orders).map { it.summary.id }.toSet())
+        assertEquals(setOf("por-cobrar", "listo"), cashierQueueOrders(orders).map { it.summary.id }.toSet())
     }
 }
