@@ -61,6 +61,13 @@ data class InventorySupplies(
 )
 
 /**
+ * Lo que valen los insumos en uso. [InventorySupplies.totalValue] es el del servidor, que suma también los dados de
+ * baja cuando vienen en la lista.
+ */
+val InventorySupplies.inUseValue: Double
+    get() = supplies.filter { it.active }.sumOf { it.value }
+
+/**
  * Al editar, unidad y costo en null no se mandan: el servidor conserva lo que tiene. [category] es la etiqueta propia
  * del insumo (no la categoría del menú); "" la borra, null la deja como está (con `explicitNulls = false` no viaja).
  */

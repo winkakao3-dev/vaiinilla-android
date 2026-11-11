@@ -44,6 +44,7 @@ import com.vaiinilla.app.data.inventory.InventorySupplyInput
 import com.vaiinilla.app.data.inventory.InventoryUnit
 import com.vaiinilla.app.data.inventory.RecipeLine
 import com.vaiinilla.app.data.inventory.SupplyProductLink
+import com.vaiinilla.app.data.inventory.inUseValue
 import com.vaiinilla.app.domain.model.Category
 import com.vaiinilla.app.domain.model.Product
 import com.vaiinilla.app.ui.admin.AdminInventoryUiState
@@ -249,7 +250,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.stockTab(
                     Modifier.weight(1f),
                     alert = data.lowCount > 0,
                 )
-                SummaryFigure("Valor", moneyLabel(data.totalValue), colors, Modifier.weight(1f))
+                SummaryFigure("Valor", moneyLabel(data.inUseValue), colors, Modifier.weight(1f))
             }
         }
     }
