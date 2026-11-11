@@ -322,7 +322,8 @@ class GuestDiscoveryViewModel
                     }
                 result.fold(
                     onSuccess = { resolved ->
-                        _state.value = _state.value.copy(resolving = false)
+                        // Ya entró: al volver a «Código de tu mesa» no debe seguir escrito el de esta mesa.
+                        _state.value = _state.value.copy(resolving = false, spaceTokenInput = "")
                         // Sin mesa, lo tecleado era el código de la escuela: viaja como codigo_union al unirse.
                         if (resolved.space == null) schoolJoinCodes.remember(resolved.establishment.id, token)
                         tryEnter(
