@@ -2876,7 +2876,7 @@ private fun AppNavHostContent(
                         cashCutContent = { onClose ->
                             val cutScope = authorizedAccessState.activeContext?.membershipId.orEmpty()
                             androidx.compose.runtime.LaunchedEffect(cutScope) {
-                                adminCashCutViewModel.onVisible(cutScope)
+                                adminCashCutViewModel.onVisible(cutScope, canSetDayStart = false)
                             }
                             com.vaiinilla.app.ui.screens.admin.AdminCashCutSection(
                                 viewModel = adminCashCutViewModel,

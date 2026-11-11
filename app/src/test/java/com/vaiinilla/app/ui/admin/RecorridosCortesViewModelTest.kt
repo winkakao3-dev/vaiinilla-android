@@ -189,4 +189,13 @@ class RecorridosCortesViewModelTest {
         StaffHarness.awaitUntil("el aviso") { ui.noticeIsError && ui.notice != null && !ui.exporting }
         assertNull(ui.csv)
     }
+
+    @Test
+    fun cajaVeSuCorteSinPedirLaHoraEnQueEmpiezaElDia() {
+        val caja = AdminCashCutViewModel(repo)
+        caja.today = { today }
+        caja.onVisible("caja-1", canSetDayStart = false)
+        StaffHarness.awaitUntil("el corte del día de Caja") { caja.uiState.value.dayCut != null }
+        assertNull(caja.uiState.value.dayStart)
+    }
 }
