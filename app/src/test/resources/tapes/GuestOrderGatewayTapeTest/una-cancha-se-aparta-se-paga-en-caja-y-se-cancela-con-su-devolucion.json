@@ -1,7 +1,7 @@
 {
     "values": {
         "dia": "2026-11-11",
-        "lugar": "Cinta 70d454"
+        "lugar": "Cinta 69ad9a"
     },
     "exchanges": [
         {
@@ -43,7 +43,7 @@
                     "cierre_automatico": false,
                     "umbral_alerta_horas": 24,
                     "excede_umbral": false,
-                    "efectivo_esperado": "950.00",
+                    "efectivo_esperado": "1175.00",
                     "ultimo_cierre": {
                         "monto_final": "730.00",
                         "cerrada_en": "2026-11-10T23:12:35.431Z",
@@ -56,7 +56,7 @@
                     "total_pages": null,
                     "total_items": null,
                     "cursor": null,
-                    "fondo_sugerido": null
+                    "fondo_sugerido": "500.00"
                 },
                 "error": null
             }
@@ -66,19 +66,19 @@
             "verb": "POST",
             "path": "espacios",
             "body": {
-                "nombre": "Cinta 70d454",
+                "nombre": "Cinta 69ad9a",
                 "tipo": "cancha"
             },
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "id": 130,
-                    "nombre": "Cinta 70d454",
+                    "id": 139,
+                    "nombre": "Cinta 69ad9a",
                     "tipo": "cancha",
                     "activo": true,
-                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp__2e-10Urr_Sxul9xmoKxYQkt7Vh7O_vJPAtsrn0WR98",
-                    "codigo": "7991",
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_y_xayT-TCfYSEIiPU50AyRlB5AGFqxT0yx9nOpNwjus",
+                    "codigo": "5768",
                     "precio_hora": null,
                     "capacidad": null,
                     "reserva_minima_min": null,
@@ -100,7 +100,7 @@
         {
             "session": "restaurante.admin",
             "verb": "PATCH",
-            "path": "espacios/130",
+            "path": "espacios/139",
             "body": {
                 "precio_hora": "200.00"
             },
@@ -108,12 +108,12 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": 130,
-                    "nombre": "Cinta 70d454",
+                    "id": 139,
+                    "nombre": "Cinta 69ad9a",
                     "tipo": "cancha",
                     "activo": true,
-                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp__2e-10Urr_Sxul9xmoKxYQkt7Vh7O_vJPAtsrn0WR98",
-                    "codigo": "7991",
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_y_xayT-TCfYSEIiPU50AyRlB5AGFqxT0yx9nOpNwjus",
+                    "codigo": "5768",
                     "precio_hora": "200.00",
                     "capacidad": null,
                     "reserva_minima_min": null,
@@ -167,8 +167,37 @@
                     ],
                     "cerrado": false,
                     "apartado_min": 10,
-                    "ahora": "2026-11-10T23:35:59.918Z",
+                    "ahora": "2026-11-11T00:39:15.770Z",
                     "canchas": [
+                        {
+                            "espacio": {
+                                "id": 138,
+                                "nombre": "Cancha Cinta 27bc4c",
+                                "tipo": "cancha"
+                            },
+                            "ficha": {
+                                "descripcion": null,
+                                "imagen_url": null,
+                                "caracteristicas": [],
+                                "deporte": null,
+                                "superficie": null
+                            },
+                            "precio_hora": "200.00",
+                            "precio_hora_cliente": {
+                                "tarjeta": "200.00",
+                                "efectivo_saldo": "200.00"
+                            },
+                            "rentable": true,
+                            "capacidad": null,
+                            "reserva_minima_min": null,
+                            "duraciones_min": [
+                                90,
+                                180,
+                                270,
+                                360
+                            ],
+                            "ocupado": []
+                        },
                         {
                             "espacio": {
                                 "id": 121,
@@ -200,8 +229,8 @@
                         },
                         {
                             "espacio": {
-                                "id": 130,
-                                "nombre": "Cinta 70d454",
+                                "id": 139,
+                                "nombre": "Cinta 69ad9a",
                                 "tipo": "cancha"
                             },
                             "ficha": {
@@ -334,8 +363,37 @@
                     ],
                     "cerrado": false,
                     "apartado_min": 10,
-                    "ahora": "2026-11-10T23:36:00.547Z",
+                    "ahora": "2026-11-11T00:39:16.826Z",
                     "canchas": [
+                        {
+                            "espacio": {
+                                "id": 138,
+                                "nombre": "Cancha Cinta 27bc4c",
+                                "tipo": "cancha"
+                            },
+                            "ficha": {
+                                "descripcion": null,
+                                "imagen_url": null,
+                                "caracteristicas": [],
+                                "deporte": null,
+                                "superficie": null
+                            },
+                            "precio_hora": "200.00",
+                            "precio_hora_cliente": {
+                                "tarjeta": "200.00",
+                                "efectivo_saldo": "200.00"
+                            },
+                            "rentable": true,
+                            "capacidad": null,
+                            "reserva_minima_min": null,
+                            "duraciones_min": [
+                                90,
+                                180,
+                                270,
+                                360
+                            ],
+                            "ocupado": []
+                        },
                         {
                             "espacio": {
                                 "id": 121,
@@ -367,8 +425,8 @@
                         },
                         {
                             "espacio": {
-                                "id": 130,
-                                "nombre": "Cinta 70d454",
+                                "id": 139,
+                                "nombre": "Cinta 69ad9a",
                                 "tipo": "cancha"
                             },
                             "ficha": {
@@ -468,7 +526,7 @@
             "verb": "POST",
             "path": "reservas",
             "body": {
-                "espacio_id": 130,
+                "espacio_id": 139,
                 "inicio": "2026-11-11T15:00:00Z",
                 "duracion_min": 90,
                 "nombre_cliente": "Cliente de cinta",
@@ -478,10 +536,10 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "efaa790f-e42b-4441-9f46-91c743d704b2",
+                    "id": "ff3e8f52-c500-4b8c-ac67-9c4a9f668e22",
                     "espacio": {
-                        "id": 130,
-                        "nombre": "Cinta 70d454",
+                        "id": 139,
+                        "nombre": "Cinta 69ad9a",
                         "tipo": "cancha"
                     },
                     "inicio": "2026-11-11T15:00:00.000Z",
@@ -494,7 +552,7 @@
                         "efectivo_saldo": "300.00"
                     },
                     "estado": "pendiente_pago",
-                    "expira_en": "2026-11-10T23:46:01.035Z",
+                    "expira_en": "2026-11-11T00:49:17.984Z",
                     "pedido_id": null,
                     "canal": "mostrador",
                     "nombre_cliente": "Cliente de cinta",
@@ -513,7 +571,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "reservas/efaa790f-e42b-4441-9f46-91c743d704b2/pago",
+            "path": "reservas/ff3e8f52-c500-4b8c-ac67-9c4a9f668e22/pago",
             "body": {
                 "metodo_pago": "efectivo",
                 "monto_recibido": "2000.00"
@@ -523,10 +581,10 @@
             "response": {
                 "data": {
                     "reserva": {
-                        "id": "efaa790f-e42b-4441-9f46-91c743d704b2",
+                        "id": "ff3e8f52-c500-4b8c-ac67-9c4a9f668e22",
                         "espacio": {
-                            "id": 130,
-                            "nombre": "Cinta 70d454",
+                            "id": 139,
+                            "nombre": "Cinta 69ad9a",
                             "tipo": "cancha"
                         },
                         "inicio": "2026-11-11T15:00:00.000Z",
@@ -540,15 +598,15 @@
                         },
                         "estado": "confirmada",
                         "expira_en": null,
-                        "pedido_id": "9847a931-9614-4796-b761-b67c3f844cc0",
+                        "pedido_id": "e6c0cc94-20d6-4ccb-bccf-06f94784c44b",
                         "canal": "mostrador",
                         "nombre_cliente": "Cliente de cinta",
                         "jugadores": 2,
                         "version": 4
                     },
                     "pedido": {
-                        "id": "9847a931-9614-4796-b761-b67c3f844cc0",
-                        "folio": 18,
+                        "id": "e6c0cc94-20d6-4ccb-bccf-06f94784c44b",
+                        "folio": 26,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -585,8 +643,8 @@
                         "pago_pendiente": false,
                         "invitado": false,
                         "version": 4,
-                        "creado_en": "2026-11-10T23:36:01.858Z",
-                        "actualizado_en": "2026-11-10T23:36:02.395Z",
+                        "creado_en": "2026-11-11T00:39:19.030Z",
+                        "actualizado_en": "2026-11-11T00:39:19.246Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -599,10 +657,10 @@
                             "alergias": []
                         },
                         "reserva": {
-                            "id": "efaa790f-e42b-4441-9f46-91c743d704b2",
+                            "id": "ff3e8f52-c500-4b8c-ac67-9c4a9f668e22",
                             "espacio": {
-                                "id": 130,
-                                "nombre": "Cinta 70d454",
+                                "id": 139,
+                                "nombre": "Cinta 69ad9a",
                                 "tipo": "cancha",
                                 "imagen_url": null
                             },
@@ -614,14 +672,14 @@
                         },
                         "llegada_en": null,
                         "minutos_estimados": 1,
-                        "listo_en": "2026-11-10T23:36:02.395Z",
-                        "entregado_en": "2026-11-10T23:36:02.395Z",
+                        "listo_en": "2026-11-11T00:39:19.246Z",
+                        "entregado_en": "2026-11-11T00:39:19.246Z",
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 211,
+                                "id": 231,
                                 "producto_id": 209,
-                                "nombre_producto": "Renta Cinta 70d454 · 90 min",
+                                "nombre_producto": "Renta Cinta 69ad9a · 90 min",
                                 "imagen_url": null,
                                 "estacion_preparacion": "caja",
                                 "cantidad": 1,
@@ -631,7 +689,7 @@
                                 "rechazo": null
                             }
                         ],
-                        "qr_token": "v1.cb7588e907628da6a7be4ef9bef7f119b76eb0be702ef7bfefb8809c6b7b286f"
+                        "qr_token": "v1.1e29ab423a91ab8e3935f8aaa4244c3f8fa61db606bc56f8d9fdd959fa64adda"
                     },
                     "cobro": {
                         "monto_recibido": "2000.00",
@@ -673,9 +731,33 @@
                             "tarjeta": "300.00",
                             "efectivo_saldo": "300.00"
                         },
-                        "estado": "confirmada",
+                        "estado": "cancelada",
                         "expira_en": null,
                         "pedido_id": "9847a931-9614-4796-b761-b67c3f844cc0",
+                        "canal": "mostrador",
+                        "nombre_cliente": "Cliente de cinta",
+                        "jugadores": 2,
+                        "version": 5
+                    },
+                    {
+                        "id": "ff3e8f52-c500-4b8c-ac67-9c4a9f668e22",
+                        "espacio": {
+                            "id": 139,
+                            "nombre": "Cinta 69ad9a",
+                            "tipo": "cancha"
+                        },
+                        "inicio": "2026-11-11T15:00:00.000Z",
+                        "fin": "2026-11-11T16:30:00.000Z",
+                        "duracion_min": 90,
+                        "precio_hora": "200.00",
+                        "monto": "300.00",
+                        "precio_cliente": {
+                            "tarjeta": "300.00",
+                            "efectivo_saldo": "300.00"
+                        },
+                        "estado": "confirmada",
+                        "expira_en": null,
+                        "pedido_id": "e6c0cc94-20d6-4ccb-bccf-06f94784c44b",
                         "canal": "mostrador",
                         "nombre_cliente": "Cliente de cinta",
                         "jugadores": 2,
@@ -729,8 +811,37 @@
                     ],
                     "cerrado": false,
                     "apartado_min": 10,
-                    "ahora": "2026-11-10T23:36:04.341Z",
+                    "ahora": "2026-11-11T00:39:21.976Z",
                     "canchas": [
+                        {
+                            "espacio": {
+                                "id": 138,
+                                "nombre": "Cancha Cinta 27bc4c",
+                                "tipo": "cancha"
+                            },
+                            "ficha": {
+                                "descripcion": null,
+                                "imagen_url": null,
+                                "caracteristicas": [],
+                                "deporte": null,
+                                "superficie": null
+                            },
+                            "precio_hora": "200.00",
+                            "precio_hora_cliente": {
+                                "tarjeta": "200.00",
+                                "efectivo_saldo": "200.00"
+                            },
+                            "rentable": true,
+                            "capacidad": null,
+                            "reserva_minima_min": null,
+                            "duraciones_min": [
+                                90,
+                                180,
+                                270,
+                                360
+                            ],
+                            "ocupado": []
+                        },
                         {
                             "espacio": {
                                 "id": 121,
@@ -762,8 +873,8 @@
                         },
                         {
                             "espacio": {
-                                "id": 130,
-                                "nombre": "Cinta 70d454",
+                                "id": 139,
+                                "nombre": "Cinta 69ad9a",
                                 "tipo": "cancha"
                             },
                             "ficha": {
@@ -867,7 +978,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "reservas/efaa790f-e42b-4441-9f46-91c743d704b2/cancelacion",
+            "path": "reservas/ff3e8f52-c500-4b8c-ac67-9c4a9f668e22/cancelacion",
             "body": {
                 "monto_reembolso": "300.00",
                 "motivo": "Se canceló el partido"
@@ -876,10 +987,10 @@
             "status": 200,
             "response": {
                 "data": {
-                    "id": "efaa790f-e42b-4441-9f46-91c743d704b2",
+                    "id": "ff3e8f52-c500-4b8c-ac67-9c4a9f668e22",
                     "espacio": {
-                        "id": 130,
-                        "nombre": "Cinta 70d454",
+                        "id": 139,
+                        "nombre": "Cinta 69ad9a",
                         "tipo": "cancha"
                     },
                     "inicio": "2026-11-11T15:00:00.000Z",
@@ -893,19 +1004,19 @@
                     },
                     "estado": "cancelada",
                     "expira_en": null,
-                    "pedido_id": "9847a931-9614-4796-b761-b67c3f844cc0",
+                    "pedido_id": "e6c0cc94-20d6-4ccb-bccf-06f94784c44b",
                     "canal": "mostrador",
                     "nombre_cliente": "Cliente de cinta",
                     "jugadores": 2,
                     "version": 5,
                     "reembolso": {
-                        "id": "4f629815-b2b0-435f-b6aa-5265bc2d7866",
+                        "id": "5dfbc810-025a-4811-88e4-0214636e763a",
                         "metodo": "efectivo",
                         "monto": "300.00",
                         "monto_pagado": "300.00",
                         "salida": "caja",
                         "saldo_nuevo": null,
-                        "creado_en": "2026-11-10T23:36:04.926Z",
+                        "creado_en": "2026-11-11T00:39:24.100Z",
                         "devolucion_id": null,
                         "sesion_caja_id": "723561bf-755c-4908-8c19-047e96ffe7e2"
                     }
@@ -922,12 +1033,12 @@
         {
             "session": "restaurante.admin",
             "verb": "DELETE",
-            "path": "espacios/130",
+            "path": "espacios/139",
             "idempotent": true,
             "status": 200,
             "response": {
                 "data": {
-                    "id": 130,
+                    "id": 139,
                     "eliminado": true
                 },
                 "meta": {

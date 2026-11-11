@@ -64,13 +64,8 @@ class GuestOrderGatewayTapeTest {
         val slug = tape.store("restaurante").slug
 
         val discovery = RemoteDiscoveryRepository(tape.client("publico"), ContractResponseParser())
-        assertTrue(
-            discovery
-                .searchEstablishments("", 20, null, null)
-                .getOrThrow()
-                .first
-                .all { it.slug.isNotBlank() },
-        )
+        // La tienda de grabación no sale en el directorio: se busca algo que no existe para no guardar tiendas ajenas.
+        assertTrue(discovery.searchEstablishments("zz-nada-zz", 20, null, null).getOrThrow().first.isEmpty())
         assertEquals("Restaurante de grabación", discovery.getEstablishment(slug).getOrThrow().name)
         assertTrue(
             discovery

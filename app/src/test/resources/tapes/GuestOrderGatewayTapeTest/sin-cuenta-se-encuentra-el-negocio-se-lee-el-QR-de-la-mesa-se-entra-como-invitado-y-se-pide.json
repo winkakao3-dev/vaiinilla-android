@@ -17,7 +17,7 @@
         }
     },
     "values": {
-        "lugar": "Cinta 898df1"
+        "lugar": "Cinta 14772b"
     },
     "exchanges": [
         {
@@ -59,7 +59,7 @@
                     "cierre_automatico": false,
                     "umbral_alerta_horas": 24,
                     "excede_umbral": false,
-                    "efectivo_esperado": "950.00",
+                    "efectivo_esperado": "1175.00",
                     "ultimo_cierre": {
                         "monto_final": "730.00",
                         "cerrada_en": "2026-11-10T23:12:35.431Z",
@@ -72,7 +72,7 @@
                     "total_pages": null,
                     "total_items": null,
                     "cursor": null,
-                    "fondo_sugerido": null
+                    "fondo_sugerido": "500.00"
                 },
                 "error": null
             }
@@ -103,6 +103,11 @@
                         {
                             "id": 115,
                             "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
                             "orden": 8
                         }
                     ],
@@ -143,19 +148,19 @@
             "verb": "POST",
             "path": "espacios",
             "body": {
-                "nombre": "Cinta 898df1",
+                "nombre": "Cinta 14772b",
                 "tipo": "mesa"
             },
             "idempotent": true,
             "status": 201,
             "response": {
                 "data": {
-                    "id": 131,
-                    "nombre": "Cinta 898df1",
+                    "id": 140,
+                    "nombre": "Cinta 14772b",
                     "tipo": "mesa",
                     "activo": true,
-                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_D-2eLB_iu16QGmbI9FyrCxIR_cjDN9xpzCINid9q3IY",
-                    "codigo": "6896",
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_H_K0zHExA2rjyPgcegM9yd31ys4Uwf8xocLSAF8tdzM",
+                    "codigo": "5462",
                     "precio_hora": null,
                     "capacidad": null,
                     "reserva_minima_min": null,
@@ -179,264 +184,12 @@
             "verb": "GET",
             "path": "publico/establecimientos",
             "query": {
+                "query": "zz-nada-zz",
                 "limit": "20"
             },
             "status": 200,
             "response": {
-                "data": [
-                    {
-                        "id": "65301cd7-d5da-4913-afba-3a659d53f7d3",
-                        "nombre": "Autoservicio (pruebas)",
-                        "slug": "autoservicio-pruebas",
-                        "tipo": "drive_thru",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Autoservicio de prueba.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 500, Chihuahua",
-                        "horario": "Todos los días",
-                        "latitud": 28.6353,
-                        "longitud": -106.0889,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": false,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "b011c4e0-0000-4000-8000-000000000001",
-                        "nombre": "Boliche Strike (pruebas)",
-                        "slug": "boliche-strike",
-                        "tipo": "boliche",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Boliche de prueba interna: carriles, mesas y barra.",
-                        "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/b011c4e0-0000-4000-8000-000000000001/perfil/930e0cc7-a2bf-4e4b-923e-ec994658a211.jpg",
-                        "logo_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/b011c4e0-0000-4000-8000-000000000001/logo/47549c49-7ad9-49db-a2bd-5c0786013c90.jpg",
-                        "direccion": "Av. de Prueba 300, Chihuahua",
-                        "horario": "Todos los días, 12:00 a 23:00",
-                        "latitud": null,
-                        "longitud": null,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": true,
-                        "entrega_en_espacio": "ambas",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "d9bbd875-278f-481d-b4f3-69616dd24a37",
-                        "nombre": "Cafetería de pruebas",
-                        "slug": "cafeteria-pruebas",
-                        "tipo": "cafeteria",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Tienda de mostrador de prueba.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 100, Chihuahua",
-                        "horario": "Todos los días",
-                        "latitud": 28.6353,
-                        "longitud": -106.0889,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": false,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "0fe49c03-79df-4364-8928-6636f3e05f69",
-                        "nombre": "Club de pádel (pruebas)",
-                        "slug": "club-padel-pruebas",
-                        "tipo": "padel",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Club de pádel de prueba.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 400, Chihuahua",
-                        "horario": "Todos los días",
-                        "latitud": 28.6353,
-                        "longitud": -106.0889,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": true,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "0d175858-6192-46b3-883b-5405571621be",
-                        "nombre": "Comedor (pruebas)",
-                        "slug": "comedor-pruebas",
-                        "tipo": "comedor",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Comedor de prueba con horario.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 600, Chihuahua",
-                        "horario": "7:00 a 10:00 y 13:00 a 16:00",
-                        "latitud": 28.6353,
-                        "longitud": -106.0889,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": false,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "90075417-bbc4-4f5d-b298-612e020e7746",
-                        "nombre": "Gran Hotel Vaini (pruebas)",
-                        "slug": "gran-hotel-vaini",
-                        "tipo": "hotel",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Hotel falso para pruebas de punta a punta",
-                        "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/90075417-bbc4-4f5d-b298-612e020e7746/perfil/3e0e9216-8a98-4454-ae0b-238438fa4559.png",
-                        "logo_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/90075417-bbc4-4f5d-b298-612e020e7746/logo/c1447553-42a0-4b7c-98f5-a41831f33c56.png",
-                        "direccion": "Calle de las Pruebas 123, Ciudad de México",
-                        "horario": "Recepción 24 h · Cocina de 7:00 a 23:00",
-                        "latitud": null,
-                        "longitud": null,
-                        "distancia_km": null,
-                        "telefono_contacto": "5555550100",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": false,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "7fb363f5-4569-42d6-930b-827a84357ffe",
-                        "nombre": "Pastelería a domicilio (pruebas)",
-                        "slug": "pasteleria-pruebas",
-                        "tipo": "reposteria",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Encargos y entrega a domicilio de prueba.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 800, Chihuahua",
-                        "horario": "Todos los días",
-                        "latitud": 28.64,
-                        "longitud": -106.09,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": true,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": false,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "db856980-5515-4f76-afd1-9009b4b0611a",
-                        "nombre": "Sandbox de agentes",
-                        "slug": "sandbox-agentes",
-                        "tipo": "cafeteria",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Escuela de prueba.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 700, Chihuahua",
-                        "horario": "Lunes a viernes",
-                        "latitud": 28.6353,
-                        "longitud": -106.0889,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": false,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    },
-                    {
-                        "id": "16b6488b-f325-474c-a902-5d0725ab5999",
-                        "nombre": "USAGI",
-                        "slug": "usagi-pruebas",
-                        "tipo": "restaurante",
-                        "identificador_cliente_etiqueta": "Identificador",
-                        "identificador_cliente_obligatorio": false,
-                        "descripcion": "Restaurante con mesero de prueba.",
-                        "imagen_url": null,
-                        "logo_url": null,
-                        "direccion": "Av. de Prueba 200, Chihuahua",
-                        "horario": "Todos los días",
-                        "latitud": 28.6353,
-                        "longitud": -106.0889,
-                        "distancia_km": null,
-                        "telefono_contacto": "6140000000",
-                        "reparto_activo": false,
-                        "instagram_url": null,
-                        "facebook_url": null,
-                        "tiktok_url": null,
-                        "whatsapp_url": null,
-                        "sitio_web_url": null,
-                        "videos_local": [],
-                        "permite_pago_al_final": true,
-                        "entrega_en_espacio": "mesa",
-                        "asistente_clientes": true,
-                        "permite_saldo": true
-                    }
-                ],
+                "data": [],
                 "meta": {
                     "page": null,
                     "total_pages": null,
@@ -541,7 +294,7 @@
             "verb": "POST",
             "path": "publico/espacios/resolver",
             "body": {
-                "token": "esp_D-2eLB_iu16QGmbI9FyrCxIR_cjDN9xpzCINid9q3IY"
+                "token": "esp_H_K0zHExA2rjyPgcegM9yd31ys4Uwf8xocLSAF8tdzM"
             },
             "status": 200,
             "response": {
@@ -575,8 +328,8 @@
                         "permite_saldo": true
                     },
                     "espacio": {
-                        "id": 131,
-                        "nombre": "Cinta 898df1",
+                        "id": 140,
+                        "nombre": "Cinta 14772b",
                         "tipo": "mesa"
                     }
                 },
@@ -616,7 +369,7 @@
             "path": "publico/invitados",
             "body": {
                 "establecimiento_slug": "cintas-restaurante",
-                "espacio_token": "esp_D-2eLB_iu16QGmbI9FyrCxIR_cjDN9xpzCINid9q3IY",
+                "espacio_token": "esp_H_K0zHExA2rjyPgcegM9yd31ys4Uwf8xocLSAF8tdzM",
                 "nombre": "Invitada de cinta",
                 "terminos_version": "2026-10",
                 "privacidad_version": "2026-10"
@@ -631,14 +384,14 @@
                     },
                     "entrada": {
                         "token": "TACHADO",
-                        "vence_en": "2026-11-11T02:06:12.000Z"
+                        "vence_en": "2026-11-11T03:09:38.000Z"
                     },
                     "access_token": "TACHADO",
                     "token_type": "Bearer",
                     "expires_in": 900,
                     "contexto": {
-                        "usuario_id": "b689c920-9b94-4ff9-b186-0f715b86c503",
-                        "membresia_id": "eead053d-9586-4dfa-8e7e-a21022caa074",
+                        "usuario_id": "1b3b1a10-d6e9-4e25-ae3c-c097345bd7a4",
+                        "membresia_id": "f37769a6-c6ed-4129-a5da-0bbf335c73d2",
                         "establecimiento_id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
                         "rol": "cliente",
                         "modo_restringido": null
@@ -680,7 +433,7 @@
                     "tutor_habilitado": false,
                     "tiempo_estimado_min": 5,
                     "sla_recuperacion_operativa_min": 15,
-                    "consultado_en": "2026-11-10T23:36:12.909Z"
+                    "consultado_en": "2026-11-11T00:39:39.878Z"
                 },
                 "meta": {
                     "page": null,
@@ -698,7 +451,7 @@
             "body": {
                 "metodo_pago": "efectivo",
                 "destino": "en_espacio",
-                "espacio_id": 131,
+                "espacio_id": 140,
                 "notas_cocina": null,
                 "items": [
                     {
@@ -713,8 +466,8 @@
             "status": 201,
             "response": {
                 "data": {
-                    "id": "dc2ed94d-7b68-435c-bca9-f68b06cfb1a5",
-                    "folio": 19,
+                    "id": "e4868ddf-d853-4509-9f1e-c691940381c2",
+                    "folio": 27,
                     "sin_conexion": null,
                     "fecha_operativa": "2026-11-10",
                     "tipo_establecimiento": "restaurante",
@@ -725,8 +478,8 @@
                     "destino": "en_espacio",
                     "recoge_en_barra": false,
                     "espacio": {
-                        "id": 131,
-                        "nombre": "Cinta 898df1",
+                        "id": 140,
+                        "nombre": "Cinta 14772b",
                         "tipo": "mesa"
                     },
                     "entrega_sin_qr": true,
@@ -750,8 +503,8 @@
                     "pago_pendiente": false,
                     "invitado": true,
                     "version": 1,
-                    "creado_en": "2026-11-10T23:36:13.419Z",
-                    "actualizado_en": "2026-11-10T23:36:13.419Z",
+                    "creado_en": "2026-11-11T00:39:40.985Z",
+                    "actualizado_en": "2026-11-11T00:39:40.985Z",
                     "vence_operacion_en": null,
                     "motivo_pendiente_operativo": null,
                     "motivo_cancelacion": null,
@@ -767,7 +520,7 @@
                     "no_recogido_en": null,
                     "items": [
                         {
-                            "id": 212,
+                            "id": 232,
                             "producto_id": 211,
                             "nombre_producto": "Torta de cinta",
                             "imagen_url": null,
@@ -780,8 +533,8 @@
                         }
                     ],
                     "calificacion": null,
-                    "qr_token": "v1.3ce3aede2016c31ccef1ad00d975d88167eda827fee4692a7425af12758183b1",
-                    "seguimiento_token": "3v6YkQN36HYhHpndMmq3VdCtfyI8acFv8Urr2FVx3EM"
+                    "qr_token": "v1.21ca1ed291165335156de7f93d2d1afc42c2a7e58c324036b18ba2043f96afc5",
+                    "seguimiento_token": "POOltXyHVjQ-LnQQZVBMftBS-7uUyDWTU_yLesojncs"
                 },
                 "meta": {
                     "page": null,
@@ -804,8 +557,8 @@
             "response": {
                 "data": [
                     {
-                        "id": "dc2ed94d-7b68-435c-bca9-f68b06cfb1a5",
-                        "folio": 19,
+                        "id": "e4868ddf-d853-4509-9f1e-c691940381c2",
+                        "folio": 27,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -816,8 +569,8 @@
                         "destino": "en_espacio",
                         "recoge_en_barra": false,
                         "espacio": {
-                            "id": 131,
-                            "nombre": "Cinta 898df1",
+                            "id": 140,
+                            "nombre": "Cinta 14772b",
                             "tipo": "mesa"
                         },
                         "entrega_sin_qr": true,
@@ -841,8 +594,8 @@
                         "pago_pendiente": false,
                         "invitado": true,
                         "version": 1,
-                        "creado_en": "2026-11-10T23:36:13.419Z",
-                        "actualizado_en": "2026-11-10T23:36:13.419Z",
+                        "creado_en": "2026-11-11T00:39:40.985Z",
+                        "actualizado_en": "2026-11-11T00:39:40.985Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": null,
@@ -858,7 +611,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 212,
+                                "id": 232,
                                 "producto_id": 211,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
@@ -872,7 +625,7 @@
                         ],
                         "calificacion": null,
                         "qr_token": null,
-                        "seguimiento_token": "3v6YkQN36HYhHpndMmq3VdCtfyI8acFv8Urr2FVx3EM"
+                        "seguimiento_token": "POOltXyHVjQ-LnQQZVBMftBS-7uUyDWTU_yLesojncs"
                     }
                 ],
                 "meta": {
@@ -902,8 +655,8 @@
                     "token_type": "Bearer",
                     "expires_in": 900,
                     "contexto": {
-                        "usuario_id": "b689c920-9b94-4ff9-b186-0f715b86c503",
-                        "membresia_id": "eead053d-9586-4dfa-8e7e-a21022caa074",
+                        "usuario_id": "1b3b1a10-d6e9-4e25-ae3c-c097345bd7a4",
+                        "membresia_id": "f37769a6-c6ed-4129-a5da-0bbf335c73d2",
                         "establecimiento_id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
                         "rol": "cliente",
                         "modo_restringido": null
@@ -921,7 +674,7 @@
         {
             "session": "restaurante.cajero",
             "verb": "POST",
-            "path": "pedidos/dc2ed94d-7b68-435c-bca9-f68b06cfb1a5/cancelaciones",
+            "path": "pedidos/e4868ddf-d853-4509-9f1e-c691940381c2/cancelaciones",
             "body": {
                 "version_esperada": 1,
                 "motivo": "Grabación"
@@ -931,8 +684,8 @@
             "response": {
                 "data": {
                     "pedido": {
-                        "id": "dc2ed94d-7b68-435c-bca9-f68b06cfb1a5",
-                        "folio": 19,
+                        "id": "e4868ddf-d853-4509-9f1e-c691940381c2",
+                        "folio": 27,
                         "sin_conexion": null,
                         "fecha_operativa": "2026-11-10",
                         "tipo_establecimiento": "restaurante",
@@ -943,8 +696,8 @@
                         "destino": "en_espacio",
                         "recoge_en_barra": false,
                         "espacio": {
-                            "id": 131,
-                            "nombre": "Cinta 898df1",
+                            "id": 140,
+                            "nombre": "Cinta 14772b",
                             "tipo": "mesa"
                         },
                         "entrega_sin_qr": true,
@@ -968,8 +721,8 @@
                         "pago_pendiente": false,
                         "invitado": true,
                         "version": 2,
-                        "creado_en": "2026-11-10T23:36:13.419Z",
-                        "actualizado_en": "2026-11-10T23:36:15.564Z",
+                        "creado_en": "2026-11-11T00:39:40.985Z",
+                        "actualizado_en": "2026-11-11T00:39:45.193Z",
                         "vence_operacion_en": null,
                         "motivo_pendiente_operativo": null,
                         "motivo_cancelacion": "Grabación",
@@ -989,7 +742,7 @@
                         "no_recogido_en": null,
                         "items": [
                             {
-                                "id": 212,
+                                "id": 232,
                                 "producto_id": 211,
                                 "nombre_producto": "Torta de cinta",
                                 "imagen_url": null,
