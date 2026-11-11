@@ -133,6 +133,23 @@ class RecorridosCajaViewModelTest {
     }
 
     @Test
+    fun f04_trasLaRecargaElCajonSeVuelveALeerSinEsperarAlSondeo() {
+        wallet.clients =
+            listOf(
+                com.vaiinilla.app.domain.model
+                    .WalletClient("u2", "María López", null),
+            )
+        cash.sessionOpen = true
+        cash.expectedCash = "500.00"
+        vm.start()
+        settle()
+        StaffHarness.awaitUntil("el cajón al abrir") { ui.expectedCash == "500.00" }
+        cash.expectedCash = "600.00"
+        vm.reloadWallet("u2", "100.00")
+        StaffHarness.awaitUntil("el cajón con la recarga", timeoutMs = 3_000) { ui.expectedCash == "600.00" }
+    }
+
+    @Test
     fun f04_sinCajaAbiertaLaRecargaNoSale() {
         vm.start()
         settle()
