@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.location.Location
+import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -424,9 +426,20 @@ class JvmRolesHarness {
         val (latitude, longitude) =
             args.map { it.toDouble() }.takeIf { it.size == 2 }
                 ?: error("Uso: location <lat> <lng>")
-        shadowOf(ApplicationProvider.getApplicationContext<android.app.Application>())
-            .grantPermissions(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        shadowOf(app).grantPermissions(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
         location.coordinates = GeoCoordinates(latitude, longitude)
+        // El mapa de entrega a domicilio pregunta al teléfono, no al proveedor de la app.
+        val manager = app.getSystemService(LocationManager::class.java)
+        shadowOf(manager).setProviderEnabled(LocationManager.GPS_PROVIDER, true)
+        shadowOf(manager).setLastKnownLocation(
+            LocationManager.GPS_PROVIDER,
+            Location(LocationManager.GPS_PROVIDER).apply {
+                this.latitude = latitude
+                this.longitude = longitude
+                time = System.currentTimeMillis()
+            },
+        )
         return "ubicación $latitude, $longitude (permiso concedido)"
     }
 
