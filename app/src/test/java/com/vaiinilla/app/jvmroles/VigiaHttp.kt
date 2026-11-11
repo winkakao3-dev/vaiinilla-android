@@ -299,7 +299,7 @@ private class WatchedConnection(
     private fun exchanged(): Response {
         response?.let { return it }
         failure?.let { throw it }
-        val result = network.intercept(getRequestMethod(), path, ::send)
+        val result = network.intercept(getRequestMethod(), path, call = ::send)
         // send() corrió: es la respuesta del servidor, aunque sea un error.
         response?.let { return it }
         val error = result.exceptionOrNull()

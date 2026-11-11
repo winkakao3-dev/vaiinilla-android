@@ -1,9 +1,12 @@
 package com.vaiinilla.app.jvmroles
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Looper
 import android.view.View
@@ -28,6 +31,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
@@ -57,6 +61,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.LooperMode
 import org.robolectric.shadows.ShadowLog
+import org.robolectric.shadows.ShadowNetworkCapabilities
 import java.io.File
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -118,6 +123,8 @@ class JvmRolesHarness {
             println("vigía: otra URLStreamHandlerFactory ya estaba puesta; la red queda como la da el JDK")
         }
         vigia = Vigia(network, ::visibleNodes, ::labelOf)
+        if (RecordingStore.active != null) network.fence = VigiaNetwork.RECORDING_STORE_FENCE
+        setInternet(true)
         // En el teléfono una excepción sin atrapar en cualquier hilo cierra la app; aquí solo mataría ese hilo.
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
@@ -198,6 +205,7 @@ class JvmRolesHarness {
                     "lector de NFC",
                 )
             "red" -> network.configure(args)
+            "internet" -> setInternet(args.firstOrNull() != "no")
             "escrituras" -> {
                 network.writesAllowed = args.firstOrNull() == "si"
                 if (network.writesAllowed) {
@@ -215,6 +223,13 @@ class JvmRolesHarness {
                 vigia.loadingLimitMillis = args.firstOrNull()?.toLong() ?: error("Uso: limite <ms>")
                 "carga eterna a partir de ${vigia.loadingLimitMillis} ms"
             }
+            "trafico-json" -> traffic(args.firstOrNull()?.toLong() ?: 0L).toString()
+            "textos" -> JSONArray(visibleNodes().map(::labelOf).filter { it.isNotBlank() }).toString()
+            "escribir" ->
+                write(
+                    args.firstOrNull()?.toInt() ?: error("Uso: escribir <id de nodos> <texto>"),
+                    args.drop(1),
+                )
             "nodos" -> tappableNodes().toString()
             "revisar" -> layoutAudit().toString()
             "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
@@ -225,9 +240,56 @@ class JvmRolesHarness {
             else ->
                 error(
                     "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, " +
-                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, revisar, tocar, atras, bajar, subir, stop.",
+                        "location, deeplink, red, internet, escrituras, vigia, trafico, trafico-json, textos, escribir, limite, nodos, " +
+                        "revisar, tocar, atras, bajar, subir, stop.",
                 )
         }
+    }
+
+    /**
+     * Lo que Android le dice a la app sobre la red. Robolectric no le da salida a internet a su red activa, y con eso
+     * Caja y Mesero guardan cada pedido como «sin internet» en vez de mandarlo. Al volver, avisa como al reconectar.
+     */
+    private fun setInternet(on: Boolean): String {
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val manager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = manager.activeNetwork ?: return "sin red activa que configurar"
+        val capabilities = ShadowNetworkCapabilities.newInstance()
+        if (on) shadowOf(capabilities).addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadowOf(manager).setNetworkCapabilities(active, capabilities)
+        if (on) shadowOf(manager).networkCallbacks.forEach { it.onAvailable(active) }
+        return if (on) "el teléfono tiene internet" else "el teléfono no tiene internet"
+    }
+
+    /** Lo que la app pidió desde [sinceId], con lo que mandó y lo que le contestaron, para comprobarlo desde fuera. */
+    private fun traffic(sinceId: Long): JSONObject {
+        val out = JSONArray()
+        network.eventsAfter(sinceId).forEach { event ->
+            out.put(
+                JSONObject()
+                    .put("id", event.id)
+                    .put("metodo", event.method)
+                    .put("ruta", event.path)
+                    .put("cruda", event.rawPath ?: JSONObject.NULL)
+                    .put("resultado", event.outcome ?: JSONObject.NULL)
+                    .put("fallo", event.failed)
+                    .put("envio", event.request ?: JSONObject.NULL)
+                    .put("respuesta", event.response ?: JSONObject.NULL),
+            )
+        }
+        return JSONObject().put("ultimo", network.lastId()).put("eventos", out)
+    }
+
+    /** Deja [words] como el texto del campo [id], reemplazando lo que tuviera. */
+    private fun write(
+        id: Int,
+        words: List<String>,
+    ): String {
+        val field = compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id } and hasSetTextAction())
+        if (field.fetchSemanticsNodes().isEmpty()) error("No hay campo con id $id; vuelve a pedir nodos.")
+        field[0].performTextReplacement(words.joinToString(" "))
+        pump(SETTLE_MILLIS / 2, realTime = false)
+        return "texto puesto"
     }
 
     /** Desliza la lista visible (la última con scroll: la de una hoja abierta antes que la de atrás). */
@@ -269,7 +331,7 @@ class JvmRolesHarness {
                     entered = waitFor(ROLE_STEP_MILLIS) { !exists(enter) }
                 } else {
                     // MODOS-01: «¿Dónde trabajas hoy?» lista cada negocio con un botón por rol («Mesero»).
-                    entered = enterFromModesList(role.operationalRole.label)
+                    entered = enterFromModesList(role.operationalRole.label) || resumedInside(enter)
                 }
             }
             if (!entered) error("No se pudo entrar como ${role.operationalRole.label}. En pantalla: ${summary()}")
@@ -278,9 +340,14 @@ class JvmRolesHarness {
         return "al frente ${role.cliName}: ${summary()}"
     }
 
+    /** Con un solo modo que seguía activo, la app abre directo en él: no hay botón de entrar ni lista de modos. */
+    private fun resumedInside(enter: SemanticsMatcher): Boolean =
+        RecordingStore.active != null && !exists(enter) && !exists(hasText(MODES_TITLE)) && summaryTexts().isNotEmpty()
+
     /** Toca el botón del rol que está debajo del negocio del sandbox en la lista de modos. */
     private fun enterFromModesList(label: String): Boolean {
-        val business = compose.onAllNodes(hasText(SANDBOX_BUSINESS, substring = true)).fetchSemanticsNodes()
+        val name = RecordingStore.active?.name ?: SANDBOX_BUSINESS
+        val business = compose.onAllNodes(hasText(name, substring = true)).fetchSemanticsNodes()
         val top = business.firstOrNull()?.boundsInRoot?.top ?: return false
         val roleButton = hasText(label) and hasClickAction() and isEnabled()
         val buttons = compose.onAllNodes(roleButton)

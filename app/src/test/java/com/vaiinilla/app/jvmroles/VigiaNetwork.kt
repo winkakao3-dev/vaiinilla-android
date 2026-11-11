@@ -41,7 +41,21 @@ class VigiaNetwork
             val outcome: String?,
             val failed: Boolean,
             val sabotaged: Boolean,
+            /** La ruta con sus ids y su consulta, lo que se mandó y lo que contestó el servidor; nulos en rutas de sesión. */
+            val rawPath: String? = null,
+            val request: String? = null,
+            val response: String? = null,
         )
+
+        /** Lo que el arnés no cruza en una tienda de pruebas: tarjeta, correos, borrar la cuenta y Plataforma. */
+        class Fence(
+            private val denied: List<Regex>,
+        ) {
+            fun blocks(
+                method: String,
+                path: String,
+            ): Boolean = method != "GET" && denied.any { it.containsMatchIn(path) }
+        }
 
         @Volatile var mode: Mode = Mode.NORMAL
             private set
@@ -58,6 +72,8 @@ class VigiaNetwork
          */
         @Volatile var writesAllowed = true
 
+        @Volatile var fence: Fence? = null
+
         private var random = Random(DEFAULT_SEED)
         private val ids = AtomicLong()
         private val running = AtomicInteger()
@@ -66,6 +82,7 @@ class VigiaNetwork
                 "peticiones" to AtomicInteger(),
                 "saboteadas" to AtomicInteger(),
                 "bloqueadas" to AtomicInteger(),
+                "cercadas" to AtomicInteger(),
             )
         private val events = ArrayDeque<Event>()
 
@@ -122,6 +139,8 @@ class VigiaNetwork
         fun intercept(
             method: String,
             path: String,
+            body: String? = null,
+            query: Map<String, String> = emptyMap(),
             call: () -> Result<String>,
         ): Result<String> {
             val id = ids.incrementAndGet()
@@ -140,8 +159,12 @@ class VigiaNetwork
                         Thread.sleep(delayMillis)
                     }
                     val blocked = !writesAllowed && method != "GET" && WRITE_ALLOWLIST.none { path.startsWith(it) }
+                    val fenced = fence?.blocks(method, path) == true
+                    if (fenced) totals.getValue("cercadas").incrementAndGet()
                     val failure =
-                        if (blocked) {
+                        if (fenced) {
+                            parser.parseError(errorEnvelope("VIGIA_CERCA", "El arnés no cruza esta ruta."), 503)
+                        } else if (blocked) {
                             blockedWrite()
                         } else if (targeted) {
                             pickFailure()
@@ -177,10 +200,17 @@ class VigiaNetwork
                     outcome,
                     result.isFailure,
                     sabotaged,
+                    rawPath =
+                        path +
+                            query.entries.joinToString("&", prefix = "?") { "${it.key}=${it.value}" }.removeSuffix("?"),
+                    request = body?.takeIf { keeps(path) }?.take(MAX_KEPT_CHARS),
+                    response = result.getOrNull()?.takeIf { keeps(path) }?.take(MAX_KEPT_CHARS),
                 ),
             )
             return result
         }
+
+        private fun keeps(path: String): Boolean = PRIVATE_PATHS.none { path.startsWith(it) }
 
         private fun blockedWrite(): Throwable =
             parser.parseError(errorEnvelope("VIGIA_SOLO_LECTURA", "El vigía no deja escribir en el sandbox."), 503)
@@ -223,6 +253,23 @@ class VigiaNetwork
             /** Nunca se sabotean: el explorador entra a cada rol con la red ya caída y el login debe funcionar. */
             val SABOTAGE_EXEMPT = listOf("sesiones/")
 
+            /** Sus cuerpos traen tokens: de estas rutas solo se anota que pasaron. */
+            val PRIVATE_PATHS = listOf("sesiones/", "devices", "identidad/", "plataforma/sesiones")
+
+            val RECORDING_STORE_FENCE =
+                Fence(
+                    listOf(
+                        Regex("stripe"),
+                        Regex("^identidad/"),
+                        Regex("^publico/"),
+                        Regex("^invitados"),
+                        Regex("^plataforma/"),
+                        Regex("^invitaciones/"),
+                        Regex("^personal/invitaciones$"),
+                        Regex("^personal/invitaciones/[^/]+/reenviar$"),
+                    ),
+                )
+
             private const val NO_META = """{"page":null,"total_pages":null,"total_items":null,"cursor":null}"""
             private val accountedThread = ThreadLocal.withInitial { false }
 
@@ -249,6 +296,7 @@ class VigiaNetwork
             fun isAccounted(): Boolean = accountedThread.get()
 
             private const val MAX_EVENTS = 300
+            private const val MAX_KEPT_CHARS = 200_000
             private const val DEFAULT_DELAY_MILLIS = 4_000L
             private const val DEFAULT_FAIL_PERCENT = 30
             private const val DEFAULT_SEED = 7L
@@ -276,13 +324,13 @@ class VigiaApiClient(
     override fun get(
         path: String,
         query: Map<String, String>,
-    ) = network.intercept("GET", path) { delegate.get(path, query) }
+    ) = network.intercept("GET", path, query = query) { delegate.get(path, query) }
 
     override fun post(
         path: String,
         body: String,
         headers: Map<String, String>,
-    ) = network.intercept("POST", path) { delegate.post(path, body, headers) }
+    ) = network.intercept("POST", path, body) { delegate.post(path, body, headers) }
 
     override fun postWithoutBody(
         path: String,
@@ -293,27 +341,27 @@ class VigiaApiClient(
         path: String,
         body: String?,
         headers: Map<String, String>,
-    ) = network.intercept("DELETE", path) { delegate.delete(path, body, headers) }
+    ) = network.intercept("DELETE", path, body) { delegate.delete(path, body, headers) }
 
     override fun getWithBearer(
         bearer: String,
         path: String,
         query: Map<String, String>,
-    ) = network.intercept("GET", path) { delegate.getWithBearer(bearer, path, query) }
+    ) = network.intercept("GET", path, query = query) { delegate.getWithBearer(bearer, path, query) }
 
     override fun postWithBearer(
         bearer: String,
         path: String,
         body: String?,
         headers: Map<String, String>,
-    ) = network.intercept("POST", path) { delegate.postWithBearer(bearer, path, body, headers) }
+    ) = network.intercept("POST", path, body) { delegate.postWithBearer(bearer, path, body, headers) }
 
     override fun patchWithBearer(
         bearer: String,
         path: String,
         body: String,
         headers: Map<String, String>,
-    ) = network.intercept("PATCH", path) { delegate.patchWithBearer(bearer, path, body, headers) }
+    ) = network.intercept("PATCH", path, body) { delegate.patchWithBearer(bearer, path, body, headers) }
 
     override fun putMultipartWithBearer(
         bearer: String,
@@ -332,26 +380,26 @@ class VigiaApiClient(
         path: String,
         body: String?,
         headers: Map<String, String>,
-    ) = network.intercept("DELETE", path) { delegate.deleteWithBearer(bearer, path, body, headers) }
+    ) = network.intercept("DELETE", path, body) { delegate.deleteWithBearer(bearer, path, body, headers) }
 
     override fun deleteWithBearerExpecting200(
         bearer: String,
         path: String,
         body: String?,
         headers: Map<String, String>,
-    ) = network.intercept("DELETE", path) { delegate.deleteWithBearerExpecting200(bearer, path, body, headers) }
+    ) = network.intercept("DELETE", path, body) { delegate.deleteWithBearerExpecting200(bearer, path, body, headers) }
 
     override fun put(
         path: String,
         body: String,
         headers: Map<String, String>,
-    ) = network.intercept("PUT", path) { delegate.put(path, body, headers) }
+    ) = network.intercept("PUT", path, body) { delegate.put(path, body, headers) }
 
     override fun patch(
         path: String,
         body: String,
         headers: Map<String, String>,
-    ) = network.intercept("PATCH", path) { delegate.patch(path, body, headers) }
+    ) = network.intercept("PATCH", path, body) { delegate.patch(path, body, headers) }
 
     override fun putMultipart(
         path: String,
@@ -374,13 +422,13 @@ class VigiaApiClient(
     override fun getPublic(
         path: String,
         query: Map<String, String>,
-    ) = network.intercept("GET", path) { delegate.getPublic(path, query) }
+    ) = network.intercept("GET", path, query = query) { delegate.getPublic(path, query) }
 
     override fun postPublic(
         path: String,
         body: String,
         headers: Map<String, String>,
-    ) = network.intercept("POST", path) { delegate.postPublic(path, body, headers) }
+    ) = network.intercept("POST", path, body) { delegate.postPublic(path, body, headers) }
 }
 
 @Module

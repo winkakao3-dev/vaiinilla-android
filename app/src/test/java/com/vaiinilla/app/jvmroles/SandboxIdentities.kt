@@ -74,6 +74,7 @@ class SandboxIdentities
 
         private fun customTokenFor(role: HarnessRole): String {
             check(!BuildConfig.IS_PRODUCTION) { "El arnés solo corre contra development." }
+            RecordingStore.active?.let { return it.customToken(role) }
             // Tráfico del arnés, no de la app: ni el sabotaje ni el solo lectura del vigía lo tocan.
             val json =
                 VigiaNetwork.accounted {

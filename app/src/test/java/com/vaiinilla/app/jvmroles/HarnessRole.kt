@@ -8,11 +8,13 @@ enum class HarnessRole(
     private val aliases: Set<String>,
     val sandboxKey: String,
     val operationalRole: OperationalRole,
+    /** Su cuenta en una tienda de pruebas ([RecordingStore]); casi siempre la misma del sandbox. */
+    val storeAccount: String = sandboxKey,
 ) {
     ALUMNO("alumno", setOf("cliente"), "cliente", OperationalRole.CLIENT),
 
     // El papá del sandbox: un cliente con hijos (solo existe en un backend con Padres e hijos).
-    TUTOR("tutor", setOf("papa", "papá"), "tutor", OperationalRole.CLIENT),
+    TUTOR("tutor", setOf("papa", "papá"), "tutor", OperationalRole.CLIENT, storeAccount = "cliente2"),
     CAJA("caja", setOf("cajero"), "cajero", OperationalRole.CASHIER),
     COCINA("cocina", emptySet(), "cocina", OperationalRole.KITCHEN),
     MESERO("mesero", emptySet(), "mesero", OperationalRole.WAITER),
