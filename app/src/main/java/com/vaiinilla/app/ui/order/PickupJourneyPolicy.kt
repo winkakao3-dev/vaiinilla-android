@@ -9,6 +9,7 @@ import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.VenueContext
 import com.vaiinilla.app.domain.time.BusinessTime
 import com.vaiinilla.app.ui.components.RentalStep
+import com.vaiinilla.app.ui.components.isRental
 import com.vaiinilla.app.ui.components.needsPickupQr
 import com.vaiinilla.app.ui.components.rentalCourtName
 import com.vaiinilla.app.ui.components.rentalStep
@@ -195,12 +196,14 @@ internal fun pickupCodeHint(
 /**
  * "Mostrar código" solo sirve mientras el pedido sigue abierto. En mesa o cancha, además, el negocio
  * debe pedir el QR al entregar, salvo que haya que pagar en Caja.
+ * Una renta no tiene nada que entregar y Caja la cobra buscándola por la cancha o el nombre, no por QR.
  */
 internal fun pickupCodeUseful(
     order: OrderDetail,
     deliveryRequiresQr: Boolean,
 ): Boolean =
-    order.summary.state in setOf(OrderState.PENDING_PAYMENT, OrderState.PAID, OrderState.PREPARING, OrderState.READY) &&
+    !order.isRental &&
+        order.summary.state in setOf(OrderState.PENDING_PAYMENT, OrderState.PAID, OrderState.PREPARING, OrderState.READY) &&
         (order.cashPending() || order.needsPickupQr(deliveryRequiresQr))
 
 /**

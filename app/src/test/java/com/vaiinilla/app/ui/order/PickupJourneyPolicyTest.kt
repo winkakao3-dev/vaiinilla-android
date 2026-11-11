@@ -136,6 +136,25 @@ class PickupJourneyPolicyTest {
         assertFalse(byStaff.needsPickupQr(deliveryRequiresQr = true))
     }
 
+    @Test
+    fun aRentalPaidInCashShowsNoCode() {
+        val start = Instant.parse("2026-11-08T18:00:00Z")
+        val rental =
+            order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH).copy(
+                reservation =
+                    OrderReservation(
+                        id = "r",
+                        space = null,
+                        start = start,
+                        end = start.plusSeconds(7200),
+                        durationMinutes = 120,
+                        state = ReservationState.PENDING_PAYMENT,
+                    ),
+            )
+        assertFalse(pickupCodeUseful(rental, deliveryRequiresQr = true))
+        assertTrue(pickupCodeUseful(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH), deliveryRequiresQr = true))
+    }
+
     private fun atBar(order: OrderDetail): OrderDetail = order.copy(summary = order.summary.copy(pickUpAtBar = true))
 
     @Test
