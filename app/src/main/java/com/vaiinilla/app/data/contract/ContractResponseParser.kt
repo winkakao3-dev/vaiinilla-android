@@ -48,7 +48,7 @@ class ContractResponseParser
                 cashSessionOpen = envelope.data.cashSessionOpen,
                 cashierOnline = envelope.data.cashierOnline,
                 kitchenOnline = envelope.data.kitchenOnline,
-                estimatedTimeMinutes = envelope.data.estimatedTimeMinutes,
+                estimatedTimeMinutes = envelope.data.estimatedTimeMinutes ?: 0,
                 consultedAt = envelope.data.consultedAt,
                 deliveryRequiresQr = envelope.data.deliveryRequiresQr,
                 allowsPayAtEnd = envelope.data.allowsPayAtEnd,
