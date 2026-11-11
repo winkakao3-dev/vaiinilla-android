@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -230,6 +231,12 @@ class JvmRolesHarness {
                     args.firstOrNull()?.toInt() ?: error("Uso: escribir <id de nodos> <texto>"),
                     args.drop(1),
                 )
+            "poner" ->
+                write(
+                    args.firstOrNull()?.toInt() ?: error("Uso: poner <id de nodos> <texto>"),
+                    args.drop(1),
+                    focus = false,
+                )
             "nodos" -> tappableNodes().toString()
             "revisar" -> layoutAudit().toString()
             "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
@@ -283,13 +290,23 @@ class JvmRolesHarness {
     }
 
     /** Deja [words] como el texto del campo [id], reemplazando lo que tuviera. */
+    /**
+     * Sin [focus] el texto entra sin abrir el teclado: en un diálogo, el teclado de Robolectric deja la pantalla
+     * redibujándose sin fin y el arnés ya no contesta.
+     */
     private fun write(
         id: Int,
         words: List<String>,
+        focus: Boolean = true,
     ): String {
         val field = compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id } and hasSetTextAction())
         if (field.fetchSemanticsNodes().isEmpty()) error("No hay campo con id $id; vuelve a pedir nodos.")
-        field[0].performTextReplacement(words.joinToString(" "))
+        val text = words.joinToString(" ")
+        if (focus) {
+            field[0].performTextReplacement(text)
+        } else {
+            field[0].performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString(text)) }
+        }
         pump(SETTLE_MILLIS / 2, realTime = false)
         return "texto puesto"
     }
