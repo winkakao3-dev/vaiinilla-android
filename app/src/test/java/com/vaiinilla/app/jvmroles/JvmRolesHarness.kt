@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -33,8 +34,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeDown
-import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.swipe
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -295,9 +295,21 @@ class JvmRolesHarness {
     /** Desliza la lista visible (la última con scroll: la de una hoja abierta antes que la de atrás). */
     private fun scroll(down: Boolean): String {
         val lists = compose.onAllNodes(hasScrollAction())
-        val count = lists.fetchSemanticsNodes().size
-        if (count == 0) error("No hay nada que deslizar. En pantalla: ${summary()}")
-        lists[count - 1].performTouchInput { if (down) swipeUp() else swipeDown() }
+        val nodes = lists.fetchSemanticsNodes()
+        if (nodes.isEmpty()) error("No hay nada que deslizar. En pantalla: ${summary()}")
+        // Una fila que se desliza de lado (fichas, fotos) también cuenta como lista: el dedo va a la última vertical.
+        val vertical = nodes.indexOfLast { SemanticsProperties.VerticalScrollAxisRange in it.config }
+        // Despacio y a media pantalla: un deslizón rápido toma vuelo y se salta lo que hay en medio de una lista larga.
+        lists[if (vertical >= 0) vertical else nodes.lastIndex].performTouchInput {
+            val (from, to) =
+                if (down) {
+                    height * SWIPE_FROM to height * SWIPE_TO
+                } else {
+                    height * SWIPE_TO to
+                        height * SWIPE_FROM
+                }
+            swipe(Offset(centerX, from), Offset(centerX, to), SWIPE_MILLIS)
+        }
         pump(SETTLE_MILLIS, realTime = true)
         return summary()
     }
@@ -776,6 +788,9 @@ class JvmRolesHarness {
         const val POLLING_WINDOW_MILLIS = 10_000L
         const val TAP_REACTION_MILLIS = 400L
         const val HIDDEN_NAMES = 3
+        const val SWIPE_FROM = 0.7f
+        const val SWIPE_TO = 0.3f
+        const val SWIPE_MILLIS = 900L
         val SCRIM_LABELS = setOf("Close sheet", "Cerrar hoja")
     }
 }

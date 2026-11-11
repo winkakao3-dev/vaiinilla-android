@@ -261,7 +261,9 @@ class VigiaNetwork
                     listOf(
                         Regex("stripe"),
                         Regex("^identidad/"),
-                        Regex("^publico/"),
+                        // Resolver un QR también es público y sí hace falta: solo se cortan los correos y los invitados.
+                        Regex("^publico/correos/"),
+                        Regex("^publico/invitados"),
                         Regex("^invitados"),
                         Regex("^plataforma/"),
                         Regex("^invitaciones/"),
