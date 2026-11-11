@@ -80,6 +80,12 @@ class ServerTape : TestRule {
         fresh: () -> String,
     ): String = values.getOrPut(key) { if (live != null) fresh() else recorded.values.getValue(key) }
 
+    /**
+     * Lo que la app manda como bearer cuando el repositorio pide el token aparte (Plataforma). Es un vale:
+     * la sesión de verdad no sale del arnés, que la pone al hablar con el servidor.
+     */
+    fun bearer(session: String): String = SESSION_VOUCHER + session
+
     /** Espera a que el servidor termine algo (un trabajo del asistente). Al repetir la cinta no espera. */
     fun pause(millis: Long) {
         if (live != null) Thread.sleep(millis)
@@ -211,6 +217,29 @@ class ServerTape : TestRule {
             headers: Map<String, String>,
         ) = call("DELETE", path, body = body, headers = headers, explicitBearer = bearer)
 
+        override fun patchWithBearer(
+            bearer: String,
+            path: String,
+            body: String,
+            headers: Map<String, String>,
+        ) = call("PATCH", path, body = body, headers = headers, explicitBearer = bearer)
+
+        override fun putMultipartWithBearer(
+            bearer: String,
+            path: String,
+            fieldName: String,
+            filename: String,
+            mimeType: String,
+            bytes: ByteArray,
+            headers: Map<String, String>,
+        ) = call(
+            "PUT",
+            path,
+            headers = headers,
+            explicitBearer = bearer,
+            upload = Upload(fieldName, filename, mimeType, bytes),
+        )
+
         override fun getPublic(
             path: String,
             query: Map<String, String>,
@@ -328,6 +357,9 @@ internal data class Exchange(
     fun summary() = "$session $verb $path"
 }
 
+/** Prefijo del vale que [ServerTape.bearer] entrega en lugar de una sesión. */
+internal const val SESSION_VOUCHER = "sesion-de-cinta:"
+
 /** El servidor de pruebas de verdad, hablado con curl: el classpath de Android no trae PATCH ni java.net.http. */
 internal class LiveServer(
     val url: String,
@@ -335,7 +367,13 @@ internal class LiveServer(
     private val sessions: Map<String, String>,
 ) {
     fun send(request: Exchange): Exchange {
-        val bearer = request.bearer ?: sessions[request.session]
+        val explicit = request.bearer
+        val bearer =
+            if (explicit != null && explicit.startsWith(SESSION_VOUCHER)) {
+                sessions.getValue(explicit.removePrefix(SESSION_VOUCHER))
+            } else {
+                explicit ?: sessions[request.session]
+            }
         val query =
             request.query.entries
                 .joinToString("&") { "${it.key}=${URLEncoder.encode(it.value, "UTF-8")}" }
