@@ -679,7 +679,7 @@ private fun ProductoMostradorTile(
             exit = scaleOut(spring(stiffness = 700f)) + fadeOut(),
             modifier = Modifier.align(Alignment.TopEnd),
         ) {
-            // La píldora mide 26 como en el lienzo; el toque para restar llega a 48 alrededor de ella.
+            // El toque para restar llega a 48 alrededor de la píldora; a 26 de alto no se veía (U02), va a 34.
             Box(
                 modifier =
                     Modifier
@@ -692,16 +692,16 @@ private fun ProductoMostradorTile(
                     modifier =
                         Modifier
                             .padding(6.dp)
-                            .height(26.dp)
+                            .height(34.dp)
                             .clip(CircleShape)
                             .background(colors.accentLime)
-                            .padding(horizontal = 8.dp),
+                            .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text("−", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                    Text("−", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 17.sp)
                     NumberTicker(value = cantidad, label = "counter-tile-count") { value ->
-                        Text("$value", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                        Text("$value", color = colors.accentInk, fontWeight = FontWeight.Black, fontSize = 16.sp)
                     }
                 }
             }
