@@ -97,10 +97,17 @@ class AbonoContractTest {
 
     @Test
     fun `retrying the same abono reuses its key, a new one does not`() {
-        val first = abonoIdempotencyKey(7, AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 3, "100.00", null)
-        val retry = abonoIdempotencyKey(7, AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 3, "100.00", null)
-        val next = abonoIdempotencyKey(7, AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 2, "66.67", null)
+        val first = abonoIdempotencyKey(7, "s1", AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 3, "100.00", null)
+        val retry = abonoIdempotencyKey(7, "s1", AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 3, "100.00", null)
+        val next = abonoIdempotencyKey(7, "s1", AccountPaymentMethod.CASH, AbonoMode.PARTS, null, 2, "66.67", null)
         assertEquals(first, retry)
         assertNotEquals(first, next)
+    }
+
+    @Test
+    fun `the same abono on the next account of the same table gets its own key`() {
+        fun half(sessionId: String) =
+            abonoIdempotencyKey(7, sessionId, AccountPaymentMethod.CASH, AbonoMode.AMOUNT, "45.00", null, "90.00", null)
+        assertNotEquals(half("s1"), half("s2"))
     }
 }
