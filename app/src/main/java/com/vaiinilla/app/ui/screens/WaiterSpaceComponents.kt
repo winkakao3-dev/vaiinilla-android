@@ -750,7 +750,7 @@ internal fun WaiterSpaceSection(
                         )
                     }
                     ActionPill(
-                        label = if (confirmingRelease) "¿Seguro? Se cierra la cuenta" else "Liberar espacio",
+                        label = if (confirmingRelease) "¿Seguro? Se cierra la cuenta" else "Cerrar cuenta y liberar",
                         enabled = enabled && ordersInCourse == 0,
                         loading = acting && busyKey == "release",
                         colors = colors,
