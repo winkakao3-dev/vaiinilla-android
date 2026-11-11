@@ -233,6 +233,8 @@ class JvmRolesHarness {
             "nodos" -> tappableNodes().toString()
             "revisar" -> layoutAudit().toString()
             "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
+            "accionar" ->
+                tapNode(args.firstOrNull()?.toInt() ?: error("Uso: accionar <id de nodos>"), ownAction = true).toString()
             "atras" -> back().toString()
             "bajar" -> scroll(down = true)
             "subir" -> scroll(down = false)
@@ -562,7 +564,14 @@ class JvmRolesHarness {
             .put("nodos", list)
     }
 
-    private fun tapNode(id: Int): JSONObject {
+    /**
+     * Toca el nodo en su centro. Con [ownAction] dispara su propia acción, como un lector de pantalla: sirve cuando
+     * en el centro hay otro control (el enlace del aviso dentro del renglón que acepta el aviso).
+     */
+    private fun tapNode(
+        id: Int,
+        ownAction: Boolean = false,
+    ): JSONObject {
         val node =
             clickableNodes().firstOrNull { it.id == id }
                 ?: error("No hay nodo tocable con id $id; vuelve a pedir nodos.")
@@ -580,7 +589,8 @@ class JvmRolesHarness {
                 .toSet()
         startedOutside()
         val tappedAt = System.currentTimeMillis()
-        compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].clickEvenOffscreen()
+        val target = compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0]
+        if (ownAction) target.performSemanticsAction(SemanticsActions.OnClick) else target.clickEvenOffscreen()
         pump(SETTLE_MILLIS, realTime = true)
         // "Reintentar" pide justo lo que la pantalla ya pedía sola: si sale enseguida del toque, es respuesta al toque.
         val requests =
