@@ -308,6 +308,25 @@ class VigiaApiClient(
         headers: Map<String, String>,
     ) = network.intercept("POST", path) { delegate.postWithBearer(bearer, path, body, headers) }
 
+    override fun patchWithBearer(
+        bearer: String,
+        path: String,
+        body: String,
+        headers: Map<String, String>,
+    ) = network.intercept("PATCH", path) { delegate.patchWithBearer(bearer, path, body, headers) }
+
+    override fun putMultipartWithBearer(
+        bearer: String,
+        path: String,
+        fieldName: String,
+        filename: String,
+        mimeType: String,
+        bytes: ByteArray,
+        headers: Map<String, String>,
+    ) = network.intercept("PUT", path) {
+        delegate.putMultipartWithBearer(bearer, path, fieldName, filename, mimeType, bytes, headers)
+    }
+
     override fun deleteWithBearer(
         bearer: String,
         path: String,

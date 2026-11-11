@@ -1,7 +1,7 @@
 package com.vaiinilla.app.data.platform
 
 import com.vaiinilla.app.core.network.ApiJson
-import com.vaiinilla.app.core.network.HttpVaiinillaApiClient
+import com.vaiinilla.app.core.network.VaiinillaApiClient
 import com.vaiinilla.app.core.network.idempotencyHeaders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -155,7 +155,7 @@ internal fun encodeStoreFields(fields: Map<String, Any?>): String =
 class PlatformRepository
     @Inject
     constructor(
-        private val api: HttpVaiinillaApiClient,
+        private val api: VaiinillaApiClient,
     ) {
         suspend fun authority(firebaseToken: String): Result<PlatformAuthority> =
             io {
