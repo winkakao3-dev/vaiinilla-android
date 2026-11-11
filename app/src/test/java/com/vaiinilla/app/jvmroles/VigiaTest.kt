@@ -177,6 +177,23 @@ class VigiaTest {
     }
 
     @Test
+    fun `what the app sends and receives is kept, except on routes that carry tokens`() {
+        network.intercept("POST", "pedidos", body = """{"nota":"sin cebolla"}""") { Result.success("""{"id":"p1"}""") }
+        val withToken = { Result.success("""{"token":"t"}""") }
+        network.intercept("POST", "sesiones/contexto", body = """{"secreto":1}""", call = withToken)
+        network.intercept("POST", "tutelas/dependientes/7/contexto", body = "{}", call = withToken)
+
+        val kept = network.eventsAfter(0).map { "${it.path} ${it.request} ${it.response}" }
+        assertEquals(
+            listOf(
+                """pedidos {"nota":"sin cebolla"} {"id":"p1"}""",
+                "sesiones/contexto null null",
+                "tutelas/dependientes/{id}/contexto null null",
+            ),
+            kept,
+        )
+    }
+    @Test
     fun `a text cut without ellipsis is reported and an ellipsized one is not`() {
         compose.setContent {
             Column {

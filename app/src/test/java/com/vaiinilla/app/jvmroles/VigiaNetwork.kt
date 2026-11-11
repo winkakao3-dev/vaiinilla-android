@@ -210,7 +210,9 @@ class VigiaNetwork
             return result
         }
 
-        private fun keeps(path: String): Boolean = PRIVATE_PATHS.none { path.startsWith(it) }
+        // «…/contexto» abre la sesión de un hijo y contesta con su token.
+        private fun keeps(path: String): Boolean =
+            PRIVATE_PATHS.none { path.startsWith(it) } && !path.endsWith("/contexto")
 
         private fun blockedWrite(): Throwable =
             parser.parseError(errorEnvelope("VIGIA_SOLO_LECTURA", "El vigía no deja escribir en el sandbox."), 503)
