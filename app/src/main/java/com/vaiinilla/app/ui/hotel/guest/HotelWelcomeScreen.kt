@@ -85,9 +85,10 @@ fun HotelWelcomeContent(
         ) {
             Text(
                 stay?.guestName?.let { "Hola, ${firstName(it)}" } ?: "Te damos la bienvenida",
-                color = colors.muted,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                // Va sobre la foto: el gris se perdía con fotos claras.
+                color = colors.ink,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
             )
             Text(
                 stay?.roomName ?: venue.vocabulary.roomTitle,

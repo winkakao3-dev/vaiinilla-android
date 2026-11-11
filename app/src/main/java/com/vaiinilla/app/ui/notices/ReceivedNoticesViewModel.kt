@@ -43,7 +43,7 @@ class ReceivedNoticesViewModel
             notice: ReceivedNotice,
             modes: List<AuthorizedMode>,
         ) {
-            val explanation = NoticeExplanation.explain(venueContext.current, notice.payload, notice.isRemote)
+            val explanation = NoticeExplanation.explain(venueContext.current, notice.payload)
             val orderId = explanation.orderId ?: return
             if (notice.id in _searching.value) return
             _searching.update { it + notice.id }

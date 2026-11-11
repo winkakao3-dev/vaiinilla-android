@@ -255,8 +255,7 @@ class HotelStaffDoopScreenshotTest {
                 onFilter = {},
                 onFloor = {},
                 onRoom = {},
-                onTake = {},
-                onResolve = {},
+                onAdvance = {},
                 onBack = null,
             )
         }

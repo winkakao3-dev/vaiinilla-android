@@ -7,6 +7,8 @@ import com.vaiinilla.app.domain.hotel.HotelRepository
 import com.vaiinilla.app.domain.hotel.HotelRequest
 import com.vaiinilla.app.domain.hotel.HotelRoom
 import com.vaiinilla.app.domain.hotel.RequestAction
+import com.vaiinilla.app.domain.hotel.RequestStatus
+import com.vaiinilla.app.domain.hotel.RequestType
 import com.vaiinilla.app.domain.hotel.RoomCleaning
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +54,25 @@ internal fun RoomsFilter.matches(room: HotelRoom): Boolean =
         RoomsFilter.CLEAN -> room.cleaning == RoomCleaning.READY && !room.occupied
         RoomsFilter.OCCUPIED -> room.occupied
     }
+
+/**
+ * El paso que sigue para una solicitud. La salida tardía se aprueba esté pendiente o tomada: `resolver` la cierra
+ * sin mover la salida ni sumar el cargo, y el huésped la vería resuelta sin que nada cambiara.
+ */
+internal fun staffAction(request: HotelRequest): RequestAction =
+    when {
+        request.type == RequestType.LATE_CHECKOUT -> RequestAction.APPROVE
+        request.status == RequestStatus.TAKEN -> RequestAction.RESOLVE
+        else -> RequestAction.TAKE
+    }
+
+internal val RequestAction.buttonLabel: String
+    get() =
+        when (this) {
+            RequestAction.TAKE -> "Tomar"
+            RequestAction.RESOLVE -> "Listo"
+            RequestAction.APPROVE -> "Aprobar"
+        }
 
 data class HotelRoomsUiState(
     val rooms: List<HotelRoom> = emptyList(),
@@ -117,7 +138,7 @@ class HotelRoomsViewModel
                         rooms = rooms.getOrDefault(current.rooms),
                         requests = requests.getOrDefault(current.requests).sortedBy { it.createdAt },
                         loaded = current.loaded || rooms.isSuccess,
-                        // Si «Tomar» o «Listo» falló (otra persona la tomó), el aviso sobrevive a la recarga.
+                        // Si el paso de una solicitud falló (otra persona la tomó), el aviso sobrevive a la recarga.
                         error = failure ?: current.error?.takeUnless { it == refreshError },
                     )
                 }
@@ -136,9 +157,8 @@ class HotelRoomsViewModel
                 current.copy(floor = floors[(index + 1) % floors.size])
             }
 
-        fun take(request: HotelRequest) = transition(request, RequestAction.TAKE)
-
-        fun resolve(request: HotelRequest) = transition(request, RequestAction.RESOLVE)
+        /** El botón de una solicitud: manda el paso que le toca según [staffAction]. */
+        fun advance(request: HotelRequest) = transition(request, staffAction(request))
 
         private fun transition(
             request: HotelRequest,

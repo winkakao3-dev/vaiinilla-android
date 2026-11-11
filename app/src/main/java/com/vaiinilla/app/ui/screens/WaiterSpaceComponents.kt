@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -80,6 +81,7 @@ import com.vaiinilla.app.domain.model.Money
 import com.vaiinilla.app.domain.model.MoneyInput
 import com.vaiinilla.app.domain.model.Reservation
 import com.vaiinilla.app.domain.model.ReservationSlots
+import com.vaiinilla.app.domain.model.SpaceCopy
 import com.vaiinilla.app.domain.model.TipChoice
 import com.vaiinilla.app.domain.model.TipPercents
 import com.vaiinilla.app.domain.model.VenueContext
@@ -600,7 +602,11 @@ internal fun WaiterSpaceSection(
             }
             if (hasPending && !canCharge) {
                 Text(
-                    "La cuenta se cobra desde Mesero o Caja.",
+                    if (SpaceCopy.isRoom(venue, space.type) && !venue.isHotelTable(space.id)) {
+                        "La habitación se cobra al salir, en Recepción."
+                    } else {
+                        "La cuenta se cobra desde Mesero o Caja."
+                    },
                     fontSize = 12.5.sp,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 12.dp),
@@ -745,7 +751,7 @@ internal fun WaiterSpaceSection(
                         )
                     }
                     ActionPill(
-                        label = if (confirmingRelease) "¿Seguro? Se cierra la cuenta" else "Liberar espacio",
+                        label = if (confirmingRelease) "¿Seguro? Se cierra la cuenta" else "Cerrar cuenta y liberar",
                         enabled = enabled && ordersInCourse == 0,
                         loading = acting && busyKey == "release",
                         colors = colors,
@@ -1947,8 +1953,19 @@ internal fun PlayersStepper(
                 color = colors.textPrimary,
             )
         }
-        ChipButton(label = "−", enabled = enabled && players > min, colors = colors) { onChange(players - 1) }
-        ChipButton(label = "+", enabled = enabled && players < max, colors = colors) { onChange(players + 1) }
+        // U02: sin ancho mínimo el «−» y el «+» medían lo que su signo, unos 30 dp, y se fallaba el toque.
+        ChipButton(
+            label = "−",
+            enabled = enabled && players > min,
+            colors = colors,
+            modifier = Modifier.width(64.dp),
+        ) { onChange(players - 1) }
+        ChipButton(
+            label = "+",
+            enabled = enabled && players < max,
+            colors = colors,
+            modifier = Modifier.width(64.dp),
+        ) { onChange(players + 1) }
     }
 }
 

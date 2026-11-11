@@ -63,7 +63,7 @@ class VaiinillaMessagingService : FirebaseMessagingService() {
             }
         if (data["type"] == "order_state" || data["type"] == "staff_alert") OrderPushes.notifyChanged()
         // Todo aviso se anota, también el que no se pudo mostrar: es justo el que hay que explicar.
-        val explanation = NoticeExplanation.explain(venueContext.current, data, isRemote = true)
+        val explanation = NoticeExplanation.explain(venueContext.current, data)
         ReceivedNoticeLog.record(
             context = applicationContext,
             id = noticeId,

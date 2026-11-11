@@ -31,6 +31,32 @@ class CustomerAssistantViewModelTest {
     }
 
     @Test
+    fun `el texto de espera avanza con el tiempo que lleva la pregunta`() {
+        val state = CustomerAssistantState(thinking = true, thinkingSince = 1_000)
+        assertEquals(0, state.thinkingStep(now = 4_999))
+        assertEquals(1, state.thinkingStep(now = 5_000))
+        assertEquals(1, state.thinkingStep(now = 20_999))
+        assertEquals(CustomerAssistantState.LAST_THINKING_STEP, state.thinkingStep(now = 21_000))
+    }
+
+    @Test
+    fun `cada pregunta anota cuando empezo la espera`() {
+        val gate = CountDownLatch(1)
+        val repository = FakeRepository(gate = gate)
+        val vm = CustomerAssistantViewModel(repository)
+        vm.onVisible("est-1:4", "est-1")
+        val before = System.currentTimeMillis()
+
+        vm.send("¿Qué me recomiendas?")
+        waitUntil { repository.started == 1 }
+
+        assertTrue(vm.state.value.thinking)
+        assertTrue(vm.state.value.thinkingSince >= before)
+        gate.countDown()
+        waitUntil { !vm.state.value.thinking }
+    }
+
+    @Test
     fun `el invitado sin alta da su nombre y la platica sigue`() {
         val repository = FakeRepository(guestNeedsName = true)
         val vm = CustomerAssistantViewModel(repository)
@@ -46,6 +72,23 @@ class CustomerAssistantViewModelTest {
         assertEquals("Sofía L", repository.enteredName)
         assertFalse(vm.state.value.needsName)
         assertEquals("est-1", repository.lastEstablishment)
+    }
+
+    @Test
+    fun `manda el contexto mas reciente del lugar con cada pregunta`() {
+        val repository = FakeRepository()
+        val vm = CustomerAssistantViewModel(repository)
+        vm.onVisible("est-1:4", "est-1")
+        vm.setContext("Estoy hospedado en un hotel, en Habitación 204.")
+
+        vm.send("Quiero toallas")
+        waitUntil { repository.replies == 1 }
+        assertEquals("Estoy hospedado en un hotel, en Habitación 204.", repository.lastContext)
+
+        vm.setContext(null)
+        vm.send("Y un café")
+        waitUntil { repository.replies == 2 }
+        assertEquals(null, repository.lastContext)
     }
 
     @Test
@@ -146,12 +189,16 @@ class CustomerAssistantViewModelTest {
 
         @Volatile var lastEstablishment: String? = null
 
+        @Volatile var lastContext: String? = null
+
         override fun reply(
             turns: List<CustomerAssistantTurn>,
             establishmentId: String?,
+            context: String?,
         ): Result<CustomerAssistantReply> {
             started++
             lastEstablishment = establishmentId
+            lastContext = context
             gate?.await()
             replies++
             failure?.let { return Result.failure(it) }

@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
 
 /**
  * Las pantallas del huésped del hotel contra los marcos H01, H05 y H06 de Doop (oscuro, 390 x 844). Solo captura:
@@ -120,7 +121,8 @@ class HotelGuestScreenshotTest {
 
     @Test
     fun doop_hotel_h06() {
-        dark { HotelAccountContent(stay = laura) }
+        // El día de la referencia: el room service de las 8:02 es «Hoy» y el minibar de ayer, «Ayer».
+        dark { HotelAccountContent(stay = laura, now = Instant.parse("2026-11-06T20:00:00Z")) }
         settle()
         captureScreenRoboImage("hotel/doop_hotel_h06.png")
     }

@@ -1,5 +1,6 @@
 package com.vaiinilla.app.ui.admin
 
+import com.vaiinilla.app.data.inventory.AllergenSuggestion
 import com.vaiinilla.app.data.inventory.InventoryMovement
 import com.vaiinilla.app.data.inventory.InventoryMovementType
 import com.vaiinilla.app.data.inventory.InventoryProduct
@@ -42,6 +43,9 @@ private class FakeInventory : InventoryRepository {
     @Volatile var countResult: Result<Int> = Result.success(0)
 
     @Volatile var soldOutAfterRecipe = false
+
+    @Volatile var suggestion: Result<AllergenSuggestion> =
+        Result.success(AllergenSuggestion(listOf("gluten"), "Lleva harina."))
     val created = CopyOnWriteArrayList<InventorySupplyInput>()
     val recipes = CopyOnWriteArrayList<Pair<Int, List<RecipeLine>>>()
     val links = CopyOnWriteArrayList<Pair<Long, Map<Int, Double>>>()
@@ -81,6 +85,13 @@ private class FakeInventory : InventoryRepository {
     }
 
     override fun products() = Result.success(products)
+
+    override fun suggestAllergens(
+        name: String,
+        description: String?,
+        ingredients: String?,
+        productId: Int?,
+    ) = suggestion
 
     override fun recipe(productId: Int): Result<List<RecipeLine>> =
         recipeFails?.let { Result.failure(it) } ?: Result.success(emptyList())
@@ -152,6 +163,30 @@ class RecorridosInventarioViewModelTest {
             if (System.currentTimeMillis() > end) throw AssertionError("Se esperaba: $what")
             Thread.sleep(10)
         }
+    }
+
+    @Test
+    fun `la sugerencia de alergenos vive en el estado y un fallo conserva la anterior`() {
+        vm.suggestAllergens("Pizza", "", "harina, queso", 10)
+        wait("la sugerencia") { !ui.allergenSuggestion.busy }
+        assertEquals(listOf("gluten"), ui.allergenSuggestion.suggestion?.codes)
+        assertNull(ui.allergenSuggestion.error)
+
+        repo.suggestion = Result.failure(IllegalStateException("sin red"))
+        vm.suggestAllergens("Pizza", "", "harina, queso", 10)
+        wait("el fallo") { !ui.allergenSuggestion.busy }
+        assertTrue(ui.allergenSuggestion.error != null)
+        assertEquals(listOf("gluten"), ui.allergenSuggestion.suggestion?.codes)
+    }
+
+    @Test
+    fun `al abrir otro producto se olvida lo que el asistente sugirio para el anterior`() {
+        vm.suggestAllergens("Pizza", "", "harina, queso", 10)
+        wait("la sugerencia") { ui.allergenSuggestion.suggestion != null }
+
+        vm.forgetAllergenSuggestion()
+
+        assertEquals(AllergenSuggestionUi(), ui.allergenSuggestion)
     }
 
     @Test

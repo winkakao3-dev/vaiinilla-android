@@ -10,9 +10,12 @@ import com.vaiinilla.app.core.network.toUserFacingMessage
 import com.vaiinilla.app.data.admin.AssistantPartialFailure
 import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
+import com.vaiinilla.app.domain.admin.AssistantJob
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
 import com.vaiinilla.app.domain.admin.AssistantProposal
+import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantUpload
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.CashbackRules
@@ -36,6 +39,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 
@@ -72,6 +76,10 @@ data class StoreAssistantState(
     val photos: Map<String, AssistantPhoto> = emptyMap(),
     /** Las fotos elegidas que se mandan con el siguiente mensaje, en el orden en que se eligieron. */
     val pendingPhotoIds: List<String> = emptyList(),
+    /** Los Excel que el dueño mandó («excel1»…); van completos en cada mensaje para que el asistente los siga viendo. */
+    val sheets: Map<String, AssistantSheet> = emptyMap(),
+    /** Los Excel elegidos que se mandan con el siguiente mensaje. */
+    val pendingSheetIds: List<String> = emptyList(),
     /** Si el error de [error] se arregla con "Reintentar" (no cuando el mensaje fue demasiado largo). */
     val retryable: Boolean = true,
     /** El texto que el servidor rechazó por largo: vuelve al campo para que el dueño lo parta. */
@@ -84,9 +92,12 @@ data class StoreAssistantState(
     val failures: List<Pair<String, String>> = emptyList(),
     /** "Guardando 3 de 9" mientras se aplica. */
     val progress: String? = null,
+    /** El servidor ya está armando la respuesta: el dueño puede salir de la app sin perderla. */
+    val thinkingOnServer: Boolean = false,
 ) {
     val canSend: Boolean get() = !thinking && !applying && remainingMessages > 1
     val canAddPhoto: Boolean get() = canSend && photos.size < ASSISTANT_MAX_PHOTOS
+    val canAddSheet: Boolean get() = canSend && sheets.size < ASSISTANT_MAX_SHEETS
 
     /** Cuántas fotos más caben en esta plática. */
     val photosLeft: Int get() = (ASSISTANT_MAX_PHOTOS - photos.size).coerceAtLeast(0)
@@ -94,7 +105,7 @@ data class StoreAssistantState(
     /** Letras que caben en el siguiente mensaje: las marcas de las fotos pendientes también cuentan. */
     val lettersLeftForText: Int get() = STORE_ASSISTANT_MAX_LETTERS - photoTags.length
 
-    internal val photoTags: String get() = pendingPhotoIds.joinToString("") { " [$it]" }
+    internal val photoTags: String get() = (pendingPhotoIds + pendingSheetIds).joinToString("") { " [$it]" }
 }
 
 /** Flujo de mi tienda, pagos con tarjeta y cashback: la configuración del negocio. */
@@ -230,10 +241,12 @@ class AdminStoreViewModel
 
         // region Asistente de configuración
 
-        /** Al abrir el asistente: si todavía no hay plática, que salude y haga la primera pregunta. */
+        /** Al abrir el asistente no se le pregunta nada: el dueño escribe primero, con ideas para empezar. */
         fun startAssistant() {
             val current = _assistant.value
-            if (current.messages.isEmpty() && !current.thinking) askAssistant(emptyList())
+            if (current.messages.isEmpty() && !current.thinking && current.options.isEmpty()) {
+                _assistant.value = current.copy(options = START_OPTIONS)
+            }
         }
 
         /**
@@ -257,6 +270,7 @@ class AdminStoreViewModel
                     error = null,
                     retryable = true,
                     pendingPhotoIds = emptyList(),
+                    pendingSheetIds = emptyList(),
                 )
             askAssistant(messages)
             return true
@@ -270,7 +284,11 @@ class AdminStoreViewModel
             val current = _assistant.value
             if (!current.canAddPhoto) return
             val next =
-                (current.photos.keys.mapNotNull { it.removePrefix("foto").toIntOrNull() }.maxOrNull() ?: 0) + 1
+                (
+                    current.photos.keys
+                        .mapNotNull { it.removePrefix("foto").toIntOrNull() }
+                        .maxOrNull() ?: 0
+                ) + 1
             val id = "foto$next"
             _assistant.value =
                 current.copy(
@@ -279,6 +297,50 @@ class AdminStoreViewModel
                     error = null,
                     retryable = true,
                 )
+        }
+
+        /**
+         * Un Excel elegido en el chat: se manda con el siguiente mensaje y después en todos, para que el asistente lo
+         * siga viendo. Solo .xlsx de hasta 2 MB, como acepta el servidor.
+         */
+        fun addAssistantSheet(
+            name: String,
+            bytes: ByteArray,
+        ) {
+            val current = _assistant.value
+            if (!current.canAddSheet) return
+            val problem =
+                when {
+                    !name.endsWith(".xlsx", ignoreCase = true) ->
+                        "Solo se pueden mandar archivos de Excel (.xlsx). Guárdalo así y mándalo otra vez."
+                    bytes.size > ASSISTANT_MAX_SHEET_BYTES -> "Ese Excel pesa más de 2 MB. Manda solo las hojas que necesitas."
+                    else -> null
+                }
+            if (problem != null) {
+                _assistant.value = current.copy(error = problem, retryable = false)
+                return
+            }
+            val next =
+                (
+                    current.sheets.keys
+                        .mapNotNull { it.removePrefix("excel").toIntOrNull() }
+                        .maxOrNull() ?: 0
+                ) + 1
+            val id = "excel$next"
+            _assistant.value =
+                current.copy(
+                    sheets = current.sheets + (id to AssistantSheet(id, name, bytes)),
+                    pendingSheetIds = current.pendingSheetIds + id,
+                    error = null,
+                    retryable = true,
+                )
+        }
+
+        fun removeAssistantSheet(id: String) {
+            val current = _assistant.value
+            if (id !in current.pendingSheetIds) return
+            _assistant.value =
+                current.copy(sheets = current.sheets - id, pendingSheetIds = current.pendingSheetIds - id)
         }
 
         /** Quita una de las fotos que aún no se mandan. */
@@ -332,13 +394,13 @@ class AdminStoreViewModel
         /** Empieza otra plática desde cero (la propuesta anterior se descarta). */
         fun restartAssistant() {
             if (_assistant.value.thinking || _assistant.value.applying) return
-            _assistant.value = StoreAssistantState()
-            askAssistant(emptyList())
+            _assistant.value = StoreAssistantState(options = START_OPTIONS)
         }
 
         /**
          * Aplica la propuesta paso por paso con las rutas de siempre. Si algo falla sigue con lo demás y enseña qué
-         * faltó; aceptar otra vez reintenta solo eso, con las mismas llaves. [onDone] cierra el asistente.
+         * faltó; aceptar otra vez reintenta solo eso, con las mismas llaves. Al guardar todo, la plática sigue con lo
+         * que le falta a la tienda; [onDone] cierra el asistente solo si ya no caben más mensajes.
          */
         fun acceptProposal(onDone: () -> Unit) {
             val current = _assistant.value
@@ -379,10 +441,32 @@ class AdminStoreViewModel
                         )
                     }
                     refresh()
-                    if (failures.isEmpty()) {
+                    val saved = _assistant.value
+                    if (failures.isEmpty() && saved.remainingMessages <= 2) {
                         _assistant.value = StoreAssistantState()
                         showNotice("Tu tienda quedó configurada", isError = false)
                         onDone()
+                    } else if (failures.isEmpty()) {
+                        showNotice("Guardado en tu tienda", isError = false)
+                        // Lo dice Vaini, no se manda a nombre del dueño: la plática sigue cuando él escriba.
+                        val messages =
+                            saved.messages +
+                                AssistantMessage(
+                                    fromOwner = false,
+                                    text = if (proposal.continues) FOLLOW_UP_CONTINUES else FOLLOW_UP_DONE,
+                                )
+                        _assistant.value =
+                            saved.copy(
+                                messages = messages,
+                                options = if (proposal.continues) listOf(CONTINUE_OPTION) else START_OPTIONS,
+                                proposal = null,
+                                reviewing = false,
+                                applying = false,
+                                progress = null,
+                                proposalKey = null,
+                                appliedSteps = emptySet(),
+                                failures = emptyList(),
+                            )
                     } else {
                         _assistant.value =
                             _assistant.value.copy(
@@ -396,12 +480,17 @@ class AdminStoreViewModel
         }
 
         private fun askAssistant(messages: List<AssistantMessage>) {
-            _assistant.value = _assistant.value.copy(thinking = true, error = null, retryable = true)
+            _assistant.value =
+                _assistant.value.copy(thinking = true, thinkingOnServer = false, error = null, retryable = true)
             viewModelScope.launch {
                 // Solo las fotos que ya van en algún mensaje; las que siguen pendientes aún no se mandan.
                 val pending = _assistant.value.pendingPhotoIds.toSet()
-                val photoIds = _assistant.value.photos.keys.filter { it !in pending }
-                val result = withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds) }
+                val photoIds =
+                    _assistant.value.photos.keys
+                        .filter { it !in pending }
+                val pendingSheets = _assistant.value.pendingSheetIds.toSet()
+                val sheets = _assistant.value.sheets.values.filter { it.id !in pendingSheets }
+                val result = fetchAssistantReply(messages, photoIds, sheets)
                 val current = _assistant.value
                 _assistant.value =
                     result.fold(
@@ -416,6 +505,7 @@ class AdminStoreViewModel
                                 appliedSteps = if (reply.proposal != null) emptySet() else current.appliedSteps,
                                 failures = if (reply.proposal != null) emptyList() else current.failures,
                                 thinking = false,
+                                thinkingOnServer = false,
                                 remainingMessages = reply.remainingMessages,
                             )
                         },
@@ -427,22 +517,69 @@ class AdminStoreViewModel
                                 val photoIds = last?.let { m -> PHOTO_TAG.findAll(m.text).map { it.groupValues[1] } }
                                 current.copy(
                                     thinking = false,
+                                    thinkingOnServer = false,
                                     messages = if (last != null) messages.dropLast(1) else messages,
                                     pendingPhotoIds =
                                         (current.pendingPhotoIds + photoIds.orEmpty())
                                             .distinct()
                                             .filter { it in current.photos },
                                     draftToRestore =
-                                        last?.text?.replace(PHOTO_TAG, "")?.replace(Regex(" {2,}"), " ")?.trim(),
+                                        last
+                                            ?.text
+                                            ?.replace(PHOTO_TAG, "")
+                                            ?.replace(Regex(" {2,}"), " ")
+                                            ?.trim(),
                                     error = assistantErrorMessage(error),
                                     retryable = false,
                                 )
                             } else {
-                                current.copy(thinking = false, error = assistantErrorMessage(error), retryable = true)
+                                current.copy(
+                                    thinking = false,
+                                    thinkingOnServer = false,
+                                    error = assistantErrorMessage(error),
+                                    retryable = true,
+                                )
                             }
                         },
                     )
             }
+        }
+
+        /**
+         * Arranca la respuesta en el servidor y pregunta por ella hasta que esté lista. Mientras el dueño está fuera
+         * de la app la red falla: eso no es un error, se sigue preguntando al volver. Un servidor sin la ruta de
+         * trabajos (o una prueba sin ella) contesta con la llamada de siempre.
+         */
+        private suspend fun fetchAssistantReply(
+            messages: List<AssistantMessage>,
+            photoIds: List<String>,
+            sheets: List<AssistantSheet>,
+        ): Result<AssistantReply> {
+            val started = withContext(Dispatchers.IO) { repository.startAssistantJob(messages, photoIds, sheets) }
+            val jobId =
+                started.getOrElse { error ->
+                    if (!assistantJobsMissing(error)) return Result.failure(error)
+                    return withContext(Dispatchers.IO) { repository.assistantReply(messages, photoIds, sheets) }
+                }
+            _assistant.value = _assistant.value.copy(thinkingOnServer = true)
+            repeat(ASSISTANT_JOB_MAX_POLLS) {
+                delay(ASSISTANT_JOB_POLL_MS)
+                val status = withContext(Dispatchers.IO) { repository.assistantJob(jobId) }
+                status.fold(
+                    onSuccess = { job ->
+                        when (job) {
+                            AssistantJob.Thinking -> Unit
+                            is AssistantJob.Done -> return Result.success(job.reply)
+                            is AssistantJob.Failed ->
+                                return Result.failure(CatalogRepositoryException(job.code, job.message))
+                        }
+                    },
+                    onFailure = { error -> if (!error.isConnectionCut()) return Result.failure(error) },
+                )
+            }
+            return Result.failure(
+                CatalogRepositoryException("ASSISTANT_JOB_TIMEOUT", "El asistente tardó demasiado."),
+            )
         }
 
         // endregion
@@ -625,6 +762,12 @@ class AdminStoreViewModel
     }
 
 /** El servidor rechazó lo que se mandó por largo o por pesado (mensaje con más letras de las que acepta, 413). */
+// Lo que la app dice por el dueño al aceptar, para que el asistente siga con lo que falta.
+internal const val FOLLOW_UP_CONTINUES = "Listo, ya quedó. ¿Sigo con lo que falta?"
+internal const val FOLLOW_UP_DONE = "Listo, ya quedó. ¿Qué más hacemos hoy?"
+internal const val CONTINUE_OPTION = "Sigue con lo demás"
+internal val START_OPTIONS = listOf("¿Cómo voy hoy?", "Me llegó mercancía", "Cambiar un precio", "Apartar una pista")
+
 internal fun assistantInputTooLong(error: Throwable): Boolean {
     val code = (error as? CatalogRepositoryException)?.code
     return code in INPUT_TOO_LONG_CODES ||
@@ -650,15 +793,42 @@ private fun assistantReplyErrorMessage(error: Throwable): String =
         "ASSISTANT_REPLY_TOO_LONG" ->
             "Es mucho para una sola vez. Mándame una parte del menú, acéptala y seguimos con lo demás."
         "RATE_LIMITED" -> "Muchos mensajes seguidos. Espera unos minutos y vuelve a intentar."
-        else -> error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
+        // El servidor dice qué Excel no pudo leer y qué hacer.
+        "ASSISTANT_FILE_INVALID" -> error.message ?: "No pude leer ese Excel. Guárdalo como .xlsx y mándalo otra vez."
+        "ASSISTANT_BUSY" -> "Todavía estoy con lo que me mandaste antes. Espera a que termine."
+        "ASSISTANT_JOB_NOT_FOUND" -> "Se perdió mi respuesta porque el servidor se reinició. Toca Reintentar."
+        "ASSISTANT_JOB_TIMEOUT" -> "Me tardé demasiado con esto. Toca Reintentar o mándame el Excel en partes."
+        else ->
+            if (error.isConnectionCut()) {
+                "Se cortó la conexión con el asistente. Revisa tu internet y toca Reintentar."
+            } else {
+                error.toUserFacingMessage("No se pudo hablar con el asistente. Vuelve a intentar.")
+            }
     }
+
+/** La red se cortó (sin señal, la app en segundo plano, «Software caused connection abort»). */
+private fun Throwable.isConnectionCut(): Boolean = generateSequence(this) { it.cause }.any { it is IOException }
+
+/** El servidor todavía no tiene la ruta de trabajos (404 de ruta, no de un trabajo vencido). */
+internal fun assistantJobsMissing(error: Throwable): Boolean {
+    if (error is UnsupportedOperationException) return true
+    val api = generateSequence(error) { it.cause }.filterIsInstance<ApiClientException>().firstOrNull()
+    return api?.httpStatus == HTTP_NOT_FOUND && api.code != "ASSISTANT_JOB_NOT_FOUND"
+}
 
 /** Letras por mensaje del dueño, igual que `MAX_LETRAS_MENSAJE` del servidor (cabe un menú completo pegado). */
 const val STORE_ASSISTANT_MAX_LETTERS = 6000
 private const val HTTP_PAYLOAD_TOO_LARGE = 413
+private const val HTTP_NOT_FOUND = 404
+
+// Cada 3 s durante 30 min: un Excel grande puede tardar varios minutos en armarse.
+private const val ASSISTANT_JOB_POLL_MS = 3_000L
+private const val ASSISTANT_JOB_MAX_POLLS = 600
 private val INPUT_TOO_LONG_CODES = setOf("ASSISTANT_MESSAGE_TOO_LONG", "PAYLOAD_TOO_LARGE", "HTTP_413")
 private val PHOTO_TAG = Regex("""\[(foto\d+)]""")
 private const val ASSISTANT_MAX_PHOTOS = 20
+private const val ASSISTANT_MAX_SHEETS = 3
+private const val ASSISTANT_MAX_SHEET_BYTES = 2 * 1024 * 1024
 private val ALREADY_INVITED = setOf("INVITATION_PENDING_EXISTS", "MEMBERSHIP_ROLE_EXISTS")
 
 internal fun assistantStepError(error: Throwable): String =

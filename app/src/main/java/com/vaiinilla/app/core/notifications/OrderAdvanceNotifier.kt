@@ -121,7 +121,8 @@ object OrderAdvanceNotifier {
         val name = customerName?.trim()?.takeIf { it.isNotEmpty() }
         return when (alert) {
             "por_cobrar" -> "Pedido #$folio por cobrar" to "Entró un pedido en efectivo."
-            "nueva_comanda" -> "Nueva comanda #$folio" to "Cocina: pedido cobrado listo para preparar."
+            // No todo lo que llega a cocina está cobrado: lo de una habitación o de una cuenta abierta se paga al final.
+            "nueva_comanda" -> "Nueva comanda #$folio" to "Entró un pedido para preparar."
             "listo_mesero" ->
                 "Pedido #$folio listo" to
                     if (name != null) {
@@ -244,8 +245,9 @@ object OrderAdvanceNotifier {
         callId: String,
         noticeId: String? = null,
     ): Shown {
-        val title = "Tu mesero va en camino"
-        val text = "Va a ${SpaceCopy.yourPlace(venue, null)}."
+        val reception = venue.capabilities.waiterIsReception
+        val title = if (reception) "Ya vienen a tu habitación" else "Tu mesero va en camino"
+        val text = if (reception) "Recepción tomó tu llamada." else "Va a ${SpaceCopy.yourPlace(venue, null)}."
         if (!canPost(context, NotificationMute.Scope.CLIENT)) return Shown(title, text, posted = false)
         ensureChannel(context)
         val notification =

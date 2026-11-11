@@ -33,6 +33,7 @@ import com.vaiinilla.app.ui.components.moneyLabel
 import com.vaiinilla.app.ui.hotel.hotelViewModel
 import com.vaiinilla.app.ui.theme.LocalVaiinillaColors
 import java.math.BigDecimal
+import java.time.Instant
 
 /** H06: la cuenta de la estancia. La app solo la muestra: el pago se hace en recepción al salir. */
 @Composable
@@ -83,7 +84,10 @@ internal fun accountHeadline(stay: Stay): Pair<String, BigDecimal> {
     }
 }
 
-internal fun accountLines(stay: Stay): List<AccountLine> {
+internal fun accountLines(
+    stay: Stay,
+    now: Instant = Instant.now(),
+): List<AccountLine> {
     val orders =
         billedOrders(stay).map {
             val title =
@@ -92,7 +96,7 @@ internal fun accountLines(stay: Stay): List<AccountLine> {
                     ?: "Room service"
             AccountLine(
                 title,
-                listOfNotNull(it.createdAt?.let(::cremeMoment), "room service").joinToString(" · "),
+                listOfNotNull(it.createdAt?.let { at -> cremeMoment(at, now) }, "room service").joinToString(" · "),
                 it.total.toBigDecimalOrNull() ?: BigDecimal.ZERO,
             )
         }
@@ -101,7 +105,7 @@ internal fun accountLines(stay: Stay): List<AccountLine> {
             val kind = it.category.takeIf { category -> category != ChargeCategory.OTHER }?.label
             AccountLine(
                 it.concept,
-                listOfNotNull(it.createdAt?.let(::cremeMoment), kind).joinToString(" · ").ifEmpty { null },
+                listOfNotNull(it.createdAt?.let { at -> cremeMoment(at, now) }, kind).joinToString(" · ").ifEmpty { null },
                 it.amount.toBigDecimalOrNull() ?: BigDecimal.ZERO,
             )
         }
@@ -128,6 +132,8 @@ fun HotelAccountContent(
     stay: Stay?,
     modifier: Modifier = Modifier,
     error: String? = null,
+    /** «Hoy» y «Ayer» se cuentan desde aquí; las capturas lo fijan para no cambiar con el día. */
+    now: Instant = Instant.now(),
 ) {
     val venue = LocalVenueContext.current
     val colors = LocalVaiinillaColors.current
@@ -167,7 +173,7 @@ fun HotelAccountContent(
                     style = TextStyle(fontFeatureSettings = "tnum"),
                 )
             }
-            val lines = stay?.let(::accountLines).orEmpty()
+            val lines = stay?.let { accountLines(it, now) }.orEmpty()
             Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HotelPanel {
                     if (lines.isEmpty()) {

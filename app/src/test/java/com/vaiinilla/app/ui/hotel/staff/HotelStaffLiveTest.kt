@@ -260,7 +260,7 @@ class HotelStaffLiveTest {
                     .firstOrNull { it.id == request.id }
             assertNotNull("la solicitud aparece en el tablero", seen)
             assertTrue("el título lleva cantidad y tipo", requestTitle(seen!!).endsWith("2 toallas"))
-            board.take(seen)
+            board.advance(seen)
             await("tomar") {
                 board.state.value.busyId == null &&
                     board.state.value.requests
@@ -271,7 +271,7 @@ class HotelStaffLiveTest {
                 board.state.value.requests
                     .first { it.id == request.id }
             assertTrue("tomada con la versión nueva", taken.version > seen.version)
-            board.resolve(taken)
+            board.advance(taken)
             await("resolver") {
                 board.state.value.busyId == null &&
                     board.state.value.requests

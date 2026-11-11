@@ -192,7 +192,7 @@ private fun ageText(elapsedMs: Long?): String {
 
 /** «Lista» espera unos segundos para poder deshacerse: la cuenta atrás va aquí, en el estilo de la tarjeta. */
 @Composable
-private fun UndoReady(
+internal fun UndoReady(
     deadline: Long,
     onUndo: () -> Unit,
     modifier: Modifier = Modifier,
@@ -206,12 +206,19 @@ private fun UndoReady(
     }
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Marcada como lista", color = colors.accent, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+        Text(
+            "Marcada como lista",
+            color = colors.accent,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
         HotelButton(
-            "Deshacer · ${left}s",
+            "Deshacer ${left} s",
             onClick = onUndo,
             kind = HotelButtonKind.Outline,
             height = 40.dp,

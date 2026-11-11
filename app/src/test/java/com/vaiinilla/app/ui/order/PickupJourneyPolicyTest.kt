@@ -84,6 +84,11 @@ class PickupJourneyPolicyTest {
             "Tu mesero te lo lleva. Si te pide el código, muéstrale este.",
             pickupCodeHint(order(OrderState.READY, toSpace = true)),
         )
+        // En un hotel la «mesa» es la habitación: no hay mesero que la lleve.
+        assertEquals(
+            "Te lo llevan a tu habitación. Si te piden el código, muéstralo.",
+            pickupCodeHint(order(OrderState.READY, toSpace = true), VenueContext.of("hotel")),
+        )
     }
 
     @Test
@@ -129,6 +134,25 @@ class PickupJourneyPolicyTest {
         // Capturado por el personal: el QR quedó en su teléfono y Caja no lo pide.
         val byStaff = atBar(order(OrderState.READY, toSpace = true, withoutQr = true))
         assertFalse(byStaff.needsPickupQr(deliveryRequiresQr = true))
+    }
+
+    @Test
+    fun aRentalPaidInCashShowsNoCode() {
+        val start = Instant.parse("2026-11-08T18:00:00Z")
+        val rental =
+            order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH).copy(
+                reservation =
+                    OrderReservation(
+                        id = "r",
+                        space = null,
+                        start = start,
+                        end = start.plusSeconds(7200),
+                        durationMinutes = 120,
+                        state = ReservationState.PENDING_PAYMENT,
+                    ),
+            )
+        assertFalse(pickupCodeUseful(rental, deliveryRequiresQr = true))
+        assertTrue(pickupCodeUseful(order(OrderState.PENDING_PAYMENT, PaymentMethod.CASH), deliveryRequiresQr = true))
     }
 
     private fun atBar(order: OrderDetail): OrderDetail = order.copy(summary = order.summary.copy(pickUpAtBar = true))

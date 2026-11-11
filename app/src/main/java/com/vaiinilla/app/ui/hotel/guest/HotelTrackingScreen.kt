@@ -192,30 +192,31 @@ fun HotelTrackingContent(
                     }
                 }
             }
-            Box(Modifier.height(96.dp))
+            Box(Modifier.height(160.dp))
         }
-        Row(
+        // Uno arriba del otro: a la mitad del ancho «Llamar a recepción» se cortaba en «Llamar a».
+        Column(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 16.dp)
                     .navigationBarsPadding(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (onCallReception != null && !closed && state != OrderState.DELIVERED) {
                 PillButton(
                     "Llamar a recepción",
                     filled = false,
                     onClick = onCallReception,
-                    modifier = Modifier.weight(1f).testTag("hotel_call_reception"),
+                    modifier = Modifier.fillMaxWidth().testTag("hotel_call_reception"),
                 )
             }
             PillButton(
                 if (showItems) "Ocultar pedido" else "Ver pedido",
                 filled = true,
                 onClick = { showItems = !showItems },
-                modifier = Modifier.weight(1f).testTag("hotel_view_order"),
+                modifier = Modifier.fillMaxWidth().testTag("hotel_view_order"),
             )
         }
     }

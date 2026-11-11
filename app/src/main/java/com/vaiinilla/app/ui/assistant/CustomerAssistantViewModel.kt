@@ -21,6 +21,8 @@ data class CustomerAssistantState(
     val conversation: Int = 0,
     val turns: List<CustomerAssistantTurn> = emptyList(),
     val thinking: Boolean = false,
+    /** Cuándo empezó la espera en curso (reloj del teléfono, en ms); de aquí sale el texto que avanza. */
+    val thinkingSince: Long = 0,
     val error: String? = null,
     val options: List<String> = emptyList(),
     val remaining: Int = CustomerAssistantJson.MAX_MESSAGES,
@@ -37,8 +39,22 @@ data class CustomerAssistantState(
 ) {
     val canSend: Boolean get() = !thinking && !needsName && !closed && remaining > 1
 
+    /** El texto de espera cambia a los 4 s y a los 20 s de haber preguntado; [now] en ms, como [thinkingSince]. */
+    fun thinkingStep(now: Long): Int {
+        val waited = now - thinkingSince
+        return when {
+            waited < 4_000 -> 0
+            waited < 20_000 -> 1
+            else -> LAST_THINKING_STEP
+        }
+    }
+
     /** Solo el pedido más reciente se puede poner en el carrito: los de antes ya los reemplazó. */
     val latestOrderTurn: Int get() = turns.indexOfLast { it.order != null }
+
+    companion object {
+        const val LAST_THINKING_STEP = 2
+    }
 }
 
 /** El asistente de pedidos del cliente (junto a «Mesero»). La plática vive aquí mientras siga en el mismo lugar. */
@@ -52,6 +68,12 @@ class CustomerAssistantViewModel
         val state: State<CustomerAssistantState> = _state
         private var scope: String? = null
         private var establishmentId: String? = null
+        private var context: String? = null
+
+        /** Dónde está y qué sabe la app del cliente (ver [AssistantPlaceNote]); se manda en la siguiente pregunta. */
+        fun setContext(note: String?) {
+            context = note
+        }
 
         /** Otro negocio u otra mesa empiezan plática nueva. */
         fun onVisible(
@@ -147,9 +169,10 @@ class CustomerAssistantViewModel
         }
 
         private fun ask(prepare: suspend () -> Unit) {
-            _state.value = _state.value.copy(thinking = true, error = null)
+            _state.value = _state.value.copy(thinking = true, thinkingSince = System.currentTimeMillis(), error = null)
             val conversation = _state.value.conversation
             val place = establishmentId
+            val note = context
             viewModelScope.launch {
                 val needsName = withContext(Dispatchers.IO) { repository.needsGuestName() }
                 if (conversation != _state.value.conversation) return@launch
@@ -161,7 +184,7 @@ class CustomerAssistantViewModel
                 val result =
                     withContext(Dispatchers.IO) {
                         runCatching { prepare() }.fold(
-                            onSuccess = { repository.reply(turns, place) },
+                            onSuccess = { repository.reply(turns, place, note) },
                             onFailure = { Result.failure(it) },
                         )
                     }

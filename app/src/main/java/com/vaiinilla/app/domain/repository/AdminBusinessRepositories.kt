@@ -5,7 +5,9 @@ import com.vaiinilla.app.domain.admin.AdminPeriod
 import com.vaiinilla.app.domain.admin.AdminWalletSummary
 import com.vaiinilla.app.domain.admin.AssistantMessage
 import com.vaiinilla.app.domain.admin.AssistantPhoto
+import com.vaiinilla.app.domain.admin.AssistantJob
 import com.vaiinilla.app.domain.admin.AssistantReply
+import com.vaiinilla.app.domain.admin.AssistantSheet
 import com.vaiinilla.app.domain.admin.AssistantStep
 import com.vaiinilla.app.domain.admin.CashbackRule
 import com.vaiinilla.app.domain.admin.ForcedCloseResult
@@ -96,7 +98,22 @@ interface AdminStoreRepository {
     fun assistantReply(
         messages: List<AssistantMessage>,
         photoIds: List<String> = emptyList(),
+        sheets: List<AssistantSheet> = emptyList(),
     ): Result<AssistantReply> = Result.failure(UnsupportedOperationException("Asistente no soportado"))
+
+    /**
+     * Arranca la respuesta del asistente en el servidor (`POST /establecimiento/asistente/trabajos`) y regresa el id
+     * del trabajo. Salir de la app ya no la pierde, y con un Excel el asistente lo lee entero y propone todo junto.
+     */
+    fun startAssistantJob(
+        messages: List<AssistantMessage>,
+        photoIds: List<String> = emptyList(),
+        sheets: List<AssistantSheet> = emptyList(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("Asistente en segundo plano no soportado"))
+
+    /** Cómo va un trabajo del asistente (`GET /establecimiento/asistente/trabajos/{id}`). */
+    fun assistantJob(id: String): Result<AssistantJob> =
+        Result.failure(UnsupportedOperationException("Asistente en segundo plano no soportado"))
 
     /**
      * Aplica un paso de la propuesta del asistente con la ruta de siempre (ajustes, lugares, menú, fotos o
