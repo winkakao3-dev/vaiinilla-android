@@ -1,0 +1,1095 @@
+{
+    "values": {
+        "habitacion": "Cinta 034d34 ",
+        "llegada": "2026-11-13",
+        "mañana": "2026-11-11",
+        "pasado": "2026-11-12",
+        "salida": "2026-11-15"
+    },
+    "exchanges": [
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias",
+            "query": {
+                "estado": "en_casa"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "hoy": "2026-11-10",
+                    "estancias": [],
+                    "limit": null,
+                    "offset": 0,
+                    "hay_mas": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias",
+            "query": {
+                "estado": "reservada"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "hoy": "2026-11-10",
+                    "estancias": [],
+                    "limit": null,
+                    "offset": 0,
+                    "hay_mas": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.admin",
+            "verb": "POST",
+            "path": "habitaciones/lote",
+            "body": {
+                "prefijo": "Cinta 034d34",
+                "desde": 1,
+                "hasta": 1,
+                "piso": 2,
+                "categoria": "doble"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "solicitadas": 1,
+                    "creadas": 1,
+                    "convertidas": 0,
+                    "omitidas": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "habitaciones",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 133,
+                        "nombre": "Cinta 00e275 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 134,
+                        "nombre": "Cinta 034d34 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 107,
+                        "nombre": "Cinta 671d55 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 110,
+                        "nombre": "Cinta 7c2d46 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 109,
+                        "nombre": "Cinta 7e2672 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 113,
+                        "nombre": "Cinta b6d704 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 112,
+                        "nombre": "Cinta c54a1f 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 106,
+                        "nombre": "Cinta e74006 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 111,
+                        "nombre": "Cinta 1a57cb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 108,
+                        "nombre": "Cinta 4c3cdb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias",
+            "body": {
+                "espacio_id": 134,
+                "huesped_nombre": "Reserva de cinta",
+                "contacto": "614 000 0000",
+                "entrada": "2026-11-13",
+                "salida": "2026-11-15",
+                "tarifa_noche": "800.00"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "8c76602b-a93b-4215-92b3-c8473b0580b7",
+                    "estado": "reservada",
+                    "huesped": "Reserva de cinta",
+                    "contacto": "614 000 0000",
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "376337",
+                    "espacio_id": 134,
+                    "espacio_nombre": "Cinta 034d34 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-13",
+                    "salida": "2026-11-15",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-15T18:00:00.000Z",
+                    "tarifa_noche": "800.00",
+                    "entro_en": null,
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "1600.00",
+                    "cuenta": {
+                        "noches_total": "1600.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "1600.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias",
+            "query": {
+                "estado": "reservada"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "hoy": "2026-11-10",
+                    "estancias": [
+                        {
+                            "id": "8c76602b-a93b-4215-92b3-c8473b0580b7",
+                            "estado": "reservada",
+                            "huesped": "Reserva de cinta",
+                            "contacto": "614 000 0000",
+                            "usuario_id": null,
+                            "usuarios_vinculados": 0,
+                            "codigo": "376337",
+                            "espacio_id": 134,
+                            "espacio_nombre": "Cinta 034d34 1",
+                            "piso": 2,
+                            "categoria": "doble",
+                            "entrada": "2026-11-13",
+                            "salida": "2026-11-15",
+                            "noches": 2,
+                            "salida_prevista": "2026-11-15T18:00:00.000Z",
+                            "tarifa_noche": "800.00",
+                            "entro_en": null,
+                            "salio_en": null,
+                            "no_molestar": false,
+                            "total": "1600.00",
+                            "cuenta": {
+                                "noches_total": "1600.00",
+                                "cargos_total": "0.00",
+                                "pedidos_total": "0.00",
+                                "total": "1600.00",
+                                "pedidos_pendientes": 0
+                            },
+                            "metodo_cobro": null,
+                            "total_cobrado": null,
+                            "cobrado_en": null,
+                            "cargos": [],
+                            "pedidos": [],
+                            "version": 1
+                        }
+                    ],
+                    "limit": null,
+                    "offset": 0,
+                    "hay_mas": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "habitaciones",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 133,
+                        "nombre": "Cinta 00e275 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 134,
+                        "nombre": "Cinta 034d34 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 107,
+                        "nombre": "Cinta 671d55 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 110,
+                        "nombre": "Cinta 7c2d46 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 109,
+                        "nombre": "Cinta 7e2672 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 113,
+                        "nombre": "Cinta b6d704 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 112,
+                        "nombre": "Cinta c54a1f 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 106,
+                        "nombre": "Cinta e74006 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 111,
+                        "nombre": "Cinta 1a57cb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 108,
+                        "nombre": "Cinta 4c3cdb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias/8c76602b-a93b-4215-92b3-c8473b0580b7/cancelaciones",
+            "body": {
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "8c76602b-a93b-4215-92b3-c8473b0580b7",
+                    "estado": "cancelada",
+                    "huesped": "Reserva de cinta",
+                    "contacto": "614 000 0000",
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "376337",
+                    "espacio_id": 134,
+                    "espacio_nombre": "Cinta 034d34 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-13",
+                    "salida": "2026-11-15",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-15T18:00:00.000Z",
+                    "tarifa_noche": "800.00",
+                    "entro_en": null,
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "1600.00",
+                    "cuenta": {
+                        "noches_total": "1600.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "1600.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias/8c76602b-a93b-4215-92b3-c8473b0580b7/cancelaciones",
+            "body": {
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 409,
+            "response": {
+                "data": null,
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": {
+                    "code": "STAY_INVALID_STATE",
+                    "message": "Solo una reserva se puede cancelar.",
+                    "details": []
+                }
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias",
+            "body": {
+                "espacio_id": 134,
+                "huesped_nombre": "Reserva de cinta",
+                "contacto": "614 000 0000",
+                "entrada": "2026-11-11",
+                "salida": "2026-11-12",
+                "tarifa_noche": "800.00"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "c90297b1-e41c-4001-9a3a-db559edefcb9",
+                    "estado": "reservada",
+                    "huesped": "Reserva de cinta",
+                    "contacto": "614 000 0000",
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "617793",
+                    "espacio_id": 134,
+                    "espacio_nombre": "Cinta 034d34 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-11",
+                    "salida": "2026-11-12",
+                    "noches": 1,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "800.00",
+                    "entro_en": null,
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "800.00",
+                    "cuenta": {
+                        "noches_total": "800.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "800.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias/c90297b1-e41c-4001-9a3a-db559edefcb9/check-in",
+            "body": {
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "c90297b1-e41c-4001-9a3a-db559edefcb9",
+                    "estado": "en_casa",
+                    "huesped": "Reserva de cinta",
+                    "contacto": "614 000 0000",
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "617793",
+                    "espacio_id": 134,
+                    "espacio_nombre": "Cinta 034d34 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-11",
+                    "salida": "2026-11-12",
+                    "noches": 1,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "800.00",
+                    "entro_en": "2026-11-10T23:39:30.719Z",
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "800.00",
+                    "cuenta": {
+                        "noches_total": "800.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "800.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "habitaciones",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 133,
+                        "nombre": "Cinta 00e275 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 134,
+                        "nombre": "Cinta 034d34 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": true,
+                        "no_molestar": false,
+                        "estancia": {
+                            "id": "c90297b1-e41c-4001-9a3a-db559edefcb9",
+                            "huesped_nombre": "Reserva de cinta",
+                            "salida_prevista": "2026-11-12T18:00:00.000Z"
+                        },
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 107,
+                        "nombre": "Cinta 671d55 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 110,
+                        "nombre": "Cinta 7c2d46 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 109,
+                        "nombre": "Cinta 7e2672 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 113,
+                        "nombre": "Cinta b6d704 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 112,
+                        "nombre": "Cinta c54a1f 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 106,
+                        "nombre": "Cinta e74006 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 111,
+                        "nombre": "Cinta 1a57cb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 108,
+                        "nombre": "Cinta 4c3cdb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.admin",
+            "verb": "GET",
+            "path": "hotel/resumen",
+            "status": 200,
+            "response": {
+                "data": {
+                    "habitaciones": {
+                        "total": 12,
+                        "ocupadas": 1,
+                        "por_limpiar": 3,
+                        "sin_molestar": 0
+                    },
+                    "room_service": {
+                        "pedidos_hoy": 0,
+                        "ventas_hoy": "0.00",
+                        "pedidos_a_cuartos": 0,
+                        "en_cocina_ahora": 0
+                    },
+                    "solicitudes": {
+                        "abiertas": 0,
+                        "mas_vieja_desde": null
+                    },
+                    "lo_mas_pedido": [],
+                    "llegadas_hoy": 0,
+                    "salidas_hoy": [],
+                    "consultado_en": "2026-11-10T23:39:31.870Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.admin",
+            "verb": "PATCH",
+            "path": "habitaciones/134",
+            "body": {
+                "piso": 5,
+                "categoria": "suite"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 134,
+                    "nombre": "Cinta 034d34 1",
+                    "piso": 5,
+                    "categoria": "suite",
+                    "limpieza": "lista",
+                    "ocupada": true,
+                    "no_molestar": false,
+                    "estancia": {
+                        "id": "c90297b1-e41c-4001-9a3a-db559edefcb9",
+                        "huesped_nombre": "Reserva de cinta",
+                        "salida_prevista": "2026-11-12T18:00:00.000Z"
+                    },
+                    "solicitudes_abiertas": 0,
+                    "pedidos_en_curso": 0,
+                    "qr_token": "esp_3x7PFfRXMm_aqt5_KKR35QCY0GqEf2fYFuIy9zZ9AXM",
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-hotel/m/esp_3x7PFfRXMm_aqt5_KKR35QCY0GqEf2fYFuIy9zZ9AXM"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias/c90297b1-e41c-4001-9a3a-db559edefcb9",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "c90297b1-e41c-4001-9a3a-db559edefcb9",
+                    "estado": "en_casa",
+                    "huesped": "Reserva de cinta",
+                    "contacto": "614 000 0000",
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "617793",
+                    "espacio_id": 134,
+                    "espacio_nombre": "Cinta 034d34 1",
+                    "piso": 5,
+                    "categoria": "suite",
+                    "entrada": "2026-11-11",
+                    "salida": "2026-11-12",
+                    "noches": 1,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "800.00",
+                    "entro_en": "2026-11-10T23:39:30.719Z",
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "800.00",
+                    "cuenta": {
+                        "noches_total": "800.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "800.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias/c90297b1-e41c-4001-9a3a-db559edefcb9/checkout",
+            "body": {
+                "metodo_pago": "tarjeta",
+                "total_esperado": "800.00",
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "c90297b1-e41c-4001-9a3a-db559edefcb9",
+                    "estado": "salio",
+                    "huesped": "Reserva de cinta",
+                    "contacto": "614 000 0000",
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "617793",
+                    "espacio_id": 134,
+                    "espacio_nombre": "Cinta 034d34 1",
+                    "piso": 5,
+                    "categoria": "suite",
+                    "entrada": "2026-11-11",
+                    "salida": "2026-11-12",
+                    "noches": 1,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "800.00",
+                    "entro_en": "2026-11-10T23:39:30.719Z",
+                    "salio_en": "2026-11-10T23:39:33.446Z",
+                    "no_molestar": false,
+                    "total": "800.00",
+                    "cuenta": {
+                        "noches_total": "800.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "800.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": "tarjeta",
+                    "total_cobrado": "800.00",
+                    "cobrado_en": "2026-11-10T23:39:33.446Z",
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 3,
+                    "cobro_efectivo": null,
+                    "cobro_pedidos": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.mesero",
+            "verb": "POST",
+            "path": "habitaciones/134/limpieza",
+            "body": {
+                "limpieza": "lista"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 134,
+                    "nombre": "Cinta 034d34 1",
+                    "limpieza": "lista"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

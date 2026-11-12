@@ -62,6 +62,25 @@ interface VaiinillaApiClient {
         headers: Map<String, String> = emptyMap(),
     ): Result<String> = deleteWithBearer(bearer, path, body, headers)
 
+    /** PATCH con un bearer explícito (el token de Plataforma), sin usar ni refrescar la sesión activa. */
+    fun patchWithBearer(
+        bearer: String,
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("PATCH con bearer no soportado"))
+
+    /** Sube un archivo con un bearer explícito, sin usar ni refrescar la sesión activa. */
+    fun putMultipartWithBearer(
+        bearer: String,
+        path: String,
+        fieldName: String,
+        filename: String,
+        mimeType: String,
+        bytes: ByteArray,
+        headers: Map<String, String> = emptyMap(),
+    ): Result<String> = Result.failure(UnsupportedOperationException("multipart con bearer no soportado"))
+
     /** PATCH con la sesión activa (el HttpURLConnection de Android lo acepta). */
     fun patch(
         path: String,

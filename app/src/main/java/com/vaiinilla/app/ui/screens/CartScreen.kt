@@ -281,13 +281,6 @@ fun CartScreen(
             OrderDestination.IN_SPACE -> SpaceCopy.destinationTitle(venue, state.checkoutSpace?.type)
             OrderDestination.HOME_DELIVERY -> "A domicilio"
         }
-    val productCountLabel =
-        if (state.cartLines.size == 1) {
-            "1 producto"
-        } else {
-            "${state.cartLines.size} productos"
-        }
-
     val listState = rememberLazyListState()
     // El rechazo del servidor llega con la hoja de pago ya cerrada y va al final de la lista: se baja a
     // verlo, si no parece que tocar Pedir no hizo nada (M05).
@@ -594,7 +587,7 @@ fun CartScreen(
                     } else {
                         CheckoutDockButton(
                             label = confirmLabel(guestAuthRequired),
-                            subtitle = "$productCountLabel · $destinationLabel",
+                            subtitle = "${cartCountLabel(state.cartItemCount)} · $destinationLabel",
                             price = moneyLabel(state.checkoutTotal),
                             enabled = canConfirm,
                             loading = state.creatingOrder || preparingCheckout,

@@ -1,0 +1,999 @@
+{
+    "stores": {
+        "restaurante": {
+            "slug": "cintas-restaurante",
+            "id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+            "users": {
+                "admin": "9d258c7d-fad0-4d46-bd03-e84014a946bc",
+                "extra": "6560429e-b512-4869-8f14-51a73cf681a1",
+                "cajero": "1d134fbb-00ea-45f2-a2bd-e391a8266bde",
+                "cocina": "a88f1ddb-fcf6-4640-b70d-e826cd55507c",
+                "mesero": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                "cliente": "14190545-8d53-4eaa-a292-7d926e257245",
+                "cliente2": "b30aadaf-74d8-434b-b1f7-4e5be3c3565d"
+            },
+            "latitude": 28.6353,
+            "longitude": -106.0889
+        }
+    },
+    "values": {
+        "cancha": "Cancha Cinta 27bc4c",
+        "lugar": "Cinta 27bc4c"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "723561bf-755c-4908-8c19-047e96ffe7e2",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:12:45.105Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "1085.00",
+                    "ultimo_cierre": {
+                        "monto_final": "730.00",
+                        "cerrada_en": "2026-11-10T23:12:35.431Z",
+                        "monto_inicial": "500.00",
+                        "efectivo_esperado": "740.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios",
+            "body": {
+                "nombre": "Cinta 27bc4c",
+                "tipo": "mesa"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 137,
+                    "nombre": "Cinta 27bc4c",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_5vEEAAun_v7848d8dMiJ6AawpK5Ux0DHNKFzVpNdhbs",
+                    "codigo": "7748",
+                    "precio_hora": null,
+                    "capacidad": null,
+                    "reserva_minima_min": null,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "caracteristicas": [],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "espacios/137/sesion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "libre",
+                    "saldada": true,
+                    "inicio": null,
+                    "fin_previsto": null,
+                    "libera_en": null,
+                    "restante_seg": null,
+                    "gracia_min": 5,
+                    "sesion": null,
+                    "cuenta": null,
+                    "renta": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "espacios/137/sesion",
+            "body": {
+                "duracion_min": 60
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "00f4ca01-9ac9-4a03-8cec-840ea3b75939",
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "abierta",
+                    "inicio": "2026-11-10T23:40:10.064Z",
+                    "fin_previsto": "2026-11-11T00:40:10.064Z",
+                    "abierta_por": {
+                        "nombre": "Vigía cajero"
+                    },
+                    "cerrada_por": null,
+                    "motivo_cierre": null,
+                    "nota_cierre": null,
+                    "cerrada_en": null,
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "espacios/137/sesion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "ocupada",
+                    "saldada": true,
+                    "inicio": "2026-11-10T23:40:10.064Z",
+                    "fin_previsto": "2026-11-11T00:40:10.064Z",
+                    "libera_en": "2026-11-11T00:45:10.064Z",
+                    "restante_seg": 3600,
+                    "gracia_min": 5,
+                    "sesion": {
+                        "id": "00f4ca01-9ac9-4a03-8cec-840ea3b75939",
+                        "espacio": {
+                            "id": 137,
+                            "nombre": "Cinta 27bc4c",
+                            "tipo": "mesa"
+                        },
+                        "estado": "abierta",
+                        "inicio": "2026-11-10T23:40:10.064Z",
+                        "fin_previsto": "2026-11-11T00:40:10.064Z",
+                        "abierta_por": {
+                            "nombre": "Vigía cajero"
+                        },
+                        "cerrada_por": null,
+                        "motivo_cierre": null,
+                        "nota_cierre": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    },
+                    "cuenta": {
+                        "pedidos": [],
+                        "grupos": [],
+                        "total": 0,
+                        "pendiente": 0,
+                        "pagado": 0,
+                        "abonado": 0,
+                        "restante": 0,
+                        "abonos": [],
+                        "saldada": true
+                    },
+                    "renta": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "espacios/137/sesion/extensiones",
+            "body": {
+                "minutos": 30,
+                "version": 1
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "00f4ca01-9ac9-4a03-8cec-840ea3b75939",
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "abierta",
+                    "inicio": "2026-11-10T23:40:10.064Z",
+                    "fin_previsto": "2026-11-11T01:10:10.064Z",
+                    "abierta_por": {
+                        "nombre": "Vigía cajero"
+                    },
+                    "cerrada_por": null,
+                    "motivo_cierre": null,
+                    "nota_cierre": null,
+                    "cerrada_en": null,
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "espacios/137/sesion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "ocupada",
+                    "saldada": true,
+                    "inicio": "2026-11-10T23:40:10.064Z",
+                    "fin_previsto": "2026-11-11T01:10:10.064Z",
+                    "libera_en": "2026-11-11T01:15:10.064Z",
+                    "restante_seg": 5399,
+                    "gracia_min": 5,
+                    "sesion": {
+                        "id": "00f4ca01-9ac9-4a03-8cec-840ea3b75939",
+                        "espacio": {
+                            "id": 137,
+                            "nombre": "Cinta 27bc4c",
+                            "tipo": "mesa"
+                        },
+                        "estado": "abierta",
+                        "inicio": "2026-11-10T23:40:10.064Z",
+                        "fin_previsto": "2026-11-11T01:10:10.064Z",
+                        "abierta_por": {
+                            "nombre": "Vigía cajero"
+                        },
+                        "cerrada_por": null,
+                        "motivo_cierre": null,
+                        "nota_cierre": null,
+                        "cerrada_en": null,
+                        "version": 2
+                    },
+                    "cuenta": {
+                        "pedidos": [],
+                        "grupos": [],
+                        "total": 0,
+                        "pendiente": 0,
+                        "pagado": 0,
+                        "abonado": 0,
+                        "restante": 0,
+                        "abonos": [],
+                        "saldada": true
+                    },
+                    "renta": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "espacios/137/sesion/cierres",
+            "body": {
+                "version": 2
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "00f4ca01-9ac9-4a03-8cec-840ea3b75939",
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "cerrada",
+                    "inicio": "2026-11-10T23:40:10.064Z",
+                    "fin_previsto": "2026-11-11T01:10:10.064Z",
+                    "abierta_por": {
+                        "nombre": "Vigía cajero"
+                    },
+                    "cerrada_por": {
+                        "nombre": "Vigía cajero"
+                    },
+                    "motivo_cierre": "manual",
+                    "nota_cierre": null,
+                    "cerrada_en": "2026-11-10T23:40:12.442Z",
+                    "version": 3,
+                    "cancelados": 0,
+                    "abonado": "0.00",
+                    "perdida": "0.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "espacios/137/sesion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 137,
+                        "nombre": "Cinta 27bc4c",
+                        "tipo": "mesa"
+                    },
+                    "estado": "libre",
+                    "saldada": true,
+                    "inicio": null,
+                    "fin_previsto": null,
+                    "libera_en": null,
+                    "restante_seg": null,
+                    "gracia_min": 5,
+                    "sesion": null,
+                    "cuenta": null,
+                    "renta": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios",
+            "body": {
+                "nombre": "Cancha Cinta 27bc4c",
+                "tipo": "cancha"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 138,
+                    "nombre": "Cancha Cinta 27bc4c",
+                    "tipo": "cancha",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_9qYpxBtOLDOZj_5zLHwc_J-KQ-YzeEhfxbbu-0OJgtI",
+                    "codigo": "3018",
+                    "precio_hora": null,
+                    "capacidad": null,
+                    "reserva_minima_min": null,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "caracteristicas": [],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "espacios/138",
+            "body": {
+                "precio_hora": "200.00"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 138,
+                    "nombre": "Cancha Cinta 27bc4c",
+                    "tipo": "cancha",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_9qYpxBtOLDOZj_5zLHwc_J-KQ-YzeEhfxbbu-0OJgtI",
+                    "codigo": "3018",
+                    "precio_hora": "200.00",
+                    "capacidad": null,
+                    "reserva_minima_min": null,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "caracteristicas": [],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "espacios/disponibilidad",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 138,
+                            "nombre": "Cancha Cinta 27bc4c",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:35:09.030Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:39:37.150Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 137,
+                            "nombre": "Cinta 27bc4c",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:36:13.419Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 136,
+                            "nombre": "Cinta c00627",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:39:55.663Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "GET",
+            "path": "publico/establecimientos/cintas-restaurante/disponibilidad",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 138,
+                            "nombre": "Cancha Cinta 27bc4c",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:35:09.030Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:39:37.150Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 137,
+                            "nombre": "Cinta 27bc4c",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:36:13.419Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 136,
+                            "nombre": "Cinta c00627",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:39:55.663Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "espacios/138/sesion",
+            "body": {
+                "duracion_min": 60
+            },
+            "idempotent": true,
+            "status": 422,
+            "response": {
+                "data": null,
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": {
+                    "code": "RENTAL_REQUIRED",
+                    "message": "Esta cancha se renta: registra y cobra la renta en lugar de abrir o alargar el turno.",
+                    "details": []
+                }
+            }
+        }
+    ]
+}

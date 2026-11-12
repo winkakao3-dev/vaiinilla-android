@@ -1,0 +1,774 @@
+{
+    "stores": {
+        "restaurante": {
+            "slug": "cintas-restaurante",
+            "id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+            "users": {
+                "admin": "9d258c7d-fad0-4d46-bd03-e84014a946bc",
+                "extra": "6560429e-b512-4869-8f14-51a73cf681a1",
+                "cajero": "1d134fbb-00ea-45f2-a2bd-e391a8266bde",
+                "cocina": "a88f1ddb-fcf6-4640-b70d-e826cd55507c",
+                "mesero": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                "cliente": "14190545-8d53-4eaa-a292-7d926e257245",
+                "cliente2": "b30aadaf-74d8-434b-b1f7-4e5be3c3565d"
+            },
+            "latitude": 28.6353,
+            "longitude": -106.0889
+        }
+    },
+    "values": {
+        "lugar": "Cinta 14772b"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "723561bf-755c-4908-8c19-047e96ffe7e2",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:12:45.105Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "1175.00",
+                    "ultimo_cierre": {
+                        "monto_final": "730.00",
+                        "cerrada_en": "2026-11-10T23:12:35.431Z",
+                        "monto_inicial": "500.00",
+                        "efectivo_esperado": "740.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": "500.00"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios",
+            "body": {
+                "nombre": "Cinta 14772b",
+                "tipo": "mesa"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 140,
+                    "nombre": "Cinta 14772b",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_H_K0zHExA2rjyPgcegM9yd31ys4Uwf8xocLSAF8tdzM",
+                    "codigo": "5462",
+                    "precio_hora": null,
+                    "capacidad": null,
+                    "reserva_minima_min": null,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "caracteristicas": [],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "GET",
+            "path": "publico/establecimientos",
+            "query": {
+                "query": "zz-nada-zz",
+                "limit": "20"
+            },
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "GET",
+            "path": "publico/establecimientos/cintas-restaurante",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+                    "nombre": "Restaurante de grabación",
+                    "slug": "cintas-restaurante",
+                    "tipo": "restaurante",
+                    "identificador_cliente_etiqueta": "Identificador",
+                    "identificador_cliente_obligatorio": false,
+                    "descripcion": "Restaurante con mesero de prueba.",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "direccion": "Av. de Prueba 200, Chihuahua",
+                    "horario": "Todos los días",
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "distancia_km": null,
+                    "telefono_contacto": "6140000000",
+                    "reparto_activo": false,
+                    "instagram_url": null,
+                    "facebook_url": null,
+                    "tiktok_url": null,
+                    "whatsapp_url": null,
+                    "sitio_web_url": null,
+                    "videos_local": [],
+                    "permite_pago_al_final": true,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_clientes": true,
+                    "permite_saldo": true,
+                    "acepta_tarjeta": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "GET",
+            "path": "publico/establecimientos/cintas-restaurante/catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "POST",
+            "path": "publico/espacios/resolver",
+            "body": {
+                "token": "esp_H_K0zHExA2rjyPgcegM9yd31ys4Uwf8xocLSAF8tdzM"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "establecimiento": {
+                        "id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+                        "nombre": "Restaurante de grabación",
+                        "slug": "cintas-restaurante",
+                        "tipo": "restaurante",
+                        "identificador_cliente_etiqueta": "Identificador",
+                        "identificador_cliente_obligatorio": false,
+                        "descripcion": "Restaurante con mesero de prueba.",
+                        "imagen_url": null,
+                        "logo_url": null,
+                        "direccion": "Av. de Prueba 200, Chihuahua",
+                        "horario": "Todos los días",
+                        "latitud": 28.6353,
+                        "longitud": -106.0889,
+                        "distancia_km": null,
+                        "telefono_contacto": "6140000000",
+                        "reparto_activo": false,
+                        "instagram_url": null,
+                        "facebook_url": null,
+                        "tiktok_url": null,
+                        "whatsapp_url": null,
+                        "sitio_web_url": null,
+                        "videos_local": [],
+                        "permite_pago_al_final": true,
+                        "entrega_en_espacio": "mesa",
+                        "asistente_clientes": true,
+                        "permite_saldo": true
+                    },
+                    "espacio": {
+                        "id": 140,
+                        "nombre": "Cinta 14772b",
+                        "tipo": "mesa"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "GET",
+            "path": "publico/legal/vigente",
+            "status": 200,
+            "response": {
+                "data": {
+                    "terminos_version": "2026-10",
+                    "terminos_url": "https://dev.vaiinilla.app/legal/terminos/2026-10",
+                    "privacidad_version": "2026-10",
+                    "privacidad_url": "https://dev.vaiinilla.app/legal/privacidad/2026-10"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "POST",
+            "path": "publico/invitados",
+            "body": {
+                "establecimiento_slug": "cintas-restaurante",
+                "espacio_token": "esp_H_K0zHExA2rjyPgcegM9yd31ys4Uwf8xocLSAF8tdzM",
+                "nombre": "Invitada de cinta",
+                "terminos_version": "2026-10",
+                "privacidad_version": "2026-10"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "invitado": {
+                        "nombre": "Invitada de cinta",
+                        "llave": "TACHADO"
+                    },
+                    "entrada": {
+                        "token": "TACHADO",
+                        "vence_en": "2026-11-11T03:09:38.000Z"
+                    },
+                    "access_token": "TACHADO",
+                    "token_type": "Bearer",
+                    "expires_in": 900,
+                    "contexto": {
+                        "usuario_id": "1b3b1a10-d6e9-4e25-ae3c-c097345bd7a4",
+                        "membresia_id": "f37769a6-c6ed-4129-a5da-0bbf335c73d2",
+                        "establecimiento_id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+                        "rol": "cliente",
+                        "modo_restringido": null
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "GET",
+            "path": "estado-operativo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recibiendo_pedidos": true,
+                    "local_sin_conexion": false,
+                    "franjas_pedido": [],
+                    "dentro_de_franja": true,
+                    "sesion_caja_abierta": true,
+                    "caja_en_linea": true,
+                    "cocina_en_linea": true,
+                    "entrega_requiere_qr": false,
+                    "permite_pago_al_final": true,
+                    "permite_saldo": true,
+                    "permite_pago_en_caja": true,
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "cocina_prepara_sin_cobrar": true,
+                    "acepta_tarjeta": false,
+                    "tipo": "restaurante",
+                    "modo_escuela": false,
+                    "tutor_habilitado": false,
+                    "tiempo_estimado_min": 5,
+                    "sla_recuperacion_operativa_min": 15,
+                    "consultado_en": "2026-11-11T00:39:39.878Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "POST",
+            "path": "pedidos",
+            "body": {
+                "metodo_pago": "efectivo",
+                "destino": "en_espacio",
+                "espacio_id": 140,
+                "notas_cocina": null,
+                "items": [
+                    {
+                        "producto_id": 211,
+                        "cantidad": 1,
+                        "opcion_ids": []
+                    }
+                ],
+                "pago_diferido": false
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "e4868ddf-d853-4509-9f1e-c691940381c2",
+                    "folio": 27,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "por_cobrar",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 140,
+                        "nombre": "Cinta 14772b",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": false,
+                    "pago_pendiente": false,
+                    "invitado": true,
+                    "version": 1,
+                    "creado_en": "2026-11-11T00:39:40.985Z",
+                    "actualizado_en": "2026-11-11T00:39:40.985Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": null,
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 232,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ],
+                    "calificacion": null,
+                    "qr_token": "v1.21ca1ed291165335156de7f93d2d1afc42c2a7e58c324036b18ba2043f96afc5",
+                    "seguimiento_token": "POOltXyHVjQ-LnQQZVBMftBS-7uUyDWTU_yLesojncs"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "POST",
+            "path": "publico/invitados/pedidos",
+            "body": {
+                "establecimiento_slug": "cintas-restaurante",
+                "llave": "TACHADO"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "e4868ddf-d853-4509-9f1e-c691940381c2",
+                        "folio": 27,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "por_cobrar",
+                        "metodo_pago": "efectivo",
+                        "destino": "en_espacio",
+                        "recoge_en_barra": false,
+                        "espacio": {
+                            "id": 140,
+                            "nombre": "Cinta 14772b",
+                            "tipo": "mesa"
+                        },
+                        "entrega_sin_qr": true,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "0.00",
+                        "saldo_pendiente": "45.00",
+                        "metodo_pago_cobrado": null,
+                        "pagos_por_metodo": [],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": true,
+                        "version": 1,
+                        "creado_en": "2026-11-11T00:39:40.985Z",
+                        "actualizado_en": "2026-11-11T00:39:40.985Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": null,
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 232,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ],
+                        "calificacion": null,
+                        "qr_token": null,
+                        "seguimiento_token": "POOltXyHVjQ-LnQQZVBMftBS-7uUyDWTU_yLesojncs"
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "publico",
+            "verb": "POST",
+            "path": "publico/invitados/sesiones",
+            "body": {
+                "establecimiento_slug": "cintas-restaurante",
+                "llave": "TACHADO"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "invitado": {
+                        "nombre": "Invitada de cinta"
+                    },
+                    "access_token": "TACHADO",
+                    "token_type": "Bearer",
+                    "expires_in": 900,
+                    "contexto": {
+                        "usuario_id": "1b3b1a10-d6e9-4e25-ae3c-c097345bd7a4",
+                        "membresia_id": "f37769a6-c6ed-4129-a5da-0bbf335c73d2",
+                        "establecimiento_id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+                        "rol": "cliente",
+                        "modo_restringido": null
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "pedidos/e4868ddf-d853-4509-9f1e-c691940381c2/cancelaciones",
+            "body": {
+                "version_esperada": 1,
+                "motivo": "Grabación"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedido": {
+                        "id": "e4868ddf-d853-4509-9f1e-c691940381c2",
+                        "folio": 27,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cancelado",
+                        "metodo_pago": "efectivo",
+                        "destino": "en_espacio",
+                        "recoge_en_barra": false,
+                        "espacio": {
+                            "id": 140,
+                            "nombre": "Cinta 14772b",
+                            "tipo": "mesa"
+                        },
+                        "entrega_sin_qr": true,
+                        "subtotal": "45.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "45.00",
+                        "monto_pagado": "0.00",
+                        "saldo_pendiente": "45.00",
+                        "metodo_pago_cobrado": null,
+                        "pagos_por_metodo": [],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "45.00",
+                        "objetivo_neto_establecimiento": "45.00",
+                        "total_cliente": "45.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": true,
+                        "version": 2,
+                        "creado_en": "2026-11-11T00:39:40.985Z",
+                        "actualizado_en": "2026-11-11T00:39:45.193Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": "Grabación",
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": "cajero",
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Invitada de cinta",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 232,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 1,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "45.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ]
+                    },
+                    "cuenta": null,
+                    "devolucion": null,
+                    "reembolso": null,
+                    "efectivo_devuelto": null,
+                    "devolucion_pendiente": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

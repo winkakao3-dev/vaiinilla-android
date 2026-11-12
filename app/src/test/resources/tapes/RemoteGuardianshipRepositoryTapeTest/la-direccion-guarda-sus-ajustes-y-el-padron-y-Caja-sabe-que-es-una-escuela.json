@@ -1,0 +1,840 @@
+{
+    "values": {
+        "matricula": "PADRON-F7BE4A"
+    },
+    "exchanges": [
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "establecimiento/configuracion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 5,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PATCH",
+            "path": "establecimiento/configuracion",
+            "body": {
+                "union_requiere_codigo": true,
+                "tutores_requieren_aprobacion": true,
+                "recarga_minima": "50.00",
+                "recarga_maxima": "2000.00",
+                "dias_adelanto_pedido": 9,
+                "hora_corte_pedido": "08:30",
+                "hora_corte_cancelacion": null
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 9,
+                    "hora_corte_pedido": "08:30",
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PATCH",
+            "path": "establecimiento/configuracion",
+            "body": {
+                "union_requiere_codigo": true,
+                "tutores_requieren_aprobacion": true,
+                "recarga_minima": "50.00",
+                "recarga_maxima": "2000.00",
+                "dias_adelanto_pedido": 5,
+                "hora_corte_pedido": null,
+                "hora_corte_cancelacion": null
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "cafeteria",
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": true,
+                    "codigo_union": "CNTESC",
+                    "union_requiere_codigo": true,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 5,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": false,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-escuela",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": false,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "padron",
+            "status": 200,
+            "response": {
+                "data": {
+                    "total": 0,
+                    "alumnos": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PUT",
+            "path": "padron",
+            "body": {
+                "alumnos": [
+                    {
+                        "matricula": "PADRON-F7BE4A",
+                        "nombre": "Alumno del padrón",
+                        "grupo": "1A"
+                    }
+                ]
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "total": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "GET",
+            "path": "padron",
+            "status": 200,
+            "response": {
+                "data": {
+                    "total": 1,
+                    "alumnos": [
+                        {
+                            "matricula": "PADRON-F7BE4A",
+                            "nombre": "Alumno del padrón",
+                            "grupo": "1A"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.admin",
+            "verb": "PUT",
+            "path": "padron",
+            "body": {
+                "alumnos": []
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "total": 0
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "escuela.cajero",
+            "verb": "GET",
+            "path": "estado-operativo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recibiendo_pedidos": true,
+                    "local_sin_conexion": false,
+                    "franjas_pedido": [],
+                    "dentro_de_franja": true,
+                    "sesion_caja_abierta": true,
+                    "caja_en_linea": false,
+                    "cocina_en_linea": false,
+                    "entrega_requiere_qr": true,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "permite_pago_en_caja": true,
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "cocina_prepara_sin_cobrar": false,
+                    "acepta_tarjeta": false,
+                    "tipo": "cafeteria",
+                    "modo_escuela": true,
+                    "tutor_habilitado": false,
+                    "tiempo_estimado_min": 5,
+                    "sla_recuperacion_operativa_min": 15,
+                    "consultado_en": "2026-11-10T23:45:30.713Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

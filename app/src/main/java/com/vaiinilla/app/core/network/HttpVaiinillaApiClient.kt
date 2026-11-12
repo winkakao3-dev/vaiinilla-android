@@ -210,11 +210,11 @@ class HttpVaiinillaApiClient
                 allowSessionRefresh = false,
             )
 
-        fun patchWithBearer(
+        override fun patchWithBearer(
             bearer: String,
             path: String,
             body: String,
-            headers: Map<String, String> = emptyMap(),
+            headers: Map<String, String>,
         ): Result<String> =
             execute(
                 method = "PATCH",
@@ -225,7 +225,7 @@ class HttpVaiinillaApiClient
                 allowSessionRefresh = false,
             )
 
-        fun putMultipartWithBearer(
+        override fun putMultipartWithBearer(
             bearer: String,
             path: String,
             fieldName: String,

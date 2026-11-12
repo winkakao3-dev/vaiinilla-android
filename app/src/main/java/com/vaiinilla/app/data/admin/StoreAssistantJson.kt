@@ -40,6 +40,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import java.math.BigDecimal
 import java.util.Base64
 
 /** `POST /establecimiento/asistente`: la plática de ida y la respuesta de vuelta. */
@@ -264,7 +265,7 @@ class StoreAssistantJson(
                     unit = supply.text("unidad") ?: return@mapNotNull null,
                     initialStock = supply.number("existencia_inicial"),
                     minimum = supply.number("minimo"),
-                    unitCost = supply.number("costo_unitario"),
+                    unitCost = supply.decimal("costo_unitario"),
                 )
             }
         val recipes =
@@ -318,7 +319,7 @@ class StoreAssistantJson(
                     unit = movement.text("unidad") ?: return@mapNotNull null,
                     type = movement.text("tipo")?.takeIf { it in MOVEMENT_TYPES } ?: return@mapNotNull null,
                     quantity = movement.number("cantidad")?.takeIf { it >= 0 } ?: return@mapNotNull null,
-                    unitCost = movement.number("costo_unitario"),
+                    unitCost = movement.decimal("costo_unitario"),
                     note = movement.text("nota"),
                 )
             }
@@ -342,7 +343,7 @@ class StoreAssistantJson(
                     supplyId = (edit["insumo_id"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
                     name = edit.text("insumo") ?: return@mapNotNull null,
                     minimum = edit.number("minimo"),
-                    unitCost = edit.number("costo_unitario"),
+                    unitCost = edit.decimal("costo_unitario"),
                     // Presente en null lo borra (""); sin la clave no se toca (null).
                     supplierName = if (edit.containsKey("proveedor_nombre")) edit.text("proveedor_nombre").orEmpty() else null,
                     supplierPhone =
@@ -436,6 +437,10 @@ class StoreAssistantJson(
             ?.takeIf(String::isNotEmpty)
 
     private fun JsonObject.number(key: String): Double? = (this[key] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull()
+
+    /** El dinero se lee como decimal exacto, nunca como Double. */
+    private fun JsonObject.decimal(key: String): BigDecimal? =
+        (this[key] as? JsonPrimitive)?.contentOrNull?.toBigDecimalOrNull()
 
     private fun valueLabel(
         field: String,

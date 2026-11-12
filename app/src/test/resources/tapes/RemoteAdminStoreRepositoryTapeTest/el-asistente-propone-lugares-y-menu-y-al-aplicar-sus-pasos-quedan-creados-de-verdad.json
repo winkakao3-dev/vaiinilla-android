@@ -1,0 +1,542 @@
+{
+    "values": {
+        "sufijo": "72b5"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "establecimiento/asistente/trabajos",
+            "body": {
+                "mensajes": [
+                    {
+                        "rol": "dueno",
+                        "texto": "Crea 2 mesas con el prefijo Terraza 72b5 y agrega al menú la categoría Bebidas 72b5 con el producto Agua de jamaica 72b5 a 25 pesos, que prepara cocina. Propónlo ya, no me preguntes nada más."
+                    }
+                ]
+            },
+            "status": 202,
+            "response": {
+                "data": {
+                    "trabajo_id": "249a1a0e-93a7-478b-9a1a-f727d2518f30",
+                    "estado": "pensando"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "establecimiento/asistente/trabajos/249a1a0e-93a7-478b-9a1a-f727d2518f30",
+            "status": 200,
+            "response": {
+                "data": {
+                    "trabajo_id": "249a1a0e-93a7-478b-9a1a-f727d2518f30",
+                    "estado": "pensando"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "establecimiento/asistente/trabajos/249a1a0e-93a7-478b-9a1a-f727d2518f30",
+            "status": 200,
+            "response": {
+                "data": {
+                    "trabajo_id": "249a1a0e-93a7-478b-9a1a-f727d2518f30",
+                    "estado": "pensando"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "establecimiento/asistente/trabajos/249a1a0e-93a7-478b-9a1a-f727d2518f30",
+            "status": 200,
+            "response": {
+                "data": {
+                    "trabajo_id": "249a1a0e-93a7-478b-9a1a-f727d2518f30",
+                    "estado": "listo",
+                    "respuesta": {
+                        "mensaje": "Así quedaría con tus 2 mesas y tu bebida nueva. Revísalo y, si te late, acéptalo.",
+                        "opciones": [],
+                        "propuesta": {
+                            "cambios": {},
+                            "motivos": {
+                                "espacios": "Tus 2 mesas de Terraza 72b5, cada una con su QR.",
+                                "menu": "Tu categoría Bebidas 72b5 con el Agua de jamaica 72b5 a $25 que prepara cocina."
+                            },
+                            "espacios": [
+                                {
+                                    "tipo": "mesa",
+                                    "prefijo": "Terraza 72b5",
+                                    "cantidad": 2,
+                                    "precio_hora": null
+                                }
+                            ],
+                            "menu": [
+                                {
+                                    "categoria": "Bebidas 72b5",
+                                    "categoria_id": null,
+                                    "productos": [
+                                        {
+                                            "nombre": "Agua de jamaica 72b5",
+                                            "precio": "25.00",
+                                            "descripcion": null,
+                                            "prepara": "cocina",
+                                            "foto": null
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "sigue": false,
+                        "quedan_mensajes": 58
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios/lote",
+            "body": {
+                "tipo": "mesa",
+                "prefijo": "Terraza 72b5",
+                "desde": 1,
+                "hasta": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "tipo": "mesa",
+                    "solicitados": 2,
+                    "creados": 2,
+                    "omitidos": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/categorias",
+            "body": {
+                "nombre": "Bebidas 72b5",
+                "orden": 0
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 114,
+                    "nombre": "Bebidas 72b5",
+                    "orden": 0
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos",
+            "body": {
+                "categoria_id": 114,
+                "estacion_preparacion": "cocina",
+                "nombre": "Agua de jamaica 72b5",
+                "descripcion": null,
+                "ingredientes": null,
+                "alergenos": null,
+                "tiempo_estimado_min": 10,
+                "precio_mostrador": "25.00",
+                "disponible": true,
+                "grupos_opcion": []
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 213,
+                    "categoria_id": 114,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Agua de jamaica 72b5",
+                    "descripcion": null,
+                    "ingredientes": null,
+                    "alergenos": null,
+                    "alergenos_codigos": [],
+                    "alergenos_revisados": false,
+                    "tiempo_estimado_min": 10,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "25.00",
+                    "precio_digital": "25.00",
+                    "disponible": true,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "espacios/administracion",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 121,
+                        "nombre": "Cancha Cinta 9965db",
+                        "tipo": "cancha",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_XTPDImg8lZH0ov_LsYsz2MIuLoBaMBaHEd22mrPdY7A",
+                        "codigo": "3657",
+                        "precio_hora": "200.00",
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 115,
+                        "nombre": "Cinta 90c0b7",
+                        "tipo": "cancha",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_ygBn1v2OcFAmqyvQFsnRsBpJ_6kJ4ykffWWaMbxgSCE",
+                        "codigo": "3246",
+                        "precio_hora": "200.00",
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 120,
+                        "nombre": "Cinta 9965db",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_Nf2RHyCtns_nGiV0ODHvMjNhTAI5aiV_XCUuro0os98",
+                        "codigo": "5539",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 119,
+                        "nombre": "Cinta bcdc35",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_L0JENRMZxRzGkoK-KQDsnbEKRo0_MKLdBMHUju7g7Rs",
+                        "codigo": "5756",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 117,
+                        "nombre": "Cinta c20647",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_eb6s4SY4hF2arCvcjWUJdKa5v00RAcaB_7QoUedJc74",
+                        "codigo": "1871",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 118,
+                        "nombre": "Cinta c8761b",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_Y72dRPg9YOEFhJI4rJAKu9EB-i7dB_wZ3U2dWTiFU3Q",
+                        "codigo": "0805",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 116,
+                        "nombre": "Cinta ca7631",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_W-2xiOU09m-geHiHhVvchlf806jzKk2I_tYkxZ08FHM",
+                        "codigo": "1621",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 126,
+                        "nombre": "Terraza 72b5 1",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_fdMG4FAev9yDcU5utFnRE4mA0RI21z8knu7KXFJjTRM",
+                        "codigo": "8324",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 127,
+                        "nombre": "Terraza 72b5 2",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_4uKaLokb3bLMuKK3JQXw8MKZO5yEl-L5QgIwjzXJ-6c",
+                        "codigo": "8994",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        },
+                        {
+                            "id": 213,
+                            "categoria_id": 114,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Agua de jamaica 72b5",
+                            "descripcion": null,
+                            "ingredientes": null,
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 10,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "25.00",
+                            "precio_digital": "25.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:21:59.636Z|213"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/126",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 126,
+                    "eliminado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/127",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 127,
+                    "eliminado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos/213/archivar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 213,
+                    "categoria_id": 114,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Agua de jamaica 72b5",
+                    "descripcion": null,
+                    "ingredientes": null,
+                    "alergenos": null,
+                    "alergenos_codigos": [],
+                    "alergenos_revisados": false,
+                    "tiempo_estimado_min": 10,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "25.00",
+                    "precio_digital": "25.00",
+                    "disponible": true,
+                    "archivado": true,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

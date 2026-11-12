@@ -1,0 +1,193 @@
+{
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "personal/invitaciones",
+            "query": {
+                "estado": "pendiente",
+                "limit": "20"
+            },
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "personal/invitaciones/membresias",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "ebc36a65-87f7-426b-8cb2-577e7ee602be",
+                        "usuario_id": "9d258c7d-fad0-4d46-bd03-e84014a946bc",
+                        "nombre": "Vigía admin",
+                        "email": "",
+                        "rol": "admin",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    },
+                    {
+                        "id": "04674658-617c-499e-89c7-c5050176224b",
+                        "usuario_id": "6560429e-b512-4869-8f14-51a73cf681a1",
+                        "nombre": "Vigía extra",
+                        "email": "",
+                        "rol": "mesero",
+                        "activo": true,
+                        "creado_en": "2026-11-10T23:21:13.465Z"
+                    },
+                    {
+                        "id": "56c0c5bb-0ca6-4a93-afa8-b122f5172e40",
+                        "usuario_id": "a88f1ddb-fcf6-4640-b70d-e826cd55507c",
+                        "nombre": "Vigía cocina",
+                        "email": "",
+                        "rol": "cocina",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    },
+                    {
+                        "id": "5d9bfdf3-e243-4ccb-84d7-65b837eca552",
+                        "usuario_id": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                        "nombre": "Vigía mesero",
+                        "email": "",
+                        "rol": "mesero",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    },
+                    {
+                        "id": "dc168cb7-6f0b-430e-b032-8fb1df427d76",
+                        "usuario_id": "1d134fbb-00ea-45f2-a2bd-e391a8266bde",
+                        "nombre": "Vigía cajero",
+                        "email": "",
+                        "rol": "cajero",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "personal/invitaciones/membresias/04674658-617c-499e-89c7-c5050176224b",
+            "body": {
+                "rol": "cocina"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "04674658-617c-499e-89c7-c5050176224b",
+                    "usuario_id": "6560429e-b512-4869-8f14-51a73cf681a1",
+                    "nombre": "Vigía extra",
+                    "email": "",
+                    "rol": "cocina",
+                    "activo": true,
+                    "creado_en": "2026-11-10T23:21:13.465Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "personal/invitaciones/membresias/04674658-617c-499e-89c7-c5050176224b/desactivar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "04674658-617c-499e-89c7-c5050176224b",
+                    "usuario_id": "6560429e-b512-4869-8f14-51a73cf681a1",
+                    "nombre": "Vigía extra",
+                    "email": "",
+                    "rol": "cocina",
+                    "activo": false,
+                    "creado_en": "2026-11-10T23:21:13.465Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "personal/invitaciones/membresias",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "ebc36a65-87f7-426b-8cb2-577e7ee602be",
+                        "usuario_id": "9d258c7d-fad0-4d46-bd03-e84014a946bc",
+                        "nombre": "Vigía admin",
+                        "email": "",
+                        "rol": "admin",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    },
+                    {
+                        "id": "56c0c5bb-0ca6-4a93-afa8-b122f5172e40",
+                        "usuario_id": "a88f1ddb-fcf6-4640-b70d-e826cd55507c",
+                        "nombre": "Vigía cocina",
+                        "email": "",
+                        "rol": "cocina",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    },
+                    {
+                        "id": "5d9bfdf3-e243-4ccb-84d7-65b837eca552",
+                        "usuario_id": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                        "nombre": "Vigía mesero",
+                        "email": "",
+                        "rol": "mesero",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    },
+                    {
+                        "id": "dc168cb7-6f0b-430e-b032-8fb1df427d76",
+                        "usuario_id": "1d134fbb-00ea-45f2-a2bd-e391a8266bde",
+                        "nombre": "Vigía cajero",
+                        "email": "",
+                        "rol": "cajero",
+                        "activo": true,
+                        "creado_en": "2026-11-10T22:59:06.455Z"
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

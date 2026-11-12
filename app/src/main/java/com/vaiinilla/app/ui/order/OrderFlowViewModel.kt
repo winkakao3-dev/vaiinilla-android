@@ -244,8 +244,12 @@ class OrderFlowViewModel
                     // Con cuenta, el JWT sigue siendo del negocio anterior hasta cambiarlo: el estado, la pista
                     // rentada y la mesa compartida salían de allá hasta reiniciar la app (en vivo, #10). Un JWT de
                     // personal no se cambia: la Caja abierta en otro negocio lo sigue usando.
-                    val clientToken = sessionStore.readAccessToken()?.let(JwtContextScope::isClientToken) == true
-                    if (guestSlugFor(venue) == null && clientToken && tokenIsForOtherVenue(venue)) {
+                    // Sin JWT todavía (recién inició sesión) también se pide: si no, el estado del negocio y quién
+                    // está en la mesa del QR se consultaban sin sesión y fallaban hasta abrir el carrito.
+                    val token = sessionStore.readAccessToken()
+                    val needsClientContext =
+                        token.isNullOrBlank() || (JwtContextScope.isClientToken(token) && tokenIsForOtherVenue(venue))
+                    if (guestSlugFor(venue) == null && needsClientContext) {
                         withContext(Dispatchers.IO) { refreshClientContext(venue) }
                     }
                     val (resolvedVenue, catalogResult) =

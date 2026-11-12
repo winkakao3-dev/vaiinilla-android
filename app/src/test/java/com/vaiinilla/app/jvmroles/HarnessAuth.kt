@@ -147,6 +147,10 @@ class SandboxContextoExchanger
             identificadorCliente: String?,
         ): SesionesContextoDataDto {
             val session = authRepository.peekSession() ?: error("No hay rol al frente.")
+            RecordingStore.active?.let { store ->
+                // Fuera de su tienda de pruebas el cliente pediría en una tienda que usa el equipo.
+                check(establecimientoSlug == store.slug) { "El arnés solo entra a ${store.slug}." }
+            }
             val membership =
                 accessRepository
                     .authorizedModes(session)

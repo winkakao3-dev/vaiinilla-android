@@ -1,17 +1,24 @@
 package com.vaiinilla.app.jvmroles
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.location.Location
+import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -28,9 +35,9 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeDown
-import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.swipe
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -57,6 +64,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.LooperMode
 import org.robolectric.shadows.ShadowLog
+import org.robolectric.shadows.ShadowNetworkCapabilities
 import java.io.File
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -118,6 +126,8 @@ class JvmRolesHarness {
             println("vigía: otra URLStreamHandlerFactory ya estaba puesta; la red queda como la da el JDK")
         }
         vigia = Vigia(network, ::visibleNodes, ::labelOf)
+        if (RecordingStore.active != null) network.fence = VigiaNetwork.RECORDING_STORE_FENCE
+        setInternet(true)
         // En el teléfono una excepción sin atrapar en cualquier hilo cierra la app; aquí solo mataría ese hilo.
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
@@ -198,6 +208,7 @@ class JvmRolesHarness {
                     "lector de NFC",
                 )
             "red" -> network.configure(args)
+            "internet" -> setInternet(args.firstOrNull() != "no")
             "escrituras" -> {
                 network.writesAllowed = args.firstOrNull() == "si"
                 if (network.writesAllowed) {
@@ -215,9 +226,24 @@ class JvmRolesHarness {
                 vigia.loadingLimitMillis = args.firstOrNull()?.toLong() ?: error("Uso: limite <ms>")
                 "carga eterna a partir de ${vigia.loadingLimitMillis} ms"
             }
+            "trafico-json" -> traffic(args.firstOrNull()?.toLong() ?: 0L).toString()
+            "textos" -> JSONArray(visibleNodes().map(::labelOf).filter { it.isNotBlank() }).toString()
+            "escribir" ->
+                write(
+                    args.firstOrNull()?.toInt() ?: error("Uso: escribir <id de nodos> <texto>"),
+                    args.drop(1),
+                )
+            "poner" ->
+                write(
+                    args.firstOrNull()?.toInt() ?: error("Uso: poner <id de nodos> <texto>"),
+                    args.drop(1),
+                    focus = false,
+                )
             "nodos" -> tappableNodes().toString()
             "revisar" -> layoutAudit().toString()
             "tocar" -> tapNode(args.firstOrNull()?.toInt() ?: error("Uso: tocar <id de nodos>")).toString()
+            "accionar" ->
+                tapNode(args.firstOrNull()?.toInt() ?: error("Uso: accionar <id de nodos>"), ownAction = true).toString()
             "atras" -> back().toString()
             "bajar" -> scroll(down = true)
             "subir" -> scroll(down = false)
@@ -225,17 +251,86 @@ class JvmRolesHarness {
             else ->
                 error(
                     "No conozco '${command.name}'. Comandos: role, cual, list, tap, text, wait, advance, shot, " +
-                        "location, deeplink, red, escrituras, vigia, trafico, limite, nodos, revisar, tocar, atras, bajar, subir, stop.",
+                        "location, deeplink, red, internet, escrituras, vigia, trafico, trafico-json, textos, escribir, limite, nodos, " +
+                        "revisar, tocar, atras, bajar, subir, stop.",
                 )
         }
+    }
+
+    /**
+     * Lo que Android le dice a la app sobre la red. Robolectric no le da salida a internet a su red activa, y con eso
+     * Caja y Mesero guardan cada pedido como «sin internet» en vez de mandarlo. Al volver, avisa como al reconectar.
+     */
+    private fun setInternet(on: Boolean): String {
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val manager = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = manager.activeNetwork ?: return "sin red activa que configurar"
+        val capabilities = ShadowNetworkCapabilities.newInstance()
+        if (on) shadowOf(capabilities).addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadowOf(manager).setNetworkCapabilities(active, capabilities)
+        if (on) shadowOf(manager).networkCallbacks.forEach { it.onAvailable(active) }
+        return if (on) "el teléfono tiene internet" else "el teléfono no tiene internet"
+    }
+
+    /** Lo que la app pidió desde [sinceId], con lo que mandó y lo que le contestaron, para comprobarlo desde fuera. */
+    private fun traffic(sinceId: Long): JSONObject {
+        val out = JSONArray()
+        network.eventsAfter(sinceId).forEach { event ->
+            out.put(
+                JSONObject()
+                    .put("id", event.id)
+                    .put("metodo", event.method)
+                    .put("ruta", event.path)
+                    .put("cruda", event.rawPath ?: JSONObject.NULL)
+                    .put("resultado", event.outcome ?: JSONObject.NULL)
+                    .put("fallo", event.failed)
+                    .put("envio", event.request ?: JSONObject.NULL)
+                    .put("respuesta", event.response ?: JSONObject.NULL),
+            )
+        }
+        return JSONObject().put("ultimo", network.lastId()).put("eventos", out)
+    }
+
+    /** Deja [words] como el texto del campo [id], reemplazando lo que tuviera. */
+    /**
+     * Sin [focus] el texto entra sin abrir el teclado: en un diálogo, el teclado de Robolectric deja la pantalla
+     * redibujándose sin fin y el arnés ya no contesta.
+     */
+    private fun write(
+        id: Int,
+        words: List<String>,
+        focus: Boolean = true,
+    ): String {
+        val field = compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id } and hasSetTextAction())
+        if (field.fetchSemanticsNodes().isEmpty()) error("No hay campo con id $id; vuelve a pedir nodos.")
+        val text = words.joinToString(" ")
+        if (focus) {
+            field[0].performTextReplacement(text)
+        } else {
+            field[0].performSemanticsAction(SemanticsActions.SetText) { it(AnnotatedString(text)) }
+        }
+        pump(SETTLE_MILLIS / 2, realTime = false)
+        return "texto puesto"
     }
 
     /** Desliza la lista visible (la última con scroll: la de una hoja abierta antes que la de atrás). */
     private fun scroll(down: Boolean): String {
         val lists = compose.onAllNodes(hasScrollAction())
-        val count = lists.fetchSemanticsNodes().size
-        if (count == 0) error("No hay nada que deslizar. En pantalla: ${summary()}")
-        lists[count - 1].performTouchInput { if (down) swipeUp() else swipeDown() }
+        val nodes = lists.fetchSemanticsNodes()
+        if (nodes.isEmpty()) error("No hay nada que deslizar. En pantalla: ${summary()}")
+        // Una fila que se desliza de lado (fichas, fotos) también cuenta como lista: el dedo va a la última vertical.
+        val vertical = nodes.indexOfLast { SemanticsProperties.VerticalScrollAxisRange in it.config }
+        // Despacio y a media pantalla: un deslizón rápido toma vuelo y se salta lo que hay en medio de una lista larga.
+        lists[if (vertical >= 0) vertical else nodes.lastIndex].performTouchInput {
+            val (from, to) =
+                if (down) {
+                    height * SWIPE_FROM to height * SWIPE_TO
+                } else {
+                    height * SWIPE_TO to
+                        height * SWIPE_FROM
+                }
+            swipe(Offset(centerX, from), Offset(centerX, to), SWIPE_MILLIS)
+        }
         pump(SETTLE_MILLIS, realTime = true)
         return summary()
     }
@@ -269,7 +364,7 @@ class JvmRolesHarness {
                     entered = waitFor(ROLE_STEP_MILLIS) { !exists(enter) }
                 } else {
                     // MODOS-01: «¿Dónde trabajas hoy?» lista cada negocio con un botón por rol («Mesero»).
-                    entered = enterFromModesList(role.operationalRole.label)
+                    entered = enterFromModesList(role.operationalRole.label) || resumedInside(enter)
                 }
             }
             if (!entered) error("No se pudo entrar como ${role.operationalRole.label}. En pantalla: ${summary()}")
@@ -278,9 +373,14 @@ class JvmRolesHarness {
         return "al frente ${role.cliName}: ${summary()}"
     }
 
+    /** Con un solo modo que seguía activo, la app abre directo en él: no hay botón de entrar ni lista de modos. */
+    private fun resumedInside(enter: SemanticsMatcher): Boolean =
+        RecordingStore.active != null && !exists(enter) && !exists(hasText(MODES_TITLE)) && summaryTexts().isNotEmpty()
+
     /** Toca el botón del rol que está debajo del negocio del sandbox en la lista de modos. */
     private fun enterFromModesList(label: String): Boolean {
-        val business = compose.onAllNodes(hasText(SANDBOX_BUSINESS, substring = true)).fetchSemanticsNodes()
+        val name = RecordingStore.active?.name ?: SANDBOX_BUSINESS
+        val business = compose.onAllNodes(hasText(name, substring = true)).fetchSemanticsNodes()
         val top = business.firstOrNull()?.boundsInRoot?.top ?: return false
         val roleButton = hasText(label) and hasClickAction() and isEnabled()
         val buttons = compose.onAllNodes(roleButton)
@@ -326,9 +426,20 @@ class JvmRolesHarness {
         val (latitude, longitude) =
             args.map { it.toDouble() }.takeIf { it.size == 2 }
                 ?: error("Uso: location <lat> <lng>")
-        shadowOf(ApplicationProvider.getApplicationContext<android.app.Application>())
-            .grantPermissions(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        shadowOf(app).grantPermissions(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
         location.coordinates = GeoCoordinates(latitude, longitude)
+        // El mapa de entrega a domicilio pregunta al teléfono, no al proveedor de la app.
+        val manager = app.getSystemService(LocationManager::class.java)
+        shadowOf(manager).setProviderEnabled(LocationManager.GPS_PROVIDER, true)
+        shadowOf(manager).setLastKnownLocation(
+            LocationManager.GPS_PROVIDER,
+            Location(LocationManager.GPS_PROVIDER).apply {
+                this.latitude = latitude
+                this.longitude = longitude
+                time = System.currentTimeMillis()
+            },
+        )
         return "ubicación $latitude, $longitude (permiso concedido)"
     }
 
@@ -483,7 +594,14 @@ class JvmRolesHarness {
             .put("nodos", list)
     }
 
-    private fun tapNode(id: Int): JSONObject {
+    /**
+     * Toca el nodo en su centro. Con [ownAction] dispara su propia acción, como un lector de pantalla: sirve cuando
+     * en el centro hay otro control (el enlace del aviso dentro del renglón que acepta el aviso).
+     */
+    private fun tapNode(
+        id: Int,
+        ownAction: Boolean = false,
+    ): JSONObject {
         val node =
             clickableNodes().firstOrNull { it.id == id }
                 ?: error("No hay nodo tocable con id $id; vuelve a pedir nodos.")
@@ -501,7 +619,8 @@ class JvmRolesHarness {
                 .toSet()
         startedOutside()
         val tappedAt = System.currentTimeMillis()
-        compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0].clickEvenOffscreen()
+        val target = compose.onAllNodes(SemanticsMatcher("id $id") { it.id == id })[0]
+        if (ownAction) target.performSemanticsAction(SemanticsActions.OnClick) else target.clickEvenOffscreen()
         pump(SETTLE_MILLIS, realTime = true)
         // "Reintentar" pide justo lo que la pantalla ya pedía sola: si sale enseguida del toque, es respuesta al toque.
         val requests =
@@ -709,6 +828,9 @@ class JvmRolesHarness {
         const val POLLING_WINDOW_MILLIS = 10_000L
         const val TAP_REACTION_MILLIS = 400L
         const val HIDDEN_NAMES = 3
+        const val SWIPE_FROM = 0.7f
+        const val SWIPE_TO = 0.3f
+        const val SWIPE_MILLIS = 900L
         val SCRIM_LABELS = setOf("Close sheet", "Cerrar hoja")
     }
 }

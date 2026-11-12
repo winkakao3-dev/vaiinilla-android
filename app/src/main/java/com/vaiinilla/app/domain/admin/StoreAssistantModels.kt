@@ -1,6 +1,8 @@
 package com.vaiinilla.app.domain.admin
 
 import com.vaiinilla.app.domain.model.OrderWindow
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 /** Un mensaje de la plática con el asistente de configuración (marco AS2). */
 data class AssistantMessage(
@@ -71,7 +73,7 @@ data class AssistantSupply(
     val unit: String,
     val initialStock: Double?,
     val minimum: Double?,
-    val unitCost: Double?,
+    val unitCost: BigDecimal?,
 )
 
 /** Una línea de receta; [supplyId] es null cuando el insumo viene nuevo en la misma propuesta. */
@@ -99,7 +101,7 @@ data class AssistantMovement(
     val unit: String,
     val type: String,
     val quantity: Double,
-    val unitCost: Double?,
+    val unitCost: BigDecimal?,
     val note: String?,
 )
 
@@ -122,7 +124,7 @@ data class AssistantSupplyEdit(
     val supplyId: Long,
     val name: String,
     val minimum: Double? = null,
-    val unitCost: Double? = null,
+    val unitCost: BigDecimal? = null,
     val supplierName: String? = null,
     val supplierPhone: String? = null,
 )
@@ -406,7 +408,7 @@ object AssistantLabels {
             "En ${unitLong[supply.unit] ?: supply.unit}",
             supply.initialStock?.let { "tienes ${amount(it, supply.unit)}" },
             supply.minimum?.takeIf { it > 0 }?.let { "te avisa con ${amount(it, supply.unit)}" },
-            supply.unitCost?.takeIf { it > 0 }?.let { "cuesta ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
+            supply.unitCost?.takeIf { it.signum() > 0 }?.let { "cuesta ${money(cents(it))} c/u" },
         ).joinToString(" · ")
 
     /** "15:00 a 03:00 · todos los días · 1 h, 2 h". */
@@ -448,7 +450,7 @@ object AssistantLabels {
             }
         return listOfNotNull(
             what,
-            movement.unitCost?.takeIf { it > 0 }?.let { "a ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
+            movement.unitCost?.takeIf { it.signum() > 0 }?.let { "a ${money(cents(it))} c/u" },
             movement.note,
         ).joinToString(" · ")
     }
@@ -468,7 +470,7 @@ object AssistantLabels {
     ): String =
         listOfNotNull(
             edit.minimum?.let { "Te avisa con ${if (unit != null) amount(it, unit) else formatNumber(it)}" },
-            edit.unitCost?.let { "Cuesta ${money("%.2f".format(java.util.Locale.US, it))} c/u" },
+            edit.unitCost?.let { "Cuesta ${money(cents(it))} c/u" },
             edit.supplierName?.let { if (it.isEmpty()) "Sin proveedor" else "Proveedor: $it" },
             edit.supplierPhone?.let { if (it.isEmpty()) "Sin teléfono" else "Tel. $it" },
         ).joinToString(" · ")
@@ -501,8 +503,10 @@ object AssistantLabels {
 
     private val MONTHS = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 
-    private fun formatNumber(value: Double): String =
-        if (value % 1.0 == 0.0) "%,d".format(java.util.Locale.US, value.toLong()) else "$value"
+    private fun formatNumber(quantity: Double): String =
+        if (quantity % 1.0 == 0.0) "%,d".format(java.util.Locale.US, quantity.toLong()) else "$quantity"
+
+    private fun cents(amount: BigDecimal): String = amount.setScale(2, RoundingMode.HALF_UP).toPlainString()
 
     fun recipe(recipe: AssistantRecipe): String =
         recipe.lines.joinToString(" · ") { "${it.supplyName} ${amount(it.quantity, it.unit)}" }

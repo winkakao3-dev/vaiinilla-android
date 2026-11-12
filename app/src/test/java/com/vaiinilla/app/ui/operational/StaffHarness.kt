@@ -378,6 +378,8 @@ internal class FakeOrders : OrderRepository {
 internal class FakeCashSession : CashSessionRepository {
     @Volatile var sessionOpen = false
 
+    @Volatile override var expectedCash: String? = null
+
     @Volatile var openFails: Throwable? = null
 
     @Volatile var closeFails: Throwable? = null

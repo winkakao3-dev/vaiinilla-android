@@ -1,0 +1,1116 @@
+{
+    "values": {
+        "hoy": "2026-11-10",
+        "sufijo": "1d3531"
+    },
+    "exchanges": [
+        {
+            "session": "plataforma.superadmin",
+            "verb": "POST",
+            "path": "plataforma/establecimientos",
+            "body": {
+                "nombre": "Cinta de plataforma 1d3531",
+                "slug": "cinta-plataforma-1d3531",
+                "tipo": "cafeteria",
+                "zona_horaria": "America/Chihuahua",
+                "hora_cierre_forzado": "03:00:00"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+                    "nombre": "Cinta de plataforma 1d3531",
+                    "slug": "cinta-plataforma-1d3531",
+                    "tipo": "cafeteria",
+                    "zona_horaria": "America/Chihuahua",
+                    "hora_cierre_forzado": "03:00:00",
+                    "identificador_cliente_etiqueta": "Identificador",
+                    "identificador_cliente_obligatorio": false,
+                    "entrega_requiere_qr": true,
+                    "gracia_liberacion_min": 5,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "direccion": null,
+                    "horario": null,
+                    "latitud": null,
+                    "longitud": null,
+                    "instagram_url": null,
+                    "facebook_url": null,
+                    "tiktok_url": null,
+                    "whatsapp_url": null,
+                    "sitio_web_url": null,
+                    "asistente_modo": "ambos",
+                    "estado": "activo",
+                    "suspendido_en": null,
+                    "motivo_suspension": null,
+                    "creado_en": "2026-11-11T00:37:22.545Z",
+                    "administrador": null,
+                    "stripe": null,
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": true,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": false,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "plataforma.superadmin",
+            "verb": "GET",
+            "path": "plataforma/establecimientos",
+            "query": {
+                "limit": "50",
+                "query": "Cinta de plataforma 1d3531"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+                        "nombre": "Cinta de plataforma 1d3531",
+                        "slug": "cinta-plataforma-1d3531",
+                        "tipo": "cafeteria",
+                        "zona_horaria": "America/Chihuahua",
+                        "hora_cierre_forzado": "03:00:00",
+                        "identificador_cliente_etiqueta": "Identificador",
+                        "identificador_cliente_obligatorio": false,
+                        "entrega_requiere_qr": true,
+                        "gracia_liberacion_min": 5,
+                        "permite_pago_al_final": false,
+                        "permite_saldo": true,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "direccion": null,
+                        "horario": null,
+                        "latitud": null,
+                        "longitud": null,
+                        "instagram_url": null,
+                        "facebook_url": null,
+                        "tiktok_url": null,
+                        "whatsapp_url": null,
+                        "sitio_web_url": null,
+                        "asistente_modo": "ambos",
+                        "estado": "activo",
+                        "suspendido_en": null,
+                        "motivo_suspension": null,
+                        "creado_en": "2026-11-11T00:37:22.545Z",
+                        "administrador": "sin_asignar",
+                        "stripe": null,
+                        "contrato_v1": {
+                            "version": "v1",
+                            "tipo_comercial": "cafeteria",
+                            "tipo_comercial_conocido": true,
+                            "modo_operativo": {
+                                "entrega_requiere_qr": true,
+                                "permite_pago_al_final": false,
+                                "barra_prepara": false,
+                                "cocina_prepara_sin_cobrar": true,
+                                "permite_pago_en_caja": true
+                            },
+                            "capacidades": {
+                                "edicion_tipo_desde_negocio": {
+                                    "enabled": false,
+                                    "reasons": []
+                                },
+                                "hotel_operacion": {
+                                    "enabled": false,
+                                    "reasons": [
+                                        {
+                                            "code": "TYPE_NOT_HOTEL",
+                                            "message": "No aplica para este tipo."
+                                        }
+                                    ]
+                                },
+                                "reposteria_entrega_domicilio": {
+                                    "enabled": false,
+                                    "reasons": [
+                                        {
+                                            "code": "TYPE_NOT_REPOSTERIA",
+                                            "message": "No aplica para este tipo."
+                                        }
+                                    ]
+                                },
+                                "transicion_segura_hito2": {
+                                    "enabled": false,
+                                    "reasons": [
+                                        {
+                                            "code": "HITO2_NOT_IMPLEMENTED",
+                                            "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                        }
+                                    ]
+                                }
+                            },
+                            "ocultacion_producto": {
+                                "saldo_wallet": {
+                                    "visible": false,
+                                    "enabled": false,
+                                    "reasons": [
+                                        {
+                                            "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                            "message": "Oculto por política de producto."
+                                        }
+                                    ]
+                                },
+                                "cashback": {
+                                    "visible": false,
+                                    "enabled": false,
+                                    "reasons": [
+                                        {
+                                            "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                            "message": "Oculto por política de producto."
+                                        }
+                                    ]
+                                }
+                            },
+                            "restrictions": []
+                        }
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "plataforma.superadmin",
+            "verb": "PATCH",
+            "path": "plataforma/establecimientos/94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+            "body": {
+                "descripcion": "Tienda de grabación"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+                    "nombre": "Cinta de plataforma 1d3531",
+                    "slug": "cinta-plataforma-1d3531",
+                    "tipo": "cafeteria",
+                    "zona_horaria": "America/Chihuahua",
+                    "hora_cierre_forzado": "03:00:00",
+                    "identificador_cliente_etiqueta": "Identificador",
+                    "identificador_cliente_obligatorio": false,
+                    "entrega_requiere_qr": true,
+                    "gracia_liberacion_min": 5,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "descripcion": "Tienda de grabación",
+                    "imagen_url": null,
+                    "direccion": null,
+                    "horario": null,
+                    "latitud": null,
+                    "longitud": null,
+                    "instagram_url": null,
+                    "facebook_url": null,
+                    "tiktok_url": null,
+                    "whatsapp_url": null,
+                    "sitio_web_url": null,
+                    "asistente_modo": "ambos",
+                    "estado": "activo",
+                    "suspendido_en": null,
+                    "motivo_suspension": null,
+                    "creado_en": "2026-11-11T00:37:22.545Z",
+                    "administrador": null,
+                    "stripe": null,
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": true,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": false,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "plataforma.superadmin",
+            "verb": "PUT",
+            "path": "plataforma/establecimientos/94ac2f0c-3f3f-43d6-8c2d-84c03016c982/imagen",
+            "body": {
+                "multipart": "imagen",
+                "filename": "tienda.jpg",
+                "mime": "image/png",
+                "bytes": 70
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+                    "nombre": "Cinta de plataforma 1d3531",
+                    "slug": "cinta-plataforma-1d3531",
+                    "tipo": "cafeteria",
+                    "zona_horaria": "America/Chihuahua",
+                    "hora_cierre_forzado": "03:00:00",
+                    "identificador_cliente_etiqueta": "Identificador",
+                    "identificador_cliente_obligatorio": false,
+                    "entrega_requiere_qr": true,
+                    "gracia_liberacion_min": 5,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "descripcion": "Tienda de grabación",
+                    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/94ac2f0c-3f3f-43d6-8c2d-84c03016c982/perfil/e236cdec-28d3-4c42-9182-c183591a2c43.png",
+                    "direccion": null,
+                    "horario": null,
+                    "latitud": null,
+                    "longitud": null,
+                    "instagram_url": null,
+                    "facebook_url": null,
+                    "tiktok_url": null,
+                    "whatsapp_url": null,
+                    "sitio_web_url": null,
+                    "asistente_modo": "ambos",
+                    "estado": "activo",
+                    "suspendido_en": null,
+                    "motivo_suspension": null,
+                    "creado_en": "2026-11-11T00:37:22.545Z",
+                    "administrador": null,
+                    "stripe": null,
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": true,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": false,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "plataforma.superadmin",
+            "verb": "POST",
+            "path": "plataforma/establecimientos/resolver-maps",
+            "body": {
+                "url": "https://www.google.com/maps/@28.6353,-106.0889,17z"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "latitud": 28.6353,
+                    "longitud": -106.0889
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "plataforma.superadmin",
+            "verb": "GET",
+            "path": "plataforma/metricas",
+            "query": {
+                "desde": "2026-11-03",
+                "hasta": "2026-11-10"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "periodo": {
+                        "desde": "2026-11-03",
+                        "hasta": "2026-11-10"
+                    },
+                    "resumen": {
+                        "pedidos": 124,
+                        "recargas": "3825.00",
+                        "comisiones": "636.08",
+                        "ventas_totales": "21372.50",
+                        "ticket_promedio": "172.36",
+                        "productos_vendidos": 194
+                    },
+                    "operacion": {
+                        "sesiones_caja_abiertas": 12,
+                        "invitaciones_pendientes": 0,
+                        "establecimientos_activos": 23,
+                        "establecimientos_recibiendo": 0,
+                        "establecimientos_suspendidos": 2,
+                        "establecimientos_sin_operacion": 23
+                    },
+                    "productos": [
+                        {
+                            "nombre": "Torta de cinta",
+                            "cantidad": 23,
+                            "producto_id": 211
+                        },
+                        {
+                            "nombre": "Torta de prueba",
+                            "cantidad": 21,
+                            "producto_id": 203
+                        },
+                        {
+                            "nombre": "Renta Pista 7 · 120 min",
+                            "cantidad": 14,
+                            "producto_id": 1
+                        },
+                        {
+                            "nombre": "Alitas BBQ",
+                            "cantidad": 12,
+                            "producto_id": 2
+                        },
+                        {
+                            "nombre": "Refresco",
+                            "cantidad": 11,
+                            "producto_id": 11
+                        },
+                        {
+                            "nombre": "Arroz frito",
+                            "cantidad": 9,
+                            "producto_id": 64
+                        },
+                        {
+                            "nombre": "Hamburguesa clásica",
+                            "cantidad": 9,
+                            "producto_id": 7
+                        },
+                        {
+                            "nombre": "Limonada",
+                            "cantidad": 9,
+                            "producto_id": 9
+                        },
+                        {
+                            "nombre": "Nachos con queso",
+                            "cantidad": 9,
+                            "producto_id": 4
+                        },
+                        {
+                            "nombre": "Fruta picada",
+                            "cantidad": 8,
+                            "producto_id": 69
+                        }
+                    ],
+                    "calculado_en": "2026-11-11T00:37:29.687247+00:00",
+                    "metodos_pago": [
+                        {
+                            "metodo": "efectivo",
+                            "ventas": "19962.50",
+                            "pedidos": 102
+                        },
+                        {
+                            "metodo": "saldo",
+                            "ventas": "1410.00",
+                            "pedidos": 22
+                        },
+                        {
+                            "metodo": "stripe",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "metodo": "terminal",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "metodo": "transferencia",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        }
+                    ],
+                    "ventas_por_dia": [
+                        {
+                            "fecha": "2026-11-03",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "fecha": "2026-11-04",
+                            "ventas": "9535.00",
+                            "pedidos": 51
+                        },
+                        {
+                            "fecha": "2026-11-05",
+                            "ventas": "4780.00",
+                            "pedidos": 29
+                        },
+                        {
+                            "fecha": "2026-11-06",
+                            "ventas": "25.00",
+                            "pedidos": 1
+                        },
+                        {
+                            "fecha": "2026-11-07",
+                            "ventas": "1150.00",
+                            "pedidos": 4
+                        },
+                        {
+                            "fecha": "2026-11-08",
+                            "ventas": "3142.50",
+                            "pedidos": 13
+                        },
+                        {
+                            "fecha": "2026-11-09",
+                            "ventas": "0.00",
+                            "pedidos": 0
+                        },
+                        {
+                            "fecha": "2026-11-10",
+                            "ventas": "2740.00",
+                            "pedidos": 26
+                        }
+                    ],
+                    "establecimientos": [
+                        {
+                            "id": "b011c4e0-0000-4000-8000-000000000001",
+                            "slug": "boliche-strike",
+                            "estado": "activo",
+                            "nombre": "Boliche Strike (pruebas)",
+                            "ventas": "11797.50",
+                            "pedidos": 52,
+                            "ticket_promedio": "226.88",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "0fe49c03-79df-4364-8928-6636f3e05f69",
+                            "slug": "club-padel-pruebas",
+                            "estado": "activo",
+                            "nombre": "Club de pádel (pruebas)",
+                            "ventas": "2425.00",
+                            "pedidos": 10,
+                            "ticket_promedio": "242.50",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "16b6488b-f325-474c-a902-5d0725ab5999",
+                            "slug": "usagi-pruebas",
+                            "estado": "activo",
+                            "nombre": "USAGI",
+                            "ventas": "1625.00",
+                            "pedidos": 13,
+                            "ticket_promedio": "125.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783",
+                            "slug": "cintas-restaurante",
+                            "estado": "activo",
+                            "nombre": "Restaurante de grabación",
+                            "ventas": "1335.00",
+                            "pedidos": 15,
+                            "ticket_promedio": "89.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "5d592c44-f42b-48ce-8351-bffaa7b62bca",
+                            "slug": "vigia-domicilio",
+                            "estado": "activo",
+                            "nombre": "Pastelería del vigía",
+                            "ventas": "1225.00",
+                            "pedidos": 7,
+                            "ticket_promedio": "175.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "7fb363f5-4569-42d6-930b-827a84357ffe",
+                            "slug": "pasteleria-pruebas",
+                            "estado": "activo",
+                            "nombre": "Pastelería a domicilio (pruebas)",
+                            "ventas": "920.00",
+                            "pedidos": 2,
+                            "ticket_promedio": "460.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "ed3dc878-000a-4b5e-98b8-e2818dc98c12",
+                            "slug": "audit-boliche",
+                            "estado": "activo",
+                            "nombre": "Audit Boliche",
+                            "ventas": "870.00",
+                            "pedidos": 3,
+                            "ticket_promedio": "290.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "d9bbd875-278f-481d-b4f3-69616dd24a37",
+                            "slug": "cafeteria-pruebas",
+                            "estado": "activo",
+                            "nombre": "Cafetería de pruebas",
+                            "ventas": "315.00",
+                            "pedidos": 4,
+                            "ticket_promedio": "78.75",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "65301cd7-d5da-4913-afba-3a659d53f7d3",
+                            "slug": "autoservicio-pruebas",
+                            "estado": "activo",
+                            "nombre": "Autoservicio (pruebas)",
+                            "ventas": "280.00",
+                            "pedidos": 2,
+                            "ticket_promedio": "140.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "db856980-5515-4f76-afd1-9009b4b0611a",
+                            "slug": "sandbox-agentes",
+                            "estado": "activo",
+                            "nombre": "Sandbox de agentes",
+                            "ventas": "255.00",
+                            "pedidos": 10,
+                            "ticket_promedio": "25.50",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "fc46888f-824a-4c60-b4ab-4d04b7b510e3",
+                            "slug": "cintas-escuela",
+                            "estado": "activo",
+                            "nombre": "Escuela de grabación",
+                            "ventas": "180.00",
+                            "pedidos": 4,
+                            "ticket_promedio": "45.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "eafebfb6-5b26-43a2-9d66-2094aa3fdadc",
+                            "slug": "boliche-penguin",
+                            "estado": "activo",
+                            "nombre": "Boliche penguin",
+                            "ventas": "110.00",
+                            "pedidos": 1,
+                            "ticket_promedio": "110.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "0c5c6e92-cc9e-4d8c-b74c-6b2177bfef47",
+                            "slug": "audit-escuela",
+                            "estado": "activo",
+                            "nombre": "Audit Escuela",
+                            "ventas": "35.00",
+                            "pedidos": 1,
+                            "ticket_promedio": "35.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "c8b31ab0-e2f3-4ca0-8fd3-cbdcf2e58baa",
+                            "slug": "boliche-nuevo-pruebas",
+                            "estado": "activo",
+                            "nombre": "Boliche Nuevo (pruebas)",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+                            "slug": "cinta-plataforma-1d3531",
+                            "estado": "activo",
+                            "nombre": "Cinta de plataforma 1d3531",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "0d175858-6192-46b3-883b-5405571621be",
+                            "slug": "comedor-pruebas",
+                            "estado": "activo",
+                            "nombre": "Comedor (pruebas)",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "ec01d911-14e0-48b3-8dd9-daf9192a8379",
+                            "slug": "vigia-escuela",
+                            "estado": "activo",
+                            "nombre": "Escuela del vigía",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "90075417-bbc4-4f5d-b298-612e020e7746",
+                            "slug": "gran-hotel-vaini",
+                            "estado": "activo",
+                            "nombre": "Gran Hotel Vaini (pruebas)",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": true
+                        },
+                        {
+                            "id": "e5f63aa8-6f16-4351-b61a-49f42e0d92f1",
+                            "slug": "cintas-hotel",
+                            "estado": "activo",
+                            "nombre": "Hotel de grabación",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "ea5f959f-82d2-47e5-8606-f63ebd44018c",
+                            "slug": "vigia-hotel",
+                            "estado": "activo",
+                            "nombre": "Hotel del vigía",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "7a9b6267-4c07-4c1d-9075-76195293931a",
+                            "slug": "papois-boys",
+                            "estado": "activo",
+                            "nombre": "papois boys",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "1d58b0e2-6ae8-47fc-afbc-8f530f71bb3f",
+                            "slug": "cintas-domicilio",
+                            "estado": "activo",
+                            "nombre": "Pastelería de grabación",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "7f134ff4-b836-44dd-892e-0b93140e65e5",
+                            "slug": "pepe",
+                            "estado": "activo",
+                            "nombre": "pepe",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "ea583312-a900-427f-9be9-59aa1f85c907",
+                            "slug": "prueba-plataforma-1793817793018",
+                            "estado": "suspendido",
+                            "nombre": "Prueba Plataforma",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        },
+                        {
+                            "id": "815de7d9-0d54-4d32-84e2-d5e19c8a26a8",
+                            "slug": "prueba-plataforma-1793817828291",
+                            "estado": "suspendido",
+                            "nombre": "Prueba Plataforma",
+                            "ventas": "0.00",
+                            "pedidos": 0,
+                            "ticket_promedio": "0.00",
+                            "recibiendo_pedidos": false,
+                            "sesion_caja_abierta": false
+                        }
+                    ],
+                    "pedidos_por_estado": [
+                        {
+                            "estado": "por_cobrar",
+                            "pedidos": 6
+                        },
+                        {
+                            "estado": "cobrado",
+                            "pedidos": 16
+                        },
+                        {
+                            "estado": "preparando",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "listo",
+                            "pedidos": 4
+                        },
+                        {
+                            "estado": "entregado",
+                            "pedidos": 109
+                        },
+                        {
+                            "estado": "cancelado",
+                            "pedidos": 41
+                        },
+                        {
+                            "estado": "no_recogido",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "por_aceptar",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "en_camino",
+                            "pedidos": 0
+                        },
+                        {
+                            "estado": "expirado",
+                            "pedidos": 1
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "plataforma.superadmin",
+            "verb": "POST",
+            "path": "plataforma/establecimientos/94ac2f0c-3f3f-43d6-8c2d-84c03016c982/suspender",
+            "body": {
+                "motivo": "Grabación terminada"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "94ac2f0c-3f3f-43d6-8c2d-84c03016c982",
+                    "nombre": "Cinta de plataforma 1d3531",
+                    "slug": "cinta-plataforma-1d3531",
+                    "tipo": "cafeteria",
+                    "zona_horaria": "America/Chihuahua",
+                    "hora_cierre_forzado": "03:00:00",
+                    "identificador_cliente_etiqueta": "Identificador",
+                    "identificador_cliente_obligatorio": false,
+                    "entrega_requiere_qr": true,
+                    "gracia_liberacion_min": 5,
+                    "permite_pago_al_final": false,
+                    "permite_saldo": true,
+                    "descripcion": "Tienda de grabación",
+                    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/94ac2f0c-3f3f-43d6-8c2d-84c03016c982/perfil/e236cdec-28d3-4c42-9182-c183591a2c43.png",
+                    "direccion": null,
+                    "horario": null,
+                    "latitud": null,
+                    "longitud": null,
+                    "instagram_url": null,
+                    "facebook_url": null,
+                    "tiktok_url": null,
+                    "whatsapp_url": null,
+                    "sitio_web_url": null,
+                    "asistente_modo": "ambos",
+                    "estado": "suspendido",
+                    "suspendido_en": "2026-11-11T00:37:30.740Z",
+                    "motivo_suspension": "Grabación terminada",
+                    "creado_en": "2026-11-11T00:37:22.545Z",
+                    "administrador": null,
+                    "stripe": null,
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "cafeteria",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": true,
+                            "permite_pago_al_final": false,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": true,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": false,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

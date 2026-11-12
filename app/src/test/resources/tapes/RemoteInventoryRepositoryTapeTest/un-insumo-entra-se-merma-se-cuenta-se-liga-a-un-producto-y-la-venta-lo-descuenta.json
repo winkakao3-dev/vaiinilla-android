@@ -1,0 +1,1525 @@
+{
+    "values": {
+        "compra": "621a54b2-5358-4777-acd4-192aed258131",
+        "insumo": "Frijol de cinta d16614",
+        "movimiento-1": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+        "movimiento-2": "0b1b4a44-969f-4087-a481-87ffcf078630"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "inventario/insumos",
+            "body": {
+                "nombre": "Frijol de cinta d16614",
+                "categoria": "Abarrotes",
+                "unidad": "kg",
+                "minimo": 2.0,
+                "costo_unitario": 30.0,
+                "existencia_inicial": 5.0,
+                "proveedor_nombre": "Don Beto",
+                "proveedor_telefono": "6140000000"
+            },
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
+                    "categoria": "Abarrotes",
+                    "unidad": "kg",
+                    "existencia": 5,
+                    "minimo": 2,
+                    "costo_unitario": 30,
+                    "valor": 150,
+                    "bajo_minimo": false,
+                    "activo": true,
+                    "proveedor_nombre": "Don Beto",
+                    "proveedor_telefono": "6140000000",
+                    "productos_que_lo_usan": 0,
+                    "actualizado_en": "2026-11-10T23:43:56.763Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "inventario/insumos/74",
+            "body": {
+                "nombre": "Frijol de cinta d16614",
+                "categoria": "Abarrotes",
+                "unidad": "kg",
+                "minimo": 6.0,
+                "costo_unitario": 30.0,
+                "proveedor_nombre": "Don Beto",
+                "proveedor_telefono": "6140000000"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
+                    "categoria": "Abarrotes",
+                    "unidad": "kg",
+                    "existencia": 5,
+                    "minimo": 6,
+                    "costo_unitario": 30,
+                    "valor": 150,
+                    "bajo_minimo": true,
+                    "activo": true,
+                    "proveedor_nombre": "Don Beto",
+                    "proveedor_telefono": "6140000000",
+                    "productos_que_lo_usan": 0,
+                    "actualizado_en": "2026-11-10T23:43:57.373Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "inventario/movimientos",
+            "body": {
+                "id": "621a54b2-5358-4777-acd4-192aed258131",
+                "insumo_id": 74,
+                "tipo": "entrada",
+                "cantidad": 10.0,
+                "costo_unitario": 32.0,
+                "nota": "Compra"
+            },
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "621a54b2-5358-4777-acd4-192aed258131",
+                    "insumo_id": 74,
+                    "tipo": "entrada",
+                    "cantidad": 10,
+                    "existencia": 15,
+                    "duplicado": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "inventario/movimientos",
+            "body": {
+                "id": "621a54b2-5358-4777-acd4-192aed258131",
+                "insumo_id": 74,
+                "tipo": "entrada",
+                "cantidad": 10.0,
+                "costo_unitario": 32.0,
+                "nota": "Compra"
+            },
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "621a54b2-5358-4777-acd4-192aed258131",
+                    "insumo_id": 74,
+                    "tipo": "entrada",
+                    "cantidad": 10,
+                    "existencia": 15,
+                    "duplicado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "inventario/movimientos",
+            "body": {
+                "id": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+                "insumo_id": 74,
+                "tipo": "merma",
+                "cantidad": 1.0,
+                "nota": "Se cayó"
+            },
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+                    "insumo_id": 74,
+                    "tipo": "merma",
+                    "cantidad": -1,
+                    "existencia": 14,
+                    "duplicado": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "inventario/conteos",
+            "body": {
+                "nota": "Conteo de cierre",
+                "conteos": [
+                    {
+                        "id": "0b1b4a44-969f-4087-a481-87ffcf078630",
+                        "insumo_id": 74,
+                        "cantidad": 13.5
+                    }
+                ]
+            },
+            "status": 201,
+            "response": {
+                "data": {
+                    "resultados": [
+                        {
+                            "id": "0b1b4a44-969f-4087-a481-87ffcf078630",
+                            "insumo_id": 74,
+                            "tipo": "conteo",
+                            "cantidad": -0.5,
+                            "existencia": 13.5,
+                            "duplicado": false
+                        }
+                    ],
+                    "con_diferencia": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/insumos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "insumos": [
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "existencia": 13.5,
+                            "minimo": 6,
+                            "costo_unitario": 31.3333,
+                            "valor": 423,
+                            "bajo_minimo": false,
+                            "activo": true,
+                            "proveedor_nombre": "Don Beto",
+                            "proveedor_telefono": "6140000000",
+                            "productos_que_lo_usan": 0,
+                            "actualizado_en": "2026-11-10T23:43:59.466Z"
+                        }
+                    ],
+                    "resumen": {
+                        "total": 1,
+                        "bajo_minimo": 0,
+                        "valor_total": 423
+                    },
+                    "permisos": {
+                        "puede_editar": true,
+                        "cocina_edita": false
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "inventario/productos/211/receta",
+            "body": {
+                "lineas": [
+                    {
+                        "insumo_id": 74,
+                        "cantidad": 0.25
+                    }
+                ]
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "producto_id": 211,
+                    "lineas": [
+                        {
+                            "id": 342,
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "cantidad": 0.25,
+                            "opcion_id": null,
+                            "opcion": null,
+                            "existencia": 13.5,
+                            "costo": 7.83
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/productos/211/receta",
+            "status": 200,
+            "response": {
+                "data": {
+                    "producto_id": 211,
+                    "lineas": [
+                        {
+                            "id": 342,
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "cantidad": 0.25,
+                            "opcion_id": null,
+                            "opcion": null,
+                            "existencia": 13.5,
+                            "costo": 7.83
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/productos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "productos": [
+                        {
+                            "id": 211,
+                            "nombre": "Torta de cinta",
+                            "categoria": "Cintas",
+                            "precio": 45,
+                            "disponible": true,
+                            "agotado_por_inventario": false,
+                            "tiene_receta": true,
+                            "alcanza_para": 54,
+                            "costo_receta": 7.83,
+                            "margen": 82.6
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/insumos/74/productos",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "producto_id": 211,
+                        "nombre": "Torta de cinta",
+                        "categoria_id": 112,
+                        "categoria_nombre": "Cintas",
+                        "cantidad": 0.25
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "inventario/insumos/74/productos",
+            "body": {
+                "productos": [
+                    {
+                        "producto_id": 211,
+                        "cantidad": 0.5
+                    }
+                ],
+                "categorias": []
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "producto_id": 211,
+                        "nombre": "Torta de cinta",
+                        "categoria_id": 112,
+                        "categoria_nombre": "Cintas",
+                        "cantidad": 0.5
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "723561bf-755c-4908-8c19-047e96ffe7e2",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:12:45.105Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "1085.00",
+                    "ultimo_cierre": {
+                        "monto_final": "730.00",
+                        "cerrada_en": "2026-11-10T23:12:35.431Z",
+                        "monto_inicial": "500.00",
+                        "efectivo_esperado": "740.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "pedidos",
+            "body": {
+                "metodo_pago": "efectivo",
+                "destino": "para_llevar",
+                "espacio_id": null,
+                "notas_cocina": null,
+                "items": [
+                    {
+                        "producto_id": 211,
+                        "cantidad": 2,
+                        "opcion_ids": []
+                    }
+                ],
+                "pago_diferido": false
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "por_cobrar",
+                    "metodo_pago": "efectivo",
+                    "destino": "para_llevar",
+                    "recoge_en_barra": false,
+                    "espacio": null,
+                    "entrega_sin_qr": false,
+                    "subtotal": "90.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "90.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "90.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "90.00",
+                    "objetivo_neto_establecimiento": "90.00",
+                    "total_cliente": "90.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": false,
+                    "pago_pendiente": false,
+                    "invitado": false,
+                    "version": 1,
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:05.436Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": null,
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 224,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 2,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "90.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ],
+                    "calificacion": null,
+                    "qr_token": "v1.c84e2a1bdc03bffc4c36e212d20ab7f2f9497658c39310fa9fc6cc5ae1fd14ac"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/cobros-efectivo",
+            "body": {
+                "monto_recibido": "90.00",
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "pedido": {
+                        "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                        "folio": 25,
+                        "sin_conexion": null,
+                        "fecha_operativa": "2026-11-10",
+                        "tipo_establecimiento": "restaurante",
+                        "fecha_entrega": null,
+                        "franja_entrega": null,
+                        "estado": "cobrado",
+                        "metodo_pago": "efectivo",
+                        "destino": "para_llevar",
+                        "recoge_en_barra": false,
+                        "espacio": null,
+                        "entrega_sin_qr": false,
+                        "subtotal": "90.00",
+                        "ahorro_combinado": "0.00",
+                        "cashback_otorgado": "0.00",
+                        "total": "90.00",
+                        "monto_pagado": "90.00",
+                        "saldo_pendiente": "0.00",
+                        "metodo_pago_cobrado": "efectivo",
+                        "pagos_por_metodo": [
+                            {
+                                "monto": "90.00",
+                                "metodo": "efectivo"
+                            }
+                        ],
+                        "descuento_compra_conjunta": "0.00",
+                        "subtotal_con_descuento": "90.00",
+                        "objetivo_neto_establecimiento": "90.00",
+                        "total_cliente": "90.00",
+                        "extras": "0.00",
+                        "application_fee": null,
+                        "moneda": "mxn",
+                        "pricing_policy_version": "non_stripe_customer_price_v2",
+                        "pago_diferido": false,
+                        "pago_pendiente": false,
+                        "invitado": false,
+                        "version": 2,
+                        "creado_en": "2026-11-10T23:44:05.436Z",
+                        "actualizado_en": "2026-11-10T23:44:06.309Z",
+                        "vence_operacion_en": null,
+                        "motivo_pendiente_operativo": null,
+                        "motivo_cancelacion": null,
+                        "motivo_cancelacion_codigo": null,
+                        "cancelado_por_rol": null,
+                        "notas_cocina": null,
+                        "usuario": {
+                            "nombre": "Vigía cliente",
+                            "matricula": null,
+                            "alergias": []
+                        },
+                        "reserva": null,
+                        "llegada_en": null,
+                        "minutos_estimados": 5,
+                        "listo_en": null,
+                        "entregado_en": null,
+                        "no_recogido_en": null,
+                        "items": [
+                            {
+                                "id": 224,
+                                "producto_id": 211,
+                                "nombre_producto": "Torta de cinta",
+                                "imagen_url": null,
+                                "estacion_preparacion": "cocina",
+                                "cantidad": 2,
+                                "precio_digital_unitario": "45.00",
+                                "subtotal": "90.00",
+                                "opciones": [],
+                                "rechazo": null
+                            }
+                        ]
+                    },
+                    "monto_recibido": "90.00",
+                    "cambio": "0.00",
+                    "propina": "0.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/transiciones",
+            "body": {
+                "estado_objetivo": "preparando",
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "preparando",
+                    "metodo_pago": "efectivo",
+                    "destino": "para_llevar",
+                    "recoge_en_barra": false,
+                    "espacio": null,
+                    "entrega_sin_qr": false,
+                    "subtotal": "90.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "90.00",
+                    "monto_pagado": "90.00",
+                    "saldo_pendiente": "0.00",
+                    "metodo_pago_cobrado": "efectivo",
+                    "pagos_por_metodo": [
+                        {
+                            "monto": "90.00",
+                            "metodo": "efectivo"
+                        }
+                    ],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "90.00",
+                    "objetivo_neto_establecimiento": "90.00",
+                    "total_cliente": "90.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": false,
+                    "pago_pendiente": false,
+                    "invitado": false,
+                    "version": 3,
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:07.008Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Vigía cliente",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 224,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 2,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "90.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/transiciones",
+            "body": {
+                "estado_objetivo": "listo",
+                "version_esperada": 3
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "listo",
+                    "metodo_pago": "efectivo",
+                    "destino": "para_llevar",
+                    "recoge_en_barra": false,
+                    "espacio": null,
+                    "entrega_sin_qr": false,
+                    "subtotal": "90.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "90.00",
+                    "monto_pagado": "90.00",
+                    "saldo_pendiente": "0.00",
+                    "metodo_pago_cobrado": "efectivo",
+                    "pagos_por_metodo": [
+                        {
+                            "monto": "90.00",
+                            "metodo": "efectivo"
+                        }
+                    ],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "90.00",
+                    "objetivo_neto_establecimiento": "90.00",
+                    "total_cliente": "90.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": false,
+                    "pago_pendiente": false,
+                    "invitado": false,
+                    "version": 4,
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:07.641Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Vigía cliente",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": "2026-11-10T23:44:07.641Z",
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 224,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 2,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "90.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "pedidos/57fcfa21-d9c3-425c-b108-f94785171c9a/transiciones",
+            "body": {
+                "estado_objetivo": "entregado",
+                "version_esperada": 4
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                    "folio": 25,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "entregado",
+                    "metodo_pago": "efectivo",
+                    "destino": "para_llevar",
+                    "recoge_en_barra": false,
+                    "espacio": null,
+                    "entrega_sin_qr": false,
+                    "subtotal": "90.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "90.00",
+                    "monto_pagado": "90.00",
+                    "saldo_pendiente": "0.00",
+                    "metodo_pago_cobrado": "efectivo",
+                    "pagos_por_metodo": [
+                        {
+                            "monto": "90.00",
+                            "metodo": "efectivo"
+                        }
+                    ],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "90.00",
+                    "objetivo_neto_establecimiento": "90.00",
+                    "total_cliente": "90.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": false,
+                    "pago_pendiente": false,
+                    "invitado": false,
+                    "version": 5,
+                    "creado_en": "2026-11-10T23:44:05.436Z",
+                    "actualizado_en": "2026-11-10T23:44:08.173Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Vigía cliente",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": "2026-11-10T23:44:07.641Z",
+                    "entregado_en": "2026-11-10T23:44:08.173Z",
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 224,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 2,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "90.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/insumos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "insumos": [
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "existencia": 12.5,
+                            "minimo": 6,
+                            "costo_unitario": 31.3333,
+                            "valor": 391.67,
+                            "bajo_minimo": false,
+                            "activo": true,
+                            "proveedor_nombre": "Don Beto",
+                            "proveedor_telefono": "6140000000",
+                            "productos_que_lo_usan": 1,
+                            "actualizado_en": "2026-11-10T23:44:06.309Z"
+                        }
+                    ],
+                    "resumen": {
+                        "total": 1,
+                        "bajo_minimo": 0,
+                        "valor_total": 391.67
+                    },
+                    "permisos": {
+                        "puede_editar": true,
+                        "cocina_edita": false
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/movimientos",
+            "query": {
+                "insumo_id": "74",
+                "limite": "300"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "desde": "2026-11-09T23:44:09.296Z",
+                    "hasta": "2026-11-10T23:44:09.296Z",
+                    "movimientos": [
+                        {
+                            "id": "85aa1e08-1cd9-4ddb-9202-5f93f994949c",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "tipo": "venta",
+                            "cantidad": -1,
+                            "existencia_resultante": 12.5,
+                            "existencia_esperada": null,
+                            "costo_unitario": null,
+                            "nota": null,
+                            "pedido_id": "57fcfa21-d9c3-425c-b108-f94785171c9a",
+                            "folio": 25,
+                            "registrado_por": null,
+                            "creado_en": "2026-11-10T23:44:06.309Z"
+                        },
+                        {
+                            "id": "0b1b4a44-969f-4087-a481-87ffcf078630",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "tipo": "conteo",
+                            "cantidad": -0.5,
+                            "existencia_resultante": 13.5,
+                            "existencia_esperada": 14,
+                            "costo_unitario": null,
+                            "nota": "Conteo de cierre",
+                            "pedido_id": null,
+                            "folio": null,
+                            "registrado_por": "Vigía admin",
+                            "creado_en": "2026-11-10T23:43:59.466Z"
+                        },
+                        {
+                            "id": "fbc0c285-ed51-41c9-be49-26635f468b0e",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "tipo": "merma",
+                            "cantidad": -1,
+                            "existencia_resultante": 14,
+                            "existencia_esperada": null,
+                            "costo_unitario": null,
+                            "nota": "Se cayó",
+                            "pedido_id": null,
+                            "folio": null,
+                            "registrado_por": "Vigía admin",
+                            "creado_en": "2026-11-10T23:43:58.963Z"
+                        },
+                        {
+                            "id": "621a54b2-5358-4777-acd4-192aed258131",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "tipo": "entrada",
+                            "cantidad": 10,
+                            "existencia_resultante": 15,
+                            "existencia_esperada": null,
+                            "costo_unitario": 32,
+                            "nota": "Compra",
+                            "pedido_id": null,
+                            "folio": null,
+                            "registrado_por": "Vigía admin",
+                            "creado_en": "2026-11-10T23:43:57.913Z"
+                        },
+                        {
+                            "id": "1d950e5a-f9f4-4876-8eb3-01d65f228865",
+                            "insumo_id": 74,
+                            "insumo": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "tipo": "inicial",
+                            "cantidad": 5,
+                            "existencia_resultante": 5,
+                            "existencia_esperada": null,
+                            "costo_unitario": null,
+                            "nota": "Existencia inicial",
+                            "pedido_id": null,
+                            "folio": null,
+                            "registrado_por": "Vigía admin",
+                            "creado_en": "2026-11-10T23:43:56.763Z"
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/reporte",
+            "status": 200,
+            "response": {
+                "data": {
+                    "desde": "2026-11-09T23:44:09.809Z",
+                    "hasta": "2026-11-10T23:44:09.809Z",
+                    "insumos": [
+                        {
+                            "id": 73,
+                            "nombre": "Frijol de cinta 8049e1",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "inicial": 5,
+                            "entradas": 10,
+                            "vendido": 1,
+                            "mermas": 1,
+                            "diferencias": -0.5,
+                            "final": 12.5,
+                            "actual": 12.5,
+                            "bajo_minimo": false,
+                            "costo_vendido": 30,
+                            "costo_mermas": 30,
+                            "costo_diferencias": -15,
+                            "compras_monto": 320
+                        },
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "inicial": 5,
+                            "entradas": 10,
+                            "vendido": 1,
+                            "mermas": 1,
+                            "diferencias": -0.5,
+                            "final": 12.5,
+                            "actual": 12.5,
+                            "bajo_minimo": false,
+                            "costo_vendido": 31.33,
+                            "costo_mermas": 31.33,
+                            "costo_diferencias": -15.67,
+                            "compras_monto": 320
+                        }
+                    ],
+                    "totales": {
+                        "costo_vendido": 61.33,
+                        "costo_mermas": 61.33,
+                        "costo_diferencias": -30.67,
+                        "compras_monto": 640,
+                        "bajo_minimo": 0
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "inventario/insumos/74",
+            "body": {
+                "nombre": "Frijol de cinta d16614",
+                "categoria": "Abarrotes",
+                "unidad": "kg",
+                "minimo": 20.0,
+                "costo_unitario": 30.0,
+                "proveedor_nombre": "Don Beto",
+                "proveedor_telefono": "6140000000"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
+                    "categoria": "Abarrotes",
+                    "unidad": "kg",
+                    "existencia": 12.5,
+                    "minimo": 20,
+                    "costo_unitario": 30,
+                    "valor": 375,
+                    "bajo_minimo": true,
+                    "activo": true,
+                    "proveedor_nombre": "Don Beto",
+                    "proveedor_telefono": "6140000000",
+                    "productos_que_lo_usan": 1,
+                    "actualizado_en": "2026-11-10T23:44:10.323Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/avisos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "dias_consumo": 7,
+                    "para_manana": [],
+                    "agotados": [],
+                    "bajo_minimo": [
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
+                            "unidad": "kg",
+                            "existencia": 12.5,
+                            "minimo": 20,
+                            "consumo_diario": 0.143,
+                            "alcanza_dias": 87,
+                            "proveedor": {
+                                "nombre": "Don Beto",
+                                "telefono": "6140000000"
+                            }
+                        }
+                    ],
+                    "total": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "inventario/permisos",
+            "body": {
+                "cocina_edita": true
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "cocina_edita": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "GET",
+            "path": "inventario/insumos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "insumos": [
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "existencia": 12.5,
+                            "minimo": 20,
+                            "costo_unitario": 30,
+                            "valor": 375,
+                            "bajo_minimo": true,
+                            "activo": true,
+                            "proveedor_nombre": "Don Beto",
+                            "proveedor_telefono": "6140000000",
+                            "productos_que_lo_usan": 1,
+                            "actualizado_en": "2026-11-10T23:44:10.323Z"
+                        }
+                    ],
+                    "resumen": {
+                        "total": 1,
+                        "bajo_minimo": 1,
+                        "valor_total": 375
+                    },
+                    "permisos": {
+                        "puede_editar": true,
+                        "cocina_edita": true
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "inventario/permisos",
+            "body": {
+                "cocina_edita": false
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "cocina_edita": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "GET",
+            "path": "inventario/insumos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "insumos": [
+                        {
+                            "id": 74,
+                            "nombre": "Frijol de cinta d16614",
+                            "categoria": "Abarrotes",
+                            "unidad": "kg",
+                            "existencia": 12.5,
+                            "minimo": 20,
+                            "bajo_minimo": true,
+                            "activo": true,
+                            "proveedor_nombre": "Don Beto",
+                            "proveedor_telefono": "6140000000",
+                            "productos_que_lo_usan": 1,
+                            "actualizado_en": "2026-11-10T23:44:10.323Z"
+                        }
+                    ],
+                    "resumen": {
+                        "total": 1,
+                        "bajo_minimo": 1
+                    },
+                    "permisos": {
+                        "puede_editar": false,
+                        "cocina_edita": false
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "inventario/productos/211/receta",
+            "body": {
+                "lineas": []
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "producto_id": 211,
+                    "lineas": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "inventario/insumos/74",
+            "body": {
+                "nombre": "Frijol de cinta d16614",
+                "categoria": "Abarrotes",
+                "unidad": "kg",
+                "minimo": 2.0,
+                "costo_unitario": 30.0,
+                "activo": false,
+                "proveedor_nombre": "Don Beto",
+                "proveedor_telefono": "6140000000"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 74,
+                    "nombre": "Frijol de cinta d16614",
+                    "categoria": "Abarrotes",
+                    "unidad": "kg",
+                    "existencia": 12.5,
+                    "minimo": 2,
+                    "costo_unitario": 30,
+                    "valor": 375,
+                    "bajo_minimo": false,
+                    "activo": false,
+                    "proveedor_nombre": "Don Beto",
+                    "proveedor_telefono": "6140000000",
+                    "productos_que_lo_usan": 0,
+                    "actualizado_en": "2026-11-10T23:44:14.037Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "inventario/insumos",
+            "status": 200,
+            "response": {
+                "data": {
+                    "insumos": [],
+                    "resumen": {
+                        "total": 0,
+                        "bajo_minimo": 0,
+                        "valor_total": 0
+                    },
+                    "permisos": {
+                        "puede_editar": true,
+                        "cocina_edita": false
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

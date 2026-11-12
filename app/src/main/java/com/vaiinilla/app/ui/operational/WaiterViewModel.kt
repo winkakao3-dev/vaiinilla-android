@@ -1048,9 +1048,19 @@ class WaiterViewModel
             expectedRemaining: String,
             tip: String? = null,
         ) {
+            val sessionId =
+                _uiState.value.spaceDetail
+                    ?.session
+                    ?.id
+                    ?.takeIf { openSpaceId == spaceId }
+            if (sessionId == null) {
+                // Sin saber de qué cuenta es, la llave sería la de cualquier abono igual en esa mesa.
+                showToast("No pudimos leer la cuenta. Abre la mesa otra vez.", isError = true)
+                return
+            }
             if (!beginAction()) return
             val key =
-                abonoIdempotencyKey(spaceId, method, mode, amount, parts, expectedRemaining, tip)
+                abonoIdempotencyKey(spaceId, sessionId, method, mode, amount, parts, expectedRemaining, tip)
             viewModelScope.launch {
                 val result =
                     actionCall {
@@ -1231,9 +1241,14 @@ internal fun WaiterUiState.withBoardFailure(failure: ApiFailure): WaiterUiState 
         consecutiveBoardFailures = consecutiveBoardFailures + 1,
     )
 
-/** Llave de idempotencia de un abono: la misma para el mismo abono sobre el mismo restante. */
+/**
+ * Llave de idempotencia de un abono: la misma para el mismo abono sobre el mismo restante de la misma cuenta.
+ * Lleva la cuenta abierta ([sessionId]): la mesa siguiente puede deber lo mismo y pagar igual, y sin ella el servidor
+ * contestaba lo guardado del abono anterior sin anotar el nuevo.
+ */
 internal fun abonoIdempotencyKey(
     spaceId: Int,
+    sessionId: String,
     method: AccountPaymentMethod,
     mode: AbonoMode,
     amount: String?,
@@ -1243,7 +1258,7 @@ internal fun abonoIdempotencyKey(
 ): String =
     UUID
         .nameUUIDFromBytes(
-            listOf("abono", spaceId, method.wire, mode.wire, amount, parts, expectedRemaining, tip)
+            listOf("abono", spaceId, sessionId, method.wire, mode.wire, amount, parts, expectedRemaining, tip)
                 .joinToString("|")
                 .toByteArray(),
         ).toString()

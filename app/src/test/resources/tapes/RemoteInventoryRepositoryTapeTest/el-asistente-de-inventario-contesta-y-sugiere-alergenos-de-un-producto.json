@@ -1,0 +1,64 @@
+{
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "inventario/asistente",
+            "body": {
+                "mensajes": [
+                    {
+                        "rol": "personal",
+                        "texto": "¿Qué me falta para mañana?"
+                    }
+                ]
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "mensaje": "No tienes insumos registrados, así que no te marca nada para mañana. Regístralos en Inventario para llevar bien tu stock.",
+                    "opciones": [
+                        "¿Cómo registro un insumo?",
+                        "¿Qué hay en inventario?"
+                    ],
+                    "quedan_mensajes": 28
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos/alergenos-sugeridos",
+            "body": {
+                "nombre": "Torta de huevo con queso",
+                "ingredientes": "huevo, queso, pan de trigo, mantequilla"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "alergenos": [
+                        "gluten",
+                        "huevo",
+                        "lacteos",
+                        "lactosa"
+                    ],
+                    "motivo": "El pan de trigo aporta gluten, el huevo aporta huevo y el queso con mantequilla aportan lácteos y lactosa.",
+                    "con_receta": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

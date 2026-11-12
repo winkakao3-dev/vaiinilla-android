@@ -316,8 +316,14 @@ class RemoteAdminStoreRepository(
                 .nameUUIDFromBytes("asistente-movimiento:$idempotencyKey".toByteArray())
                 .toString()
         return inventory
-            .registerMovement(id, movement.supplyId, type, movement.quantity, movement.unitCost, movement.note)
-            .map { }
+            .registerMovement(
+                id,
+                movement.supplyId,
+                type,
+                movement.quantity,
+                movement.unitCost?.toDouble(),
+                movement.note,
+            ).map { }
     }
 
     /**
@@ -420,7 +426,7 @@ class RemoteAdminStoreRepository(
                         category = null,
                         unit = null,
                         minimum = edit.minimum ?: current.minimum,
-                        unitCost = edit.unitCost,
+                        unitCost = edit.unitCost?.toDouble(),
                         supplierName = edit.supplierName,
                         supplierPhone = edit.supplierPhone,
                     ),
@@ -500,7 +506,7 @@ class RemoteAdminStoreRepository(
                     category = null,
                     unit = InventoryUnit.of(supply.unit),
                     minimum = supply.minimum ?: 0.0,
-                    unitCost = supply.unitCost,
+                    unitCost = supply.unitCost?.toDouble(),
                     initialStock = supply.initialStock,
                 ),
             ).map { }

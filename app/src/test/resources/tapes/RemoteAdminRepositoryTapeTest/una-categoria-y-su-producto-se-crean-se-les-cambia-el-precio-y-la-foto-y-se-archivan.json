@@ -1,0 +1,1049 @@
+{
+    "values": {
+        "sufijo": "94ac9c"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/categorias",
+            "body": {
+                "nombre": "Postres 94ac9c",
+                "orden": 7
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 117,
+                    "nombre": "Postres 94ac9c",
+                    "orden": 7
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "catalogo/categorias/117",
+            "body": {
+                "nombre": "Dulces 94ac9c",
+                "orden": 8
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 117,
+                    "nombre": "Dulces 94ac9c",
+                    "orden": 8
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos",
+            "body": {
+                "categoria_id": 117,
+                "estacion_preparacion": "cocina",
+                "nombre": "Flan 94ac9c",
+                "descripcion": "De la casa",
+                "ingredientes": "Leche, huevo y caramelo",
+                "alergenos": null,
+                "tiempo_estimado_min": 4,
+                "precio_mostrador": "38.00",
+                "disponible": true,
+                "grupos_opcion": [],
+                "alergenos_codigos": [
+                    "huevo",
+                    "lacteos"
+                ]
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "38.00",
+                    "precio_digital": "38.00",
+                    "disponible": true,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "catalogo/productos/216",
+            "body": {
+                "categoria_id": 117,
+                "estacion_preparacion": "cocina",
+                "nombre": "Flan 94ac9c",
+                "descripcion": "De la casa",
+                "ingredientes": "Leche, huevo y caramelo",
+                "alergenos": null,
+                "tiempo_estimado_min": 4,
+                "precio_mostrador": "42.50",
+                "disponible": false,
+                "grupos_opcion": [],
+                "alergenos_codigos": [
+                    "huevo",
+                    "lacteos"
+                ]
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "catalogo/productos/216/imagen",
+            "body": {
+                "multipart": "imagen",
+                "filename": "flan.png",
+                "mime": "image/png",
+                "bytes": 70
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": false,
+                    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783/productos/216/15f7e3c8-e14d-4f7d-9309-be116638840c.png",
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "catalogo/productos/216/imagen",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": false,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "catalogo/productos/216/disponibilidad",
+            "body": {
+                "disponible": true
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": true,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "establecimiento/logo",
+            "body": {
+                "multipart": "imagen",
+                "filename": "logo.png",
+                "mime": "image/png",
+                "bytes": 70
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "restaurante",
+                    "entrega_requiere_qr": false,
+                    "permite_pago_al_final": true,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": false,
+                    "codigo_union": null,
+                    "union_requiere_codigo": false,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 0,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": true,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-restaurante",
+                    "imagen_url": null,
+                    "logo_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783/logo/f70db26d-115d-403c-8e47-5bc88c788dab.png",
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "restaurante",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": false,
+                            "permite_pago_al_final": true,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": true,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "establecimiento/imagenes",
+            "status": 200,
+            "response": {
+                "data": {
+                    "imagen_url": null,
+                    "logo_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783/logo/f70db26d-115d-403c-8e47-5bc88c788dab.png"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "establecimiento/logo",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "tipo": "restaurante",
+                    "entrega_requiere_qr": false,
+                    "permite_pago_al_final": true,
+                    "permite_saldo": true,
+                    "gracia_liberacion_min": 5,
+                    "franjas_pedido": [],
+                    "videos_local": [],
+                    "visible_en_directorio": false,
+                    "caja_alerta_horas": 24,
+                    "modo_escuela": false,
+                    "codigo_union": null,
+                    "union_requiere_codigo": false,
+                    "tutores_requieren_aprobacion": true,
+                    "recarga_minima": "50.00",
+                    "recarga_maxima": "2000.00",
+                    "fondo_sugerido": null,
+                    "dias_adelanto_pedido": 0,
+                    "hora_corte_pedido": null,
+                    "hora_corte_cancelacion": null,
+                    "hora_inicio_dia": "00:00",
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "asistente_modo": "ambos",
+                    "cocina_prepara_sin_cobrar": true,
+                    "permite_pago_en_caja": true,
+                    "pausa_sin_conexion": false,
+                    "telefono_contacto": "6140000000",
+                    "tienda_url": "https://sand-user.vaiinilla.app/e/cintas-restaurante",
+                    "imagen_url": null,
+                    "logo_url": null,
+                    "reparto_activo": false,
+                    "reparto_radio_km": null,
+                    "reparto_costo": null,
+                    "reparto_minimo": null,
+                    "permite_contra_entrega": false,
+                    "encargos_requieren_aceptar": false,
+                    "encargos_minutos_aceptar": null,
+                    "anticipo_porcentaje": null,
+                    "datos_transferencia": null,
+                    "tiene_ubicacion": true,
+                    "latitud": 28.6353,
+                    "longitud": -106.0889,
+                    "tipos_disponibles": [
+                        "cafeteria",
+                        "restaurante",
+                        "padel",
+                        "bar",
+                        "food_truck",
+                        "drive_thru",
+                        "comedor",
+                        "evento",
+                        "reposteria",
+                        "boliche"
+                    ],
+                    "catalogo_tipos": {
+                        "version": "v1",
+                        "tipos": [
+                            {
+                                "tipo": "cafeteria",
+                                "etiqueta": "Cafetería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "restaurante",
+                                "etiqueta": "Restaurante",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": true
+                            },
+                            {
+                                "tipo": "padel",
+                                "etiqueta": "Pádel",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "bar",
+                                "etiqueta": "Bar",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "food_truck",
+                                "etiqueta": "Food truck",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "drive_thru",
+                                "etiqueta": "Drive-thru",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "comedor",
+                                "etiqueta": "Comedor",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "evento",
+                                "etiqueta": "Evento",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "reposteria",
+                                "etiqueta": "Repostería",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "boliche",
+                                "etiqueta": "Boliche",
+                                "seleccion_permitida": true,
+                                "reasons": [],
+                                "actual": false
+                            },
+                            {
+                                "tipo": "hotel",
+                                "etiqueta": "Hotel",
+                                "seleccion_permitida": false,
+                                "reasons": [
+                                    {
+                                        "code": "PLATFORM_CONTROLLED_TYPE",
+                                        "message": "Hotel solo lo asigna o quita la plataforma.",
+                                        "blocking": true
+                                    }
+                                ],
+                                "actual": false
+                            }
+                        ]
+                    },
+                    "contrato_v1": {
+                        "version": "v1",
+                        "tipo_comercial": "restaurante",
+                        "tipo_comercial_conocido": true,
+                        "modo_operativo": {
+                            "entrega_requiere_qr": false,
+                            "permite_pago_al_final": true,
+                            "barra_prepara": false,
+                            "cocina_prepara_sin_cobrar": true,
+                            "permite_pago_en_caja": true
+                        },
+                        "capacidades": {
+                            "edicion_tipo_desde_negocio": {
+                                "enabled": true,
+                                "reasons": []
+                            },
+                            "hotel_operacion": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_HOTEL",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "reposteria_entrega_domicilio": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "TYPE_NOT_REPOSTERIA",
+                                        "message": "No aplica para este tipo."
+                                    }
+                                ]
+                            },
+                            "transicion_segura_hito2": {
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HITO2_NOT_IMPLEMENTED",
+                                        "message": "La ejecución segura de transiciones se implementa en el hito 2."
+                                    }
+                                ]
+                            }
+                        },
+                        "ocultacion_producto": {
+                            "saldo_wallet": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            },
+                            "cashback": {
+                                "visible": false,
+                                "enabled": false,
+                                "reasons": [
+                                    {
+                                        "code": "HIDDEN_BY_PRODUCT_POLICY",
+                                        "message": "Oculto por política de producto."
+                                    }
+                                ]
+                            }
+                        },
+                        "restrictions": []
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos/216/archivar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": true,
+                    "archivado": true,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos/216/desarchivar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": true,
+                    "archivado": false,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        },
+                        {
+                            "id": 216,
+                            "categoria_id": 117,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Flan 94ac9c",
+                            "descripcion": "De la casa",
+                            "ingredientes": "Leche, huevo y caramelo",
+                            "alergenos": null,
+                            "alergenos_codigos": [
+                                "huevo",
+                                "lacteos"
+                            ],
+                            "alergenos_revisados": true,
+                            "tiempo_estimado_min": 4,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "42.50",
+                            "precio_digital": "42.50",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:37:46.608Z|216"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "catalogo/productos/216/archivar",
+            "body": {},
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 216,
+                    "categoria_id": 117,
+                    "estacion_preparacion": "cocina",
+                    "nombre": "Flan 94ac9c",
+                    "descripcion": "De la casa",
+                    "ingredientes": "Leche, huevo y caramelo",
+                    "alergenos": null,
+                    "alergenos_codigos": [
+                        "huevo",
+                        "lacteos"
+                    ],
+                    "alergenos_revisados": true,
+                    "tiempo_estimado_min": 4,
+                    "dias_preparacion": 0,
+                    "maximo_por_dia": null,
+                    "precio_mostrador": "42.50",
+                    "precio_digital": "42.50",
+                    "disponible": true,
+                    "archivado": true,
+                    "imagen_url": null,
+                    "grupos_opcion": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        }
+    ]
+}

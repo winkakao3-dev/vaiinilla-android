@@ -1,0 +1,1283 @@
+{
+    "values": {
+        "habitacion": "Cinta 46cb61 ",
+        "salida": "2026-11-12"
+    },
+    "exchanges": [
+        {
+            "session": "hotel.admin",
+            "verb": "GET",
+            "path": "hotel/configuracion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "activo": true,
+                    "cargo_habitacion_activo": true,
+                    "tarjeta_al_pedir": false,
+                    "codigo_entrega_activo": false,
+                    "cocina_desde": "07:00",
+                    "cocina_hasta": "23:00",
+                    "solicitudes_activas": true,
+                    "no_molestar_activo": true,
+                    "hora_checkout": "12:00",
+                    "salida_tardia_hora": "15:00",
+                    "salida_tardia_precio": "300.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.admin",
+            "verb": "PUT",
+            "path": "hotel/configuracion",
+            "body": {
+                "cargo_habitacion_activo": true,
+                "tarjeta_al_pedir": false,
+                "codigo_entrega_activo": false,
+                "cocina_desde": "07:00",
+                "cocina_hasta": "23:00",
+                "solicitudes_activas": true,
+                "no_molestar_activo": true,
+                "salida_tardia_hora": "15:00",
+                "salida_tardia_precio": "300.00",
+                "hora_checkout": "12:00"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "activo": true,
+                    "cargo_habitacion_activo": true,
+                    "tarjeta_al_pedir": false,
+                    "codigo_entrega_activo": false,
+                    "cocina_desde": "07:00",
+                    "cocina_hasta": "23:00",
+                    "solicitudes_activas": true,
+                    "no_molestar_activo": true,
+                    "hora_checkout": "12:00",
+                    "salida_tardia_hora": "15:00",
+                    "salida_tardia_precio": "300.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias",
+            "query": {
+                "estado": "en_casa"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "hoy": "2026-11-10",
+                    "estancias": [],
+                    "limit": null,
+                    "offset": 0,
+                    "hay_mas": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias",
+            "query": {
+                "estado": "reservada"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "hoy": "2026-11-10",
+                    "estancias": [],
+                    "limit": null,
+                    "offset": 0,
+                    "hay_mas": false
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.admin",
+            "verb": "POST",
+            "path": "habitaciones/lote",
+            "body": {
+                "prefijo": "Cinta 46cb61",
+                "desde": 1,
+                "hasta": 1,
+                "piso": 2,
+                "categoria": "doble"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "solicitadas": 1,
+                    "creadas": 1,
+                    "convertidas": 0,
+                    "omitidas": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "habitaciones",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 107,
+                        "nombre": "Cinta 671d55 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 110,
+                        "nombre": "Cinta 7c2d46 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 109,
+                        "nombre": "Cinta 7e2672 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 113,
+                        "nombre": "Cinta b6d704 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 112,
+                        "nombre": "Cinta c54a1f 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 106,
+                        "nombre": "Cinta e74006 1",
+                        "piso": 2,
+                        "categoria": "doble",
+                        "limpieza": "por_limpiar",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 111,
+                        "nombre": "Cinta 1a57cb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 108,
+                        "nombre": "Cinta 4c3cdb 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    },
+                    {
+                        "id": 114,
+                        "nombre": "Cinta 81b373 1",
+                        "piso": 5,
+                        "categoria": "suite",
+                        "limpieza": "lista",
+                        "ocupada": false,
+                        "no_molestar": false,
+                        "estancia": null,
+                        "solicitudes_abiertas": 0,
+                        "pedidos_en_curso": 0
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias",
+            "body": {
+                "espacio_id": 132,
+                "huesped_nombre": "Huésped de cinta",
+                "salida": "2026-11-12",
+                "tarifa_noche": "1000.00"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "estado": "en_casa",
+                    "huesped": "Huésped de cinta",
+                    "contacto": null,
+                    "usuario_id": null,
+                    "usuarios_vinculados": 0,
+                    "codigo": "276533",
+                    "espacio_id": 132,
+                    "espacio_nombre": "Cinta 46cb61 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-10",
+                    "salida": "2026-11-12",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "1000.00",
+                    "entro_en": "2026-11-10T23:39:05.880Z",
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "2000.00",
+                    "cuenta": {
+                        "noches_total": "2000.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "2000.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cliente",
+            "verb": "POST",
+            "path": "estancias/vincular",
+            "body": {
+                "codigo": "276533",
+                "espacio_id": 132
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "estado": "en_casa",
+                    "huesped": "Huésped de cinta",
+                    "contacto": null,
+                    "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
+                    "usuarios_vinculados": 1,
+                    "codigo": null,
+                    "espacio_id": 132,
+                    "espacio_nombre": "Cinta 46cb61 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-10",
+                    "salida": "2026-11-12",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "1000.00",
+                    "entro_en": "2026-11-10T23:39:05.880Z",
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "2000.00",
+                    "cuenta": {
+                        "noches_total": "2000.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "2000.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 1,
+                    "ajustes": {
+                        "cargo_habitacion_activo": true,
+                        "tarjeta_al_pedir": false,
+                        "codigo_entrega_activo": false,
+                        "cocina_desde": "07:00",
+                        "cocina_hasta": "23:00",
+                        "solicitudes_activas": true,
+                        "no_molestar_activo": true,
+                        "hora_checkout": "12:00",
+                        "salida_tardia_hora": "15:00",
+                        "salida_tardia_precio": "300.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cliente",
+            "verb": "POST",
+            "path": "solicitudes-hotel",
+            "body": {
+                "tipo": "toallas",
+                "cantidad": 2,
+                "nota": "Para la alberca"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "df41e235-986c-476c-883c-beed0b9c91e4",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "toallas",
+                    "cantidad": 2,
+                    "nota": "Para la alberca",
+                    "estado": "pendiente",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:07.031Z",
+                    "tomada_en": null,
+                    "cerrada_en": null,
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cliente",
+            "verb": "POST",
+            "path": "solicitudes-hotel",
+            "body": {
+                "tipo": "salida_tardia",
+                "cantidad": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "3ca8760e-f8b5-402a-b381-c483a939e749",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "salida_tardia",
+                    "cantidad": 1,
+                    "nota": null,
+                    "estado": "pendiente",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:07.678Z",
+                    "tomada_en": null,
+                    "cerrada_en": null,
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cliente",
+            "verb": "POST",
+            "path": "solicitudes-hotel",
+            "body": {
+                "tipo": "almohadas",
+                "cantidad": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "6b2608a4-603e-456a-ac0d-543a9d22851b",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "almohadas",
+                    "cantidad": 1,
+                    "nota": null,
+                    "estado": "pendiente",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:08.247Z",
+                    "tomada_en": null,
+                    "cerrada_en": null,
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cliente",
+            "verb": "GET",
+            "path": "solicitudes-hotel",
+            "query": {
+                "estado": "pendiente,tomada,resuelta,cancelada"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "63646486-15ef-4b0c-8c0e-edf03e4b7417",
+                        "estancia_id": "9582e05b-05d3-4a40-8194-1fd7e2601013",
+                        "habitacion": {
+                            "id": 106,
+                            "nombre": "Cinta e74006 1",
+                            "piso": 2
+                        },
+                        "tipo": "toallas",
+                        "cantidad": 2,
+                        "nota": "Para la alberca",
+                        "estado": "resuelta",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": {
+                            "usuario_id": null,
+                            "nombre": "Personal del hotel"
+                        },
+                        "creado_en": "2026-11-10T23:02:38.020Z",
+                        "tomada_en": "2026-11-10T23:02:41.505Z",
+                        "cerrada_en": "2026-11-10T23:02:42.095Z",
+                        "version": 3
+                    },
+                    {
+                        "id": "bef02cb1-a518-4424-a70d-60dcc0fe2429",
+                        "estancia_id": "9582e05b-05d3-4a40-8194-1fd7e2601013",
+                        "habitacion": {
+                            "id": 106,
+                            "nombre": "Cinta e74006 1",
+                            "piso": 2
+                        },
+                        "tipo": "salida_tardia",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "resuelta",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:02:38.594Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:02:43.237Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "28fb23bf-9ad2-41c7-bab5-e0283c198ce2",
+                        "estancia_id": "9582e05b-05d3-4a40-8194-1fd7e2601013",
+                        "habitacion": {
+                            "id": 106,
+                            "nombre": "Cinta e74006 1",
+                            "piso": 2
+                        },
+                        "tipo": "almohadas",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "cancelada",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:02:39.286Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:02:40.395Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "5969d1d2-21a0-4bd7-bd3a-f0a073035ab6",
+                        "estancia_id": "2f99a502-d189-496f-9fb8-62fea5093428",
+                        "habitacion": {
+                            "id": 109,
+                            "nombre": "Cinta 7e2672 1",
+                            "piso": 2
+                        },
+                        "tipo": "toallas",
+                        "cantidad": 2,
+                        "nota": "Para la alberca",
+                        "estado": "cancelada",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:03:47.642Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:03:51.606Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "978ea947-7082-46f3-97ee-ba85b648d8a7",
+                        "estancia_id": "2f99a502-d189-496f-9fb8-62fea5093428",
+                        "habitacion": {
+                            "id": 109,
+                            "nombre": "Cinta 7e2672 1",
+                            "piso": 2
+                        },
+                        "tipo": "salida_tardia",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "cancelada",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:03:48.201Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:03:51.606Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "15e2da77-c7f3-4672-aed9-0705c3136b94",
+                        "estancia_id": "2f99a502-d189-496f-9fb8-62fea5093428",
+                        "habitacion": {
+                            "id": 109,
+                            "nombre": "Cinta 7e2672 1",
+                            "piso": 2
+                        },
+                        "tipo": "almohadas",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "cancelada",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:03:48.710Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:03:51.606Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "7026750d-ba51-4750-89a8-1425c79c0e4b",
+                        "estancia_id": "1f609a15-f16f-41c3-aece-5463be598c1c",
+                        "habitacion": {
+                            "id": 112,
+                            "nombre": "Cinta c54a1f 1",
+                            "piso": 2
+                        },
+                        "tipo": "toallas",
+                        "cantidad": 2,
+                        "nota": "Para la alberca",
+                        "estado": "resuelta",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": {
+                            "usuario_id": null,
+                            "nombre": "Personal del hotel"
+                        },
+                        "creado_en": "2026-11-10T23:04:39.515Z",
+                        "tomada_en": "2026-11-10T23:04:42.701Z",
+                        "cerrada_en": "2026-11-10T23:04:43.213Z",
+                        "version": 3
+                    },
+                    {
+                        "id": "9de672c3-b282-4319-b395-ee9126565e79",
+                        "estancia_id": "1f609a15-f16f-41c3-aece-5463be598c1c",
+                        "habitacion": {
+                            "id": 112,
+                            "nombre": "Cinta c54a1f 1",
+                            "piso": 2
+                        },
+                        "tipo": "salida_tardia",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "resuelta",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:04:40.049Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:04:44.299Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "fa9446d1-5ad6-40be-a1d8-c1ad6360380a",
+                        "estancia_id": "1f609a15-f16f-41c3-aece-5463be598c1c",
+                        "habitacion": {
+                            "id": 112,
+                            "nombre": "Cinta c54a1f 1",
+                            "piso": 2
+                        },
+                        "tipo": "almohadas",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "cancelada",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:04:40.583Z",
+                        "tomada_en": null,
+                        "cerrada_en": "2026-11-10T23:04:41.707Z",
+                        "version": 2
+                    },
+                    {
+                        "id": "df41e235-986c-476c-883c-beed0b9c91e4",
+                        "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                        "habitacion": {
+                            "id": 132,
+                            "nombre": "Cinta 46cb61 1",
+                            "piso": 2
+                        },
+                        "tipo": "toallas",
+                        "cantidad": 2,
+                        "nota": "Para la alberca",
+                        "estado": "pendiente",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:39:07.031Z",
+                        "tomada_en": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    },
+                    {
+                        "id": "3ca8760e-f8b5-402a-b381-c483a939e749",
+                        "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                        "habitacion": {
+                            "id": 132,
+                            "nombre": "Cinta 46cb61 1",
+                            "piso": 2
+                        },
+                        "tipo": "salida_tardia",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "pendiente",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:39:07.678Z",
+                        "tomada_en": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    },
+                    {
+                        "id": "6b2608a4-603e-456a-ac0d-543a9d22851b",
+                        "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                        "habitacion": {
+                            "id": 132,
+                            "nombre": "Cinta 46cb61 1",
+                            "piso": 2
+                        },
+                        "tipo": "almohadas",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "pendiente",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:39:08.247Z",
+                        "tomada_en": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cliente",
+            "verb": "POST",
+            "path": "solicitudes-hotel/6b2608a4-603e-456a-ac0d-543a9d22851b/cancelaciones",
+            "body": {},
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "6b2608a4-603e-456a-ac0d-543a9d22851b",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "almohadas",
+                    "cantidad": 1,
+                    "nota": null,
+                    "estado": "cancelada",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:08.247Z",
+                    "tomada_en": null,
+                    "cerrada_en": "2026-11-10T23:39:09.271Z",
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.mesero",
+            "verb": "GET",
+            "path": "solicitudes-hotel",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "df41e235-986c-476c-883c-beed0b9c91e4",
+                        "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                        "habitacion": {
+                            "id": 132,
+                            "nombre": "Cinta 46cb61 1",
+                            "piso": 2
+                        },
+                        "tipo": "toallas",
+                        "cantidad": 2,
+                        "nota": "Para la alberca",
+                        "estado": "pendiente",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:39:07.031Z",
+                        "tomada_en": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    },
+                    {
+                        "id": "3ca8760e-f8b5-402a-b381-c483a939e749",
+                        "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                        "habitacion": {
+                            "id": 132,
+                            "nombre": "Cinta 46cb61 1",
+                            "piso": 2
+                        },
+                        "tipo": "salida_tardia",
+                        "cantidad": 1,
+                        "nota": null,
+                        "estado": "pendiente",
+                        "huesped": {
+                            "nombre": "Huésped de cinta"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:39:07.678Z",
+                        "tomada_en": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.mesero",
+            "verb": "POST",
+            "path": "solicitudes-hotel/df41e235-986c-476c-883c-beed0b9c91e4/transiciones",
+            "body": {
+                "accion": "tomar",
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "df41e235-986c-476c-883c-beed0b9c91e4",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "toallas",
+                    "cantidad": 2,
+                    "nota": "Para la alberca",
+                    "estado": "tomada",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": {
+                        "usuario_id": "180d5244-672a-488f-a150-bd02039080f0",
+                        "nombre": "Vigía mesero"
+                    },
+                    "creado_en": "2026-11-10T23:39:07.031Z",
+                    "tomada_en": "2026-11-10T23:39:10.428Z",
+                    "cerrada_en": null,
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.mesero",
+            "verb": "POST",
+            "path": "solicitudes-hotel/df41e235-986c-476c-883c-beed0b9c91e4/transiciones",
+            "body": {
+                "accion": "resolver",
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "df41e235-986c-476c-883c-beed0b9c91e4",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "toallas",
+                    "cantidad": 2,
+                    "nota": "Para la alberca",
+                    "estado": "resuelta",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": {
+                        "usuario_id": "180d5244-672a-488f-a150-bd02039080f0",
+                        "nombre": "Vigía mesero"
+                    },
+                    "creado_en": "2026-11-10T23:39:07.031Z",
+                    "tomada_en": "2026-11-10T23:39:10.428Z",
+                    "cerrada_en": "2026-11-10T23:39:10.946Z",
+                    "version": 3
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias/b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "estado": "en_casa",
+                    "huesped": "Huésped de cinta",
+                    "contacto": null,
+                    "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
+                    "usuarios_vinculados": 1,
+                    "codigo": "276533",
+                    "espacio_id": 132,
+                    "espacio_nombre": "Cinta 46cb61 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-10",
+                    "salida": "2026-11-12",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-12T18:00:00.000Z",
+                    "tarifa_noche": "1000.00",
+                    "entro_en": "2026-11-10T23:39:05.880Z",
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "2000.00",
+                    "cuenta": {
+                        "noches_total": "2000.00",
+                        "cargos_total": "0.00",
+                        "pedidos_total": "0.00",
+                        "total": "2000.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [],
+                    "pedidos": [],
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "solicitudes-hotel/3ca8760e-f8b5-402a-b381-c483a939e749/transiciones",
+            "body": {
+                "accion": "aprobar",
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "3ca8760e-f8b5-402a-b381-c483a939e749",
+                    "estancia_id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "habitacion": {
+                        "id": 132,
+                        "nombre": "Cinta 46cb61 1",
+                        "piso": 2
+                    },
+                    "tipo": "salida_tardia",
+                    "cantidad": 1,
+                    "nota": null,
+                    "estado": "resuelta",
+                    "huesped": {
+                        "nombre": "Huésped de cinta"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:07.678Z",
+                    "tomada_en": null,
+                    "cerrada_en": "2026-11-10T23:39:12.000Z",
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "GET",
+            "path": "estancias/b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "estado": "en_casa",
+                    "huesped": "Huésped de cinta",
+                    "contacto": null,
+                    "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
+                    "usuarios_vinculados": 1,
+                    "codigo": "276533",
+                    "espacio_id": 132,
+                    "espacio_nombre": "Cinta 46cb61 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-10",
+                    "salida": "2026-11-12",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-12T21:00:00.000Z",
+                    "tarifa_noche": "1000.00",
+                    "entro_en": "2026-11-10T23:39:05.880Z",
+                    "salio_en": null,
+                    "no_molestar": false,
+                    "total": "2300.00",
+                    "cuenta": {
+                        "noches_total": "2000.00",
+                        "cargos_total": "300.00",
+                        "pedidos_total": "0.00",
+                        "total": "2300.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": null,
+                    "total_cobrado": null,
+                    "cobrado_en": null,
+                    "cargos": [
+                        {
+                            "id": 13,
+                            "concepto": "Salida tardía 15:00",
+                            "categoria": "salida_tardia",
+                            "monto": "300.00",
+                            "creado_en": "2026-11-10T23:39:12.000Z"
+                        }
+                    ],
+                    "pedidos": [],
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.cajero",
+            "verb": "POST",
+            "path": "estancias/b5e89552-9e7a-440c-a178-03b2cefb4bf0/checkout",
+            "body": {
+                "metodo_pago": "tarjeta",
+                "total_esperado": "2300.00",
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "b5e89552-9e7a-440c-a178-03b2cefb4bf0",
+                    "estado": "salio",
+                    "huesped": "Huésped de cinta",
+                    "contacto": null,
+                    "usuario_id": "7a229969-e4e0-49de-8dec-6d65fb542324",
+                    "usuarios_vinculados": 1,
+                    "codigo": "276533",
+                    "espacio_id": 132,
+                    "espacio_nombre": "Cinta 46cb61 1",
+                    "piso": 2,
+                    "categoria": "doble",
+                    "entrada": "2026-11-10",
+                    "salida": "2026-11-12",
+                    "noches": 2,
+                    "salida_prevista": "2026-11-12T21:00:00.000Z",
+                    "tarifa_noche": "1000.00",
+                    "entro_en": "2026-11-10T23:39:05.880Z",
+                    "salio_en": "2026-11-10T23:39:13.134Z",
+                    "no_molestar": false,
+                    "total": "2300.00",
+                    "cuenta": {
+                        "noches_total": "2000.00",
+                        "cargos_total": "300.00",
+                        "pedidos_total": "0.00",
+                        "total": "2300.00",
+                        "pedidos_pendientes": 0
+                    },
+                    "metodo_cobro": "tarjeta",
+                    "total_cobrado": "2300.00",
+                    "cobrado_en": "2026-11-10T23:39:13.134Z",
+                    "cargos": [
+                        {
+                            "id": 13,
+                            "concepto": "Salida tardía 15:00",
+                            "categoria": "salida_tardia",
+                            "monto": "300.00",
+                            "creado_en": "2026-11-10T23:39:12.000Z"
+                        }
+                    ],
+                    "pedidos": [],
+                    "version": 3,
+                    "cobro_efectivo": null,
+                    "cobro_pedidos": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.mesero",
+            "verb": "POST",
+            "path": "habitaciones/132/limpieza",
+            "body": {
+                "limpieza": "lista"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 132,
+                    "nombre": "Cinta 46cb61 1",
+                    "limpieza": "lista"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "hotel.admin",
+            "verb": "PUT",
+            "path": "hotel/configuracion",
+            "body": {
+                "cargo_habitacion_activo": true,
+                "tarjeta_al_pedir": false,
+                "codigo_entrega_activo": false,
+                "cocina_desde": "07:00",
+                "cocina_hasta": "23:00",
+                "solicitudes_activas": true,
+                "no_molestar_activo": true,
+                "salida_tardia_hora": "15:00",
+                "salida_tardia_precio": "300.00",
+                "hora_checkout": "12:00"
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "activo": true,
+                    "cargo_habitacion_activo": true,
+                    "tarjeta_al_pedir": false,
+                    "codigo_entrega_activo": false,
+                    "cocina_desde": "07:00",
+                    "cocina_hasta": "23:00",
+                    "solicitudes_activas": true,
+                    "no_molestar_activo": true,
+                    "hora_checkout": "12:00",
+                    "salida_tardia_hora": "15:00",
+                    "salida_tardia_precio": "300.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

@@ -1,0 +1,592 @@
+{
+    "values": {
+        "lugar": "Cinta aaa04b"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios",
+            "body": {
+                "nombre": "Cinta aaa04b",
+                "tipo": "mesa"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 122,
+                    "nombre": "Cinta aaa04b",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_cUbt7m2XZCLYaIHncCqZNJzrcE0wbJm2dYla9dlOJWI",
+                    "codigo": "5733",
+                    "precio_hora": null,
+                    "capacidad": null,
+                    "reserva_minima_min": null,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "caracteristicas": [],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PATCH",
+            "path": "espacios/122",
+            "body": {
+                "nombre": "Cinta aaa04b B",
+                "descripcion": "Junto a la ventana",
+                "caracteristicas": [
+                    "Sombra"
+                ],
+                "capacidad": 6
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 122,
+                    "nombre": "Cinta aaa04b B",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_cUbt7m2XZCLYaIHncCqZNJzrcE0wbJm2dYla9dlOJWI",
+                    "codigo": "5733",
+                    "precio_hora": null,
+                    "capacidad": 6,
+                    "reserva_minima_min": null,
+                    "descripcion": "Junto a la ventana",
+                    "imagen_url": null,
+                    "caracteristicas": [
+                        "Sombra"
+                    ],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "espacios/122/imagen",
+            "body": {
+                "multipart": "imagen",
+                "filename": "mesa.png",
+                "mime": "image/png",
+                "bytes": 70
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 122,
+                    "nombre": "Cinta aaa04b B",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_cUbt7m2XZCLYaIHncCqZNJzrcE0wbJm2dYla9dlOJWI",
+                    "codigo": "5733",
+                    "precio_hora": null,
+                    "capacidad": 6,
+                    "reserva_minima_min": null,
+                    "descripcion": "Junto a la ventana",
+                    "imagen_url": "https://lyhidclkdpfgxnabevia.supabase.co/storage/v1/object/public/catalogo-productos/establecimientos/12d47102-d6ea-4a2f-b9b3-f8a5eb2fd783/espacios/122/5141768f-179d-4d0b-b6d8-c8fbc9c522fd.png",
+                    "caracteristicas": [
+                        "Sombra"
+                    ],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/122/imagen",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 122,
+                    "nombre": "Cinta aaa04b B",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_cUbt7m2XZCLYaIHncCqZNJzrcE0wbJm2dYla9dlOJWI",
+                    "codigo": "5733",
+                    "precio_hora": null,
+                    "capacidad": 6,
+                    "reserva_minima_min": null,
+                    "descripcion": "Junto a la ventana",
+                    "imagen_url": null,
+                    "caracteristicas": [
+                        "Sombra"
+                    ],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios/lote",
+            "body": {
+                "tipo": "mesa",
+                "prefijo": "Cinta aaa04b L",
+                "desde": 1,
+                "hasta": 3,
+                "capacidad": 4
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "tipo": "mesa",
+                    "solicitados": 3,
+                    "creados": 3,
+                    "omitidos": []
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "espacios/administracion",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 121,
+                        "nombre": "Cancha Cinta 9965db",
+                        "tipo": "cancha",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_XTPDImg8lZH0ov_LsYsz2MIuLoBaMBaHEd22mrPdY7A",
+                        "codigo": "3657",
+                        "precio_hora": "200.00",
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 115,
+                        "nombre": "Cinta 90c0b7",
+                        "tipo": "cancha",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_ygBn1v2OcFAmqyvQFsnRsBpJ_6kJ4ykffWWaMbxgSCE",
+                        "codigo": "3246",
+                        "precio_hora": "200.00",
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 120,
+                        "nombre": "Cinta 9965db",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_Nf2RHyCtns_nGiV0ODHvMjNhTAI5aiV_XCUuro0os98",
+                        "codigo": "5539",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 122,
+                        "nombre": "Cinta aaa04b B",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_cUbt7m2XZCLYaIHncCqZNJzrcE0wbJm2dYla9dlOJWI",
+                        "codigo": "5733",
+                        "precio_hora": null,
+                        "capacidad": 6,
+                        "reserva_minima_min": null,
+                        "descripcion": "Junto a la ventana",
+                        "imagen_url": null,
+                        "caracteristicas": [
+                            "Sombra"
+                        ],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 123,
+                        "nombre": "Cinta aaa04b L 1",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_iZWxpcpjeagy813Duq4Gb1ZJOHKjhCRkV7Y85iYkYG4",
+                        "codigo": "7121",
+                        "precio_hora": null,
+                        "capacidad": 4,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 124,
+                        "nombre": "Cinta aaa04b L 2",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_V32RB-pDk9QZiwk37WnemmpaYwCBadU7FkNywzvsnTM",
+                        "codigo": "2514",
+                        "precio_hora": null,
+                        "capacidad": 4,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 125,
+                        "nombre": "Cinta aaa04b L 3",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_05YEwE1lRW9OetyBQcDK6Plpa7-nb8jdThVoTX_L_fQ",
+                        "codigo": "8616",
+                        "precio_hora": null,
+                        "capacidad": 4,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 119,
+                        "nombre": "Cinta bcdc35",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_L0JENRMZxRzGkoK-KQDsnbEKRo0_MKLdBMHUju7g7Rs",
+                        "codigo": "5756",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 117,
+                        "nombre": "Cinta c20647",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_eb6s4SY4hF2arCvcjWUJdKa5v00RAcaB_7QoUedJc74",
+                        "codigo": "1871",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 118,
+                        "nombre": "Cinta c8761b",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_Y72dRPg9YOEFhJI4rJAKu9EB-i7dB_wZ3U2dWTiFU3Q",
+                        "codigo": "0805",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 116,
+                        "nombre": "Cinta ca7631",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_W-2xiOU09m-geHiHhVvchlf806jzKk2I_tYkxZ08FHM",
+                        "codigo": "1621",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/123",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 123,
+                    "eliminado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/124",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 124,
+                    "eliminado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/125",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 125,
+                    "eliminado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "DELETE",
+            "path": "espacios/122",
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": 122,
+                    "eliminado": true
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "espacios/administracion",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": 121,
+                        "nombre": "Cancha Cinta 9965db",
+                        "tipo": "cancha",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_XTPDImg8lZH0ov_LsYsz2MIuLoBaMBaHEd22mrPdY7A",
+                        "codigo": "3657",
+                        "precio_hora": "200.00",
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 115,
+                        "nombre": "Cinta 90c0b7",
+                        "tipo": "cancha",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_ygBn1v2OcFAmqyvQFsnRsBpJ_6kJ4ykffWWaMbxgSCE",
+                        "codigo": "3246",
+                        "precio_hora": "200.00",
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 120,
+                        "nombre": "Cinta 9965db",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_Nf2RHyCtns_nGiV0ODHvMjNhTAI5aiV_XCUuro0os98",
+                        "codigo": "5539",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 119,
+                        "nombre": "Cinta bcdc35",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_L0JENRMZxRzGkoK-KQDsnbEKRo0_MKLdBMHUju7g7Rs",
+                        "codigo": "5756",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 117,
+                        "nombre": "Cinta c20647",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_eb6s4SY4hF2arCvcjWUJdKa5v00RAcaB_7QoUedJc74",
+                        "codigo": "1871",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 118,
+                        "nombre": "Cinta c8761b",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_Y72dRPg9YOEFhJI4rJAKu9EB-i7dB_wZ3U2dWTiFU3Q",
+                        "codigo": "0805",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    },
+                    {
+                        "id": 116,
+                        "nombre": "Cinta ca7631",
+                        "tipo": "mesa",
+                        "activo": true,
+                        "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_W-2xiOU09m-geHiHhVvchlf806jzKk2I_tYkxZ08FHM",
+                        "codigo": "1621",
+                        "precio_hora": null,
+                        "capacidad": null,
+                        "reserva_minima_min": null,
+                        "descripcion": null,
+                        "imagen_url": null,
+                        "caracteristicas": [],
+                        "deporte": null,
+                        "superficie": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

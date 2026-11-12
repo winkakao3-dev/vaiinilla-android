@@ -1,0 +1,2571 @@
+{
+    "values": {
+        "lugar": "Cinta 1a7274"
+    },
+    "exchanges": [
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cajero"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "latidos",
+            "body": {
+                "dispositivo": "c1a7a000-0000-4000-8000-000000000001",
+                "rol": "cocina"
+            },
+            "status": 204,
+            "responseText": ""
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "GET",
+            "path": "sesiones-caja/activa",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "723561bf-755c-4908-8c19-047e96ffe7e2",
+                    "fecha_operativa": "2026-11-10",
+                    "monto_inicial": "500.00",
+                    "fondo_sugerido": null,
+                    "monto_final": null,
+                    "abierta_en": "2026-11-10T23:12:45.105Z",
+                    "cerrada_en": null,
+                    "cierre_automatico": false,
+                    "umbral_alerta_horas": 24,
+                    "excede_umbral": false,
+                    "efectivo_esperado": "950.00",
+                    "ultimo_cierre": {
+                        "monto_final": "730.00",
+                        "cerrada_en": "2026-11-10T23:12:35.431Z",
+                        "monto_inicial": "500.00",
+                        "efectivo_esperado": "740.00"
+                    }
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null,
+                    "fondo_sugerido": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "catalogo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "categorias": [
+                        {
+                            "id": 114,
+                            "nombre": "Bebidas 72b5",
+                            "orden": 0
+                        },
+                        {
+                            "id": 112,
+                            "nombre": "Cintas",
+                            "orden": 1
+                        },
+                        {
+                            "id": 113,
+                            "nombre": "Dulces 46f8ec",
+                            "orden": 8
+                        },
+                        {
+                            "id": 115,
+                            "nombre": "Dulces 75084e",
+                            "orden": 8
+                        },
+                        {
+                            "id": 117,
+                            "nombre": "Dulces 94ac9c",
+                            "orden": 8
+                        }
+                    ],
+                    "productos": [
+                        {
+                            "id": 211,
+                            "categoria_id": 112,
+                            "estacion_preparacion": "cocina",
+                            "nombre": "Torta de cinta",
+                            "descripcion": "Para grabar las pruebas",
+                            "ingredientes": "Pan y frijoles",
+                            "alergenos": null,
+                            "alergenos_codigos": [],
+                            "alergenos_revisados": false,
+                            "tiempo_estimado_min": 5,
+                            "dias_preparacion": 0,
+                            "maximo_por_dia": null,
+                            "precio_mostrador": "45.00",
+                            "precio_digital": "45.00",
+                            "disponible": true,
+                            "archivado": false,
+                            "imagen_url": null,
+                            "grupos_opcion": []
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": "2026-11-10T23:08:52.993Z|211"
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "POST",
+            "path": "espacios",
+            "body": {
+                "nombre": "Cinta 1a7274",
+                "tipo": "mesa"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": 135,
+                    "nombre": "Cinta 1a7274",
+                    "tipo": "mesa",
+                    "activo": true,
+                    "qr_url": "https://sand-user.vaiinilla.app/cintas-restaurante/m/esp_IzupgteXtjblt57R3OtfkrwR8Mi7VZGXLqFhZqtKF9Y",
+                    "codigo": "4241",
+                    "precio_hora": null,
+                    "capacidad": null,
+                    "reserva_minima_min": null,
+                    "descripcion": null,
+                    "imagen_url": null,
+                    "caracteristicas": [],
+                    "deporte": null,
+                    "superficie": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "mesas/unirse",
+            "body": {
+                "token": "esp_IzupgteXtjblt57R3OtfkrwR8Mi7VZGXLqFhZqtKF9Y",
+                "alias": "Ana"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "sesion_id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                    "mi_alias": "Ana",
+                    "mi_participante": {
+                        "id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                        "alias": "Ana"
+                    },
+                    "cuenta_abierta": true,
+                    "participantes": [
+                        {
+                            "id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                            "alias": "Ana",
+                            "soy_yo": true,
+                            "unido_en": "2026-11-10T23:39:37.150Z"
+                        }
+                    ],
+                    "grupos": [
+                        {
+                            "alias": "Ana",
+                            "participante_id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                            "soy_yo": true,
+                            "pedidos": [],
+                            "total": "0.00",
+                            "pagado": "0.00",
+                            "pendiente": "0.00"
+                        }
+                    ],
+                    "totales": {
+                        "total": "0.00",
+                        "pagado": "0.00",
+                        "pendiente": "0.00",
+                        "abonado": "0.00",
+                        "restante": "0.00"
+                    },
+                    "mi_parte": {
+                        "total": "0.00",
+                        "pagado": "0.00",
+                        "pendiente": "0.00"
+                    },
+                    "renta": null,
+                    "dispositivo_token": "iFCh2LtVlEdfOUvrLA8nmAmLZDCz6N_3YJRMZ6d0OcQ"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente2",
+            "verb": "POST",
+            "path": "mesas/unirse",
+            "body": {
+                "token": "esp_IzupgteXtjblt57R3OtfkrwR8Mi7VZGXLqFhZqtKF9Y",
+                "alias": "Beto"
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "sesion_id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                    "mi_alias": "Beto",
+                    "mi_participante": {
+                        "id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                        "alias": "Beto"
+                    },
+                    "cuenta_abierta": true,
+                    "participantes": [
+                        {
+                            "id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                            "alias": "Ana",
+                            "soy_yo": false,
+                            "unido_en": "2026-11-10T23:39:37.150Z"
+                        },
+                        {
+                            "id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                            "alias": "Beto",
+                            "soy_yo": true,
+                            "unido_en": "2026-11-10T23:39:37.796Z"
+                        }
+                    ],
+                    "grupos": [
+                        {
+                            "alias": "Ana",
+                            "participante_id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                            "soy_yo": false,
+                            "pedidos": [],
+                            "total": "0.00",
+                            "pagado": "0.00",
+                            "pendiente": "0.00"
+                        },
+                        {
+                            "alias": "Beto",
+                            "participante_id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                            "soy_yo": true,
+                            "pedidos": [],
+                            "total": "0.00",
+                            "pagado": "0.00",
+                            "pendiente": "0.00"
+                        }
+                    ],
+                    "totales": {
+                        "total": "0.00",
+                        "pagado": "0.00",
+                        "pendiente": "0.00",
+                        "abonado": "0.00",
+                        "restante": "0.00"
+                    },
+                    "mi_parte": {
+                        "total": "0.00",
+                        "pagado": "0.00",
+                        "pendiente": "0.00"
+                    },
+                    "renta": null,
+                    "dispositivo_token": "m6E4COznVvaSHnFmfhFEpAjhumDUKXdTxI2bUaVx_Y4"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "pedidos",
+            "body": {
+                "metodo_pago": "efectivo",
+                "destino": "en_espacio",
+                "espacio_id": 135,
+                "notas_cocina": null,
+                "items": [
+                    {
+                        "producto_id": 211,
+                        "cantidad": 1,
+                        "opcion_ids": []
+                    }
+                ],
+                "pago_diferido": true
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "folio": 21,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "cobrado",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": true,
+                    "pago_pendiente": true,
+                    "invitado": false,
+                    "version": 1,
+                    "creado_en": "2026-11-10T23:39:38.373Z",
+                    "actualizado_en": "2026-11-10T23:39:38.373Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": null,
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 215,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ],
+                    "calificacion": null,
+                    "qr_token": "v1.5b950f68364ddbb58e9632cd5dc866e6fdc14ba442d8aca9f2763d78e5a89f20"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "GET",
+            "path": "llamadas",
+            "query": {
+                "estado": "pendiente,en_camino"
+            },
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "espacios/135/llamadas",
+            "body": {
+                "motivo": "cuenta",
+                "pedido_id": "297fb4f4-699b-43fe-9d3a-3c0685585836"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "390b682a-980d-4fc9-aacb-3e13866d7cc0",
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "pedido_id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "motivo": "cuenta",
+                    "estado": "pendiente",
+                    "cliente": {
+                        "nombre": "Vigía cliente"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:39.715Z",
+                    "tomada_en": null,
+                    "cerrada_en": null,
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "GET",
+            "path": "llamadas",
+            "query": {
+                "estado": "pendiente,en_camino"
+            },
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "id": "390b682a-980d-4fc9-aacb-3e13866d7cc0",
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "pedido_id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                        "motivo": "cuenta",
+                        "estado": "pendiente",
+                        "cliente": {
+                            "nombre": "Vigía cliente"
+                        },
+                        "tomada_por": null,
+                        "creado_en": "2026-11-10T23:39:39.715Z",
+                        "tomada_en": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/tablero",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": [
+                            {
+                                "id": "8540b974-40ea-4b70-bc27-4422e4ae7c47",
+                                "folio": 17,
+                                "motivo": "Grabación",
+                                "rechazado_por_rol": "cajero",
+                                "actualizado_en": "2026-11-10T23:35:11.136Z"
+                            }
+                        ]
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "llamada": {
+                            "id": "390b682a-980d-4fc9-aacb-3e13866d7cc0",
+                            "espacio": {
+                                "id": 135,
+                                "nombre": "Cinta 1a7274",
+                                "tipo": "mesa"
+                            },
+                            "pedido_id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                            "motivo": "cuenta",
+                            "estado": "pendiente",
+                            "cliente": {
+                                "nombre": "Vigía cliente"
+                            },
+                            "tomada_por": null,
+                            "creado_en": "2026-11-10T23:39:39.715Z",
+                            "tomada_en": null,
+                            "cerrada_en": null,
+                            "version": 1
+                        },
+                        "pedidos": [
+                            {
+                                "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                                "folio": 21,
+                                "destino": "en_espacio",
+                                "sesion_espacio_id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                                "sesion_espacio_estado": "abierta",
+                                "entrega_sin_qr": true,
+                                "estado": "cobrado",
+                                "version": 1,
+                                "recoge_en_barra": false,
+                                "pago_diferido": true,
+                                "pago_pendiente": true,
+                                "cliente": {
+                                    "nombre": "Vigía cliente"
+                                },
+                                "items_resumen": "1× Torta de cinta",
+                                "actualizado_en": "2026-11-10T23:39:38.373Z"
+                            }
+                        ],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": [
+                            {
+                                "id": "dc2ed94d-7b68-435c-bca9-f68b06cfb1a5",
+                                "folio": 19,
+                                "motivo": "Grabación",
+                                "rechazado_por_rol": "cajero",
+                                "actualizado_en": "2026-11-10T23:36:15.564Z"
+                            }
+                        ]
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "estado-operativo",
+            "status": 200,
+            "response": {
+                "data": {
+                    "recibiendo_pedidos": true,
+                    "local_sin_conexion": false,
+                    "franjas_pedido": [],
+                    "dentro_de_franja": true,
+                    "sesion_caja_abierta": true,
+                    "caja_en_linea": true,
+                    "cocina_en_linea": true,
+                    "entrega_requiere_qr": false,
+                    "permite_pago_al_final": true,
+                    "permite_saldo": true,
+                    "permite_pago_en_caja": true,
+                    "barra_prepara": false,
+                    "entrega_en_espacio": "mesa",
+                    "cocina_prepara_sin_cobrar": true,
+                    "acepta_tarjeta": false,
+                    "tipo": "restaurante",
+                    "modo_escuela": false,
+                    "tutor_habilitado": false,
+                    "tiempo_estimado_min": 5,
+                    "sla_recuperacion_operativa_min": 15,
+                    "consultado_en": "2026-11-10T23:39:41.423Z"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/disponibilidad",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:35:09.030Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": false,
+                        "inicio": "2026-11-10T23:39:37.150Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:36:13.419Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "POST",
+            "path": "llamadas/390b682a-980d-4fc9-aacb-3e13866d7cc0/transiciones",
+            "body": {
+                "estado_objetivo": "en_camino",
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "390b682a-980d-4fc9-aacb-3e13866d7cc0",
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "pedido_id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "motivo": "cuenta",
+                    "estado": "en_camino",
+                    "cliente": {
+                        "nombre": "Vigía cliente"
+                    },
+                    "tomada_por": {
+                        "usuario_id": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                        "nombre": "Vigía mesero"
+                    },
+                    "creado_en": "2026-11-10T23:39:39.715Z",
+                    "tomada_en": "2026-11-10T23:39:42.410Z",
+                    "cerrada_en": null,
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "POST",
+            "path": "llamadas/390b682a-980d-4fc9-aacb-3e13866d7cc0/transiciones",
+            "body": {
+                "estado_objetivo": "atendida",
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "390b682a-980d-4fc9-aacb-3e13866d7cc0",
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "pedido_id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "motivo": "cuenta",
+                    "estado": "atendida",
+                    "cliente": {
+                        "nombre": "Vigía cliente"
+                    },
+                    "tomada_por": {
+                        "usuario_id": "6a58dbdb-170e-4623-855a-64e7b9b791c6",
+                        "nombre": "Vigía mesero"
+                    },
+                    "creado_en": "2026-11-10T23:39:39.715Z",
+                    "tomada_en": "2026-11-10T23:39:42.410Z",
+                    "cerrada_en": "2026-11-10T23:39:42.938Z",
+                    "version": 3
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/tablero",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": [
+                            {
+                                "id": "8540b974-40ea-4b70-bc27-4422e4ae7c47",
+                                "folio": 17,
+                                "motivo": "Grabación",
+                                "rechazado_por_rol": "cajero",
+                                "actualizado_en": "2026-11-10T23:35:11.136Z"
+                            }
+                        ]
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [
+                            {
+                                "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                                "folio": 21,
+                                "destino": "en_espacio",
+                                "sesion_espacio_id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                                "sesion_espacio_estado": "abierta",
+                                "entrega_sin_qr": true,
+                                "estado": "cobrado",
+                                "version": 1,
+                                "recoge_en_barra": false,
+                                "pago_diferido": true,
+                                "pago_pendiente": true,
+                                "cliente": {
+                                    "nombre": "Vigía cliente"
+                                },
+                                "items_resumen": "1× Torta de cinta",
+                                "actualizado_en": "2026-11-10T23:39:38.373Z"
+                            }
+                        ],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": [
+                            {
+                                "id": "dc2ed94d-7b68-435c-bca9-f68b06cfb1a5",
+                                "folio": 19,
+                                "motivo": "Grabación",
+                                "rechazado_por_rol": "cajero",
+                                "actualizado_en": "2026-11-10T23:36:15.564Z"
+                            }
+                        ]
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/disponibilidad",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:35:09.030Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": false,
+                        "inicio": "2026-11-10T23:39:37.150Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:36:13.419Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente2",
+            "verb": "POST",
+            "path": "espacios/135/llamadas",
+            "body": {
+                "motivo": "utensilios",
+                "pedido_id": null
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "743f7437-4481-480b-b951-d952e6d70cd4",
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "pedido_id": null,
+                    "motivo": "utensilios",
+                    "estado": "pendiente",
+                    "cliente": {
+                        "nombre": "Beto"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:44.633Z",
+                    "tomada_en": null,
+                    "cerrada_en": null,
+                    "version": 1
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente2",
+            "verb": "POST",
+            "path": "llamadas/743f7437-4481-480b-b951-d952e6d70cd4/cancelaciones",
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "743f7437-4481-480b-b951-d952e6d70cd4",
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "pedido_id": null,
+                    "motivo": "utensilios",
+                    "estado": "cancelada",
+                    "cliente": {
+                        "nombre": "Beto"
+                    },
+                    "tomada_por": null,
+                    "creado_en": "2026-11-10T23:39:44.633Z",
+                    "tomada_en": null,
+                    "cerrada_en": "2026-11-10T23:39:45.185Z",
+                    "version": 2
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente2",
+            "verb": "GET",
+            "path": "llamadas",
+            "query": {
+                "estado": "pendiente,en_camino"
+            },
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "pedidos/297fb4f4-699b-43fe-9d3a-3c0685585836/transiciones",
+            "body": {
+                "estado_objetivo": "preparando",
+                "version_esperada": 1
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "folio": 21,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "preparando",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": true,
+                    "pago_pendiente": true,
+                    "invitado": false,
+                    "version": 2,
+                    "creado_en": "2026-11-10T23:39:38.373Z",
+                    "actualizado_en": "2026-11-10T23:39:46.210Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Vigía cliente",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 215,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cocina",
+            "verb": "POST",
+            "path": "pedidos/297fb4f4-699b-43fe-9d3a-3c0685585836/transiciones",
+            "body": {
+                "estado_objetivo": "listo",
+                "version_esperada": 2
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "folio": 21,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "listo",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": true,
+                    "pago_pendiente": true,
+                    "invitado": false,
+                    "version": 3,
+                    "creado_en": "2026-11-10T23:39:38.373Z",
+                    "actualizado_en": "2026-11-10T23:39:46.766Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Vigía cliente",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": "2026-11-10T23:39:46.766Z",
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 215,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/tablero",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": [
+                            {
+                                "id": "8540b974-40ea-4b70-bc27-4422e4ae7c47",
+                                "folio": 17,
+                                "motivo": "Grabación",
+                                "rechazado_por_rol": "cajero",
+                                "actualizado_en": "2026-11-10T23:35:11.136Z"
+                            }
+                        ]
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [
+                            {
+                                "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                                "folio": 21,
+                                "destino": "en_espacio",
+                                "sesion_espacio_id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                                "sesion_espacio_estado": "abierta",
+                                "entrega_sin_qr": true,
+                                "estado": "listo",
+                                "version": 3,
+                                "recoge_en_barra": false,
+                                "pago_diferido": true,
+                                "pago_pendiente": true,
+                                "cliente": {
+                                    "nombre": "Vigía cliente"
+                                },
+                                "items_resumen": "1× Torta de cinta",
+                                "actualizado_en": "2026-11-10T23:39:46.766Z"
+                            }
+                        ],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": [
+                            {
+                                "id": "dc2ed94d-7b68-435c-bca9-f68b06cfb1a5",
+                                "folio": 19,
+                                "motivo": "Grabación",
+                                "rechazado_por_rol": "cajero",
+                                "actualizado_en": "2026-11-10T23:36:15.564Z"
+                            }
+                        ]
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "llamada": null,
+                        "pedidos": [],
+                        "rechazados_recientes": []
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/disponibilidad",
+            "status": 200,
+            "response": {
+                "data": [
+                    {
+                        "espacio": {
+                            "id": 121,
+                            "nombre": "Cancha Cinta 9965db",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 129,
+                            "nombre": "Cinta 038651",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:35:09.030Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": false,
+                        "inicio": "2026-11-10T23:39:37.150Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 131,
+                            "nombre": "Cinta 898df1",
+                            "tipo": "mesa"
+                        },
+                        "estado": "ocupada",
+                        "saldada": true,
+                        "inicio": "2026-11-10T23:36:13.419Z",
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 115,
+                            "nombre": "Cinta 90c0b7",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 120,
+                            "nombre": "Cinta 9965db",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 119,
+                            "nombre": "Cinta bcdc35",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 117,
+                            "nombre": "Cinta c20647",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 118,
+                            "nombre": "Cinta c8761b",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 116,
+                            "nombre": "Cinta ca7631",
+                            "tipo": "mesa"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": null,
+                        "proxima_reserva": null
+                    },
+                    {
+                        "espacio": {
+                            "id": 128,
+                            "nombre": "Cinta e2c8bb",
+                            "tipo": "cancha"
+                        },
+                        "estado": "libre",
+                        "saldada": true,
+                        "inicio": null,
+                        "fin_previsto": null,
+                        "libera_en": null,
+                        "restante_seg": null,
+                        "gracia_min": 5,
+                        "precio_hora": "200.00",
+                        "proxima_reserva": null
+                    }
+                ],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "POST",
+            "path": "pedidos/297fb4f4-699b-43fe-9d3a-3c0685585836/transiciones",
+            "body": {
+                "estado_objetivo": "entregado",
+                "version_esperada": 3
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "folio": 21,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "entregado",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": true,
+                    "pago_pendiente": true,
+                    "invitado": false,
+                    "version": 4,
+                    "creado_en": "2026-11-10T23:39:38.373Z",
+                    "actualizado_en": "2026-11-10T23:39:48.326Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Vigía cliente",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": "2026-11-10T23:39:46.766Z",
+                    "entregado_en": "2026-11-10T23:39:48.326Z",
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 215,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ]
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "GET",
+            "path": "pedidos/297fb4f4-699b-43fe-9d3a-3c0685585836",
+            "status": 200,
+            "response": {
+                "data": {
+                    "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                    "folio": 21,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "entregado",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": true,
+                    "pago_pendiente": true,
+                    "invitado": false,
+                    "version": 4,
+                    "creado_en": "2026-11-10T23:39:38.373Z",
+                    "actualizado_en": "2026-11-10T23:39:48.326Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": null,
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": "2026-11-10T23:39:46.766Z",
+                    "entregado_en": "2026-11-10T23:39:48.326Z",
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 215,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ],
+                    "calificacion": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "POST",
+            "path": "pedidos",
+            "body": {
+                "metodo_pago": "efectivo",
+                "destino": "en_espacio",
+                "espacio_id": 135,
+                "notas_cocina": null,
+                "items": [
+                    {
+                        "producto_id": 211,
+                        "cantidad": 1,
+                        "opcion_ids": []
+                    }
+                ],
+                "pago_diferido": true
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "id": "87488919-65db-406b-bfff-347cea9232bc",
+                    "folio": 22,
+                    "sin_conexion": null,
+                    "fecha_operativa": "2026-11-10",
+                    "tipo_establecimiento": "restaurante",
+                    "fecha_entrega": null,
+                    "franja_entrega": null,
+                    "estado": "cobrado",
+                    "metodo_pago": "efectivo",
+                    "destino": "en_espacio",
+                    "recoge_en_barra": false,
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "entrega_sin_qr": true,
+                    "subtotal": "45.00",
+                    "ahorro_combinado": "0.00",
+                    "cashback_otorgado": "0.00",
+                    "total": "45.00",
+                    "monto_pagado": "0.00",
+                    "saldo_pendiente": "45.00",
+                    "metodo_pago_cobrado": null,
+                    "pagos_por_metodo": [],
+                    "descuento_compra_conjunta": "0.00",
+                    "subtotal_con_descuento": "45.00",
+                    "objetivo_neto_establecimiento": "45.00",
+                    "total_cliente": "45.00",
+                    "extras": "0.00",
+                    "application_fee": null,
+                    "moneda": "mxn",
+                    "pricing_policy_version": "non_stripe_customer_price_v2",
+                    "pago_diferido": true,
+                    "pago_pendiente": true,
+                    "invitado": false,
+                    "version": 1,
+                    "creado_en": "2026-11-10T23:39:49.469Z",
+                    "actualizado_en": "2026-11-10T23:39:49.469Z",
+                    "vence_operacion_en": null,
+                    "motivo_pendiente_operativo": null,
+                    "motivo_cancelacion": null,
+                    "motivo_cancelacion_codigo": null,
+                    "cancelado_por_rol": null,
+                    "notas_cocina": null,
+                    "usuario": {
+                        "nombre": "Mostrador",
+                        "matricula": null,
+                        "alergias": []
+                    },
+                    "reserva": null,
+                    "llegada_en": null,
+                    "minutos_estimados": 5,
+                    "listo_en": null,
+                    "entregado_en": null,
+                    "no_recogido_en": null,
+                    "items": [
+                        {
+                            "id": 216,
+                            "producto_id": 211,
+                            "nombre_producto": "Torta de cinta",
+                            "imagen_url": null,
+                            "estacion_preparacion": "cocina",
+                            "cantidad": 1,
+                            "precio_digital_unitario": "45.00",
+                            "subtotal": "45.00",
+                            "opciones": [],
+                            "rechazo": null
+                        }
+                    ],
+                    "qr_token": "v1.955d66bc9d19f6853d07be9ff182fe4c81620d1cf59fe85761746294d46ee5ae"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente2",
+            "verb": "POST",
+            "path": "mesas/actual/reclamos",
+            "body": {
+                "folio": 22,
+                "pago_yo": true
+            },
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "sesion_id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                    "mi_alias": "Beto",
+                    "mi_participante": {
+                        "id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                        "alias": "Beto"
+                    },
+                    "cuenta_abierta": true,
+                    "participantes": [
+                        {
+                            "id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                            "alias": "Ana",
+                            "soy_yo": false,
+                            "unido_en": "2026-11-10T23:39:37.150Z"
+                        },
+                        {
+                            "id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                            "alias": "Beto",
+                            "soy_yo": true,
+                            "unido_en": "2026-11-10T23:39:37.796Z"
+                        }
+                    ],
+                    "grupos": [
+                        {
+                            "alias": "Ana",
+                            "participante_id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                            "soy_yo": false,
+                            "pedidos": [
+                                {
+                                    "id": null,
+                                    "pagara": null,
+                                    "lo_pago_yo": false,
+                                    "folio": 21,
+                                    "estado": "entregado",
+                                    "items_resumen": "1× Torta de cinta",
+                                    "total": "45.00",
+                                    "pendiente_cobro": true,
+                                    "creado_en": "2026-11-10T23:39:38.373Z"
+                                }
+                            ],
+                            "total": "45.00",
+                            "pagado": "0.00",
+                            "pendiente": "45.00"
+                        },
+                        {
+                            "alias": "Beto",
+                            "participante_id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                            "soy_yo": true,
+                            "pedidos": [],
+                            "total": "0.00",
+                            "pagado": "0.00",
+                            "pendiente": "0.00"
+                        },
+                        {
+                            "alias": null,
+                            "participante_id": null,
+                            "soy_yo": false,
+                            "pedidos": [
+                                {
+                                    "id": null,
+                                    "pagara": "Beto",
+                                    "lo_pago_yo": true,
+                                    "folio": 22,
+                                    "estado": "cobrado",
+                                    "items_resumen": "1× Torta de cinta",
+                                    "total": "45.00",
+                                    "pendiente_cobro": true,
+                                    "creado_en": "2026-11-10T23:39:49.469Z"
+                                }
+                            ],
+                            "total": "45.00",
+                            "pagado": "0.00",
+                            "pendiente": "45.00"
+                        }
+                    ],
+                    "totales": {
+                        "total": "90.00",
+                        "pagado": "0.00",
+                        "pendiente": "90.00",
+                        "abonado": "0.00",
+                        "restante": "90.00"
+                    },
+                    "mi_parte": {
+                        "total": "45.00",
+                        "pagado": "0.00",
+                        "pendiente": "45.00"
+                    },
+                    "renta": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.mesero",
+            "verb": "GET",
+            "path": "espacios/135/sesion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "estado": "ocupada",
+                    "saldada": false,
+                    "inicio": "2026-11-10T23:39:37.150Z",
+                    "fin_previsto": null,
+                    "libera_en": null,
+                    "restante_seg": null,
+                    "gracia_min": 5,
+                    "sesion": {
+                        "id": "3e9472af-7e6d-49b7-9693-a20eb5eb7e27",
+                        "espacio": {
+                            "id": 135,
+                            "nombre": "Cinta 1a7274",
+                            "tipo": "mesa"
+                        },
+                        "estado": "abierta",
+                        "inicio": "2026-11-10T23:39:37.150Z",
+                        "fin_previsto": null,
+                        "abierta_por": {
+                            "nombre": "Ana"
+                        },
+                        "cerrada_por": null,
+                        "motivo_cierre": null,
+                        "nota_cierre": null,
+                        "cerrada_en": null,
+                        "version": 1
+                    },
+                    "cuenta": {
+                        "pedidos": [
+                            {
+                                "pagara": null,
+                                "id": "297fb4f4-699b-43fe-9d3a-3c0685585836",
+                                "folio": 21,
+                                "estado": "entregado",
+                                "total": 45,
+                                "restante": 45,
+                                "pago_diferido": true,
+                                "pendiente_cobro": true,
+                                "cliente": {
+                                    "nombre": "Vigía cliente"
+                                },
+                                "items_resumen": "1× Torta de cinta",
+                                "creado_en": "2026-11-10T23:39:38.373Z"
+                            },
+                            {
+                                "pagara": "Beto",
+                                "id": "87488919-65db-406b-bfff-347cea9232bc",
+                                "folio": 22,
+                                "estado": "cobrado",
+                                "total": 45,
+                                "restante": 45,
+                                "pago_diferido": true,
+                                "pendiente_cobro": true,
+                                "cliente": {
+                                    "nombre": "Mostrador"
+                                },
+                                "items_resumen": "1× Torta de cinta",
+                                "creado_en": "2026-11-10T23:39:49.469Z"
+                            }
+                        ],
+                        "grupos": [
+                            {
+                                "etiqueta": "Ana",
+                                "participante_id": "04135f4d-fd9b-4e34-8dc4-ef2f187eb7d2",
+                                "pedidos": [
+                                    "297fb4f4-699b-43fe-9d3a-3c0685585836"
+                                ],
+                                "total": 45,
+                                "pagado": 0,
+                                "pendiente": 45
+                            },
+                            {
+                                "etiqueta": "Beto",
+                                "participante_id": "689d1e17-a7f2-4306-8048-30ef7816ddd1",
+                                "pedidos": [],
+                                "total": 0,
+                                "pagado": 0,
+                                "pendiente": 0
+                            },
+                            {
+                                "etiqueta": "Pedido general",
+                                "participante_id": null,
+                                "pedidos": [
+                                    "87488919-65db-406b-bfff-347cea9232bc"
+                                ],
+                                "total": 45,
+                                "pagado": 0,
+                                "pendiente": 45
+                            }
+                        ],
+                        "total": 90,
+                        "pendiente": 90,
+                        "pagado": 0,
+                        "abonado": 0,
+                        "restante": 90,
+                        "abonos": [],
+                        "saldada": false
+                    },
+                    "renta": null
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cajero",
+            "verb": "POST",
+            "path": "espacios/135/sesion/cobros",
+            "body": {
+                "metodo_pago": "terminal",
+                "total_esperado": "90.00"
+            },
+            "idempotent": true,
+            "status": 201,
+            "response": {
+                "data": {
+                    "espacio": {
+                        "id": 135,
+                        "nombre": "Cinta 1a7274",
+                        "tipo": "mesa"
+                    },
+                    "pedidos_cobrados": 2,
+                    "total": "90.00",
+                    "abonado": "0.00",
+                    "metodo_pago": "terminal",
+                    "monto_recibido": null,
+                    "cambio": "0.00",
+                    "propina": "0.00",
+                    "restante": "0.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente",
+            "verb": "POST",
+            "path": "mesas/actual/salida",
+            "status": 200,
+            "response": {
+                "data": null,
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.cliente2",
+            "verb": "POST",
+            "path": "mesas/actual/salida",
+            "status": 200,
+            "response": {
+                "data": null,
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

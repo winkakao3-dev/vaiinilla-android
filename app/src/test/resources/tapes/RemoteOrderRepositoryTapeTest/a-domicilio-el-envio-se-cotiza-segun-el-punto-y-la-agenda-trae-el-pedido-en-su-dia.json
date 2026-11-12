@@ -1,0 +1,95 @@
+{
+    "stores": {
+        "domicilio": {
+            "slug": "cintas-domicilio",
+            "id": "1d58b0e2-6ae8-47fc-afbc-8f530f71bb3f",
+            "users": {
+                "admin": "24b62db6-661b-4b37-bf7d-810603c16224",
+                "cajero": "ccc8c8c8-6435-44cf-ada0-b9e6a5cc9985",
+                "cocina": "f9e5be2b-4572-4ac7-b994-7f2d2fb5c3ae",
+                "mesero": "c66c9242-5feb-4727-b9b3-1a887c4d6ebb",
+                "cliente": "2502e85b-564d-4e9b-b262-048e0e99b66e",
+                "cliente2": "a57a0b2c-2c15-40fe-8a5c-14ea6b853f92"
+            },
+            "latitude": 28.6353,
+            "longitude": -106.0889
+        }
+    },
+    "values": {
+        "hoy": "2026-11-10"
+    },
+    "exchanges": [
+        {
+            "session": "domicilio.cliente",
+            "verb": "POST",
+            "path": "pedidos/reparto/cotizar",
+            "body": {
+                "lat": 28.6353,
+                "lng": -106.0889
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "llega": true,
+                    "distancia_km": "0.0",
+                    "costo": "40.00",
+                    "minimo": "100.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "domicilio.cliente",
+            "verb": "POST",
+            "path": "pedidos/reparto/cotizar",
+            "body": {
+                "lat": 31.6353,
+                "lng": -106.0889
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "llega": false,
+                    "distancia_km": "333.6",
+                    "costo": "40.00",
+                    "minimo": "100.00"
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "domicilio.admin",
+            "verb": "GET",
+            "path": "establecimiento/agenda",
+            "query": {
+                "desde": "2026-11-09",
+                "hasta": "2026-11-11"
+            },
+            "status": 200,
+            "response": {
+                "data": [],
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}

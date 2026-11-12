@@ -1,0 +1,290 @@
+{
+    "exchanges": [
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "reservas/configuracion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "apertura": "07:00",
+                    "cierre": "23:00",
+                    "dias_adelanto": 14,
+                    "zona_horaria": "America/Chihuahua",
+                    "bloque_min": 30,
+                    "bloques_min": [
+                        30,
+                        60
+                    ],
+                    "dias_semana": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7
+                    ],
+                    "duraciones_min": [
+                        90,
+                        180,
+                        270,
+                        360
+                    ],
+                    "duraciones_permitidas_min": [
+                        30,
+                        60,
+                        90,
+                        120,
+                        150,
+                        180,
+                        210,
+                        240,
+                        270,
+                        300,
+                        330,
+                        360,
+                        390,
+                        420,
+                        450,
+                        480
+                    ],
+                    "tipo_establecimiento": "restaurante",
+                    "apartado_min": 10,
+                    "tolerancia_efectivo_min": 15
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "reservas/configuracion",
+            "body": {
+                "apertura": "09:00",
+                "cierre": "21:00",
+                "dias_adelanto": 10,
+                "dias_semana": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "bloque_min": 30,
+                "duraciones_min": [
+                    90,
+                    180,
+                    270,
+                    360
+                ]
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "apertura": "09:00",
+                    "cierre": "21:00",
+                    "dias_adelanto": 10,
+                    "zona_horaria": "America/Chihuahua",
+                    "bloque_min": 30,
+                    "bloques_min": [
+                        30,
+                        60
+                    ],
+                    "dias_semana": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ],
+                    "duraciones_min": [
+                        90,
+                        180,
+                        270,
+                        360
+                    ],
+                    "duraciones_permitidas_min": [
+                        30,
+                        60,
+                        90,
+                        120,
+                        150,
+                        180,
+                        210,
+                        240,
+                        270,
+                        300,
+                        330,
+                        360,
+                        390,
+                        420,
+                        450,
+                        480
+                    ],
+                    "tipo_establecimiento": "restaurante",
+                    "apartado_min": 10,
+                    "tolerancia_efectivo_min": 15
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "GET",
+            "path": "reservas/configuracion",
+            "status": 200,
+            "response": {
+                "data": {
+                    "apertura": "09:00",
+                    "cierre": "21:00",
+                    "dias_adelanto": 10,
+                    "zona_horaria": "America/Chihuahua",
+                    "bloque_min": 30,
+                    "bloques_min": [
+                        30,
+                        60
+                    ],
+                    "dias_semana": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ],
+                    "duraciones_min": [
+                        90,
+                        180,
+                        270,
+                        360
+                    ],
+                    "duraciones_permitidas_min": [
+                        30,
+                        60,
+                        90,
+                        120,
+                        150,
+                        180,
+                        210,
+                        240,
+                        270,
+                        300,
+                        330,
+                        360,
+                        390,
+                        420,
+                        450,
+                        480
+                    ],
+                    "tipo_establecimiento": "restaurante",
+                    "apartado_min": 10,
+                    "tolerancia_efectivo_min": 15
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        },
+        {
+            "session": "restaurante.admin",
+            "verb": "PUT",
+            "path": "reservas/configuracion",
+            "body": {
+                "apertura": "07:00",
+                "cierre": "23:00",
+                "dias_adelanto": 14,
+                "dias_semana": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7
+                ],
+                "bloque_min": 30,
+                "duraciones_min": [
+                    90,
+                    180,
+                    270,
+                    360
+                ]
+            },
+            "idempotent": true,
+            "status": 200,
+            "response": {
+                "data": {
+                    "apertura": "07:00",
+                    "cierre": "23:00",
+                    "dias_adelanto": 14,
+                    "zona_horaria": "America/Chihuahua",
+                    "bloque_min": 30,
+                    "bloques_min": [
+                        30,
+                        60
+                    ],
+                    "dias_semana": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7
+                    ],
+                    "duraciones_min": [
+                        90,
+                        180,
+                        270,
+                        360
+                    ],
+                    "duraciones_permitidas_min": [
+                        30,
+                        60,
+                        90,
+                        120,
+                        150,
+                        180,
+                        210,
+                        240,
+                        270,
+                        300,
+                        330,
+                        360,
+                        390,
+                        420,
+                        450,
+                        480
+                    ],
+                    "tipo_establecimiento": "restaurante",
+                    "apartado_min": 10,
+                    "tolerancia_efectivo_min": 15
+                },
+                "meta": {
+                    "page": null,
+                    "total_pages": null,
+                    "total_items": null,
+                    "cursor": null
+                },
+                "error": null
+            }
+        }
+    ]
+}
