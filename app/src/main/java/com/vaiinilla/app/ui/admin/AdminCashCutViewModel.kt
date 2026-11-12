@@ -106,16 +106,20 @@ class AdminCashCutViewModel
             _uiState.value = _uiState.value.block()
         }
 
-        fun onVisible(scope: String) {
+        /** [canSetDayStart] es de Administración: Caja ve su corte sin el ajuste de la hora en que empieza el día. */
+        fun onVisible(
+            scope: String,
+            canSetDayStart: Boolean = true,
+        ) {
             if (scope != this.scope) {
                 this.scope = scope
                 _uiState.value = AdminCashCutUiState()
             }
             refresh()
-            loadDayStart()
+            if (canSetDayStart) loadDayStart()
         }
 
-        /** Solo Administración puede leerla: para Caja falla y el ajuste no se ofrece. */
+        /** Solo Administración puede leerla; a Caja el servidor se la niega y por eso no la pide. */
         private fun loadDayStart() {
             viewModelScope.launch {
                 val result = withContext(Dispatchers.IO) { repository.dayStart() }

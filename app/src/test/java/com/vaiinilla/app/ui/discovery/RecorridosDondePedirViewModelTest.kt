@@ -7,8 +7,10 @@ import com.vaiinilla.app.domain.auth.student.StudentAuthRepository
 import com.vaiinilla.app.domain.location.DeviceLocationProvider
 import com.vaiinilla.app.domain.model.Catalog
 import com.vaiinilla.app.domain.model.GeoCoordinates
+import com.vaiinilla.app.domain.model.GuestVenueContext
 import com.vaiinilla.app.domain.model.LastOrderedPlace
 import com.vaiinilla.app.domain.model.PublicEstablishment
+import com.vaiinilla.app.domain.model.PublicSpace
 import com.vaiinilla.app.domain.model.SpaceResolveResult
 import com.vaiinilla.app.domain.repository.AuthorizedAccessRepository
 import com.vaiinilla.app.domain.repository.DiscoveryRepository
@@ -44,7 +46,9 @@ private class RecordingDiscovery : DiscoveryRepository {
 
     override fun getGuestCatalog(slug: String): Result<Catalog> = Result.failure(IllegalStateException())
 
-    override fun resolveSpaceToken(token: String): Result<SpaceResolveResult> = Result.failure(IllegalStateException())
+    @Volatile var resolved: Result<SpaceResolveResult> = Result.failure(IllegalStateException())
+
+    override fun resolveSpaceToken(token: String): Result<SpaceResolveResult> = resolved
 }
 
 private fun place(
@@ -179,5 +183,32 @@ class RecorridosDondePedirViewModelTest {
         assertNull(vm.state.value.nearbyOrigin)
         vm.updateQuery("boliche")
         StaffHarness.awaitUntil("la búsqueda por nombre") { discovery.searches.any { it.first == "boliche" } }
+    }
+
+    @Test
+    fun codigoDeMesa_alSentarseSeBorraLoEscrito() {
+        val table = PublicSpace(id = 5, name = "Mesa 5", type = "mesa")
+        discovery.resolved = Result.success(SpaceResolveResult(place("usagi", "Usagi"), table))
+        val vm = viewModel()
+        vm.updateSpaceToken("4821")
+        var seated: GuestVenueContext? = null
+
+        vm.resolveSpaceToken(onEntered = { seated = it })
+
+        StaffHarness.awaitUntil("sentarse en la mesa") { seated != null }
+        assertEquals("4821", seated?.space?.qrToken)
+        assertEquals("", vm.state.value.spaceTokenInput)
+    }
+
+    @Test
+    fun codigoDeMesa_siElCodigoNoExisteSeQuedaParaCorregirlo() {
+        val vm = viewModel()
+        vm.updateSpaceToken("4821")
+        var finished = false
+
+        vm.resolveSpaceToken(onEntered = {}, onFinished = { finished = true })
+
+        StaffHarness.awaitUntil("la respuesta del código") { finished }
+        assertEquals("4821", vm.state.value.spaceTokenInput)
     }
 }

@@ -233,7 +233,8 @@ internal fun OrderJourneyPage(
         waiter?.let { WaiterCallHost(state = it, place = order.summary.space?.name) }
         return
     }
-    val arrival = onAnnounceArrival.takeIf { order.canAnnounceArrival(venue.driveThru) }
+    // Ya avisó: en lugar del botón va la hora a la que avisó.
+    val arrival = onAnnounceArrival.takeIf { order.arrivedAt == null && order.canAnnounceArrival(venue.driveThru) }
     val context = LocalContext.current
     var helpOpen by rememberSaveable(key) { mutableStateOf(false) }
     var payRestOpen by rememberSaveable(key) { mutableStateOf(false) }

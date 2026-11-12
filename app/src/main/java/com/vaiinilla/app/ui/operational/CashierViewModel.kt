@@ -506,6 +506,8 @@ class CashierViewModel
                                     pendingWalletReload = null,
                                     errorMessage = null,
                                 )
+                            // El efectivo de la recarga ya entró al cajón: «Efectivo en el cajón» no espera al sondeo.
+                            refreshCashSession()
                         }.onFailure { error ->
                             if (isDefinitiveWalletReloadFailure(error)) {
                                 // El servidor procesó y rechazó la recarga: nada quedó abonado.
@@ -581,6 +583,7 @@ class CashierViewModel
                                     actionNotice = "Se confirmó la recarga pendiente de ${moneyLabel(pending.amount)}",
                                     errorMessage = null,
                                 )
+                            refreshCashSession()
                         }
                     }.onFailure { error ->
                         if (isDefinitiveWalletReloadFailure(error)) {

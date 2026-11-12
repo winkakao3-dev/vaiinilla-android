@@ -18,6 +18,8 @@ import javax.inject.Inject
 
 const val SHARED_TABLE_ALIAS_MAX = 30
 private const val POLL_INTERVAL_MS = 5_000L
+private const val OTHERS_ATTEMPTS = 4
+private const val OTHERS_RETRY_MS = 1_500L
 private const val DEFAULT_WATCHER = "pantalla"
 const val SHARED_TABLE_WATCHER_PAGE = "mesa"
 const val SHARED_TABLE_WATCHER_ORDERS = "mis-pedidos"
@@ -117,6 +119,9 @@ class SharedTableViewModel
 
         private var watchedToken: String? = null
 
+        /** Para probar sin esperar; en la app es [OTHERS_RETRY_MS]. */
+        internal var othersRetryMs = OTHERS_RETRY_MS
+
         /**
          * Al llegar con un QR: lee quién ya está ahí para la invitación y si ya está sentado en alguna mesa.
          * Un fallo deja la invitación sin nombres. Otro QR vuelve a invitar aunque antes eligiera pedir solo.
@@ -127,8 +132,17 @@ class SharedTableViewModel
             _uiState.value = _uiState.value.copy(othersAtTable = emptyList(), orderedAlone = false)
             if (qrToken == null) return
             viewModelScope.launch {
-                val others = withContext(Dispatchers.IO) { repository.othersAt(qrToken) }.getOrNull() ?: return@launch
-                if (watchedToken == qrToken) _uiState.value = _uiState.value.copy(othersAtTable = others)
+                // Al llegar por QR la sesión de ese negocio puede no estar lista todavía: sin insistir, la invitación
+                // a compartir la mesa no salía y había que ir a Pedidos para unirse.
+                repeat(OTHERS_ATTEMPTS) { attempt ->
+                    if (attempt > 0) delay(othersRetryMs)
+                    if (watchedToken != qrToken) return@launch
+                    val others = withContext(Dispatchers.IO) { repository.othersAt(qrToken) }.getOrNull()
+                    if (others != null) {
+                        if (watchedToken == qrToken) _uiState.value = _uiState.value.copy(othersAtTable = others)
+                        return@launch
+                    }
+                }
             }
             viewModelScope.launch { refresh() }
         }

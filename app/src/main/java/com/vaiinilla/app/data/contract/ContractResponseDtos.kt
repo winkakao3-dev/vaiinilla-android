@@ -38,7 +38,8 @@ data class OperationalStatusDto(
     @SerialName("sesion_caja_abierta") val cashSessionOpen: Boolean,
     @SerialName("caja_en_linea") val cashierOnline: Boolean,
     @SerialName("cocina_en_linea") val kitchenOnline: Boolean,
-    @SerialName("tiempo_estimado_min") val estimatedTimeMinutes: Int,
+    /** Sin nada a la venta el servidor lo manda vacío: es el mayor tiempo de los productos disponibles. */
+    @SerialName("tiempo_estimado_min") val estimatedTimeMinutes: Int? = null,
     @SerialName("consultado_en") val consultedAt: String,
     @SerialName("entrega_requiere_qr") val deliveryRequiresQr: Boolean = true,
     @SerialName("permite_pago_al_final") val allowsPayAtEnd: Boolean = false,

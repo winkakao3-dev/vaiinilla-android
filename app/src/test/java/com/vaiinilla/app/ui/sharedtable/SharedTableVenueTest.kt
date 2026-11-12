@@ -89,6 +89,32 @@ class SharedTableVenueTest {
         assertFalse(vm.polling)
     }
 
+    @Test
+    fun `al llegar por QR antes de tener sesion vuelve a preguntar quien esta en la mesa`() {
+        val repository = FakeRepository(othersFailuresBeforeAnswer = 2, others = listOf("Ana"))
+        val vm = viewModel(repository)
+        vm.othersRetryMs = 20
+
+        vm.watchSpace("qr-mesa-5")
+
+        waitUntil { vm.uiState.value.othersAtTable == listOf("Ana") }
+        assertEquals(3, repository.othersCalls)
+    }
+
+    @Test
+    fun `si nunca contesta quien esta en la mesa deja de preguntar`() {
+        val repository = FakeRepository(othersFailuresBeforeAnswer = Int.MAX_VALUE)
+        val vm = viewModel(repository)
+        vm.othersRetryMs = 5
+
+        vm.watchSpace("qr-mesa-5")
+
+        waitUntil { repository.othersCalls == 4 }
+        Thread.sleep(60)
+        assertEquals(4, repository.othersCalls)
+        assertTrue(vm.uiState.value.othersAtTable.isEmpty())
+    }
+
     private fun waitUntil(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!condition()) {
@@ -104,8 +130,22 @@ class SharedTableVenueTest {
 
     private class FakeRepository(
         private val claimFails: Boolean = false,
+        private val othersFailuresBeforeAnswer: Int = 0,
+        private val others: List<String> = emptyList(),
     ) : SharedTableRepository {
         @Volatile var currentCalls = 0
+
+        @Volatile var othersCalls = 0
+
+        override fun othersAt(qrToken: String): Result<List<String>> {
+            othersCalls++
+            return if (othersCalls <= othersFailuresBeforeAnswer) {
+                Result.failure(IllegalStateException("sin sesión"))
+            } else {
+                Result.success(others)
+            }
+        }
+
         private val zero = SharedTableAmounts(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
         private val table =
             SharedTable(
